@@ -1,18 +1,19 @@
-// App-wide auth/session state + operations. Three phases:
-//   anon       — no tokens; show welcome/sign-up
-//   onboarding — signed in but hasn't finished the first-run signup flow
-//   authed     — signed in and onboarded; show the app
-// Bootstraps from the securely stored refresh token + a local "onboarded" flag.
+// App-wide auth/session state + operations. One sign-in, then the account's
+// ROLE decides the app:
+//   anon         — no tokens; show welcome/sign-up
+//   practitioner — a practitioner account; show the practitioner app
+//   onboarding   — a patient who hasn't finished the first-run signup flow
+//   authed       — an onboarded patient; show the patient app
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { getRefreshToken, clearTokens, saveTokens } from './token-store';
 import { apiFetch, postJson, setOnSignOut } from './api';
 import { storageGet, storageSet, storageDelete } from '../storage';
-import { saveProfile } from '../api/me';
-import { MOCK_AUTH } from '../config';
+import { saveProfile, fetchMe } from '../api/me';
+import { MOCK_AUTH, MOCK_ROLE } from '../config';
 
 const mockPair = () => ({ accessToken: 'mock-access', refreshToken: `mock-refresh-${Date.now()}`, expiresIn: 900 });
 
-type Status = 'loading' | 'anon' | 'onboarding' | 'authed';
+type Status = 'loading' | 'anon' | 'practitioner' | 'onboarding' | 'authed';
 const ONBOARDED_KEY = 'bl_onboarded';
 
 interface AuthValue {
@@ -44,46 +45,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => setOnSignOut(null);
   }, []);
 
-  // On launch: token present → onboarded ? app : resume onboarding; else anon.
+  // Resolve which app to show after we have a token: fetch the account's role +
+  // onboarding state (or use the mock in dev). Practitioner → practitioner app;
+  // patient → onboarding or the patient app.
+  const resolveSession = useCallback(async () => {
+    const onboardedLocal = await storageGet(ONBOARDED_KEY);
+    if (MOCK_AUTH) {
+      if (MOCK_ROLE === 'practitioner') return setStatus('practitioner');
+      return setStatus(onboardedLocal ? 'authed' : 'onboarding');
+    }
+    const me = await fetchMe();
+    if (!me) return setStatus(onboardedLocal ? 'authed' : 'onboarding'); // /me not available yet
+    if (me.role === 'practitioner') return setStatus('practitioner');
+    return setStatus(me.onboardedAt || onboardedLocal ? 'authed' : 'onboarding');
+  }, []);
+
+  // On launch: token present → resolve which app; else anon.
   useEffect(() => {
     (async () => {
-      const [token, onboarded] = await Promise.all([getRefreshToken(), storageGet(ONBOARDED_KEY)]);
-      setStatus(token ? (onboarded ? 'authed' : 'onboarding') : 'anon');
+      const token = await getRefreshToken();
+      if (!token) return setStatus('anon');
+      await resolveSession();
     })();
-  }, []);
+  }, [resolveSession]);
 
   const startEmailSignIn = useCallback(async (email: string, locale: 'en' | 'fr' = 'en') => {
     if (MOCK_AUTH) return; // pretend the code was sent
     await postJson('/api/mobile/auth/magic-link/start', { email, locale });
   }, []);
 
-  // A fresh sign-in always enters the onboarding flow (it's short; a returning
-  // user simply taps through). Production refinement: skip when the server
-  // reports an onboardedAt (see src/api/me.ts).
-  const afterAuth = useCallback(() => setStatus('onboarding'), []);
-
   const devSignIn = useCallback(async () => {
     await saveTokens(mockPair());
-    afterAuth();
-  }, [afterAuth]);
+    await resolveSession();
+  }, [resolveSession]);
 
   const verifyEmailCode = useCallback(async (email: string, code: string) => {
-    if (MOCK_AUTH) { await saveTokens(mockPair()); afterAuth(); return true; } // any code
+    if (MOCK_AUTH) { await saveTokens(mockPair()); await resolveSession(); return true; } // any code
     const res = await postJson('/api/mobile/auth/magic-link/verify', { email, code });
     if (!res.ok) return false;
     await saveTokens(await res.json());
-    afterAuth();
+    await resolveSession();
     return true;
-  }, [afterAuth]);
+  }, [resolveSession]);
 
   const signInWithGoogleIdToken = useCallback(async (idToken: string) => {
-    if (MOCK_AUTH) { await saveTokens(mockPair()); afterAuth(); return true; }
+    if (MOCK_AUTH) { await saveTokens(mockPair()); await resolveSession(); return true; }
     const res = await postJson('/api/mobile/auth/google', { idToken });
     if (!res.ok) return false;
     await saveTokens(await res.json());
-    afterAuth();
+    await resolveSession();
     return true;
-  }, [afterAuth]);
+  }, [resolveSession]);
 
   const completeOnboarding = useCallback(async () => {
     await saveProfile({ onboarded: true }).catch(() => {}); // record server-side (best-effort)

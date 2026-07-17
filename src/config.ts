@@ -4,10 +4,6 @@
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
-// Practitioners run their practice on the web, not this app. The welcome screen
-// offers them a quiet link there.
-export const PRACTITIONER_WEB_URL = process.env.EXPO_PUBLIC_PRACTITIONER_URL ?? 'https://bloomsline.care';
-
 // iOS App Transport Security + Android (release) block cleartext HTTP, so a
 // non-HTTPS API only fails once you make a native build — confusingly. Warn loudly
 // in dev. localhost is exempt (used by the iOS simulator against a local backend).
@@ -32,3 +28,7 @@ export const googleConfigured = Boolean(GOOGLE.webClientId || GOOGLE.iosClientId
 // with no backend, so the full flow can be clicked through for design review.
 // Never set this in a production build.
 export const MOCK_AUTH = process.env.EXPO_PUBLIC_MOCK_AUTH === '1';
+
+// Dev-only: with MOCK_AUTH, which role to sign in as — 'practitioner' or
+// 'member' (default). Lets us preview both apps without a backend.
+export const MOCK_ROLE = process.env.EXPO_PUBLIC_MOCK_ROLE === 'practitioner' ? 'practitioner' : 'member';

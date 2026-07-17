@@ -9,6 +9,7 @@
 import { apiFetch } from '../auth/api';
 
 export interface MeProfile {
+  role: string; // 'member' (patient) | 'practitioner'
   firstName: string | null;
   lastName: string | null;
   hasPractitioner: boolean;
