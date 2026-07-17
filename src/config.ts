@@ -4,6 +4,10 @@
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
+// Practitioners run their practice on the web, not this app. The welcome screen
+// offers them a quiet link there.
+export const PRACTITIONER_WEB_URL = process.env.EXPO_PUBLIC_PRACTITIONER_URL ?? 'https://bloomsline.care';
+
 // iOS App Transport Security + Android (release) block cleartext HTTP, so a
 // non-HTTPS API only fails once you make a native build — confusingly. Warn loudly
 // in dev. localhost is exempt (used by the iOS simulator against a local backend).
