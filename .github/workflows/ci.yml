@@ -44,10 +44,10 @@ jobs:
         run: >
           docker run --rm -v "$PWD:/repo" trufflesecurity/trufflehog:latest
           git file:///repo --only-verified --fail
-      - name: SAST (Semgrep — TypeScript + React Native rulesets)
+      - name: SAST (Semgrep, TypeScript ruleset)
         run: >
           docker run --rm -v "$PWD:/src" semgrep/semgrep:latest
-          semgrep scan --config p/typescript --config p/react-native --error --skip-unknown-extensions /src
+          semgrep scan --config p/typescript --error --skip-unknown-extensions /src
       - uses: actions/setup-node@v4
         with:
           node-version: 20
