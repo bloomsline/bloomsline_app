@@ -7,6 +7,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { getRefreshToken, clearTokens, saveTokens } from './token-store';
 import { apiFetch, postJson, setOnSignOut } from './api';
 import { storageGet, storageSet, storageDelete } from '../storage';
+import { saveProfile } from '../api/me';
 
 type Status = 'loading' | 'anon' | 'onboarding' | 'authed';
 const ONBOARDED_KEY = 'bl_onboarded';
@@ -72,6 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [afterAuth]);
 
   const completeOnboarding = useCallback(async () => {
+    await saveProfile({ onboarded: true }).catch(() => {}); // record server-side (best-effort)
     await storageSet(ONBOARDED_KEY, '1');
     setStatus('authed');
   }, []);

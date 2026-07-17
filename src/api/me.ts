@@ -31,6 +31,7 @@ export async function saveProfile(input: {
   lastName?: string;
   birthday?: string | null;
   agreedToTerms?: boolean;
+  onboarded?: boolean;
 }): Promise<boolean> {
   try {
     const res = await apiFetch('/api/mobile/me', { method: 'PATCH', body: JSON.stringify(input) });
