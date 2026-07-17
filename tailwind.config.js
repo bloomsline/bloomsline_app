@@ -3,6 +3,9 @@
 module.exports = {
   content: ['./app/**/*.{js,jsx,ts,tsx}', './src/**/*.{js,jsx,ts,tsx}'],
   presets: [require('nativewind/preset')],
+  // Class-based (not 'media') so the RN-web runtime doesn't throw when the color
+  // scheme is set. The app is light-only; no `dark:` variants are used.
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {

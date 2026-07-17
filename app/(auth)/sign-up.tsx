@@ -5,6 +5,7 @@ import { Screen, IconButton } from '@/src/ui/Screen';
 import { Button } from '@/src/ui/Button';
 import { useAuth } from '@/src/auth/auth-context';
 import { useGoogleSignIn } from '@/src/auth/google';
+import { googleConfigured } from '@/src/config';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -29,11 +30,17 @@ function OutlookMark() {
   );
 }
 
+// The Google auth hook (expo-auth-session) throws on web when no client id is
+// set, so it's isolated in a component that's only mounted when configured.
+function GoogleAuthButton() {
+  const google = useGoogleSignIn((m) => Alert.alert('Sign in', m));
+  return <Button label="Continue with Google" variant="dark" leading={<GoogleMark />} onPress={() => google.signIn()} />;
+}
+
 export default function SignUp() {
   const { startEmailSignIn } = useAuth();
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
-  const google = useGoogleSignIn((m) => Alert.alert('Sign in', m));
   const valid = EMAIL_RE.test(email.trim());
 
   const sendCode = async () => {
@@ -50,11 +57,6 @@ export default function SignUp() {
     }
   };
 
-  const onGoogle = () => {
-    if (!google.available) return Alert.alert('Google', 'Google sign-in isn’t configured yet.');
-    google.signIn();
-  };
-
   return (
     <Screen bg="bg-white" className="px-6">
       <View className="pt-2">
@@ -66,7 +68,11 @@ export default function SignUp() {
         <Text className="mt-2 text-[16px] text-muted">No password to invent. We’ll send a link.</Text>
 
         <View className="mt-8 gap-3">
-          <Button label="Continue with Google" variant="dark" leading={<GoogleMark />} onPress={onGoogle} />
+          {googleConfigured ? (
+            <GoogleAuthButton />
+          ) : (
+            <Button label="Continue with Google" variant="dark" leading={<GoogleMark />} onPress={() => Alert.alert('Google', 'Google sign-in isn’t configured yet.')} />
+          )}
           <Button label="Continue with Outlook" variant="secondary" leading={<OutlookMark />} onPress={() => Alert.alert('Outlook', 'Outlook sign-in is coming soon.')} />
 
           <View className="my-2 flex-row items-center gap-3">

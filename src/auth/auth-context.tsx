@@ -4,9 +4,9 @@
 //   authed     — signed in and onboarded; show the app
 // Bootstraps from the securely stored refresh token + a local "onboarded" flag.
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import * as SecureStore from 'expo-secure-store';
 import { getRefreshToken, clearTokens, saveTokens } from './token-store';
 import { apiFetch, postJson, setOnSignOut } from './api';
+import { storageGet, storageSet, storageDelete } from '../storage';
 
 type Status = 'loading' | 'anon' | 'onboarding' | 'authed';
 const ONBOARDED_KEY = 'bl_onboarded';
@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     const refreshToken = await getRefreshToken();
     if (refreshToken) postJson('/api/mobile/auth/logout', { refreshToken }).catch(() => {});
-    await Promise.all([clearTokens(), SecureStore.deleteItemAsync(ONBOARDED_KEY)]);
+    await Promise.all([clearTokens(), storageDelete(ONBOARDED_KEY)]);
     setStatus('anon');
   }, []);
 
@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // On launch: token present → onboarded ? app : resume onboarding; else anon.
   useEffect(() => {
     (async () => {
-      const [token, onboarded] = await Promise.all([getRefreshToken(), SecureStore.getItemAsync(ONBOARDED_KEY)]);
+      const [token, onboarded] = await Promise.all([getRefreshToken(), storageGet(ONBOARDED_KEY)]);
       setStatus(token ? (onboarded ? 'authed' : 'onboarding') : 'anon');
     })();
   }, []);
@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [afterAuth]);
 
   const completeOnboarding = useCallback(async () => {
-    await SecureStore.setItemAsync(ONBOARDED_KEY, '1');
+    await storageSet(ONBOARDED_KEY, '1');
     setStatus('authed');
   }, []);
 
