@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, Text, View } from 'react-native';
 import { Settings, Check, HeartHandshake, ChevronRight, Lock, User, Heart, HandHeart, Plus, type LucideIcon } from 'lucide-react-native';
 import { Screen } from '@/src/ui/Screen';
 import { useAuth } from '@/src/auth/auth-context';
@@ -14,11 +14,17 @@ export default function Home() {
   const [coachDismissed, setCoachDismissed] = useState(false);
   const prac = practitionerName ?? 'your practitioner';
 
-  const openSettings = () =>
+  const openSettings = () => {
+    // Alert.alert is a no-op on web, so confirm() there.
+    if (Platform.OS === 'web') {
+      if (globalThis.confirm?.('Sign out?')) signOut();
+      return;
+    }
     Alert.alert('Account', undefined, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign out', style: 'destructive', onPress: () => signOut() },
     ]);
+  };
 
   return (
     <Screen bg="bg-white" scroll className="px-6 pb-32">
