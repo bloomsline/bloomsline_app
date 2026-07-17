@@ -2,15 +2,16 @@ import { Redirect } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '@/src/auth/auth-context';
 
-// Entry gate: send the user to the app or to sign-in based on session state.
+// Entry gate: route by session phase.
 export default function Index() {
   const { status } = useAuth();
   if (status === 'loading') {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color="#0d9488" />
+      <View className="flex-1 items-center justify-center bg-surface">
+        <ActivityIndicator color="#009B8E" />
       </View>
     );
   }
-  return <Redirect href={status === 'authed' ? '/(app)/home' : '/(auth)/sign-in'} />;
+  const href = status === 'authed' ? '/(app)/home' : status === 'onboarding' ? '/(onboarding)/start' : '/(auth)/welcome';
+  return <Redirect href={href} />;
 }

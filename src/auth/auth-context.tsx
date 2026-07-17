@@ -1,20 +1,23 @@
-// App-wide auth state + operations. Bootstraps the session from the securely
-// stored refresh token, and exposes the three sign-in paths (email OTP + Google)
-// and sign-out, all talking to the backend's /api/mobile/auth/* endpoints.
+// App-wide auth/session state + operations. Three phases:
+//   anon       — no tokens; show welcome/sign-up
+//   onboarding — signed in but hasn't finished the first-run signup flow
+//   authed     — signed in and onboarded; show the app
+// Bootstraps from the securely stored refresh token + a local "onboarded" flag.
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import * as SecureStore from 'expo-secure-store';
 import { getRefreshToken, clearTokens, saveTokens } from './token-store';
 import { apiFetch, postJson, setOnSignOut } from './api';
 
-type Status = 'loading' | 'authed' | 'anon';
+type Status = 'loading' | 'anon' | 'onboarding' | 'authed';
+const ONBOARDED_KEY = 'bl_onboarded';
 
 interface AuthValue {
   status: Status;
-  /** Email OTP — step 1: request a code. Always resolves (never reveals existence). */
   startEmailSignIn: (email: string, locale?: 'en' | 'fr') => Promise<void>;
-  /** Email OTP — step 2: verify the code → signed in. Returns false on a bad code. */
   verifyEmailCode: (email: string, code: string) => Promise<boolean>;
-  /** Exchange a Google id_token (from the native flow) → signed in. */
   signInWithGoogleIdToken: (idToken: string) => Promise<boolean>;
+  /** Mark the first-run signup flow complete → move to the app. */
+  completeOnboarding: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -25,49 +28,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     const refreshToken = await getRefreshToken();
-    if (refreshToken) {
-      // best-effort server-side revoke; ignore failures
-      postJson('/api/mobile/auth/logout', { refreshToken }).catch(() => {});
-    }
-    await clearTokens();
+    if (refreshToken) postJson('/api/mobile/auth/logout', { refreshToken }).catch(() => {});
+    await Promise.all([clearTokens(), SecureStore.deleteItemAsync(ONBOARDED_KEY)]);
     setStatus('anon');
   }, []);
 
-  // A hard 401 (refresh failed) inside the API client flips us to signed-out.
   useEffect(() => {
     setOnSignOut(() => setStatus('anon'));
     return () => setOnSignOut(null);
   }, []);
 
-  // On launch: a stored refresh token means we can (optimistically) resume;
-  // the first authed request will rotate it or sign us out if it's dead.
+  // On launch: token present → onboarded ? app : resume onboarding; else anon.
   useEffect(() => {
-    getRefreshToken().then((t) => setStatus(t ? 'authed' : 'anon'));
+    (async () => {
+      const [token, onboarded] = await Promise.all([getRefreshToken(), SecureStore.getItemAsync(ONBOARDED_KEY)]);
+      setStatus(token ? (onboarded ? 'authed' : 'onboarding') : 'anon');
+    })();
   }, []);
 
   const startEmailSignIn = useCallback(async (email: string, locale: 'en' | 'fr' = 'en') => {
     await postJson('/api/mobile/auth/magic-link/start', { email, locale });
   }, []);
 
+  // A fresh sign-in always enters the onboarding flow (it's short; a returning
+  // user simply taps through). Production refinement: skip when the server
+  // reports an onboardedAt (see src/api/me.ts).
+  const afterAuth = useCallback(() => setStatus('onboarding'), []);
+
   const verifyEmailCode = useCallback(async (email: string, code: string) => {
     const res = await postJson('/api/mobile/auth/magic-link/verify', { email, code });
     if (!res.ok) return false;
     await saveTokens(await res.json());
-    setStatus('authed');
+    afterAuth();
     return true;
-  }, []);
+  }, [afterAuth]);
 
   const signInWithGoogleIdToken = useCallback(async (idToken: string) => {
     const res = await postJson('/api/mobile/auth/google', { idToken });
     if (!res.ok) return false;
     await saveTokens(await res.json());
-    setStatus('authed');
+    afterAuth();
     return true;
+  }, [afterAuth]);
+
+  const completeOnboarding = useCallback(async () => {
+    await SecureStore.setItemAsync(ONBOARDED_KEY, '1');
+    setStatus('authed');
   }, []);
 
   const value = useMemo<AuthValue>(
-    () => ({ status, startEmailSignIn, verifyEmailCode, signInWithGoogleIdToken, signOut }),
-    [status, startEmailSignIn, verifyEmailCode, signInWithGoogleIdToken, signOut],
+    () => ({ status, startEmailSignIn, verifyEmailCode, signInWithGoogleIdToken, completeOnboarding, signOut }),
+    [status, startEmailSignIn, verifyEmailCode, signInWithGoogleIdToken, completeOnboarding, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -79,5 +90,4 @@ export function useAuth(): AuthValue {
   return ctx;
 }
 
-// Re-export the client so screens can make authenticated calls.
 export { apiFetch };
