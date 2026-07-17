@@ -5,7 +5,7 @@ import { Screen, IconButton } from '@/src/ui/Screen';
 import { Button } from '@/src/ui/Button';
 import { useAuth } from '@/src/auth/auth-context';
 import { useGoogleSignIn } from '@/src/auth/google';
-import { googleConfigured } from '@/src/config';
+import { googleConfigured, MOCK_AUTH } from '@/src/config';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -38,7 +38,7 @@ function GoogleAuthButton() {
 }
 
 export default function SignUp() {
-  const { startEmailSignIn } = useAuth();
+  const { startEmailSignIn, devSignIn } = useAuth();
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const valid = EMAIL_RE.test(email.trim());
@@ -71,9 +71,9 @@ export default function SignUp() {
           {googleConfigured ? (
             <GoogleAuthButton />
           ) : (
-            <Button label="Continue with Google" variant="dark" leading={<GoogleMark />} onPress={() => Alert.alert('Google', 'Google sign-in isn’t configured yet.')} />
+            <Button label="Continue with Google" variant="dark" leading={<GoogleMark />} onPress={() => (MOCK_AUTH ? devSignIn() : Alert.alert('Google', 'Google sign-in isn’t configured yet.'))} />
           )}
-          <Button label="Continue with Outlook" variant="secondary" leading={<OutlookMark />} onPress={() => Alert.alert('Outlook', 'Outlook sign-in is coming soon.')} />
+          <Button label="Continue with Outlook" variant="secondary" leading={<OutlookMark />} onPress={() => (MOCK_AUTH ? devSignIn() : Alert.alert('Outlook', 'Outlook sign-in is coming soon.'))} />
 
           <View className="my-2 flex-row items-center gap-3">
             <View className="h-px flex-1 bg-[#eee]" />

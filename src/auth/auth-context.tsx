@@ -8,6 +8,9 @@ import { getRefreshToken, clearTokens, saveTokens } from './token-store';
 import { apiFetch, postJson, setOnSignOut } from './api';
 import { storageGet, storageSet, storageDelete } from '../storage';
 import { saveProfile } from '../api/me';
+import { MOCK_AUTH } from '../config';
+
+const mockPair = () => ({ accessToken: 'mock-access', refreshToken: `mock-refresh-${Date.now()}`, expiresIn: 900 });
 
 type Status = 'loading' | 'anon' | 'onboarding' | 'authed';
 const ONBOARDED_KEY = 'bl_onboarded';
@@ -17,6 +20,8 @@ interface AuthValue {
   startEmailSignIn: (email: string, locale?: 'en' | 'fr') => Promise<void>;
   verifyEmailCode: (email: string, code: string) => Promise<boolean>;
   signInWithGoogleIdToken: (idToken: string) => Promise<boolean>;
+  /** Dev-only mock sign-in (EXPO_PUBLIC_MOCK_AUTH) → enters onboarding, no backend. */
+  devSignIn: () => Promise<void>;
   /** Mark the first-run signup flow complete → move to the app. */
   completeOnboarding: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -48,6 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const startEmailSignIn = useCallback(async (email: string, locale: 'en' | 'fr' = 'en') => {
+    if (MOCK_AUTH) return; // pretend the code was sent
     await postJson('/api/mobile/auth/magic-link/start', { email, locale });
   }, []);
 
@@ -56,7 +62,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // reports an onboardedAt (see src/api/me.ts).
   const afterAuth = useCallback(() => setStatus('onboarding'), []);
 
+  const devSignIn = useCallback(async () => {
+    await saveTokens(mockPair());
+    afterAuth();
+  }, [afterAuth]);
+
   const verifyEmailCode = useCallback(async (email: string, code: string) => {
+    if (MOCK_AUTH) { await saveTokens(mockPair()); afterAuth(); return true; } // any code
     const res = await postJson('/api/mobile/auth/magic-link/verify', { email, code });
     if (!res.ok) return false;
     await saveTokens(await res.json());
@@ -65,6 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [afterAuth]);
 
   const signInWithGoogleIdToken = useCallback(async (idToken: string) => {
+    if (MOCK_AUTH) { await saveTokens(mockPair()); afterAuth(); return true; }
     const res = await postJson('/api/mobile/auth/google', { idToken });
     if (!res.ok) return false;
     await saveTokens(await res.json());
@@ -79,8 +92,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<AuthValue>(
-    () => ({ status, startEmailSignIn, verifyEmailCode, signInWithGoogleIdToken, completeOnboarding, signOut }),
-    [status, startEmailSignIn, verifyEmailCode, signInWithGoogleIdToken, completeOnboarding, signOut],
+    () => ({ status, startEmailSignIn, verifyEmailCode, signInWithGoogleIdToken, devSignIn, completeOnboarding, signOut }),
+    [status, startEmailSignIn, verifyEmailCode, signInWithGoogleIdToken, devSignIn, completeOnboarding, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

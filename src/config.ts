@@ -23,3 +23,8 @@ export const GOOGLE = {
 };
 
 export const googleConfigured = Boolean(GOOGLE.webClientId || GOOGLE.iosClientId || GOOGLE.androidClientId);
+
+// Dev-only: EXPO_PUBLIC_MOCK_AUTH=1 makes the sign-in buttons succeed locally
+// with no backend, so the full flow can be clicked through for design review.
+// Never set this in a production build.
+export const MOCK_AUTH = process.env.EXPO_PUBLIC_MOCK_AUTH === '1';
