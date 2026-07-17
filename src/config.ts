@@ -4,6 +4,16 @@
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
+// iOS App Transport Security + Android (release) block cleartext HTTP, so a
+// non-HTTPS API only fails once you make a native build — confusingly. Warn loudly
+// in dev. localhost is exempt (used by the iOS simulator against a local backend).
+const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1|10\.0\.2\.2)(:|\/|$)/.test(API_URL);
+if (__DEV__ && !API_URL.startsWith('https://') && !isLocal) {
+  console.warn(
+    `[config] EXPO_PUBLIC_API_URL is not https (${API_URL}). Native iOS/Android release builds block cleartext HTTP — use an https backend (production) or a tunnel for device testing.`,
+  );
+}
+
 // Google OAuth client ids (from Google Cloud Console). The mobile ids differ
 // from the web one; the backend must trust them via AUTH_GOOGLE_MOBILE_IDS.
 export const GOOGLE = {
