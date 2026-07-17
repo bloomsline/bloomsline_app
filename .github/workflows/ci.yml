@@ -1,0 +1,57 @@
+name: CI
+
+# Blocking gate for the mobile app — mirrors the care app's CI. Every check must
+# pass (no `|| true`, no advisory-only steps). Enable branch protection on `main`
+# (Settings → Branches) to require these before merge.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: typecheck · lint · config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Validate native app config (Expo resolves iOS/Android config)
+        run: npx expo config --type public > /dev/null
+
+  security:
+    name: secret-scan · sast · audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Scanners run BEFORE `npm ci` so they see only our committed code — never
+      # node_modules, whose test fixtures include sample keys that trip scanners.
+      - name: Secret scan (TruffleHog, git history, verified only)
+        run: >
+          docker run --rm -v "$PWD:/repo" trufflesecurity/trufflehog:latest
+          git file:///repo --only-verified --fail
+      - name: SAST (Semgrep — TypeScript + React Native rulesets)
+        run: >
+          docker run --rm -v "$PWD:/src" semgrep/semgrep:latest
+          semgrep scan --config p/typescript --config p/react-native --error --skip-unknown-extensions /src
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Dependency audit (shipped deps, high+, allowlist-gated) — no `|| true`
+        run: npm run audit:gate
