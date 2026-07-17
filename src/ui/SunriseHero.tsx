@@ -1,28 +1,20 @@
 import { View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { C } from './theme';
 
-// The warm sunrise illustration on the welcome screen (g1/q1). Layered views
-// approximate the design's gradient sky + rising sun + two rolling hills.
-// (A pixel-exact SVG can replace this later without touching callers.)
-export function SunriseHero({ height = 296 }: { height?: number }) {
+// Soft dawn wash for the welcome screen. A warm gradient that fades to white at
+// the bottom (so it blends into the content, no hard seam), one faint sun glow
+// (no hard rings), and a single gentle hill. Calm and premium, not literal.
+export function SunriseHero({ height = 260 }: { height?: number }) {
   return (
     <View style={{ height }} className="w-full overflow-hidden">
-      <LinearGradient colors={[C.skyTop, C.skyBottom]} style={{ position: 'absolute', inset: 0 }} />
+      <LinearGradient colors={['#FCEAD6', '#FBEEE2', '#FFFFFF']} locations={[0, 0.55, 1]} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
 
-      {/* sun glow */}
-      <View
-        style={{ position: 'absolute', bottom: height * 0.16, alignSelf: 'center', width: 260, height: 260, borderRadius: 130, backgroundColor: C.sunGlow, opacity: 0.55 }}
-      />
-      <View
-        style={{ position: 'absolute', bottom: height * 0.2, alignSelf: 'center', width: 150, height: 150, borderRadius: 75, backgroundColor: C.sunGlow2, opacity: 0.6 }}
-      />
-      {/* sun disc */}
-      <View style={{ position: 'absolute', bottom: height * 0.26, alignSelf: 'center', width: 76, height: 76, borderRadius: 38, backgroundColor: C.sunDisc }} />
+      {/* soft sun glow — low opacity so the edges read as ambient warmth */}
+      <View style={{ position: 'absolute', bottom: height * 0.24, alignSelf: 'center', width: 320, height: 320, borderRadius: 160, backgroundColor: '#F8CE97', opacity: 0.22 }} />
+      <View style={{ position: 'absolute', bottom: height * 0.3, alignSelf: 'center', width: 190, height: 190, borderRadius: 95, backgroundColor: '#F4BC80', opacity: 0.26 }} />
 
-      {/* rolling hills */}
-      <View style={{ position: 'absolute', bottom: -80, left: -60, right: -60, height: 200, borderTopLeftRadius: 400, borderTopRightRadius: 400, backgroundColor: C.hillBack }} />
-      <View style={{ position: 'absolute', bottom: -110, left: -40, right: -120, height: 200, borderTopLeftRadius: 380, borderTopRightRadius: 380, backgroundColor: C.hillFront }} />
+      {/* one gentle hill, blending up into the white content */}
+      <View style={{ position: 'absolute', bottom: -70, left: -100, right: -100, height: 170, borderTopLeftRadius: 500, borderTopRightRadius: 500, backgroundColor: '#DEEAE3' }} />
     </View>
   );
 }
