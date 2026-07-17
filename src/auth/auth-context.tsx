@@ -21,6 +21,7 @@ interface AuthValue {
   startEmailSignIn: (email: string, locale?: 'en' | 'fr') => Promise<void>;
   verifyEmailCode: (email: string, code: string) => Promise<boolean>;
   signInWithGoogleIdToken: (idToken: string) => Promise<boolean>;
+  signInWithMicrosoftIdToken: (idToken: string) => Promise<boolean>;
   /** Dev-only mock sign-in (EXPO_PUBLIC_MOCK_AUTH) → enters onboarding, no backend. */
   devSignIn: () => Promise<void>;
   /** Mark the first-run signup flow complete → move to the app. */
@@ -88,14 +89,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return true;
   }, [resolveSession]);
 
-  const signInWithGoogleIdToken = useCallback(async (idToken: string) => {
+  const exchangeIdToken = useCallback(async (path: string, idToken: string) => {
     if (MOCK_AUTH) { await saveTokens(mockPair()); await resolveSession(); return true; }
-    const res = await postJson('/api/mobile/auth/google', { idToken });
+    const res = await postJson(path, { idToken });
     if (!res.ok) return false;
     await saveTokens(await res.json());
     await resolveSession();
     return true;
   }, [resolveSession]);
+
+  const signInWithGoogleIdToken = useCallback((idToken: string) => exchangeIdToken('/api/mobile/auth/google', idToken), [exchangeIdToken]);
+  const signInWithMicrosoftIdToken = useCallback((idToken: string) => exchangeIdToken('/api/mobile/auth/microsoft', idToken), [exchangeIdToken]);
 
   const completeOnboarding = useCallback(async () => {
     await saveProfile({ onboarded: true }).catch(() => {}); // record server-side (best-effort)
@@ -104,8 +108,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<AuthValue>(
-    () => ({ status, startEmailSignIn, verifyEmailCode, signInWithGoogleIdToken, devSignIn, completeOnboarding, signOut }),
-    [status, startEmailSignIn, verifyEmailCode, signInWithGoogleIdToken, devSignIn, completeOnboarding, signOut],
+    () => ({ status, startEmailSignIn, verifyEmailCode, signInWithGoogleIdToken, signInWithMicrosoftIdToken, devSignIn, completeOnboarding, signOut }),
+    [status, startEmailSignIn, verifyEmailCode, signInWithGoogleIdToken, signInWithMicrosoftIdToken, devSignIn, completeOnboarding, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
