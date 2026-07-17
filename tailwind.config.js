@@ -9,38 +9,37 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // v1 "bloom" teal — the single warm accent (active/confirm/links/avatars).
         brand: {
-          DEFAULT: '#009B8E', // primary teal
+          DEFAULT: '#4A9A86',
           dark: '#2F6E5F',
           deep: '#1A4A3F',
-          tint: '#EAF4F1', // light teal surfaces
+          body: '#3E7A6B',
+          tint: '#EAF4F1',
           tint2: '#D6E7E1',
         },
         ink: {
           DEFAULT: '#1A1A1A',
-          deep: '#141414',
+          deep: '#000000',
         },
         muted: {
-          DEFAULT: '#9A9A9A',
+          DEFAULT: '#999999',
           dark: '#8A8A8A',
           warm: '#8A857B',
+          faint: '#BBBBBB',
+        },
+        mint: {
+          DEFAULT: '#EAF4F1',
+          border: '#D6E7E1',
         },
         line: {
           DEFAULT: '#EBEBEB',
-          soft: '#F5F5F5',
-          warm: '#E0DED9',
+          soft: '#F5F5F5', // chips / icon tiles / neutral surfaces
+          hair: '#E5E5E5',
         },
         surface: {
-          DEFAULT: '#FAFAF8', // screen background
-          canvas: '#EAE8E2',
-        },
-        // warm terracotta accent family (moments / warmth)
-        warm: {
-          DEFAULT: '#C87941',
-          100: '#FDEAD4',
-          200: '#F7DBBF',
-          300: '#FCCB90',
-          400: '#F3AF73',
+          DEFAULT: '#FFFFFF', // v1 is white
+          soft: '#F5F5F5',
         },
       },
     },

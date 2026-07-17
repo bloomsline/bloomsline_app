@@ -19,7 +19,7 @@ export default function Welcome() {
         </Text>
       </View>
       <SafeAreaView edges={['bottom']} className="px-6">
-        <Button label="Create my profile" onPress={() => router.push('/(auth)/sign-up')} />
+        <Button label="Create my profile" variant="dark" onPress={() => router.push('/(auth)/sign-up')} />
         <Button label="I already have an account" variant="ghost" onPress={() => router.push('/(auth)/sign-up')} />
       </SafeAreaView>
     </View>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { X, ArrowRight } from 'lucide-react-native';
 import { Screen, IconButton } from '@/src/ui/Screen';
 import { Button } from '@/src/ui/Button';
 import { useAuth } from '@/src/auth/auth-context';
@@ -60,7 +61,7 @@ export default function SignUp() {
   return (
     <Screen bg="bg-white" className="px-6">
       <View className="pt-2">
-        <IconButton glyph="✕" onPress={() => router.back()} />
+        <IconButton icon={X} onPress={() => router.back()} />
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1 justify-center">
@@ -101,7 +102,7 @@ export default function SignUp() {
               disabled={!valid || busy}
               className={`h-11 w-11 items-center justify-center rounded-full bg-brand ${!valid || busy ? 'opacity-40' : ''}`}
             >
-              <Text className="text-[18px] font-semibold text-white">→</Text>
+              <ArrowRight size={18} color="#fff" strokeWidth={2.2} />
             </Pressable>
           </View>
         </View>

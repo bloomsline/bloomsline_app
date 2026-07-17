@@ -3,6 +3,7 @@ import { Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import { ChevronLeft, HeartHandshake, Leaf, Plus } from 'lucide-react-native';
 import { Screen, IconButton } from '@/src/ui/Screen';
 import { ProgressBar } from '@/src/ui/ProgressBar';
 import { Button } from '@/src/ui/Button';
@@ -45,7 +46,7 @@ export default function Arrival() {
               <View className="mx-2 flex-1 items-center justify-center">
                 <View className="absolute left-0 right-0 top-[29px] border-t border-dashed border-[#C9D8D2]" />
                 <View className="h-8 w-8 items-center justify-center rounded-full bg-mint">
-                  <Text className="text-[15px]">🤝</Text>
+                  <HeartHandshake size={16} color="#4A9A86" strokeWidth={2} />
                 </View>
               </View>
 
@@ -67,12 +68,12 @@ export default function Arrival() {
   return (
     <Screen bg="bg-white" className="px-6">
       <View className="flex-row items-center gap-3 pt-2">
-        <IconButton glyph="‹" onPress={() => router.back()} />
+        <IconButton icon={ChevronLeft} tone="teal" onPress={() => router.back()} />
         <ProgressBar steps={2} filled={1} />
       </View>
       <View className="flex-1 pt-8">
-        <View className="h-14 w-14 items-center justify-center rounded-2xl bg-mint">
-          <Text className="text-[24px]">🌿</Text>
+        <View className="h-14 w-14 items-center justify-center rounded-2xl border border-line bg-white">
+          <Leaf size={24} color="#4A9A86" strokeWidth={2} />
         </View>
         <Text className="mt-6 text-[28px] font-bold leading-[34px] tracking-[-0.5px] text-ink">
           This space is{'\n'}yours alone
@@ -81,8 +82,8 @@ export default function Arrival() {
           Track how you feel, journal, and try practices — all completely private. No one else is involved.
         </Text>
 
-        <View className="mt-6 flex-row items-start gap-3 rounded-[18px] border border-line bg-surface p-4">
-          <Text className="text-[18px] text-brand">＋</Text>
+        <View className="mt-6 flex-row items-start gap-3 rounded-[18px] border border-line bg-line-soft p-4">
+          <Plus size={18} color="#4A9A86" strokeWidth={2} />
           <View className="flex-1">
             <Text className="text-[15px] font-bold text-ink">Want a therapist later?</Text>
             <Text className="mt-1 text-[13px] leading-[19px] text-muted">

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { ChevronLeft } from 'lucide-react-native';
 import { Screen, IconButton } from '@/src/ui/Screen';
 import { Button } from '@/src/ui/Button';
 import { useAuth } from '@/src/auth/auth-context';
@@ -40,7 +41,7 @@ export default function Verify() {
   return (
     <Screen bg="bg-white" className="px-6">
       <View className="pt-2">
-        <IconButton glyph="‹" onPress={() => router.back()} />
+        <IconButton icon={ChevronLeft} tone="teal" onPress={() => router.back()} />
       </View>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1 justify-center">
         <Text className="text-[28px] font-bold tracking-[-0.5px] text-ink">Enter your code</Text>

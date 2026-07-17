@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
+import { ChevronLeft, Cake } from 'lucide-react-native';
 import { Screen, IconButton } from '@/src/ui/Screen';
 import { ProgressBar } from '@/src/ui/ProgressBar';
 import { Field } from '@/src/ui/Field';
@@ -25,7 +26,7 @@ export default function NameStep() {
   return (
     <Screen bg="bg-white" scroll className="px-6 pb-6">
       <View className="flex-row items-center gap-3 pt-2">
-        <IconButton glyph="‹" onPress={() => router.back()} />
+        <IconButton icon={ChevronLeft} tone="teal" onPress={() => router.back()} />
         <ProgressBar steps={3} filled={1} />
       </View>
 
@@ -48,7 +49,7 @@ export default function NameStep() {
           className="h-[58px] flex-row items-center justify-between rounded-2xl border border-[#E5E5E5] px-4"
         >
           <Text className="text-[16px] text-[#BBBBBB]">Pick a date</Text>
-          <Text className="text-[18px]">🎂</Text>
+          <Cake size={18} color="#BBBBBB" strokeWidth={2} />
         </Pressable>
 
         <View className="flex-1" />

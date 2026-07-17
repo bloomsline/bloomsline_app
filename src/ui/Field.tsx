@@ -33,7 +33,7 @@ export function Field({
         onFocus={(e) => { setFocused(true); input.onFocus?.(e); }}
         onBlur={(e) => { setFocused(false); input.onBlur?.(e); }}
         placeholderTextColor="#BBBBBB"
-        selectionColor="#009B8E"
+        selectionColor="#4A9A86"
         className={`${r} border px-4 text-[16px] text-ink ${focused ? 'border-[1.5px] border-brand' : 'border-[#E5E5E5]'}`}
       />
     </View>
