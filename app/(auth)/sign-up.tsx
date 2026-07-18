@@ -54,8 +54,8 @@ export default function SignUp() {
     const addr = email.trim().toLowerCase();
     setBusy(true);
     try {
-      await startEmailSignIn(addr);
-      router.push({ pathname: '/(auth)/verify', params: { email: addr } });
+      const devCode = await startEmailSignIn(addr);
+      router.push({ pathname: '/(auth)/verify', params: { email: addr, ...(devCode ? { devCode } : {}) } });
     } catch {
       Alert.alert('Sign in', 'Could not send the code. Check your connection and try again.');
     } finally {

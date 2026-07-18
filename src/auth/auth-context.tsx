@@ -18,7 +18,8 @@ const ONBOARDED_KEY = 'bl_onboarded';
 
 interface AuthValue {
   status: Status;
-  startEmailSignIn: (email: string, locale?: 'en' | 'fr') => Promise<void>;
+  /** Request an email code. Returns the code in dev (DEV_AUTH) so it can be shown; null otherwise. */
+  startEmailSignIn: (email: string, locale?: 'en' | 'fr') => Promise<string | null>;
   verifyEmailCode: (email: string, code: string) => Promise<boolean>;
   signInWithGoogleIdToken: (idToken: string) => Promise<boolean>;
   signInWithMicrosoftIdToken: (idToken: string) => Promise<boolean>;
@@ -71,8 +72,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [resolveSession]);
 
   const startEmailSignIn = useCallback(async (email: string, locale: 'en' | 'fr' = 'en') => {
-    if (MOCK_AUTH) return; // pretend the code was sent
-    await postJson('/api/mobile/auth/magic-link/start', { email, locale });
+    if (MOCK_AUTH) return null; // pretend the code was sent
+    const res = await postJson('/api/mobile/auth/magic-link/start', { email, locale });
+    const data = await res.json().catch(() => ({}));
+    return typeof data?.devCode === 'string' ? data.devCode : null; // dev-only
   }, []);
 
   const devSignIn = useCallback(async () => {

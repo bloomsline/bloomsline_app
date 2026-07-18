@@ -9,9 +9,9 @@ import { useAuth } from '@/src/auth/auth-context';
 // Email one-time-code step. On success the session becomes `onboarding`, and the
 // (auth) layout redirects into the onboarding flow.
 export default function Verify() {
-  const { email } = useLocalSearchParams<{ email: string }>();
+  const { email, devCode } = useLocalSearchParams<{ email: string; devCode?: string }>();
   const { verifyEmailCode, startEmailSignIn } = useAuth();
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(typeof devCode === 'string' ? devCode : '');
   const [busy, setBusy] = useState(false);
   const ready = code.trim().length === 6;
 
@@ -31,7 +31,8 @@ export default function Verify() {
   const resend = async () => {
     if (!email) return;
     try {
-      await startEmailSignIn(email);
+      const dc = await startEmailSignIn(email);
+      if (dc) setCode(dc);
       Alert.alert('Verify', 'We sent a new code.');
     } catch {
       Alert.alert('Verify', 'Could not resend the code.');
@@ -48,6 +49,7 @@ export default function Verify() {
         <Text className="mt-2 text-[15px] leading-[22px] text-muted">
           We emailed a 6-digit code to {email}. It expires in 10 minutes.
         </Text>
+        {devCode ? <Text className="mt-2 text-[12.5px] font-semibold text-brand">Dev mode: code prefilled ({devCode}).</Text> : null}
         <TextInput
           value={code}
           onChangeText={(t) => setCode(t.replace(/[^0-9]/g, '').slice(0, 6))}
