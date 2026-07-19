@@ -8,8 +8,8 @@
       "value": "false"
     },
     "EXPO_PUBLIC_API_URL": {
-      "description": "Care backend base URL (baked into the web build). Defaults to the .env.production value.",
-      "value": "https://bloomsline.osc-fr1.scalingo.io"
+      "description": "Care backend base URL, baked into the web build. If set on the app it OVERRIDES .env.production (dotenv never overwrites an existing process.env), so keep the two in sync or leave it unset.",
+      "value": "https://platform.bloomsline.com"
     },
     "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": { "description": "Google OAuth web client id (public)", "required": false },
     "EXPO_PUBLIC_MICROSOFT_CLIENT_ID": { "description": "Microsoft Entra client id (public)", "required": false },
