@@ -41,3 +41,8 @@ export const MOCK_AUTH = process.env.EXPO_PUBLIC_MOCK_AUTH === '1';
 // Dev-only: with MOCK_AUTH, which role to sign in as — 'practitioner' or
 // 'member' (default). Lets us preview both apps without a backend.
 export const MOCK_ROLE = process.env.EXPO_PUBLIC_MOCK_ROLE === 'practitioner' ? 'practitioner' : 'member';
+
+// Dev-only: preview the connected My Care hub (Flow C) even without a linked
+// practitioner. Without it, a solo account sees the "connect a practitioner"
+// state instead. For design review only.
+export const FORCE_CARE_HUB = process.env.EXPO_PUBLIC_FORCE_CARE_HUB === '1';
