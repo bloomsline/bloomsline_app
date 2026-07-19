@@ -1,9 +1,14 @@
 import { Redirect, Stack } from 'expo-router';
 import { useAuth } from '@/src/auth/auth-context';
+import { hrefForStatus } from '@/src/auth/route';
 
-// Protected group: anything under (app) requires a session.
 export default function AppLayout() {
   const { status } = useAuth();
-  if (status !== 'authed') return <Redirect href="/(auth)/sign-in" />;
-  return <Stack screenOptions={{ headerShown: false }} />;
+  if (status !== 'loading' && status !== 'authed') return <Redirect href={hrefForStatus(status)} />;
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="capture" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="session-menu" options={{ presentation: 'transparentModal', animation: 'fade' }} />
+    </Stack>
+  );
 }
