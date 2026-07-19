@@ -8,6 +8,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "build": "expo export -p web",
+    "serve:web": "serve -s dist -l tcp://0.0.0.0:${PORT:-3000}",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "audit:gate": "node scripts/audit-gate.mjs"
@@ -37,7 +39,8 @@
     "react-native-safe-area-context": "^5.7.0",
     "react-native-screens": "^4.24.0",
     "react-native-svg": "15.15.3",
-    "react-native-web": "^0.21.0"
+    "react-native-web": "^0.21.0",
+    "serve": "^14.2.6"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",

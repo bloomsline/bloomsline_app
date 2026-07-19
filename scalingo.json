@@ -1,0 +1,19 @@
+{
+  "name": "bloomsline-app",
+  "description": "Bloomsline patient app — Expo web build served as a static SPA",
+  "repository": "https://github.com/bloomsline/bloomsline_app",
+  "env": {
+    "NPM_CONFIG_PRODUCTION": {
+      "description": "MUST be false — the build tools (expo/metro) are devDependencies and have to install during the build. The buildpack prunes them from the runtime slug afterwards.",
+      "value": "false"
+    },
+    "EXPO_PUBLIC_API_URL": {
+      "description": "Care backend base URL (baked into the web build). Defaults to the .env.production value.",
+      "value": "https://bloomsline.osc-fr1.scalingo.io"
+    },
+    "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": { "description": "Google OAuth web client id (public)", "required": false },
+    "EXPO_PUBLIC_MICROSOFT_CLIENT_ID": { "description": "Microsoft Entra client id (public)", "required": false },
+    "EXPO_PUBLIC_MICROSOFT_TENANT": { "description": "Microsoft Entra tenant id", "required": false }
+  },
+  "formation": { "web": { "amount": 1 } }
+}
