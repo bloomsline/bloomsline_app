@@ -12,8 +12,9 @@ export interface BookingSlots {
   timezone: string;
   sessionType: { id: string; name: string; durationMinutes: number; priceCents: number | null };
   format: string;
-  sessionTypes: { id: string; name: string; durationMinutes: number }[];
+  sessionTypes: { id: string; name: string; durationMinutes: number; priceCents: number | null; defaultFormat: string }[];
   offeredFormats: string[];
+  currency: string;
 }
 
 /** Bookable days (each with slot instants) + the resolved type/format. null when
