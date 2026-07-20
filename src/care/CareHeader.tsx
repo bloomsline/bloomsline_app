@@ -5,9 +5,11 @@ import { useRouter } from 'expo-router';
 import { ChevronLeft, X } from 'lucide-react-native';
 import { CARE } from './theme';
 
-export function CareHeader({ title, close = false }: { title?: string; close?: boolean }) {
+export function CareHeader({ title, close = false, onBack }: { title?: string; close?: boolean; onBack?: () => void }) {
   const router = useRouter();
-  const back = () => (router.canGoBack() ? router.back() : router.navigate('/home' as never));
+  // A multi-step screen passes onBack to step backwards; otherwise the header
+  // owns its own navigation.
+  const back = onBack ?? (() => (router.canGoBack() ? router.back() : router.navigate('/home' as never)));
   const Icon = close ? X : ChevronLeft;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 12 }}>
