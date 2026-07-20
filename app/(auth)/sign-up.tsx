@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { X, ArrowRight } from 'lucide-react-native';
 import { Screen, IconButton } from '@/src/ui/Screen';
 import { Button } from '@/src/ui/Button';
@@ -8,6 +8,7 @@ import { useAuth } from '@/src/auth/auth-context';
 import { useGoogleSignIn } from '@/src/auth/google';
 import { useMicrosoftSignIn } from '@/src/auth/microsoft';
 import { googleConfigured, microsoftConfigured, MOCK_AUTH } from '@/src/config';
+import { notify } from '@/src/ui/alert';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -35,11 +36,11 @@ function OutlookMark() {
 // The Google auth hook (expo-auth-session) throws on web when no client id is
 // set, so it's isolated in a component that's only mounted when configured.
 function GoogleAuthButton() {
-  const google = useGoogleSignIn((m) => Alert.alert('Sign in', m));
+  const google = useGoogleSignIn((m) => notify('Sign in', m));
   return <Button label="Continue with Google" variant="dark" leading={<GoogleMark />} onPress={() => google.signIn()} />;
 }
 function MicrosoftAuthButton() {
-  const ms = useMicrosoftSignIn((m) => Alert.alert('Sign in', m));
+  const ms = useMicrosoftSignIn((m) => notify('Sign in', m));
   return <Button label="Continue with Outlook" variant="secondary" leading={<OutlookMark />} onPress={() => ms.signIn()} />;
 }
 
@@ -62,7 +63,7 @@ export default function SignUp() {
       const devCode = await startEmailSignIn(addr);
       router.push({ pathname: '/(auth)/verify', params: { email: addr, ...(devCode ? { devCode } : {}) } });
     } catch {
-      Alert.alert('Sign in', 'Could not send the code. Check your connection and try again.');
+      notify('Sign in', 'Could not send the code. Check your connection and try again.');
     } finally {
       setBusy(false);
     }
@@ -82,12 +83,12 @@ export default function SignUp() {
           {googleConfigured ? (
             <GoogleAuthButton />
           ) : (
-            <Button label="Continue with Google" variant="dark" leading={<GoogleMark />} onPress={() => (MOCK_AUTH ? devSignIn() : Alert.alert('Google', 'Google sign-in isn’t configured yet.'))} />
+            <Button label="Continue with Google" variant="dark" leading={<GoogleMark />} onPress={() => (MOCK_AUTH ? devSignIn() : notify('Google', 'Google sign-in isn’t configured yet.'))} />
           )}
           {microsoftConfigured ? (
             <MicrosoftAuthButton />
           ) : (
-            <Button label="Continue with Outlook" variant="secondary" leading={<OutlookMark />} onPress={() => (MOCK_AUTH ? devSignIn() : Alert.alert('Outlook', 'Outlook sign-in isn’t configured yet.'))} />
+            <Button label="Continue with Outlook" variant="secondary" leading={<OutlookMark />} onPress={() => (MOCK_AUTH ? devSignIn() : notify('Outlook', 'Outlook sign-in isn’t configured yet.'))} />
           )}
 
           <View className="my-2 flex-row items-center gap-3">

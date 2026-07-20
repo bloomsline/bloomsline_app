@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import { ChevronLeft, Cake } from 'lucide-react-native';
 import { Screen, IconButton } from '@/src/ui/Screen';
 import { ProgressBar } from '@/src/ui/ProgressBar';
@@ -8,6 +8,7 @@ import { Field } from '@/src/ui/Field';
 import { Button } from '@/src/ui/Button';
 import { useOnboarding } from '@/src/onboarding/context';
 import { saveProfile } from '@/src/api/me';
+import { notify } from '@/src/ui/alert';
 
 // g4 — Your name (Flow A, step 1 of 3). Private to the patient.
 export default function NameStep() {
@@ -45,7 +46,7 @@ export default function NameStep() {
           When’s your birthday? <Text className="font-normal normal-case tracking-normal text-[#C4C4C4]">· optional</Text>
         </Text>
         <Pressable
-          onPress={() => Alert.alert('Birthday', 'Date picker coming soon.')}
+          onPress={() => notify('Birthday', 'Date picker coming soon.')}
           className="h-[58px] flex-row items-center justify-between rounded-2xl border border-[#E5E5E5] px-4"
         >
           <Text className="text-[16px] text-[#BBBBBB]">Pick a date</Text>
