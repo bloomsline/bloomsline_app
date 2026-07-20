@@ -76,9 +76,12 @@ export default function MyCare() {
     );
   }
 
-  const pracName = real?.practitionerName ?? practitionerName ?? 'Dr. Maya Laurent';
-  const headline = real?.practitionerHeadline ?? 'Clinical psychologist';
-  const initial = pracName.replace(/^dr\.?\s*/i, '').charAt(0).toUpperCase() || 'M';
+  // `preview` is the design-preview mode; only THERE may sample names appear.
+  // With a real link, fall back to a neutral label rather than a sample
+  // clinician's name — a patient reading "Dr. Maya Laurent" takes it as fact.
+  const pracName = real?.practitionerName ?? practitionerName ?? (preview ? 'Dr. Maya Laurent' : 'Your practitioner');
+  const headline = real?.practitionerHeadline ?? (preview ? 'Clinical psychologist' : null);
+  const initial = pracName.replace(/^dr\.?\s*/i, '').charAt(0).toUpperCase() || '?';
   const nextSession = real ? real.nextSession : preview ? PREVIEW_NEXT : null;
   const upcoming = real ? real.upcomingSessions.filter((s) => s.id !== real.nextSession?.id) : preview ? PREVIEW_UPCOMING : [];
   const todoItems = real ? (todos ?? []) : preview ? PREVIEW_TODOS : [];
@@ -113,7 +116,7 @@ export default function MyCare() {
           <Avatar initial={initial} size={48} />
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 16, fontWeight: '700', color: '#1A1A1A' }}>{pracName}</Text>
-            <Text style={{ fontSize: 12.5, color: '#999', marginTop: 1 }}>{headline}</Text>
+            {headline ? <Text style={{ fontSize: 12.5, color: '#999', marginTop: 1 }}>{headline}</Text> : null}
           </View>
           <ChevronRight size={18} color="#CCC" strokeWidth={2} />
         </TouchableOpacity>

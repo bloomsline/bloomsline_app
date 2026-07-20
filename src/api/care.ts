@@ -11,10 +11,28 @@ export interface CareSession {
   meetLink: string | null;
 }
 
+/**
+ * The practitioner as their patient sees them, from the practitioner's own
+ * public profile. Everything is optional: a profile they have not filled in
+ * must render as a sparser screen, never as invented detail.
+ */
+export interface CarePractitioner {
+  name: string | null;
+  headline: string | null;
+  bio: string | null;
+  specialties: string[];
+  sessionTypes: string[];
+  languages: string[];
+  city: string | null;
+  country: string | null;
+  photoUrl: string | null;
+}
+
 export interface PatientCare {
   hasPractitioner: boolean;
   practitionerName: string | null;
   practitionerHeadline: string | null;
+  practitioner: CarePractitioner | null;
   nextSession: CareSession | null;
   upcomingSessions: CareSession[];
 }
