@@ -18,10 +18,10 @@ import { notify } from '@/src/ui/alert';
 const TEAL = '#009B8E';
 
 // Design placeholder used only for the FORCE_CARE_HUB preview (no real practitioner).
-const PREVIEW_NEXT: CareSession = { id: 'preview', scheduledAt: inDays(5, 9), durationMinutes: 50, sessionFormat: 'video', sessionType: 'session', status: 'scheduled', meetLink: null };
+const PREVIEW_NEXT: CareSession = { id: 'preview', scheduledAt: inDays(5, 9), durationMinutes: 50, sessionFormat: 'video', sessionType: 'session', status: 'scheduled', meetLink: null, paymentStatus: null };
 const PREVIEW_UPCOMING: CareSession[] = [
-  { id: 'p1', scheduledAt: inDays(12, 9), durationMinutes: 50, sessionFormat: 'video', sessionType: 'session', status: 'scheduled', meetLink: null },
-  { id: 'p2', scheduledAt: inDays(19, 9), durationMinutes: 50, sessionFormat: 'video', sessionType: 'session', status: 'scheduled', meetLink: null },
+  { id: 'p1', scheduledAt: inDays(12, 9), durationMinutes: 50, sessionFormat: 'video', sessionType: 'session', status: 'scheduled', meetLink: null, paymentStatus: null },
+  { id: 'p2', scheduledAt: inDays(19, 9), durationMinutes: 50, sessionFormat: 'video', sessionType: 'session', status: 'scheduled', meetLink: null, paymentStatus: null },
 ];
 const PREVIEW_TODOS: TodoItem[] = [
   { id: 'dt1', resourceId: '', title: 'A short reflection', type: 'worksheet', status: 'in_progress', dueAt: null, assignedAt: '' },
@@ -48,6 +48,10 @@ export default function MyCare() {
 
   const real = care?.hasPractitioner ? care : null;
   const preview = !real && FORCE_CARE_HUB;
+  // Preview shows everything; a real link uses the practitioner's policy. A
+  // missing block (older backend) falls back to allowing, so the app never
+  // hides an action the server would actually permit.
+  const perms = real?.permissions ?? { canBook: true, canCancel: true, canReschedule: true, noticeHours: 24 };
   const showHub = !!real || preview || hasPractitioner;
 
   // Solo (no practitioner, not previewing): light connect state, no Moments content.
@@ -87,7 +91,7 @@ export default function MyCare() {
   const openSession = (s: CareSession) =>
     router.navigate({
       pathname: '/session-menu',
-      params: { id: s.id, scheduledAt: s.scheduledAt, durationMinutes: String(s.durationMinutes), sessionFormat: s.sessionFormat, sessionType: s.sessionType, meetLink: s.meetLink ?? '', demo: real ? '' : '1' },
+      params: { id: s.id, scheduledAt: s.scheduledAt, durationMinutes: String(s.durationMinutes), sessionFormat: s.sessionFormat, sessionType: s.sessionType, meetLink: s.meetLink ?? '', demo: real ? '' : '1', canCancel: perms.canCancel ? '1' : '', canReschedule: perms.canReschedule ? '1' : '', noticeHours: String(perms.noticeHours) },
     } as never);
 
   const joinSession = () => {
@@ -132,6 +136,15 @@ export default function MyCare() {
             <Text style={{ fontSize: 11, fontWeight: '600', letterSpacing: 1, color: 'rgba(255,255,255,0.65)', textTransform: 'uppercase', marginBottom: 6 }}>Next session</Text>
             <Text style={{ fontSize: 19, fontWeight: '700', color: '#fff' }}>{longDate(nextSession.scheduledAt)} · {clock(nextSession.scheduledAt)}</Text>
             <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 2 }}>{fmtFormat(nextSession.sessionFormat)} · {relDays(nextSession.scheduledAt)}</Text>
+            {/* Payment state, only when the practitioner has chosen to show it
+                (paymentStatus is null otherwise, so this never leaks). */}
+            {nextSession.paymentStatus ? (
+              <View style={{ alignSelf: 'flex-start', marginTop: 8, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.18)' }}>
+                <Text style={{ fontSize: 11.5, fontWeight: '600', color: '#fff' }}>
+                  {nextSession.paymentStatus === 'paid' ? 'Paid' : nextSession.paymentStatus === 'free' ? 'No charge' : 'Awaiting payment'}
+                </Text>
+              </View>
+            ) : null}
             <TouchableOpacity onPress={joinSession} activeOpacity={0.85} style={{ height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginTop: 16 }}>
               <Text style={{ fontSize: 15, fontWeight: '600', color: '#1A4A3F' }}>Join session</Text>
             </TouchableOpacity>
@@ -143,15 +156,22 @@ export default function MyCare() {
           </View>
         )}
 
-        {/* Book a session (outline) */}
-        <TouchableOpacity
-          onPress={() => router.navigate('/book' as never)}
-          activeOpacity={0.8}
-          style={{ height: 52, borderRadius: 26, borderWidth: 1.5, borderColor: TEAL, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 26 }}
-        >
-          <Plus size={18} color={TEAL} strokeWidth={2.5} />
-          <Text style={{ fontSize: 15, fontWeight: '600', color: TEAL }}>Book a session</Text>
-        </TouchableOpacity>
+        {/* Book a session — only when the practitioner allows patient booking.
+            Otherwise a short note so the absence reads as intentional, not broken. */}
+        {perms.canBook ? (
+          <TouchableOpacity
+            onPress={() => router.navigate('/book' as never)}
+            activeOpacity={0.8}
+            style={{ height: 52, borderRadius: 26, borderWidth: 1.5, borderColor: TEAL, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 26 }}
+          >
+            <Plus size={18} color={TEAL} strokeWidth={2.5} />
+            <Text style={{ fontSize: 15, fontWeight: '600', color: TEAL }}>Book a session</Text>
+          </TouchableOpacity>
+        ) : (
+          <Text style={{ fontSize: 12.5, color: '#999', textAlign: 'center', marginBottom: 26, paddingHorizontal: 12 }}>
+            Your practitioner arranges your sessions. Reach out to them to book.
+          </Text>
+        )}
 
         {/* To do · from practitioner (real assignments) */}
         {todoItems.length > 0 && (

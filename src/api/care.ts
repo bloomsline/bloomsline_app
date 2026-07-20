@@ -9,6 +9,9 @@ export interface CareSession {
   sessionType: string;
   status: string;
   meetLink: string | null;
+  // Paid / awaiting payment, or null when the practitioner has not turned
+  // payment visibility on. Null means "do not show", not "unknown".
+  paymentStatus: string | null;
 }
 
 /**
@@ -28,8 +31,19 @@ export interface CarePractitioner {
   photoUrl: string | null;
 }
 
+/** What the practitioner lets this patient do to their own sessions. The server
+ *  enforces these regardless; the app uses them only to avoid showing an action
+ *  that would be refused. */
+export interface CarePermissions {
+  canBook: boolean;
+  canCancel: boolean;
+  canReschedule: boolean;
+  noticeHours: number;
+}
+
 export interface PatientCare {
   hasPractitioner: boolean;
+  permissions: CarePermissions;
   practitionerName: string | null;
   practitionerHeadline: string | null;
   practitioner: CarePractitioner | null;

@@ -25,6 +25,7 @@ export default function Practitioner() {
   const router = useRouter();
   const { practitionerName } = useOnboarding();
   const [p, setP] = useState<CarePractitioner | null>(null);
+  const [canBook, setCanBook] = useState(true);
   const [loaded, setLoaded] = useState(false);
 
   useFocusEffect(
@@ -33,6 +34,9 @@ export default function Practitioner() {
       fetchCare().then((c) => {
         if (!alive) return;
         setP(c?.practitioner ?? null);
+        // Default to allowing when the block is absent (older backend), so we
+        // never hide a button the server would honour.
+        setCanBook(c?.permissions?.canBook ?? true);
         setLoaded(true);
       });
       return () => {
@@ -101,13 +105,19 @@ export default function Practitioner() {
           </View>
         ) : null}
 
-        <TouchableOpacity
-          onPress={() => router.navigate('/book' as never)}
-          activeOpacity={0.85}
-          style={{ height: 50, borderRadius: 25, backgroundColor: CARE.teal, alignItems: 'center', justifyContent: 'center', marginTop: facts.length === 0 && !p?.bio ? 28 : 0 }}
-        >
-          <Text style={{ fontSize: 15, fontWeight: '600', color: '#fff' }}>Book a session</Text>
-        </TouchableOpacity>
+        {canBook ? (
+          <TouchableOpacity
+            onPress={() => router.navigate('/book' as never)}
+            activeOpacity={0.85}
+            style={{ height: 50, borderRadius: 25, backgroundColor: CARE.teal, alignItems: 'center', justifyContent: 'center', marginTop: facts.length === 0 && !p?.bio ? 28 : 0 }}
+          >
+            <Text style={{ fontSize: 15, fontWeight: '600', color: '#fff' }}>Book a session</Text>
+          </TouchableOpacity>
+        ) : (
+          <Text style={{ fontSize: 12.5, color: '#9A9A9A', textAlign: 'center', marginTop: facts.length === 0 && !p?.bio ? 28 : 0, lineHeight: 18 }}>
+            {name ? `${name} arranges your sessions. Reach out to book.` : 'Your practitioner arranges your sessions.'}
+          </Text>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
