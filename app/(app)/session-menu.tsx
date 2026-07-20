@@ -13,7 +13,7 @@ import { cancelSession } from '@/src/api/booking';
 
 export default function SessionMenu() {
   const router = useRouter();
-  const p = useLocalSearchParams<{ id?: string; scheduledAt?: string; durationMinutes?: string; sessionFormat?: string; sessionType?: string; meetLink?: string; demo?: string }>();
+  const p = useLocalSearchParams<{ id?: string; scheduledAt?: string; durationMinutes?: string; sessionFormat?: string; sessionType?: string; meetLink?: string; demo?: string; canCancel?: string; canReschedule?: string; noticeHours?: string }>();
   const { practitionerName } = useOnboarding();
   const name = practitionerName ?? 'Dr. Maya';
   const initial = name.replace(/^dr\.?\s*/i, '').charAt(0).toUpperCase() || 'M';
@@ -23,6 +23,11 @@ export default function SessionMenu() {
   const duration = Number(p.durationMinutes) || 50;
   const format = typeof p.sessionFormat === 'string' ? p.sessionFormat : 'video';
   const isDemo = p.demo === '1';
+  // Demo/preview shows both actions; a real session uses the flags home passed
+  // through from the practitioner's policy.
+  const canCancel = isDemo || p.canCancel === '1';
+  const canReschedule = isDemo || p.canReschedule === '1';
+  const noticeHours = Number(p.noticeHours) || 24;
 
   const [busy, setBusy] = useState(false);
   const close = () => (router.canGoBack() ? router.back() : router.navigate('/home' as never));
@@ -72,18 +77,33 @@ export default function SessionMenu() {
             <MiniFact label="Format" value={fmtFormat(format)} />
           </View>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: CARE.canvas, borderRadius: 14, padding: 13, marginBottom: 16 }}>
-            <Info size={15} color={CARE.teal} strokeWidth={2} />
-            <Text style={{ flex: 1, fontSize: 12.5, color: '#7A7A7A', lineHeight: 18 }}>Free to reschedule or cancel up to 24 hours before.</Text>
-          </View>
+          {(canCancel || canReschedule) && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: CARE.canvas, borderRadius: 14, padding: 13, marginBottom: 16 }}>
+              <Info size={15} color={CARE.teal} strokeWidth={2} />
+              <Text style={{ flex: 1, fontSize: 12.5, color: '#7A7A7A', lineHeight: 18 }}>
+                {`Changes allowed up to ${noticeHours} hours before the session.`}
+              </Text>
+            </View>
+          )}
 
-          <Pressable onPress={reschedule} disabled={busy} style={{ height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: CARE.teal }}>
-            <Text style={{ fontSize: 16, fontWeight: '600', color: '#fff' }}>Reschedule session</Text>
-          </Pressable>
-          <View style={{ height: 10 }} />
-          <Pressable onPress={confirmCancel} disabled={busy} style={{ height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', borderWidth: 1, borderColor: CARE.dangerBorder }}>
-            {busy ? <ActivityIndicator color={CARE.danger} /> : <Text style={{ fontSize: 16, fontWeight: '600', color: CARE.danger }}>Cancel session</Text>}
-          </Pressable>
+          {canReschedule && (
+            <Pressable onPress={reschedule} disabled={busy} style={{ height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: CARE.teal }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: '#fff' }}>Reschedule session</Text>
+            </Pressable>
+          )}
+          {canReschedule && canCancel && <View style={{ height: 10 }} />}
+          {canCancel && (
+            <Pressable onPress={confirmCancel} disabled={busy} style={{ height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', borderWidth: 1, borderColor: CARE.dangerBorder }}>
+              {busy ? <ActivityIndicator color={CARE.danger} /> : <Text style={{ fontSize: 16, fontWeight: '600', color: CARE.danger }}>Cancel session</Text>}
+            </Pressable>
+          )}
+
+          {/* Neither allowed: say so, so the sheet is not an empty panel. */}
+          {!canCancel && !canReschedule && (
+            <Text style={{ fontSize: 12.5, color: '#999', textAlign: 'center', lineHeight: 18 }}>
+              To change or cancel this session, contact your practitioner.
+            </Text>
+          )}
         </View>
       </SafeAreaView>
     </View>
