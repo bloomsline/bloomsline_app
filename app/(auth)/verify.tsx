@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { ChevronLeft } from 'lucide-react-native';
 import { Screen, IconButton } from '@/src/ui/Screen';
 import { Button } from '@/src/ui/Button';
 import { useAuth } from '@/src/auth/auth-context';
+import { notify } from '@/src/ui/alert';
 
 // Email one-time-code step. On success the session becomes `onboarding`, and the
 // (auth) layout redirects into the onboarding flow.
@@ -20,9 +21,9 @@ export default function Verify() {
     setBusy(true);
     try {
       const ok = await verifyEmailCode(email, code.trim());
-      if (!ok) Alert.alert('Verify', 'That code is invalid or expired. Request a new one.');
+      if (!ok) notify('Verify', 'That code is invalid or expired. Request a new one.');
     } catch {
-      Alert.alert('Verify', 'Something went wrong. Please try again.');
+      notify('Verify', 'Something went wrong. Please try again.');
     } finally {
       setBusy(false);
     }
@@ -33,9 +34,9 @@ export default function Verify() {
     try {
       const dc = await startEmailSignIn(email);
       if (dc) setCode(dc);
-      Alert.alert('Verify', 'We sent a new code.');
+      notify('Verify', 'We sent a new code.');
     } catch {
-      Alert.alert('Verify', 'Could not resend the code.');
+      notify('Verify', 'Could not resend the code.');
     }
   };
 

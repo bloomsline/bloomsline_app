@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Lock, Eye, Download, Check, type LucideIcon } from 'lucide-react-native';
 import { Screen, IconButton } from '@/src/ui/Screen';
@@ -9,6 +9,7 @@ import { Button } from '@/src/ui/Button';
 import { useOnboarding } from '@/src/onboarding/context';
 import { useAuth } from '@/src/auth/auth-context';
 import { saveProfile } from '@/src/api/me';
+import { notify } from '@/src/ui/alert';
 
 function Promise({ icon: Icon, title, caption }: { icon: LucideIcon; title: string; caption: string }) {
   return (
@@ -63,7 +64,7 @@ export default function Consent() {
       </View>
 
       {!hasPractitioner && (
-        <Pressable onPress={() => Alert.alert('Privacy', 'The full privacy promise opens here.')} className="items-center py-4">
+        <Pressable onPress={() => notify('Privacy', 'The full privacy promise opens here.')} className="items-center py-4">
           <Text className="text-[14px] text-muted-dark underline">Read the full privacy promise</Text>
         </Pressable>
       )}

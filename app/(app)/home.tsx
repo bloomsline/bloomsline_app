@@ -4,7 +4,7 @@
 // otherwise a solo "connect" state. To-do / sharing-history / documents are still
 // placeholder pending their own mobile endpoints.
 import { useCallback, useState } from 'react';
-import { Alert, Linking, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Linking, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ChevronRight, Plus, Ellipsis, Eye, RotateCcw, FileText, Settings, type LucideIcon } from 'lucide-react-native';
@@ -13,6 +13,7 @@ import { useOnboarding } from '@/src/onboarding/context';
 import { FORCE_CARE_HUB } from '@/src/config';
 import { fetchCare, fetchTodo, type CareSession, type PatientCare, type TodoItem } from '@/src/api/care';
 import { resourceTypeMeta, statusLabel } from '@/src/care/resources';
+import { notify } from '@/src/ui/alert';
 
 const TEAL = '#009B8E';
 
@@ -43,10 +44,7 @@ export default function MyCare() {
     }, []),
   );
 
-  const soon = () => {
-    if (Platform.OS === 'web') globalThis.alert?.('Coming soon');
-    else Alert.alert('Coming soon');
-  };
+  const soon = () => notify('Coming soon');
 
   const real = care?.hasPractitioner ? care : null;
   const preview = !real && FORCE_CARE_HUB;
