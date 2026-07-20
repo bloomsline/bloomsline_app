@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { X, ArrowRight } from 'lucide-react-native';
 import { Screen, IconButton } from '@/src/ui/Screen';
@@ -45,7 +45,12 @@ function MicrosoftAuthButton() {
 
 export default function SignUp() {
   const { startEmailSignIn, devSignIn } = useAuth();
-  const [email, setEmail] = useState('');
+  // An invited patient arrives with the address their practitioner used. Seed
+  // the field with it: signing up under a different address creates an account
+  // that never links to their practitioner, and they would have no way to know.
+  const { email: invitedEmail } = useLocalSearchParams<{ email?: string }>();
+  const invited = typeof invitedEmail === 'string' && invitedEmail ? invitedEmail : null;
+  const [email, setEmail] = useState(invited ?? '');
   const [busy, setBusy] = useState(false);
   const valid = EMAIL_RE.test(email.trim());
 
@@ -90,6 +95,13 @@ export default function SignUp() {
             <Text className="text-[13px] text-[#ccc]">or use your email</Text>
             <View className="h-px flex-1 bg-[#eee]" />
           </View>
+
+          {invited && (
+            <Text className="mb-2 px-1 text-[12.5px] leading-[18px] text-muted-dark">
+              You were invited as <Text className="font-semibold text-ink">{invited}</Text>. Use this address so
+              your practitioner can find you.
+            </Text>
+          )}
 
           <View className="h-14 flex-row items-center rounded-[28px] border border-[#E5E5E5] pl-5 pr-2">
             <TextInput
