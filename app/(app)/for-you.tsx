@@ -1,50 +1,78 @@
 // For You — Flow E "Space for you" landing (screen e0), from the V2 cloud design.
 // Two self-guided spaces: a private Journal, and Small activities (the Library of
-// practitioner-made practices, always open, never assigned).
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+// practitioner-made practices, always open, never assigned). Hybrid editorial re-skin.
+import { useState } from 'react';
+import { ScrollView, Text, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
-import { PenLine, Sprout } from 'lucide-react-native';
+import { PenLine, Sprout, Settings } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
-import { CARE } from '@/src/care/theme';
+import { TabIntro } from '@/src/ui/TabIntro';
+import { EDA, EdHeader, EdCard, EdPill, FadeIn } from '@/src/ui/editorial';
+import { useI18n } from '@/src/i18n';
 
-const ORANGE = '#C87941';
-const ORANGE_TINT = '#FCF1E7';
+const T = {
+  en: {
+    title: 'Space for you',
+    subtitle: 'Take what helps, whenever it suits you.',
+    journal: 'Journal',
+    journalDesc: 'A private place to write freely. Only you can read this.',
+    openJournal: 'Open journal',
+    activities: 'Small activities',
+    activitiesDesc: 'Short practices made by practitioners, always open, never assigned.',
+    browse: 'Browse activities',
+  },
+  fr: {
+    title: 'Un espace pour vous',
+    subtitle: 'Prenez ce qui vous fait du bien, quand cela vous convient.',
+    journal: 'Journal',
+    journalDesc: 'Un espace privé pour écrire librement. Vous seul pouvez le lire.',
+    openJournal: 'Ouvrir le journal',
+    activities: 'Petites activités',
+    activitiesDesc: 'De courtes pratiques créées par les praticiens, toujours accessibles, jamais imposées.',
+    browse: 'Voir les activités',
+  },
+} as const;
 
 export default function ForYou() {
   const router = useRouter();
+  const { locale } = useI18n();
+  const tr = T[locale];
+  const [introActive, setIntroActive] = useState(false);
+  const dim = { opacity: introActive ? 0.3 : 1 } as const;
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: CARE.canvas }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 26, paddingBottom: 180 }} showsVerticalScrollIndicator={false}>
-        <Text style={{ fontSize: 28, fontWeight: '700', letterSpacing: -0.6, color: CARE.ink }}>Space for you</Text>
-        <Text style={{ fontSize: 13.5, color: '#9A9A9A', marginTop: 4, marginBottom: 26 }}>Take what helps, whenever it suits you.</Text>
+    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+      <StatusBar style="dark" />
+      <ScrollView contentContainerStyle={{ paddingBottom: 180 }} showsVerticalScrollIndicator={false}>
+        <EdHeader kicker="FOR YOU" title={tr.title} subtitle={tr.subtitle} rightIcon={Settings} onRight={() => router.navigate('/settings' as never)} />
+        <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
+          <TabIntro tabKey="foryou" onActiveChange={setIntroActive} />
 
-        {/* Journal */}
-        <View style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: CARE.border, borderRadius: 24, padding: 24, marginBottom: 16 }}>
-          <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: CARE.mint, alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
-            <PenLine size={24} color={CARE.teal} strokeWidth={2} />
-          </View>
-          <Text style={{ fontSize: 20, fontWeight: '700', color: CARE.ink, marginBottom: 6 }}>Journal</Text>
-          <Text style={{ fontSize: 14, color: '#7A7A7A', lineHeight: 22, marginBottom: 18 }}>A private place to write freely. Only you can read this.</Text>
-          <TouchableOpacity onPress={() => router.navigate('/journal' as never)} activeOpacity={0.85} style={{ height: 48, borderRadius: 24, backgroundColor: CARE.teal, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 15, fontWeight: '600', color: '#fff' }}>Open journal</Text>
-          </TouchableOpacity>
-        </View>
+          <View style={dim} pointerEvents={introActive ? 'none' : 'auto'}>
+            {/* Journal */}
+            <EdCard style={{ padding: 22, marginBottom: 14 }}>
+              <View style={{ width: 52, height: 52, borderRadius: 15, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                <PenLine size={23} color={EDA.green} strokeWidth={2} />
+              </View>
+              <Text style={{ fontSize: 19, fontWeight: '800', color: EDA.ink, letterSpacing: -0.3, marginBottom: 6 }}>{tr.journal}</Text>
+              <Text style={{ fontSize: 13.5, color: EDA.inkSoft, lineHeight: 21, marginBottom: 18 }}>{tr.journalDesc}</Text>
+              <EdPill label={tr.openJournal} variant="green" onPress={() => router.navigate('/journal' as never)} />
+            </EdCard>
 
-        {/* Small activities */}
-        <View style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: CARE.border, borderRadius: 24, padding: 24 }}>
-          <View style={{ width: 56, height: 56, borderRadius: 16, backgroundColor: ORANGE_TINT, alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
-            <Sprout size={24} color={ORANGE} strokeWidth={2} />
+            {/* Small activities */}
+            <EdCard style={{ padding: 22 }}>
+              <View style={{ width: 52, height: 52, borderRadius: 15, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                <Sprout size={23} color={EDA.green} strokeWidth={2} />
+              </View>
+              <Text style={{ fontSize: 19, fontWeight: '800', color: EDA.ink, letterSpacing: -0.3, marginBottom: 6 }}>{tr.activities}</Text>
+              <Text style={{ fontSize: 13.5, color: EDA.inkSoft, lineHeight: 21, marginBottom: 18 }}>{tr.activitiesDesc}</Text>
+              <EdPill label={tr.browse} variant="outline" onPress={() => router.navigate('/library' as never)} />
+            </EdCard>
           </View>
-          <Text style={{ fontSize: 20, fontWeight: '700', color: CARE.ink, marginBottom: 6 }}>Small activities</Text>
-          <Text style={{ fontSize: 14, color: '#7A7A7A', lineHeight: 22, marginBottom: 18 }}>Short practices made by practitioners — always open, never assigned.</Text>
-          <TouchableOpacity onPress={() => router.navigate('/library' as never)} activeOpacity={0.85} style={{ height: 48, borderRadius: 24, backgroundColor: '#fff', borderWidth: 1.5, borderColor: CARE.teal, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 15, fontWeight: '600', color: CARE.teal }}>Browse activities</Text>
-          </TouchableOpacity>
-        </View>
+        </FadeIn>
       </ScrollView>
 
       <TabBar active="foryou" />
-    </SafeAreaView>
+    </View>
   );
 }

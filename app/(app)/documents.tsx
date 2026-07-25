@@ -3,13 +3,41 @@
 // token link for now, so tapping a pending doc explains that.
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import { useRouter } from 'expo-router';
 import { FileText, Check } from 'lucide-react-native';
-import { CareHeader } from '@/src/care/CareHeader';
-import { CARE } from '@/src/care/theme';
+import { EDA, EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
+import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { fetchDocuments, type CareDocument } from '@/src/api/care';
+import { useI18n, fmt } from '@/src/i18n';
+
+const T = {
+  en: {
+    title: 'Documents & forms',
+    emptyTitle: 'No documents yet',
+    emptyBody: 'Forms your practitioner sends will appear here.',
+    signAlert: 'Open this document from the link your practitioner sent to sign it.',
+    signedOn: 'Signed {date}',
+    awaiting: 'Awaiting your signature',
+    signed: 'Signed',
+    pending: 'Pending',
+  },
+  fr: {
+    title: 'Documents et formulaires',
+    emptyTitle: 'Aucun document pour le moment',
+    emptyBody: 'Les formulaires envoyés par votre praticien apparaîtront ici.',
+    signAlert: 'Ouvrez ce document depuis le lien que votre praticien vous a envoyé pour le signer.',
+    signedOn: 'Signé le {date}',
+    awaiting: 'En attente de votre signature',
+    signed: 'Signé',
+    pending: 'En attente',
+  },
+} as const;
 
 export default function Documents() {
+  const router = useRouter();
+  const { locale } = useI18n();
+  const tr = T[locale];
   const [items, setItems] = useState<CareDocument[] | null>(null);
   useEffect(() => {
     let alive = true;
@@ -18,49 +46,55 @@ export default function Documents() {
   }, []);
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: CARE.canvas }}>
-      <CareHeader title="Documents & forms" />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 8, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-        {items === null ? (
-          <View style={{ paddingTop: 40, alignItems: 'center' }}><ActivityIndicator color={CARE.teal} /></View>
-        ) : items.length === 0 ? (
-          <View style={{ backgroundColor: CARE.card, borderWidth: 1, borderColor: CARE.border, borderRadius: 18, padding: 24, alignItems: 'center', marginTop: 8 }}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: CARE.ink }}>No documents yet</Text>
-            <Text style={{ fontSize: 13, color: '#999', marginTop: 6, textAlign: 'center' }}>Forms your practitioner sends will appear here.</Text>
-          </View>
-        ) : (
-          <View style={{ gap: 10, marginTop: 4 }}>
-            {items.map((d) => (
-              <TouchableOpacity
-                key={d.id}
-                activeOpacity={0.8}
-                onPress={() => !d.signed && Platform.OS === 'web' && globalThis.alert?.('Open this document from the link your practitioner sent to sign it.')}
-                style={{ backgroundColor: CARE.card, borderWidth: 1, borderColor: CARE.border, borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}
-              >
-                <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: d.signed ? CARE.mint : '#F1F1EF', alignItems: 'center', justifyContent: 'center' }}>
-                  <FileText size={19} color={d.signed ? CARE.teal : '#9A9A9A'} strokeWidth={2} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: CARE.ink }}>{d.title}</Text>
-                  <Text style={{ fontSize: 12, color: '#999', marginTop: 1 }}>{d.signed && d.signedAt ? `Signed ${shortDate(d.signedAt)}` : 'Awaiting your signature'}</Text>
-                </View>
-                {d.signed ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: CARE.mint, borderRadius: 10, paddingVertical: 4, paddingHorizontal: 9 }}>
-                    <Check size={12} color={CARE.teal} strokeWidth={3} />
-                    <Text style={{ fontSize: 11.5, fontWeight: '600', color: CARE.teal }}>Signed</Text>
+    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+      <StatusBar style="dark" />
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+        <EdHeader kicker="DOCUMENTS" title={tr.title} onBack={() => router.back()} />
+        <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
+          {items === null ? (
+            <View style={{ paddingTop: 40, alignItems: 'center' }}><ActivityIndicator color={EDA.green} /></View>
+          ) : items.length === 0 ? (
+            <EdCard style={{ alignItems: 'center', padding: 24 }}>
+              <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <FileText size={22} color={EDA.green} strokeWidth={2} />
+              </View>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: EDA.ink }}>{tr.emptyTitle}</Text>
+              <Text style={{ fontSize: 13, color: EDA.inkSoft, marginTop: 6, textAlign: 'center', lineHeight: 19 }}>{tr.emptyBody}</Text>
+            </EdCard>
+          ) : (
+            <View style={{ gap: 10 }}>
+              {items.map((d) => (
+                <TouchableOpacity
+                  key={d.id}
+                  activeOpacity={0.8}
+                  onPress={() => !d.signed && Platform.OS === 'web' && globalThis.alert?.(tr.signAlert)}
+                  style={{ backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, borderRadius: 18, padding: 15, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}
+                >
+                  <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center' }}>
+                    <FileText size={19} color={d.signed ? EDA.green : EDA.faint} strokeWidth={2} />
                   </View>
-                ) : (
-                  <View style={{ backgroundColor: '#F6EEE8', borderRadius: 10, paddingVertical: 4, paddingHorizontal: 9 }}>
-                    <Text style={{ fontSize: 11.5, fontWeight: '600', color: '#9A6A54' }}>Pending</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14.5, fontWeight: '700', color: EDA.ink }}>{d.title}</Text>
+                    <Text style={{ fontSize: 12, color: EDA.inkSoft, marginTop: 1 }}>{d.signed && d.signedAt ? fmt(tr.signedOn, { date: shortDate(d.signedAt, locale) }) : tr.awaiting}</Text>
                   </View>
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
+                  {d.signed ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: EDA.greenTint, borderRadius: 11, paddingVertical: 4, paddingHorizontal: 9 }}>
+                      <Check size={12} color={EDA.green} strokeWidth={3} />
+                      <Text style={{ fontSize: 11.5, fontWeight: '700', color: EDA.green }}>{tr.signed}</Text>
+                    </View>
+                  ) : (
+                    <View style={{ borderWidth: 1, borderColor: EDA.line, borderRadius: 11, paddingVertical: 4, paddingHorizontal: 9 }}>
+                      <Text style={{ fontSize: 11.5, fontWeight: '700', color: EDA.inkSoft }}>{tr.pending}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </FadeIn>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-const shortDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+const shortDate = (iso: string, locale?: string) => new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });

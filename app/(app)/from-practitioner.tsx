@@ -2,15 +2,32 @@
 // /api/mobile/care/todo (real assignments). Demo items under FORCE_CARE_HUB.
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Check, ChevronRight, type LucideIcon } from 'lucide-react-native';
-import { CareHeader } from '@/src/care/CareHeader';
-import { CARE } from '@/src/care/theme';
+import { EDA, EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
 import { useOnboarding } from '@/src/onboarding/context';
 import { FORCE_CARE_HUB } from '@/src/config';
 import { fetchTodo, type TodoItem } from '@/src/api/care';
 import { resourceTypeMeta, statusLabel, isDone } from '@/src/care/resources';
+import { useI18n, fmt } from '@/src/i18n';
+
+const T = {
+  en: {
+    defaultPractitioner: 'your practitioner',
+    titleFrom: 'From {name}',
+    subtitle: 'Do these whenever suits you, no due dates.',
+    emptyTitle: 'Nothing shared yet',
+    emptyBody: 'Anything {name} shares with you will appear here.',
+  },
+  fr: {
+    defaultPractitioner: 'votre praticien',
+    titleFrom: 'De la part de {name}',
+    subtitle: 'Faites-les quand cela vous convient, sans date limite.',
+    emptyTitle: 'Rien de partagé pour le moment',
+    emptyBody: 'Tout ce que {name} partage avec vous apparaîtra ici.',
+  },
+} as const;
 
 const DEMO: TodoItem[] = [
   { id: 'd1', resourceId: '', title: 'A short reflection', type: 'worksheet', status: 'in_progress', dueAt: null, assignedAt: '' },
@@ -20,8 +37,10 @@ const DEMO: TodoItem[] = [
 
 export default function FromPractitioner() {
   const router = useRouter();
+  const { locale } = useI18n();
+  const tr = T[locale];
   const { practitionerName } = useOnboarding();
-  const first = (practitionerName ?? 'your practitioner').replace(/^dr\.?\s*/i, '').split(/\s+/)[0];
+  const first = (practitionerName ?? tr.defaultPractitioner).replace(/^dr\.?\s*/i, '').split(/\s+/)[0];
   const [items, setItems] = useState<TodoItem[] | null>(null);
 
   useEffect(() => {
@@ -34,66 +53,70 @@ export default function FromPractitioner() {
   }, []);
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: CARE.canvas }}>
-      <CareHeader title={`From ${first}`} />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 8, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-        <Text style={{ fontSize: 13, color: '#9A9A9A', marginBottom: 14 }}>Do these whenever suits you — no due dates.</Text>
-
-        {items === null ? (
-          <View style={{ paddingTop: 40, alignItems: 'center' }}>
-            <ActivityIndicator color={CARE.teal} />
-          </View>
-        ) : items.length === 0 ? (
-          <View style={{ backgroundColor: CARE.card, borderWidth: 1, borderColor: CARE.border, borderRadius: 18, padding: 24, alignItems: 'center' }}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: CARE.ink }}>Nothing shared yet</Text>
-            <Text style={{ fontSize: 13, color: '#999', textAlign: 'center', marginTop: 6, lineHeight: 19 }}>
-              Anything {first} shares with you will appear here.
-            </Text>
-          </View>
-        ) : (
-          items.map((it) => {
-            const meta = resourceTypeMeta(it.type);
-            const done = isDone(it.status);
-            const open = it.resourceId ? () => router.navigate(`/resource/${it.id}` as never) : undefined;
-            return <ResItem key={it.id} Icon={meta.Icon} title={it.title} tag={meta.label} status={statusLabel(it.status)} statusTeal={it.status === 'in_progress'} done={done} muted={done} onPress={open} />;
-          })
-        )}
+    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+      <StatusBar style="dark" />
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+        <EdHeader kicker={first} title={fmt(tr.titleFrom, { name: first })} subtitle={tr.subtitle} onBack={() => router.back()} />
+        <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
+          {items === null ? (
+            <View style={{ paddingTop: 40, alignItems: 'center' }}>
+              <ActivityIndicator color={EDA.green} />
+            </View>
+          ) : items.length === 0 ? (
+            <EdCard style={{ alignItems: 'center', padding: 24 }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: EDA.ink }}>{tr.emptyTitle}</Text>
+              <Text style={{ fontSize: 13, color: EDA.inkSoft, textAlign: 'center', marginTop: 6, lineHeight: 19 }}>
+                {fmt(tr.emptyBody, { name: first })}
+              </Text>
+            </EdCard>
+          ) : (
+            <View style={{ gap: 10 }}>
+              {items.map((it) => {
+                const meta = resourceTypeMeta(it.type, locale);
+                const done = isDone(it.status);
+                const open = it.resourceId ? () => router.navigate(`/resource/${it.id}` as never) : undefined;
+                return <ResItem key={it.id} Icon={meta.Icon} title={it.title} tag={meta.label} status={statusLabel(it.status, locale)} statusGreen={it.status === 'in_progress'} done={done} muted={done} onPress={open} />;
+              })}
+            </View>
+          )}
+        </FadeIn>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 function ResItem({
-  Icon, title, tag, status, statusTeal, done, muted, onPress,
+  Icon, title, tag, status, statusGreen, done, muted, onPress,
 }: {
-  Icon: LucideIcon; title: string; tag: string; status: string; statusTeal?: boolean; done?: boolean; muted?: boolean; onPress?: () => void;
+  Icon: LucideIcon; title: string; tag: string; status: string; statusGreen?: boolean; done?: boolean; muted?: boolean; onPress?: () => void;
 }) {
-  const soon = () => Platform.OS === 'web' && globalThis.alert?.('Coming soon');
+  const { t } = useI18n();
+  const soon = () => Platform.OS === 'web' && globalThis.alert?.(t.common.comingSoon);
   return (
     <TouchableOpacity
       onPress={onPress ?? soon}
       activeOpacity={0.8}
-      style={{ backgroundColor: CARE.card, borderWidth: 1, borderColor: CARE.border, borderRadius: 18, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12 }}
+      style={{ backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, borderRadius: 18, padding: 15, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14, opacity: muted ? 0.7 : 1 }}
     >
-      <View style={{ width: 46, height: 46, borderRadius: 13, backgroundColor: muted ? '#F1ECE2' : CARE.mint, alignItems: 'center', justifyContent: 'center' }}>
-        <Icon size={19} color={muted ? '#9A9081' : CARE.teal} strokeWidth={2} />
+      <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon size={19} color={muted ? EDA.faint : EDA.green} strokeWidth={2} />
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={{ fontSize: 15, fontWeight: muted ? '600' : '700', color: muted ? '#7A7568' : CARE.ink }}>{title}</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
-          <Text style={{ fontSize: 11, fontWeight: '600', color: '#9A9081', textTransform: 'uppercase', letterSpacing: 0.4 }}>{tag}</Text>
-          <View style={{ width: 3, height: 3, borderRadius: 2, backgroundColor: '#D4CBB9' }} />
+        <Text style={{ fontSize: 14.5, fontWeight: '700', color: muted ? EDA.inkSoft : EDA.ink }}>{title}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 5 }}>
+          <Text style={{ fontSize: 11, fontWeight: '700', color: EDA.faint, textTransform: 'uppercase', letterSpacing: 0.4 }}>{tag}</Text>
+          <View style={{ width: 3, height: 3, borderRadius: 2, backgroundColor: EDA.line }} />
           {done ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Check size={12} color={CARE.teal} strokeWidth={3} />
-              <Text style={{ fontSize: 11.5, fontWeight: '600', color: CARE.teal }}>{status}</Text>
+              <Check size={12} color={EDA.green} strokeWidth={3} />
+              <Text style={{ fontSize: 11.5, fontWeight: '700', color: EDA.green }}>{status}</Text>
             </View>
           ) : (
-            <Text style={{ fontSize: 11.5, fontWeight: '600', color: statusTeal ? CARE.teal : '#9A9081' }}>{status}</Text>
+            <Text style={{ fontSize: 11.5, fontWeight: '700', color: statusGreen ? EDA.green : EDA.faint }}>{status}</Text>
           )}
         </View>
       </View>
-      <ChevronRight size={18} color="#CFC6B4" strokeWidth={2} />
+      <ChevronRight size={18} color={EDA.faint} strokeWidth={2} />
     </TouchableOpacity>
   );
 }

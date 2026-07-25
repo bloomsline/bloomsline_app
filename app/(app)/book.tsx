@@ -8,14 +8,15 @@
 // practitioner modal follows the same rule. It opens straight on the time step.
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronDown, ChevronUp, Check, Video, Phone, MapPin } from 'lucide-react-native';
-import { CareHeader } from '@/src/care/CareHeader';
-import { CARE } from '@/src/care/theme';
+import { EDA, EdHeader, EdPill, FadeIn } from '@/src/ui/editorial';
+import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useOnboarding } from '@/src/onboarding/context';
 import { FORCE_CARE_HUB } from '@/src/config';
 import { fetchSlots, type SlotDay, type BookingSlots } from '@/src/api/booking';
+import { useI18n, type Locale } from '@/src/i18n';
 
 type Step = 'service' | 'format' | 'time';
 
@@ -41,14 +42,53 @@ function demo(): BookingSlots {
   };
 }
 
-const FORMAT_META: Record<string, { label: string; icon: typeof Video }> = {
-  video: { label: 'Video call', icon: Video },
-  phone: { label: 'Phone call', icon: Phone },
-  in_person: { label: 'In person', icon: MapPin },
+const FORMAT_ICON: Record<string, typeof Video> = {
+  video: Video,
+  phone: Phone,
+  in_person: MapPin,
 };
 
-function priceLabel(cents: number | null, currency: string): string {
-  if (cents == null) return 'No charge';
+const T = {
+  en: {
+    bookTitle: 'Book a session',
+    reschedule: 'Reschedule',
+    yourPractitioner: 'your practitioner',
+    unavailable: "Booking isn't available",
+    unavailableBody: (n: string) => `Please check back later, or reach out to ${n}.`,
+    whatKind: 'What kind of session?',
+    withName: (n: string) => `With ${n}`,
+    min: 'min',
+    noCharge: 'No charge',
+    howMeet: 'How would you like to meet?',
+    noTimes: 'No times available',
+    noTimesBody: 'Your practitioner has no open slots for this session right now. Try another format, or check back later.',
+    chooseTime: 'Choose a time',
+    session: 'Session',
+    continueAt: (tm: string) => `Continue · ${tm}`,
+    formats: { video: 'Video call', phone: 'Phone call', in_person: 'In person' } as Record<string, string>,
+  },
+  fr: {
+    bookTitle: 'Prendre rendez-vous',
+    reschedule: 'Reprogrammer',
+    yourPractitioner: 'votre praticien',
+    unavailable: "La réservation n'est pas disponible",
+    unavailableBody: (n: string) => `Revenez un peu plus tard, ou contactez ${n}.`,
+    whatKind: 'Quel type de séance ?',
+    withName: (n: string) => `Avec ${n}`,
+    min: 'min',
+    noCharge: 'Gratuit',
+    howMeet: 'Comment souhaitez-vous échanger ?',
+    noTimes: 'Aucun créneau disponible',
+    noTimesBody: "Votre praticien n'a aucun créneau libre pour cette séance pour le moment. Essayez un autre format, ou revenez plus tard.",
+    chooseTime: 'Choisissez un horaire',
+    session: 'Séance',
+    continueAt: (tm: string) => `Continuer · ${tm}`,
+    formats: { video: 'Appel vidéo', phone: 'Appel téléphonique', in_person: 'En personne' } as Record<string, string>,
+  },
+} as const;
+
+function priceLabel(cents: number | null, currency: string, noChargeLabel: string): string {
+  if (cents == null) return noChargeLabel;
   const symbol = currency === 'EUR' ? '€' : currency === 'USD' ? '$' : currency === 'GBP' ? '£' : `${currency} `;
   const amount = cents % 100 === 0 ? String(cents / 100) : (cents / 100).toFixed(2);
   return `${symbol}${amount}`;
@@ -56,11 +96,14 @@ function priceLabel(cents: number | null, currency: string): string {
 
 export default function Book() {
   const router = useRouter();
+  const { locale } = useI18n();
+  const tr = T[locale];
+  const formatLabel = (f: string) => tr.formats[f] ?? f;
   const params = useLocalSearchParams<{ rescheduleId?: string; sessionTypeId?: string; format?: string; demo?: string }>();
   const rescheduleId = typeof params.rescheduleId === 'string' ? params.rescheduleId : '';
   const isReschedule = !!rescheduleId;
   const { practitionerName } = useOnboarding();
-  const name = practitionerName ?? 'your practitioner';
+  const name = practitionerName ?? tr.yourPractitioner;
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<BookingSlots | null>(null);
@@ -144,28 +187,31 @@ export default function Book() {
     } as never);
   };
 
-  const title = isReschedule ? 'Reschedule' : 'Book a session';
+  const title = isReschedule ? tr.reschedule : tr.bookTitle;
+  const kicker = title.toUpperCase();
 
   if (loading) {
     return (
-      <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: CARE.canvas }}>
-        <CareHeader title={title} close />
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={CARE.teal} /></View>
-      </SafeAreaView>
+      <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+        <StatusBar style="dark" />
+        <EdHeader kicker={kicker} title={title} source={ONBOARDING_IMAGES.card4} onBack={back} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={EDA.green} /></View>
+      </View>
     );
   }
 
   if (!data) {
     return (
-      <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: CARE.canvas }}>
-        <CareHeader title={title} close />
+      <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+        <StatusBar style="dark" />
+        <EdHeader kicker={kicker} title={title} source={ONBOARDING_IMAGES.card4} onBack={back} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: CARE.ink }}>Booking isn’t available</Text>
-          <Text style={{ fontSize: 13.5, color: '#999', textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
-            Please check back later, or reach out to {name}.
+          <Text style={{ fontSize: 16, fontWeight: '700', color: EDA.ink }}>{tr.unavailable}</Text>
+          <Text style={{ fontSize: 13.5, color: EDA.inkSoft, textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
+            {tr.unavailableBody(name)}
           </Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -174,83 +220,83 @@ export default function Book() {
   const stepList: Step[] = isReschedule ? ['time'] : data.offeredFormats.length <= 1 ? ['service', 'time'] : ['service', 'format', 'time'];
   const stepIdx = stepList.indexOf(step);
 
+  // Header title/subtitle track the active step.
+  const headerTitle = step === 'service' ? tr.whatKind : step === 'format' ? tr.howMeet : tr.chooseTime;
+  const headerSubtitle =
+    step === 'service' ? tr.withName(name)
+    : step === 'time' ? `${data.sessionTypes.find((t) => t.id === typeId)?.name ?? tr.session} · ${formatLabel(format ?? '')}`
+    : undefined;
+
+  const rail = stepList.length > 1 ? (
+    <View style={{ flexDirection: 'row', gap: 6, marginBottom: 18 }}>
+      {stepList.map((sName, i) => (
+        <View key={sName} style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: i <= stepIdx ? EDA.green : EDA.line }} />
+      ))}
+    </View>
+  ) : null;
+
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: CARE.canvas }}>
-      <CareHeader title={title} onBack={back} />
+    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+      <StatusBar style="dark" />
+      <ScrollView contentContainerStyle={{ paddingBottom: step === 'time' ? 120 : 40 }} showsVerticalScrollIndicator={false}>
+        <EdHeader kicker={kicker} title={headerTitle} subtitle={headerSubtitle} source={ONBOARDING_IMAGES.card4} onBack={back} />
+        <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
+          {rail}
 
-      {/* Progress rail */}
-      {stepList.length > 1 && (
-        <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 24, marginBottom: 4 }}>
-          {stepList.map((sName, i) => (
-            <View key={sName} style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: i <= stepIdx ? CARE.teal : '#E7E1D6' }} />
-          ))}
-        </View>
-      )}
-
-      {step === 'service' ? (
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 12, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-          <Text style={{ fontSize: 22, fontWeight: '700', color: CARE.ink, marginBottom: 4 }}>What kind of session?</Text>
-          <Text style={{ fontSize: 14, color: '#9A9A9A', marginBottom: 18 }}>With {name}</Text>
-          {data.sessionTypes.map((t) => (
-            <TouchableOpacity key={t.id} onPress={() => chooseType(t.id)} activeOpacity={0.85}
-              style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: CARE.card, borderWidth: 1, borderColor: typeId === t.id ? CARE.teal : CARE.border, borderRadius: 16, padding: 16, marginBottom: 10 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 15.5, fontWeight: '600', color: CARE.ink }}>{t.name}</Text>
-                <Text style={{ fontSize: 13, color: '#9A9A9A', marginTop: 2 }}>{t.durationMinutes} min · {priceLabel(t.priceCents, data.currency)}</Text>
-              </View>
-              {typeId === t.id && <Check size={18} color={CARE.teal} strokeWidth={2.5} />}
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      ) : step === 'format' ? (
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 12, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-          <Text style={{ fontSize: 22, fontWeight: '700', color: CARE.ink, marginBottom: 18 }}>How would you like to meet?</Text>
-          {data.offeredFormats.map((f) => {
-            const meta = FORMAT_META[f] ?? { label: f, icon: Video };
-            const Icon = meta.icon;
-            return (
-              <TouchableOpacity key={f} onPress={() => chooseFormat(f)} activeOpacity={0.85}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: CARE.card, borderWidth: 1, borderColor: format === f ? CARE.teal : CARE.border, borderRadius: 16, padding: 16, marginBottom: 10 }}>
-                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#EAF4F1', alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon size={19} color={CARE.teal} strokeWidth={2} />
-                </View>
-                <Text style={{ flex: 1, fontSize: 15.5, fontWeight: '600', color: CARE.ink }}>{meta.label}</Text>
-                {format === f && <Check size={18} color={CARE.teal} strokeWidth={2.5} />}
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      ) : slotsLoading ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={CARE.teal} /></View>
-      ) : days.length === 0 ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: CARE.ink }}>No times available</Text>
-          <Text style={{ fontSize: 13.5, color: '#999', textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
-            Your practitioner has no open slots for this session right now. Try another format, or check back later.
-          </Text>
-        </View>
-      ) : (
-        <>
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 12, paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
-            <Text style={{ fontSize: 22, fontWeight: '700', color: CARE.ink, marginBottom: 4 }}>Choose a time</Text>
-            <Text style={{ fontSize: 14, color: '#9A9A9A', marginBottom: 16 }}>
-              {data.sessionTypes.find((t) => t.id === typeId)?.name ?? 'Session'} · {FORMAT_META[format ?? '']?.label ?? format}
-            </Text>
-            {days.map((d) => {
+          {step === 'service' ? (
+            data.sessionTypes.map((t) => {
+              const on = typeId === t.id;
+              return (
+                <TouchableOpacity key={t.id} onPress={() => chooseType(t.id)} activeOpacity={0.85}
+                  style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? EDA.greenTint : EDA.card, borderWidth: 1, borderColor: on ? EDA.green : EDA.line, borderRadius: 18, padding: 16, marginBottom: 10 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15.5, fontWeight: '700', color: EDA.ink }}>{t.name}</Text>
+                    <Text style={{ fontSize: 13, color: EDA.inkSoft, marginTop: 2 }}>{t.durationMinutes} {tr.min} · {priceLabel(t.priceCents, data.currency, tr.noCharge)}</Text>
+                  </View>
+                  {on && <Check size={18} color={EDA.green} strokeWidth={2.5} />}
+                </TouchableOpacity>
+              );
+            })
+          ) : step === 'format' ? (
+            data.offeredFormats.map((f) => {
+              const Icon = FORMAT_ICON[f] ?? Video;
+              const on = format === f;
+              return (
+                <TouchableOpacity key={f} onPress={() => chooseFormat(f)} activeOpacity={0.85}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: on ? EDA.greenTint : EDA.card, borderWidth: 1, borderColor: on ? EDA.green : EDA.line, borderRadius: 18, padding: 16, marginBottom: 10 }}>
+                  <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon size={19} color={EDA.green} strokeWidth={2} />
+                  </View>
+                  <Text style={{ flex: 1, fontSize: 15.5, fontWeight: '700', color: EDA.ink }}>{formatLabel(f)}</Text>
+                  {on && <Check size={18} color={EDA.green} strokeWidth={2.5} />}
+                </TouchableOpacity>
+              );
+            })
+          ) : slotsLoading ? (
+            <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 80 }}><ActivityIndicator color={EDA.green} /></View>
+          ) : days.length === 0 ? (
+            <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 60, paddingHorizontal: 10 }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: EDA.ink }}>{tr.noTimes}</Text>
+              <Text style={{ fontSize: 13.5, color: EDA.inkSoft, textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
+                {tr.noTimesBody}
+              </Text>
+            </View>
+          ) : (
+            days.map((d) => {
               const open = openDay === d.date;
               return (
-                <View key={d.date} style={{ backgroundColor: CARE.card, borderWidth: 1, borderColor: CARE.border, borderRadius: 16, overflow: 'hidden', marginBottom: 10 }}>
+                <View key={d.date} style={{ backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, borderRadius: 18, overflow: 'hidden', marginBottom: 10 }}>
                   <TouchableOpacity onPress={() => setOpenDay(open ? '' : d.date)} activeOpacity={0.7} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '600', color: CARE.ink }}>{dayLabel(d.date)}</Text>
-                    {open ? <ChevronUp size={18} color="#B6AB98" strokeWidth={2} /> : <ChevronDown size={18} color="#B6AB98" strokeWidth={2} />}
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink }}>{dayLabel(d.date, locale)}</Text>
+                    {open ? <ChevronUp size={18} color={EDA.faint} strokeWidth={2} /> : <ChevronDown size={18} color={EDA.faint} strokeWidth={2} />}
                   </TouchableOpacity>
                   {open && (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, paddingBottom: 16 }}>
                       {d.slots.map((sl) => {
                         const on = pick === sl;
                         return (
-                          <TouchableOpacity key={sl} onPress={() => setPick(sl)} activeOpacity={0.8} style={{ paddingVertical: 11, paddingHorizontal: 18, borderRadius: 14, backgroundColor: on ? CARE.teal : '#F1ECE2' }}>
-                            <Text style={{ fontSize: 14, fontWeight: '600', color: on ? '#fff' : CARE.ink }}>{slotTime(sl)}</Text>
+                          <TouchableOpacity key={sl} onPress={() => setPick(sl)} activeOpacity={0.8} style={{ paddingVertical: 11, paddingHorizontal: 18, borderRadius: 14, backgroundColor: on ? EDA.green : EDA.card, borderWidth: 1, borderColor: on ? EDA.green : EDA.line }}>
+                            <Text style={{ fontSize: 14, fontWeight: '700', color: on ? '#fff' : EDA.ink }}>{slotTime(sl)}</Text>
                           </TouchableOpacity>
                         );
                       })}
@@ -258,25 +304,26 @@ export default function Book() {
                   )}
                 </View>
               );
-            })}
-          </ScrollView>
+            })
+          )}
+        </FadeIn>
+      </ScrollView>
 
-          <View style={{ position: 'absolute', left: 24, right: 24, bottom: 24 }}>
-            <TouchableOpacity onPress={goConfirm} disabled={!pick} activeOpacity={0.85} style={{ height: 56, borderRadius: 28, backgroundColor: pick ? CARE.teal : '#E5E5E5', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 16, fontWeight: '600', color: pick ? '#fff' : '#999' }}>{pick ? `Continue · ${slotTime(pick)}` : 'Choose a time'}</Text>
-            </TouchableOpacity>
-          </View>
-        </>
+      {step === 'time' && !slotsLoading && days.length > 0 && (
+        <View style={{ position: 'absolute', left: 22, right: 22, bottom: 24 }}>
+          <EdPill label={pick ? tr.continueAt(slotTime(pick)) : tr.chooseTime} variant="dark" disabled={!pick} onPress={goConfirm} />
+        </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
 // 'YYYY-MM-DD' → "Monday, 14 July" (built from parts to avoid tz rollover).
-function dayLabel(dateStr: string): string {
+function dayLabel(dateStr: string, locale: Locale): string {
   const [y, m, d] = dateStr.split('-').map(Number);
   const dt = new Date(y, m - 1, d, 12);
-  return `${dt.toLocaleDateString(undefined, { weekday: 'long' })}, ${d} ${dt.toLocaleDateString(undefined, { month: 'long' })}`;
+  const bcp = locale === 'fr' ? 'fr-FR' : 'en-GB';
+  return `${dt.toLocaleDateString(bcp, { weekday: 'long' })}, ${d} ${dt.toLocaleDateString(bcp, { month: 'long' })}`;
 }
 
 // ISO instant → local 24h "9:00" / "14:00".

@@ -59,6 +59,17 @@ export const MOODS: MoodDef[] = [
 
 const MOOD_MAP = new Map(MOODS.map((m) => [m.key, m]));
 
+// French labels (inclusive forms). Covers the 17 current moods + the legacy keys.
+const MOOD_LABELS_FR: Record<string, string> = {
+  peaceful: 'Paisible', calm: 'Calme', grateful: 'Reconnaissant·e', hopeful: 'Optimiste',
+  loved: 'Aimé·e', proud: 'Fier·e', inspired: 'Inspiré·e', funny: 'Amusé·e', playful: 'Joueur·se',
+  tired: 'Fatigué·e', anxious: 'Anxieux·se', sad: 'Triste', lonely: 'Seul·e', overwhelmed: 'Débordé·e',
+  heavy: 'Accablé·e', angry: 'En colère', fear: 'Effrayé·e',
+  // legacy keys
+  joyful: 'Joyeux·se', tender: 'Tendre', restless: 'Agité·e', uncertain: 'Incertain·e',
+};
+
 export const moodColor = (key: string): string => MOOD_COLORS[key] ?? '#666';
 export const moodDef = (key: string): MoodDef | undefined => MOOD_MAP.get(key);
-export const moodLabel = (key: string): string => MOOD_MAP.get(key)?.label ?? key;
+export const moodLabel = (key: string, locale: 'en' | 'fr' = 'en'): string =>
+  (locale === 'fr' ? MOOD_LABELS_FR[key] : undefined) ?? MOOD_MAP.get(key)?.label ?? key;

@@ -15,6 +15,8 @@ export interface MeProfile {
   hasPractitioner: boolean;
   practitionerName: string | null;
   onboardedAt: string | null;
+  locale: 'en' | 'fr';
+  dateOfBirth: string | null; // 'YYYY-MM-DD'
 }
 
 export async function fetchMe(): Promise<MeProfile | null> {
@@ -30,9 +32,10 @@ export async function fetchMe(): Promise<MeProfile | null> {
 export async function saveProfile(input: {
   firstName?: string;
   lastName?: string;
-  birthday?: string | null;
+  dateOfBirth?: string | null;
   agreedToTerms?: boolean;
   onboarded?: boolean;
+  locale?: 'en' | 'fr';
 }): Promise<boolean> {
   try {
     const res = await apiFetch('/api/mobile/me', { method: 'PATCH', body: JSON.stringify(input) });

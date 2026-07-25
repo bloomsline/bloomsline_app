@@ -1,50 +1,109 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { X, ArrowRight } from 'lucide-react-native';
-import { Screen, IconButton } from '@/src/ui/Screen';
-import { Button } from '@/src/ui/Button';
+import { EditorialBg, RiseIn, MonoKicker, ED } from '@/src/onboarding/editorial/kit';
+import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useAuth } from '@/src/auth/auth-context';
 import { useGoogleSignIn } from '@/src/auth/google';
 import { useMicrosoftSignIn } from '@/src/auth/microsoft';
 import { googleConfigured, microsoftConfigured, MOCK_AUTH } from '@/src/config';
 import { notify } from '@/src/ui/alert';
+import { useI18n } from '@/src/i18n';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const T = {
+  en: {
+    kicker: 'Sign in',
+    signInTitle: 'Sign in',
+    continueGoogle: 'Continue with Google',
+    continueOutlook: 'Continue with Outlook',
+    couldNotSend: 'Could not send the code. Check your connection and try again.',
+    googleNotConfigured: 'Google sign-in isn’t configured yet.',
+    outlookNotConfigured: 'Outlook sign-in isn’t configured yet.',
+    heading: 'Let’s get you\nset up.',
+    subheading: 'No password to invent. We’ll send a code.',
+    orUseEmail: 'or use your email',
+    invitedPre: 'You were invited as ',
+    invitedPost: '. Use this address so your practitioner can find you.',
+    emailPlaceholder: 'you@email.com',
+    legal: 'By continuing you agree to our terms. We’ll never share your email.',
+  },
+  fr: {
+    kicker: 'Connexion',
+    signInTitle: 'Connexion',
+    continueGoogle: 'Continuer avec Google',
+    continueOutlook: 'Continuer avec Outlook',
+    couldNotSend: 'Impossible d’envoyer le code. Vérifiez votre connexion et réessayez.',
+    googleNotConfigured: 'La connexion avec Google n’est pas encore configurée.',
+    outlookNotConfigured: 'La connexion avec Outlook n’est pas encore configurée.',
+    heading: 'Installons-vous\nen douceur.',
+    subheading: 'Aucun mot de passe à inventer. Nous envoyons un code.',
+    orUseEmail: 'ou utilisez votre email',
+    invitedPre: 'Vous avez été invité en tant que ',
+    invitedPost: '. Utilisez cette adresse pour que votre praticien puisse vous retrouver.',
+    emailPlaceholder: 'vous@email.com',
+    legal: 'En continuant, vous acceptez nos conditions. Nous ne partagerons jamais votre email.',
+  },
+} as const;
 
 // A tiny Google "G" mark.
 function GoogleMark() {
   return (
-    <View className="h-6 w-6 items-center justify-center rounded-md bg-white">
-      <Text className="text-[15px] font-bold text-[#4285F4]">G</Text>
+    <View style={{ width: 22, height: 22, borderRadius: 6, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ fontSize: 14, fontWeight: '800', color: '#4285F4' }}>G</Text>
     </View>
   );
 }
 // Outlook 2×2 colored squares.
 function OutlookMark() {
-  const sq = 'h-[9px] w-[9px]';
+  const sq = { width: 9, height: 9 } as const;
   return (
-    <View className="h-[20px] w-[20px] flex-row flex-wrap gap-[2px]">
-      <View className={`${sq} bg-[#f35325]`} />
-      <View className={`${sq} bg-[#81bc06]`} />
-      <View className={`${sq} bg-[#05a6f0]`} />
-      <View className={`${sq} bg-[#ffba08]`} />
+    <View style={{ width: 20, height: 20, flexDirection: 'row', flexWrap: 'wrap', gap: 2 }}>
+      <View style={[sq, { backgroundColor: '#f35325' }]} />
+      <View style={[sq, { backgroundColor: '#81bc06' }]} />
+      <View style={[sq, { backgroundColor: '#05a6f0' }]} />
+      <View style={[sq, { backgroundColor: '#ffba08' }]} />
     </View>
+  );
+}
+
+// Editorial pill for the OAuth providers. dark = ink filled, light = white outline.
+function EdAuthButton({ label, leading, onPress, tone }: { label: string; leading: ReactNode; onPress?: () => void; tone: 'dark' | 'light' }) {
+  const dark = tone === 'dark';
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{ height: 54, borderRadius: 27, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: dark ? ED.ink : '#fff', borderWidth: dark ? 0 : 1.5, borderColor: '#E7E6DF' }}
+    >
+      {leading}
+      <Text style={{ fontSize: 15, fontWeight: '700', color: dark ? '#fff' : '#33352F' }}>{label}</Text>
+    </Pressable>
   );
 }
 
 // The Google auth hook (expo-auth-session) throws on web when no client id is
 // set, so it's isolated in a component that's only mounted when configured.
 function GoogleAuthButton() {
-  const google = useGoogleSignIn((m) => notify('Sign in', m));
-  return <Button label="Continue with Google" variant="dark" leading={<GoogleMark />} onPress={() => google.signIn()} />;
+  const { locale } = useI18n();
+  const tr = T[locale];
+  const google = useGoogleSignIn((m) => notify(tr.signInTitle, m));
+  return <EdAuthButton tone="dark" label={tr.continueGoogle} leading={<GoogleMark />} onPress={() => google.signIn()} />;
 }
 function MicrosoftAuthButton() {
-  const ms = useMicrosoftSignIn((m) => notify('Sign in', m));
-  return <Button label="Continue with Outlook" variant="secondary" leading={<OutlookMark />} onPress={() => ms.signIn()} />;
+  const { locale } = useI18n();
+  const tr = T[locale];
+  const ms = useMicrosoftSignIn((m) => notify(tr.signInTitle, m));
+  return <EdAuthButton tone="light" label={tr.continueOutlook} leading={<OutlookMark />} onPress={() => ms.signIn()} />;
 }
 
 export default function SignUp() {
+  const insets = useSafeAreaInsets();
+  const { locale } = useI18n();
+  const tr = T[locale];
   const { startEmailSignIn, devSignIn } = useAuth();
   // An invited patient arrives with the address their practitioner used. Seed
   // the field with it: signing up under a different address creates an account
@@ -52,6 +111,7 @@ export default function SignUp() {
   const { email: invitedEmail } = useLocalSearchParams<{ email?: string }>();
   const invited = typeof invitedEmail === 'string' && invitedEmail ? invitedEmail : null;
   const [email, setEmail] = useState(invited ?? '');
+  const [focus, setFocus] = useState(false);
   const [busy, setBusy] = useState(false);
   const valid = EMAIL_RE.test(email.trim());
 
@@ -63,76 +123,90 @@ export default function SignUp() {
       const devCode = await startEmailSignIn(addr);
       router.push({ pathname: '/(auth)/verify', params: { email: addr, ...(devCode ? { devCode } : {}) } });
     } catch {
-      notify('Sign in', 'Could not send the code. Check your connection and try again.');
+      notify(tr.signInTitle, tr.couldNotSend);
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <Screen bg="bg-white" className="px-6">
-      <View className="pt-2">
-        <IconButton icon={X} onPress={() => router.back()} />
-      </View>
+    <View style={{ flex: 1 }}>
+      <StatusBar style="light" />
+      <EditorialBg source={ONBOARDING_IMAGES.about}>
+        <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(16,18,16,0.4)' }} pointerEvents="none" />
+        <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+          <View style={{ flex: 1 }}>
+            <View style={{ paddingHorizontal: 24, paddingTop: 12 }}>
+              <Pressable onPress={() => router.back()} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
+                <X size={18} color="#fff" strokeWidth={2} />
+              </Pressable>
+            </View>
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1 justify-center">
-        <Text className="text-[30px] font-bold tracking-[-0.5px] text-ink">Let’s get you set up</Text>
-        <Text className="mt-2 text-[16px] text-muted">No password to invent. We’ll send a link.</Text>
+            <View style={{ flex: 1 }} />
 
-        <View className="mt-8 gap-3">
-          {googleConfigured ? (
-            <GoogleAuthButton />
-          ) : (
-            <Button label="Continue with Google" variant="dark" leading={<GoogleMark />} onPress={() => (MOCK_AUTH ? devSignIn() : notify('Google', 'Google sign-in isn’t configured yet.'))} />
-          )}
-          {microsoftConfigured ? (
-            <MicrosoftAuthButton />
-          ) : (
-            <Button label="Continue with Outlook" variant="secondary" leading={<OutlookMark />} onPress={() => (MOCK_AUTH ? devSignIn() : notify('Outlook', 'Outlook sign-in isn’t configured yet.'))} />
-          )}
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+              <RiseIn y={40} duration={700} style={{ backgroundColor: ED.sheet, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 26, paddingTop: 26, paddingBottom: insets.bottom + 22 }}>
+                <MonoKicker size={10.5} color={ED.green} style={{ marginBottom: 10 }}>{tr.kicker}</MonoKicker>
+                <Text style={{ fontSize: 28, fontWeight: '800', color: '#141414', letterSpacing: -0.9, lineHeight: 31 }}>{tr.heading}</Text>
+                <Text style={{ marginTop: 8, fontSize: 14.5, color: '#8A8A83', lineHeight: 21 }}>{tr.subheading}</Text>
 
-          <View className="my-2 flex-row items-center gap-3">
-            <View className="h-px flex-1 bg-[#eee]" />
-            <Text className="text-[13px] text-[#ccc]">or use your email</Text>
-            <View className="h-px flex-1 bg-[#eee]" />
+                <View style={{ marginTop: 22, gap: 10 }}>
+                  {googleConfigured ? (
+                    <GoogleAuthButton />
+                  ) : (
+                    <EdAuthButton tone="dark" label={tr.continueGoogle} leading={<GoogleMark />} onPress={() => (MOCK_AUTH ? devSignIn() : notify('Google', tr.googleNotConfigured))} />
+                  )}
+                  {microsoftConfigured ? (
+                    <MicrosoftAuthButton />
+                  ) : (
+                    <EdAuthButton tone="light" label={tr.continueOutlook} leading={<OutlookMark />} onPress={() => (MOCK_AUTH ? devSignIn() : notify('Outlook', tr.outlookNotConfigured))} />
+                  )}
+
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 4 }}>
+                    <View style={{ height: 1, flex: 1, backgroundColor: '#E7E6DF' }} />
+                    <Text style={{ fontSize: 12.5, color: '#B5B5AD' }}>{tr.orUseEmail}</Text>
+                    <View style={{ height: 1, flex: 1, backgroundColor: '#E7E6DF' }} />
+                  </View>
+
+                  {invited && (
+                    <Text style={{ fontSize: 12.5, lineHeight: 18, color: '#6E6E66', paddingHorizontal: 2 }}>
+                      {tr.invitedPre}<Text style={{ fontWeight: '700', color: '#141414' }}>{invited}</Text>{tr.invitedPost}
+                    </Text>
+                  )}
+
+                  <View style={{ height: 54, flexDirection: 'row', alignItems: 'center', borderRadius: 27, backgroundColor: '#fff', borderWidth: focus ? 2 : 1.5, borderColor: focus ? ED.green : '#E7E6DF', paddingLeft: 18, paddingRight: 7 }}>
+                    <TextInput
+                      value={email}
+                      onChangeText={setEmail}
+                      onFocus={() => setFocus(true)}
+                      onBlur={() => setFocus(false)}
+                      placeholder={tr.emailPlaceholder}
+                      placeholderTextColor="#B5B5AD"
+                      selectionColor={ED.green}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      keyboardType="email-address"
+                      inputMode="email"
+                      returnKeyType="go"
+                      onSubmitEditing={sendCode}
+                      style={{ flex: 1, height: '100%', fontSize: 16, fontWeight: '600', color: '#141414' }}
+                    />
+                    <Pressable
+                      onPress={sendCode}
+                      disabled={!valid || busy}
+                      style={{ width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 21, backgroundColor: ED.green, opacity: !valid || busy ? 0.4 : 1 }}
+                    >
+                      <ArrowRight size={18} color="#fff" strokeWidth={2.2} />
+                    </Pressable>
+                  </View>
+                </View>
+
+                <Text style={{ marginTop: 18, textAlign: 'center', fontSize: 12, lineHeight: 18, color: '#AEAEA6' }}>{tr.legal}</Text>
+              </RiseIn>
+            </KeyboardAvoidingView>
           </View>
-
-          {invited && (
-            <Text className="mb-2 px-1 text-[12.5px] leading-[18px] text-muted-dark">
-              You were invited as <Text className="font-semibold text-ink">{invited}</Text>. Use this address so
-              your practitioner can find you.
-            </Text>
-          )}
-
-          <View className="h-14 flex-row items-center rounded-[28px] border border-[#E5E5E5] pl-5 pr-2">
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@email.com"
-              placeholderTextColor="#BBBBBB"
-              selectionColor="#009B8E"
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              inputMode="email"
-              returnKeyType="go"
-              onSubmitEditing={sendCode}
-              className="h-full flex-1 text-[16px] text-ink"
-            />
-            <Pressable
-              onPress={sendCode}
-              disabled={!valid || busy}
-              className={`h-11 w-11 items-center justify-center rounded-full bg-brand ${!valid || busy ? 'opacity-40' : ''}`}
-            >
-              <ArrowRight size={18} color="#fff" strokeWidth={2.2} />
-            </Pressable>
-          </View>
-        </View>
-
-        <Text className="mt-6 text-center text-[12.5px] leading-[18px] text-[#AEAEAE]">
-          By continuing you agree to our terms. We’ll never share your email.
-        </Text>
-      </KeyboardAvoidingView>
-    </Screen>
+        </SafeAreaView>
+      </EditorialBg>
+    </View>
   );
 }

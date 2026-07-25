@@ -2,19 +2,49 @@
 // run (/api/mobile/library/[id]/run) — kept to the patient, never seen by the
 // practitioner. Repeatable. Wired to GET /api/mobile/library/[id].
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, Lock, CircleCheckBig } from 'lucide-react-native';
-import { CARE } from '@/src/care/theme';
+import { Lock, CircleCheckBig } from 'lucide-react-native';
+import { EDA, EdHeader, EdPill, FadeIn } from '@/src/ui/editorial';
+import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { resourceTypeMeta } from '@/src/care/resources';
 import { Block, INTERACTIVE } from '@/src/resources/blocks';
 import { getLibraryResource, runLibraryActivity, type LibraryResourceView } from '@/src/api/library';
 import type { PatientScore } from '@/src/api/resources';
+import { useI18n } from '@/src/i18n';
+
+const T = {
+  en: {
+    couldNotSave: 'Could not save.',
+    unavailable: 'Activity unavailable',
+    privateToYou: 'Private to you',
+    doneCount: 'done',
+    save: 'Save',
+    markDone: 'Mark as done',
+    resultTitle: 'Nicely done',
+    resultBodySuffix: ' is saved and kept private to you. Come back to it anytime.',
+    justForYou: 'Just for you',
+    done: 'Done',
+  },
+  fr: {
+    couldNotSave: 'Enregistrement impossible.',
+    unavailable: 'Activité indisponible',
+    privateToYou: 'Privé',
+    doneCount: 'fait',
+    save: 'Enregistrer',
+    markDone: 'Marquer comme fait',
+    resultTitle: 'Bravo',
+    resultBodySuffix: ' est enregistré et reste privé. Revenez-y quand vous voulez.',
+    justForYou: 'Rien que pour vous',
+    done: 'Terminé',
+  },
+} as const;
 
 export default function LibraryPractice() {
   const router = useRouter();
+  const { locale } = useI18n();
+  const tr = T[locale];
   const { id } = useLocalSearchParams<{ id?: string }>();
   const resourceId = typeof id === 'string' ? id : '';
 
@@ -40,97 +70,88 @@ export default function LibraryPractice() {
     const res = await runLibraryActivity(resourceId, answers);
     if (res.ok) { setResult({ score: res.score ?? null }); return; }
     setSaving(false);
-    if (Platform.OS === 'web') globalThis.alert?.(res.error ?? 'Could not save.');
+    if (Platform.OS === 'web') globalThis.alert?.(res.error ?? tr.couldNotSave);
   };
 
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/library' as never));
 
   if (!loaded) {
     return (
-      <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: CARE.canvas }}>
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={CARE.teal} /></View>
-      </SafeAreaView>
+      <View style={{ flex: 1, backgroundColor: EDA.canvas, alignItems: 'center', justifyContent: 'center' }}>
+        <StatusBar style="dark" />
+        <ActivityIndicator color={EDA.green} />
+      </View>
     );
   }
   if (!view) {
     return (
-      <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: CARE.canvas }}>
-        <View style={{ paddingHorizontal: 24, paddingTop: 8 }}>
-          <TouchableOpacity onPress={back} activeOpacity={0.7} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: '#fff', borderWidth: 1, borderColor: CARE.border, alignItems: 'center', justifyContent: 'center' }}>
-            <ChevronLeft size={18} color="#333" strokeWidth={2} />
-          </TouchableOpacity>
-        </View>
+      <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+        <StatusBar style="dark" />
+        <EdHeader kicker={tr.unavailable} title={tr.unavailable} onBack={back} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: CARE.ink }}>Activity unavailable</Text>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: EDA.ink }}>{tr.unavailable}</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
-  if (result) return <ResultView title={view.resource.title} score={result.score} onDone={back} />;
+  if (result) return <ResultView title={view.resource.title} score={result.score} onDone={back} tr={tr} />;
 
-  const meta = resourceTypeMeta(view.resource.type);
+  const meta = resourceTypeMeta(view.resource.type, locale);
 
   return (
-    <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: CARE.canvas }}>
+    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+      <StatusBar style="dark" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ paddingBottom: 110 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          {/* Hero */}
-          <LinearGradient colors={['#009B8E', '#00B4A3']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ paddingHorizontal: 24, paddingTop: 8, paddingBottom: 28 }}>
-            <TouchableOpacity onPress={back} activeOpacity={0.7} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
-              <ChevronLeft size={18} color="#fff" strokeWidth={2} />
-            </TouchableOpacity>
-            <View style={{ width: 52, height: 52, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-              <meta.Icon size={24} color="#fff" strokeWidth={2} />
-            </View>
-            <Text style={{ fontSize: 23, fontWeight: '700', color: '#fff', letterSpacing: -0.3 }}>{view.resource.title}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
-              <Lock size={12} color="rgba(255,255,255,0.85)" strokeWidth={2} />
-              <Text style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.85)' }}>Private to you{view.runCount > 0 ? ` · done ${view.runCount}×` : ''}</Text>
-            </View>
-          </LinearGradient>
+        <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <EdHeader source={ONBOARDING_IMAGES.card4} kicker={meta.label} title={view.resource.title} onBack={back} />
 
-          <View style={{ paddingHorizontal: 24, paddingTop: 20 }}>
-            {view.resource.description ? <Text style={{ fontSize: 15, color: '#3A3A3A', lineHeight: 24, marginBottom: 18 }}>{view.resource.description}</Text> : null}
+          <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
+            {/* Private-to-you note */}
+            <View style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: EDA.greenTint, borderRadius: 12, paddingVertical: 5, paddingHorizontal: 10, marginBottom: 16 }}>
+              <Lock size={12} color={EDA.green} strokeWidth={2} />
+              <Text style={{ fontSize: 12.5, fontWeight: '700', color: EDA.green }}>{tr.privateToYou}{view.runCount > 0 ? ` · ${tr.doneCount} ${view.runCount}×` : ''}</Text>
+            </View>
+
+            {view.resource.description ? <Text style={{ fontSize: 15, color: EDA.inkSoft, lineHeight: 24, marginBottom: 18 }}>{view.resource.description}</Text> : null}
             {blocks.map((b) => (
               <Block key={b.id} block={b} value={answers[b.id]} onChange={(v) => set(b.id, v)} missing={false} />
             ))}
-          </View>
+          </FadeIn>
         </ScrollView>
 
-        <View style={{ position: 'absolute', left: 24, right: 24, bottom: 24 }}>
-          <TouchableOpacity onPress={save} disabled={saving} activeOpacity={0.85} style={{ height: 56, borderRadius: 28, backgroundColor: saving ? '#E5E5E5' : CARE.teal, alignItems: 'center', justifyContent: 'center' }}>
-            {saving ? <ActivityIndicator color="#fff" /> : <Text style={{ fontSize: 16, fontWeight: '600', color: '#fff' }}>{hasInteractive ? 'Save' : 'Mark as done'}</Text>}
-          </TouchableOpacity>
+        <View style={{ position: 'absolute', left: 22, right: 22, bottom: 24 }}>
+          <Pressable onPress={save} disabled={saving} style={{ height: 54, borderRadius: 27, backgroundColor: saving ? EDA.faint : EDA.ink, alignItems: 'center', justifyContent: 'center' }}>
+            {saving ? <ActivityIndicator color="#fff" /> : <Text style={{ fontSize: 15.5, fontWeight: '700', color: '#fff' }}>{hasInteractive ? tr.save : tr.markDone}</Text>}
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-function ResultView({ title, score, onDone }: { title: string; score: PatientScore | null; onDone: () => void }) {
+function ResultView({ title, score, onDone, tr }: { title: string; score: PatientScore | null; onDone: () => void; tr: (typeof T)[keyof typeof T] }) {
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: CARE.canvas }}>
+    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+      <StatusBar style="dark" />
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-        <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: CARE.mint, alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
-          <CircleCheckBig size={34} color={CARE.teal} strokeWidth={2} />
+        <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+          <CircleCheckBig size={34} color={EDA.green} strokeWidth={2} />
         </View>
-        <Text style={{ fontSize: 22, fontWeight: '700', color: CARE.ink, textAlign: 'center' }}>Nicely done</Text>
-        <Text style={{ fontSize: 14, color: '#7A7A7A', textAlign: 'center', marginTop: 6 }}>{title} is saved and kept private to you. Come back to it anytime.</Text>
+        <Text style={{ fontSize: 22, fontWeight: '800', color: EDA.ink, textAlign: 'center', letterSpacing: -0.3 }}>{tr.resultTitle}</Text>
+        <Text style={{ fontSize: 14, color: EDA.inkSoft, textAlign: 'center', marginTop: 6 }}>{title}{tr.resultBodySuffix}</Text>
 
         {score && (
-          <View style={{ marginTop: 24, alignSelf: 'stretch', backgroundColor: '#fff', borderWidth: 1, borderColor: CARE.border, borderRadius: 20, padding: 22, alignItems: 'center' }}>
-            <Text style={{ fontSize: 12, fontWeight: '600', color: '#9A9A9A', textTransform: 'uppercase', letterSpacing: 0.5 }}>Just for you</Text>
-            <Text style={{ fontSize: 40, fontWeight: '800', color: CARE.teal, marginTop: 6 }}>{score.total}<Text style={{ fontSize: 20, color: '#B4B4B4', fontWeight: '700' }}> / {score.maxScore}</Text></Text>
-            {score.interpretation && <Text style={{ fontSize: 15, fontWeight: '700', color: CARE.ink, marginTop: 8 }}>{score.interpretation.label}</Text>}
+          <View style={{ marginTop: 24, alignSelf: 'stretch', backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, borderRadius: 20, padding: 22, alignItems: 'center' }}>
+            <Text style={{ fontSize: 12, fontWeight: '600', color: EDA.faint, textTransform: 'uppercase', letterSpacing: 0.5 }}>{tr.justForYou}</Text>
+            <Text style={{ fontSize: 40, fontWeight: '800', color: EDA.green, marginTop: 6 }}>{score.total}<Text style={{ fontSize: 20, color: EDA.faint, fontWeight: '700' }}> / {score.maxScore}</Text></Text>
+            {score.interpretation && <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink, marginTop: 8 }}>{score.interpretation.label}</Text>}
           </View>
         )}
       </View>
-      <View style={{ paddingHorizontal: 24, paddingBottom: 16 }}>
-        <TouchableOpacity onPress={onDone} activeOpacity={0.85} style={{ height: 54, borderRadius: 27, backgroundColor: CARE.teal, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 16, fontWeight: '600', color: '#fff' }}>Done</Text>
-        </TouchableOpacity>
+      <View style={{ paddingHorizontal: 22, paddingBottom: 24 }}>
+        <EdPill label={tr.done} variant="dark" onPress={onDone} />
       </View>
-    </SafeAreaView>
+    </View>
   );
 }

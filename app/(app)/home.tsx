@@ -1,23 +1,23 @@
-// My Care — Flow C hub (cloud design c1), wired to real data via GET
-// /api/mobile/care: the patient's practitioner + upcoming sessions. When there's
-// no linked practitioner, FORCE_CARE_HUB shows the design placeholder for review;
-// otherwise a solo "connect" state. To-do / sharing-history / documents are still
-// placeholder pending their own mobile endpoints.
+// My Care — hybrid editorial: a dark photographic header + a mono date kicker
+// and greeting, then light editorial content (practitioner, next session,
+// booking, to-do, sessions). Wired to real data via GET /api/mobile/care.
 import { useCallback, useState } from 'react';
 import { Linking, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { ChevronRight, Plus, Ellipsis, Eye, RotateCcw, FileText, Settings, type LucideIcon } from 'lucide-react-native';
+import { ChevronRight, Plus, Ellipsis, RotateCcw, FileText, Settings, type LucideIcon } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
+import { TabIntro } from '@/src/ui/TabIntro';
+import { EDA, EdHeader, EdCard, EdSection, EdPill, FadeIn, MonoLabel } from '@/src/ui/editorial';
+import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
+import { useLanding } from '@/src/prefs/landing';
+import { useI18n, fmt } from '@/src/i18n';
 import { useOnboarding } from '@/src/onboarding/context';
 import { FORCE_CARE_HUB } from '@/src/config';
 import { fetchCare, fetchTodo, type CareSession, type PatientCare, type TodoItem } from '@/src/api/care';
 import { resourceTypeMeta, statusLabel } from '@/src/care/resources';
 import { notify } from '@/src/ui/alert';
 
-const TEAL = '#009B8E';
-
-// Design placeholder used only for the FORCE_CARE_HUB preview (no real practitioner).
 const PREVIEW_NEXT: CareSession = { id: 'preview', scheduledAt: inDays(5, 9), durationMinutes: 50, sessionFormat: 'video', sessionType: 'session', status: 'scheduled', meetLink: null, paymentStatus: null };
 const PREVIEW_UPCOMING: CareSession[] = [
   { id: 'p1', scheduledAt: inDays(12, 9), durationMinutes: 50, sessionFormat: 'video', sessionType: 'session', status: 'scheduled', meetLink: null, paymentStatus: null },
@@ -30,59 +30,65 @@ const PREVIEW_TODOS: TodoItem[] = [
 
 export default function MyCare() {
   const router = useRouter();
-  const { practitionerName, hasPractitioner } = useOnboarding();
+  const { firstName, practitionerName, hasPractitioner } = useOnboarding();
+  const { landing } = useLanding();
+  const { t, locale } = useI18n();
+  const greetHere = landing === 'care';
   const [care, setCare] = useState<PatientCare | null>(null);
   const [todos, setTodos] = useState<TodoItem[] | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [introActive, setIntroActive] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       let alive = true;
       fetchCare().then((c) => { if (alive) { setCare(c); setLoaded(true); } });
-      fetchTodo().then((t) => { if (alive) setTodos(t); });
+      fetchTodo().then((r) => { if (alive) setTodos(r); });
       return () => { alive = false; };
     }, []),
   );
 
-  const soon = () => notify('Coming soon');
+  const soon = () => notify(t.common.comingSoon);
 
   const real = care?.hasPractitioner ? care : null;
   const preview = !real && FORCE_CARE_HUB;
-  // Preview shows everything; a real link uses the practitioner's policy. A
-  // missing block (older backend) falls back to allowing, so the app never
-  // hides an action the server would actually permit.
   const perms = real?.permissions ?? { canBook: true, canCancel: true, canReschedule: true, noticeHours: 24 };
   const showHub = !!real || preview || hasPractitioner;
 
-  // Solo (no practitioner, not previewing): light connect state, no Moments content.
+  const name = (firstName ?? '').trim();
+  // The real first name when signed in; a sample only in the design preview.
+  const pretty = name ? name.charAt(0).toUpperCase() + name.slice(1) : preview ? 'Sofia' : '';
+  const greeting = new Date().getHours() < 12 ? t.greeting.morning : new Date().getHours() < 18 ? t.greeting.afternoon : t.greeting.evening;
+  const headerTitle = greetHere ? (pretty ? `${greeting},\n${pretty}.` : `${greeting}.`) : t.care.title;
+  const dateKicker = new Date().toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short' });
+  const header = (
+    <EdHeader source={ONBOARDING_IMAGES.about} kicker={dateKicker} title={headerTitle} rightIcon={Settings} onRight={() => router.navigate('/settings' as never)} />
+  );
+
+  // Solo (no practitioner, not previewing): a light connect state.
   if (loaded && !showHub) {
     return (
-      <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: '#FAFAF8' }}>
-        <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 180 }} showsVerticalScrollIndicator={false}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-            <Text style={{ fontSize: 28, fontWeight: '700', letterSpacing: -0.6, color: '#1A1A1A' }}>My Care</Text>
-            <SettingsButton onPress={() => router.navigate('/settings' as never)} />
-          </View>
-          <View style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#EBEBEB', borderRadius: 20, padding: 22, alignItems: 'center' }}>
-            <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: '#EAF4F1', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-              <Plus size={22} color={TEAL} strokeWidth={2} />
-            </View>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: '#1A1A1A' }}>Connect with a practitioner</Text>
-            <Text style={{ fontSize: 13, color: '#999', textAlign: 'center', marginTop: 6, lineHeight: 19 }}>
-              When your practitioner invites you, your sessions and shared resources appear here.
-            </Text>
-          </View>
+      <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+        <StatusBar style="dark" />
+        <ScrollView contentContainerStyle={{ paddingBottom: 180 }} showsVerticalScrollIndicator={false}>
+          {header}
+          <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
+            <EdCard style={{ alignItems: 'center', padding: 24 }}>
+              <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <Plus size={22} color={EDA.green} strokeWidth={2} />
+              </View>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: EDA.ink }}>{t.care.connectTitle}</Text>
+              <Text style={{ fontSize: 13, color: EDA.inkSoft, textAlign: 'center', marginTop: 6, lineHeight: 19 }}>{t.care.connectSub}</Text>
+            </EdCard>
+          </FadeIn>
         </ScrollView>
         <TabBar active="care" />
-      </SafeAreaView>
+      </View>
     );
   }
 
-  // `preview` is the design-preview mode; only THERE may sample names appear.
-  // With a real link, fall back to a neutral label rather than a sample
-  // clinician's name — a patient reading "Dr. Maya Laurent" takes it as fact.
-  const pracName = real?.practitionerName ?? practitionerName ?? (preview ? 'Dr. Maya Laurent' : 'Your practitioner');
-  const headline = real?.practitionerHeadline ?? (preview ? 'Clinical psychologist' : null);
+  const pracName = real?.practitionerName ?? practitionerName ?? (preview ? 'Dr. Maya Laurent' : t.care.yourPractitioner);
+  const pracHeadline = real?.practitionerHeadline ?? (preview ? 'Clinical psychologist' : null);
   const initial = pracName.replace(/^dr\.?\s*/i, '').charAt(0).toUpperCase() || '?';
   const nextSession = real ? real.nextSession : preview ? PREVIEW_NEXT : null;
   const upcoming = real ? real.upcomingSessions.filter((s) => s.id !== real.nextSession?.id) : preview ? PREVIEW_UPCOMING : [];
@@ -102,117 +108,97 @@ export default function MyCare() {
   };
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: '#FAFAF8' }}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 180 }} showsVerticalScrollIndicator={false}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-          <Text style={{ fontSize: 28, fontWeight: '700', letterSpacing: -0.6, color: '#1A1A1A' }}>My Care</Text>
-          <SettingsButton onPress={() => router.navigate('/settings' as never)} />
-        </View>
+    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+      <StatusBar style="dark" />
+      <ScrollView contentContainerStyle={{ paddingBottom: 180 }} showsVerticalScrollIndicator={false}>
+        {header}
+        <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
+          <TabIntro tabKey="care" onActiveChange={setIntroActive} />
 
-        {/* Practitioner card */}
-        <TouchableOpacity
-          onPress={() => router.navigate('/practitioner' as never)}
-          activeOpacity={0.8}
-          style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#EBEBEB', borderRadius: 20, padding: 16, paddingRight: 18, flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 14 }}
-        >
-          <Avatar initial={initial} size={48} />
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: '#1A1A1A' }}>{pracName}</Text>
-            {headline ? <Text style={{ fontSize: 12.5, color: '#999', marginTop: 1 }}>{headline}</Text> : null}
-          </View>
-          <ChevronRight size={18} color="#CCC" strokeWidth={2} />
-        </TouchableOpacity>
-
-        {/* Next session */}
-        {nextSession ? (
-          <View style={{ backgroundColor: TEAL, borderRadius: 20, padding: 18, marginBottom: 14 }}>
-            <TouchableOpacity
-              onPress={() => nextSession && openSession(nextSession)}
-              activeOpacity={0.7}
-              style={{ position: 'absolute', top: 14, right: 14, width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' }}
-            >
-              <Ellipsis size={18} color="#fff" strokeWidth={2.5} />
-            </TouchableOpacity>
-            <Text style={{ fontSize: 11, fontWeight: '600', letterSpacing: 1, color: 'rgba(255,255,255,0.65)', textTransform: 'uppercase', marginBottom: 6 }}>Next session</Text>
-            <Text style={{ fontSize: 19, fontWeight: '700', color: '#fff' }}>{longDate(nextSession.scheduledAt)} · {clock(nextSession.scheduledAt)}</Text>
-            <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 2 }}>{fmtFormat(nextSession.sessionFormat)} · {relDays(nextSession.scheduledAt)}</Text>
-            {/* Payment state, only when the practitioner has chosen to show it
-                (paymentStatus is null otherwise, so this never leaks). */}
-            {nextSession.paymentStatus ? (
-              <View style={{ alignSelf: 'flex-start', marginTop: 8, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.18)' }}>
-                <Text style={{ fontSize: 11.5, fontWeight: '600', color: '#fff' }}>
-                  {nextSession.paymentStatus === 'paid' ? 'Paid' : nextSession.paymentStatus === 'free' ? 'No charge' : 'Awaiting payment'}
-                </Text>
+          <View style={{ opacity: introActive ? 0.3 : 1 }} pointerEvents={introActive ? 'none' : 'auto'}>
+            {/* Practitioner */}
+            <EdCard onPress={() => router.navigate('/practitioner' as never)} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 14, padding: 16 }}>
+              <Avatar initial={initial} size={48} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: EDA.ink }}>{pracName}</Text>
+                {pracHeadline ? <Text style={{ fontSize: 12.5, color: EDA.inkSoft, marginTop: 1 }}>{pracHeadline}</Text> : null}
               </View>
-            ) : null}
-            <TouchableOpacity onPress={joinSession} activeOpacity={0.85} style={{ height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginTop: 16 }}>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: '#1A4A3F' }}>Join session</Text>
-            </TouchableOpacity>
+              <ChevronRight size={18} color={EDA.faint} strokeWidth={2} />
+            </EdCard>
+
+            {/* Next session — the one dark accent block */}
+            {nextSession ? (
+              <View style={{ backgroundColor: EDA.ink, borderRadius: 20, padding: 18, marginBottom: 14 }}>
+                <TouchableOpacity onPress={() => nextSession && openSession(nextSession)} activeOpacity={0.7} style={{ position: 'absolute', top: 14, right: 14, width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ellipsis size={18} color="#fff" strokeWidth={2.5} />
+                </TouchableOpacity>
+                <MonoLabel color="rgba(255,255,255,0.6)" style={{ marginBottom: 8 }}>{t.care.nextSession}</MonoLabel>
+                <Text style={{ fontSize: 20, fontWeight: '800', color: '#fff', letterSpacing: -0.3 }}>{longDate(nextSession.scheduledAt)} · {clock(nextSession.scheduledAt)}</Text>
+                <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.72)', marginTop: 3 }}>{fmtFormat(nextSession.sessionFormat)} · {relDays(nextSession.scheduledAt)}</Text>
+                {nextSession.paymentStatus ? (
+                  <View style={{ alignSelf: 'flex-start', marginTop: 10, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.14)' }}>
+                    <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#fff' }}>{nextSession.paymentStatus === 'paid' ? t.care.paid : nextSession.paymentStatus === 'free' ? t.care.noCharge : t.care.awaitingPayment}</Text>
+                  </View>
+                ) : null}
+                <TouchableOpacity onPress={joinSession} activeOpacity={0.85} style={{ height: 46, borderRadius: 23, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginTop: 16 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink }}>{t.care.join}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <EdCard style={{ marginBottom: 14, padding: 20 }}>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink }}>{t.care.noSession}</Text>
+                <Text style={{ fontSize: 13, color: EDA.inkSoft, marginTop: 3 }}>{t.care.noSessionSub}</Text>
+              </EdCard>
+            )}
+
+            {/* Book */}
+            {perms.canBook ? (
+              <EdPill label={t.care.bookSession} variant="outline" onPress={() => router.navigate('/book' as never)} style={{ marginBottom: 28 }} />
+            ) : (
+              <Text style={{ fontSize: 12.5, color: EDA.inkSoft, textAlign: 'center', marginBottom: 28, paddingHorizontal: 12 }}>{t.care.bookNote}</Text>
+            )}
+
+            {/* To do */}
+            {todoItems.length > 0 && (
+              <>
+                <EdSection label={fmt(t.care.todoFrom, { name: firstNameOf(pracName) })} action={`${t.common.seeAll} (${todoItems.length})`} onAction={() => router.navigate('/from-practitioner' as never)} />
+                <View style={{ gap: 10, marginBottom: 28 }}>
+                  {todoItems.slice(0, 3).map((it) => {
+                    const meta = resourceTypeMeta(it.type, locale);
+                    const open = it.resourceId ? () => router.navigate(`/resource/${it.id}` as never) : () => router.navigate('/from-practitioner' as never);
+                    return <ResourceRow key={it.id} Icon={meta.Icon} title={it.title} sub={`${meta.label} · ${statusLabel(it.status, locale)}`} onPress={open} />;
+                  })}
+                </View>
+              </>
+            )}
+
+            {/* Upcoming */}
+            {upcoming.length > 0 && (
+              <>
+                <EdSection label={locale === 'fr' ? 'Séances à venir' : 'Upcoming sessions'} action={t.common.seeAll} onAction={soon} />
+                <View style={{ gap: 10, marginBottom: 28 }}>
+                  {upcoming.map((s) => (
+                    <SessionRow key={s.id} month={monthShort(s.scheduledAt, locale)} day={dayNum(s.scheduledAt)} title={`${weekday(s.scheduledAt, locale)} · ${clock(s.scheduledAt)}`} sub={`${fmtFormat(s.sessionFormat)} · ${s.durationMinutes} min`} onPress={() => openSession(s)} />
+                  ))}
+                </View>
+              </>
+            )}
+
+            {/* Utility rows */}
+            <EdCard style={{ padding: 0, overflow: 'hidden' }}>
+              <UtilityRow Icon={RotateCcw} label={t.care.sessionHistory} onPress={() => router.navigate('/session-history' as never)} divider />
+              <UtilityRow Icon={FileText} label={t.care.documents} onPress={() => router.navigate('/documents' as never)} />
+            </EdCard>
           </View>
-        ) : (
-          <View style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#EBEBEB', borderRadius: 20, padding: 20, marginBottom: 14 }}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: '#1A1A1A' }}>No session booked yet</Text>
-            <Text style={{ fontSize: 13, color: '#999', marginTop: 3 }}>Book a time below whenever you’re ready.</Text>
-          </View>
-        )}
-
-        {/* Book a session — only when the practitioner allows patient booking.
-            Otherwise a short note so the absence reads as intentional, not broken. */}
-        {perms.canBook ? (
-          <TouchableOpacity
-            onPress={() => router.navigate('/book' as never)}
-            activeOpacity={0.8}
-            style={{ height: 52, borderRadius: 26, borderWidth: 1.5, borderColor: TEAL, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 26 }}
-          >
-            <Plus size={18} color={TEAL} strokeWidth={2.5} />
-            <Text style={{ fontSize: 15, fontWeight: '600', color: TEAL }}>Book a session</Text>
-          </TouchableOpacity>
-        ) : (
-          <Text style={{ fontSize: 12.5, color: '#999', textAlign: 'center', marginBottom: 26, paddingHorizontal: 12 }}>
-            Your practitioner arranges your sessions. Reach out to them to book.
-          </Text>
-        )}
-
-        {/* To do · from practitioner (real assignments) */}
-        {todoItems.length > 0 && (
-          <>
-            <SectionHeader label={`To do · from ${firstNameOf(pracName)}`} action={`See all (${todoItems.length})`} onAction={() => router.navigate('/from-practitioner' as never)} />
-            <View style={{ gap: 10, marginBottom: 26 }}>
-              {todoItems.slice(0, 3).map((t) => {
-                const meta = resourceTypeMeta(t.type);
-                const open = t.resourceId ? () => router.navigate(`/resource/${t.id}` as never) : () => router.navigate('/from-practitioner' as never);
-                return <ResourceRow key={t.id} Icon={meta.Icon} title={t.title} sub={`${meta.label} · ${statusLabel(t.status)}`} onPress={open} />;
-              })}
-            </View>
-          </>
-        )}
-
-        {/* Upcoming sessions (real) */}
-        {upcoming.length > 0 && (
-          <>
-            <SectionHeader label="Upcoming sessions" action="See all" onAction={soon} />
-            <View style={{ gap: 10, marginBottom: 26 }}>
-              {upcoming.map((s) => (
-                <SessionRow key={s.id} month={monthShort(s.scheduledAt)} day={dayNum(s.scheduledAt)} title={`${weekday(s.scheduledAt)} · ${clock(s.scheduledAt)}`} sub={`${fmtFormat(s.sessionFormat)} · ${s.durationMinutes} min`} onPress={() => openSession(s)} />
-              ))}
-            </View>
-          </>
-        )}
-
-        {/* Quiet utility rows (placeholder until their endpoints) */}
-        <View style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#EBEBEB', borderRadius: 18, overflow: 'hidden' }}>
-          <UtilityRow Icon={Eye} label="Sharing history" meta="Manage" onPress={() => router.navigate('/sharing' as never)} divider />
-          <UtilityRow Icon={RotateCcw} label="Session history" meta="" onPress={() => router.navigate('/session-history' as never)} divider />
-          <UtilityRow Icon={FileText} label="Documents & forms" meta="" onPress={() => router.navigate('/documents' as never)} />
-        </View>
+        </FadeIn>
       </ScrollView>
 
       <TabBar active="care" />
-    </SafeAreaView>
+    </View>
   );
 }
 
-// ---- date helpers (local time) ----
+// ---- date helpers ----
 function inDays(days: number, hour: number): string {
   const d = new Date();
   d.setDate(d.getDate() + days);
@@ -224,13 +210,10 @@ function longDate(iso: string): string {
   return `${d.toLocaleDateString(undefined, { weekday: 'short' })}, ${d.getDate()} ${d.toLocaleDateString(undefined, { month: 'long' })}`;
 }
 function clock(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 function relDays(iso: string): string {
-  const now = new Date();
-  const then = new Date(iso);
-  const days = Math.round((startOfDay(then) - startOfDay(now)) / 86400000);
+  const days = Math.round((startOfDay(new Date(iso)) - startOfDay(new Date())) / 86400000);
   if (days <= 0) return 'today';
   if (days === 1) return 'tomorrow';
   return `in ${days} days`;
@@ -241,87 +224,62 @@ function startOfDay(d: Date): number {
 function fmtFormat(f: string): string {
   return f === 'video' ? 'Video' : f === 'phone' ? 'Phone' : f === 'in_person' ? 'In person' : f;
 }
-const monthShort = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: 'short' });
+const monthShort = (iso: string, locale: string) => new Date(iso).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', { month: 'short' });
 const dayNum = (iso: string) => String(new Date(iso).getDate());
-const weekday = (iso: string) => new Date(iso).toLocaleDateString(undefined, { weekday: 'long' });
+const weekday = (iso: string, locale: string) => new Date(iso).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'long' });
 
 function firstNameOf(name: string): string {
-  const cleaned = name.replace(/^dr\.?\s*/i, '').trim();
-  return cleaned.split(/\s+/)[0] || 'your practitioner';
-}
-
-function SettingsButton({ onPress }: { onPress: () => void }) {
-  return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F1EF', alignItems: 'center', justifyContent: 'center' }}>
-      <Settings size={18} color="#666" strokeWidth={1.8} />
-    </TouchableOpacity>
-  );
+  return name.replace(/^dr\.?\s*/i, '').trim().split(/\s+/)[0] || 'your practitioner';
 }
 
 function Avatar({ initial, size }: { initial: string; size: number }) {
   return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: TEAL, alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: EDA.green, alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ color: '#fff', fontWeight: '700', fontSize: size * 0.4 }}>{initial}</Text>
-    </View>
-  );
-}
-
-function SectionHeader({ label, action, onAction }: { label: string; action: string; onAction: () => void }) {
-  return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
-      <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 0.5, color: '#9A9A9A', textTransform: 'uppercase' }}>{label}</Text>
-      <TouchableOpacity onPress={onAction} hitSlop={8}>
-        <Text style={{ fontSize: 12.5, fontWeight: '600', color: TEAL }}>{action}</Text>
-      </TouchableOpacity>
     </View>
   );
 }
 
 function ResourceRow({ Icon, title, sub, onPress }: { Icon: LucideIcon; title: string; sub: string; onPress: () => void }) {
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#EBEBEB', borderRadius: 18, padding: 15, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-      <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: '#EAF4F1', alignItems: 'center', justifyContent: 'center' }}>
-        <Icon size={19} color={TEAL} strokeWidth={2} />
+    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={{ backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, borderRadius: 18, padding: 15, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+      <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon size={19} color={EDA.green} strokeWidth={2} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#1A1A1A' }}>{title}</Text>
-        <Text style={{ fontSize: 12, color: '#999', marginTop: 1 }}>{sub}</Text>
+        <Text style={{ fontSize: 14.5, fontWeight: '700', color: EDA.ink }}>{title}</Text>
+        <Text style={{ fontSize: 12, color: EDA.inkSoft, marginTop: 1 }}>{sub}</Text>
       </View>
-      <ChevronRight size={18} color="#CCC" strokeWidth={2} />
+      <ChevronRight size={18} color={EDA.faint} strokeWidth={2} />
     </TouchableOpacity>
   );
 }
 
 function SessionRow({ month, day, title, sub, onPress }: { month: string; day: string; title: string; sub: string; onPress: () => void }) {
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#EBEBEB', borderRadius: 18, padding: 14, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={{ backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, borderRadius: 18, padding: 14, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
       <View style={{ width: 46, alignItems: 'center' }}>
-        <Text style={{ fontSize: 11, fontWeight: '600', color: TEAL, textTransform: 'uppercase', letterSpacing: 0.5 }}>{month}</Text>
-        <Text style={{ fontSize: 20, fontWeight: '700', color: '#1A1A1A', lineHeight: 22 }}>{day}</Text>
+        <MonoLabel color={EDA.green} size={9.5}>{month}</MonoLabel>
+        <Text style={{ fontSize: 20, fontWeight: '800', color: EDA.ink, lineHeight: 24 }}>{day}</Text>
       </View>
-      <View style={{ width: 1, height: 32, backgroundColor: '#EEE' }} />
+      <View style={{ width: 1, height: 32, backgroundColor: EDA.line }} />
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 14, fontWeight: '600', color: '#1A1A1A' }}>{title}</Text>
-        <Text style={{ fontSize: 12, color: '#999', marginTop: 1 }}>{sub}</Text>
+        <Text style={{ fontSize: 14, fontWeight: '700', color: EDA.ink }}>{title}</Text>
+        <Text style={{ fontSize: 12, color: EDA.inkSoft, marginTop: 1 }}>{sub}</Text>
       </View>
-      <ChevronRight size={18} color="#CCC" strokeWidth={2} />
+      <ChevronRight size={18} color={EDA.faint} strokeWidth={2} />
     </TouchableOpacity>
   );
 }
 
-function UtilityRow({ Icon, label, meta, onPress, divider }: { Icon: LucideIcon; label: string; meta: string; onPress: () => void; divider?: boolean }) {
+function UtilityRow({ Icon, label, onPress, divider }: { Icon: LucideIcon; label: string; onPress: () => void; divider?: boolean }) {
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.8}
-      style={{ padding: 15, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14, borderBottomWidth: divider ? 1 : 0, borderBottomColor: '#F2F2F2' }}
-    >
+    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={{ padding: 15, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14, borderBottomWidth: divider ? 1 : 0, borderBottomColor: EDA.line }}>
       <View style={{ width: 22, alignItems: 'center' }}>
-        <Icon size={17} color="#9A9A9A" strokeWidth={2} />
+        <Icon size={17} color={EDA.inkSoft} strokeWidth={2} />
       </View>
-      <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '600', color: '#1A1A1A' }}>{label}</Text>
-      {meta ? <Text style={{ fontSize: 12.5, color: '#B4B4B4' }}>{meta}</Text> : null}
-      <ChevronRight size={18} color="#CCC" strokeWidth={2} />
+      <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '700', color: EDA.ink }}>{label}</Text>
+      <ChevronRight size={18} color={EDA.faint} strokeWidth={2} />
     </TouchableOpacity>
   );
 }

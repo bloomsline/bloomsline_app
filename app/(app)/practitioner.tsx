@@ -1,5 +1,6 @@
 // c2 — Practitioner profile, from the practitioner's own public profile via
-// /api/mobile/care.
+// /api/mobile/care. Hybrid editorial re-skin: the practitioner's photo (or a
+// calm fallback) becomes the dark hero, then light editorial facts + bio + CTA.
 //
 // Every field here is optional, and anything missing is OMITTED rather than
 // filled with a placeholder. This screen previously shipped hardcoded sample
@@ -7,13 +8,29 @@
 // a patient looking at their actual clinician. A sparse profile is honest; an
 // invented one is not.
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScrollView, Text, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { CareHeader } from '@/src/care/CareHeader';
-import { CARE } from '@/src/care/theme';
+import { EDA, EdHeader, EdCard, EdSection, EdPill, FadeIn, MonoLabel } from '@/src/ui/editorial';
+import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useOnboarding } from '@/src/onboarding/context';
 import { fetchCare, type CarePractitioner } from '@/src/api/care';
+import { useI18n, fmt } from '@/src/i18n';
+
+const T = {
+  en: {
+    yourPractitioner: 'Your practitioner',
+    book: 'Book a session',
+    arranges: '{name} arranges your sessions. Reach out to book.',
+    arrangesGeneric: 'Your practitioner arranges your sessions.',
+  },
+  fr: {
+    yourPractitioner: 'Votre praticien',
+    book: 'Réserver une séance',
+    arranges: '{name} organise vos séances. Contactez cette personne pour réserver.',
+    arrangesGeneric: 'Votre praticien organise vos séances.',
+  },
+} as const;
 
 /** Join non-empty parts for a subtitle, or null when there is nothing to say. */
 function joinOrNull(parts: (string | null | undefined)[], sep: string): string | null {
@@ -23,6 +40,8 @@ function joinOrNull(parts: (string | null | undefined)[], sep: string): string |
 
 export default function Practitioner() {
   const router = useRouter();
+  const { locale, t } = useI18n();
+  const tr = T[locale];
   const { practitionerName } = useOnboarding();
   const [p, setP] = useState<CarePractitioner | null>(null);
   const [canBook, setCanBook] = useState(true);
@@ -48,86 +67,68 @@ export default function Practitioner() {
   // Fall back to the name we already knew rather than showing nothing while the
   // request is in flight.
   const name = p?.name ?? practitionerName ?? null;
-  const initial = (name ?? '').replace(/^dr\.?\s*/i, '').charAt(0).toUpperCase() || '?';
 
-  const subtitle = joinOrNull([p?.headline, p?.specialties?.length ? p.specialties.join(', ') : null], ' · ');
+  const headline = joinOrNull([p?.headline, p?.specialties?.length ? p.specialties.join(', ') : null], ' · ');
   const location = joinOrNull([p?.city, p?.country], ', ');
   const sessions = p?.sessionTypes?.length ? p.sessionTypes.join(' · ') : null;
   const languages = p?.languages?.length ? p.languages.join(', ') : null;
   const facts = [
-    location ? { label: 'Location', value: location } : null,
-    sessions ? { label: 'Sessions', value: sessions } : null,
-    languages ? { label: 'Languages', value: languages } : null,
+    location ? { label: t.profile.location, value: location } : null,
+    sessions ? { label: t.profile.sessions, value: sessions } : null,
+    languages ? { label: t.profile.languages, value: languages } : null,
   ].filter((f): f is { label: string; value: string } => f !== null);
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: CARE.canvas }}>
-      <CareHeader />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-        <View style={{ alignItems: 'center', paddingTop: 8 }}>
-          {p?.photoUrl ? (
-            <Image
-              source={{ uri: p.photoUrl }}
-              style={{ width: 84, height: 84, borderRadius: 42, marginBottom: 14 }}
-              accessibilityIgnoresInvertColors
-            />
-          ) : (
-            <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: CARE.teal, alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 32 }}>{initial}</Text>
+    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+      <StatusBar style="dark" />
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+        <EdHeader
+          kicker="YOUR PRACTITIONER"
+          title={name ?? tr.yourPractitioner}
+          subtitle={headline ?? undefined}
+          onBack={() => router.back()}
+          source={p?.photoUrl ? { uri: p.photoUrl } : ONBOARDING_IMAGES.card3}
+        />
+
+        <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
+          {facts.length > 0 && (
+            <View style={{ flexDirection: 'row', gap: 12, marginBottom: 14 }}>
+              {facts.map((f) => (
+                <FactCard key={f.label} label={f.label} value={f.value} />
+              ))}
             </View>
           )}
 
-          {name ? (
-            <Text style={{ fontSize: 22, fontWeight: '700', color: CARE.ink }}>{name}</Text>
-          ) : !loaded ? (
-            <ActivityIndicator color={CARE.teal} />
+          {p?.bio ? (
+            <EdCard style={{ marginTop: facts.length > 0 ? 0 : 6, marginBottom: 14 }}>
+              <EdSection label={t.profile.about} />
+              <Text style={{ fontSize: 14, color: EDA.inkSoft, lineHeight: 22 }}>{p.bio}</Text>
+            </EdCard>
+          ) : null}
+
+          {canBook ? (
+            <EdPill
+              label={tr.book}
+              variant="green"
+              onPress={() => router.navigate('/book' as never)}
+              style={{ marginTop: facts.length === 0 && !p?.bio ? 14 : 6 }}
+            />
           ) : (
-            <Text style={{ fontSize: 22, fontWeight: '700', color: CARE.ink }}>Your practitioner</Text>
+            <Text style={{ fontSize: 12.5, color: EDA.inkSoft, textAlign: 'center', marginTop: facts.length === 0 && !p?.bio ? 20 : 6, lineHeight: 18 }}>
+              {name ? fmt(tr.arranges, { name }) : tr.arrangesGeneric}
+            </Text>
           )}
-
-          {subtitle && (
-            <Text style={{ fontSize: 14, color: '#9A9A9A', marginTop: 2, textAlign: 'center' }}>{subtitle}</Text>
-          )}
-        </View>
-
-        {facts.length > 0 && (
-          <View style={{ flexDirection: 'row', gap: 12, marginTop: 22, marginBottom: 14 }}>
-            {facts.map((f) => (
-              <FactCard key={f.label} label={f.label} value={f.value} />
-            ))}
-          </View>
-        )}
-
-        {p?.bio ? (
-          <View style={{ backgroundColor: CARE.card, borderWidth: 1, borderColor: CARE.border, borderRadius: 18, padding: 18, marginTop: facts.length > 0 ? 0 : 22, marginBottom: 14 }}>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: CARE.ink, marginBottom: 8 }}>About</Text>
-            <Text style={{ fontSize: 13.5, color: '#7A7A7A', lineHeight: 21 }}>{p.bio}</Text>
-          </View>
-        ) : null}
-
-        {canBook ? (
-          <TouchableOpacity
-            onPress={() => router.navigate('/book' as never)}
-            activeOpacity={0.85}
-            style={{ height: 50, borderRadius: 25, backgroundColor: CARE.teal, alignItems: 'center', justifyContent: 'center', marginTop: facts.length === 0 && !p?.bio ? 28 : 0 }}
-          >
-            <Text style={{ fontSize: 15, fontWeight: '600', color: '#fff' }}>Book a session</Text>
-          </TouchableOpacity>
-        ) : (
-          <Text style={{ fontSize: 12.5, color: '#9A9A9A', textAlign: 'center', marginTop: facts.length === 0 && !p?.bio ? 28 : 0, lineHeight: 18 }}>
-            {name ? `${name} arranges your sessions. Reach out to book.` : 'Your practitioner arranges your sessions.'}
-          </Text>
-        )}
+        </FadeIn>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 function FactCard({ label, value }: { label: string; value: string }) {
   return (
-    <View style={{ flex: 1, backgroundColor: CARE.card, borderWidth: 1, borderColor: CARE.border, borderRadius: 16, padding: 14, alignItems: 'center' }}>
-      <Text style={{ fontSize: 11, fontWeight: '600', color: CARE.muted, textTransform: 'uppercase', letterSpacing: 0.4 }}>{label}</Text>
-      <Text style={{ fontSize: 13.5, color: CARE.ink, fontWeight: '600', marginTop: 4, textAlign: 'center' }}>{value}</Text>
+    <View style={{ flex: 1, backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, borderRadius: 16, padding: 14, alignItems: 'center' }}>
+      <MonoLabel color={EDA.faint} size={9.5}>{label}</MonoLabel>
+      <Text style={{ fontSize: 13.5, color: EDA.ink, fontWeight: '600', marginTop: 6, textAlign: 'center' }}>{value}</Text>
     </View>
   );
 }

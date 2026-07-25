@@ -7,11 +7,65 @@ import { ActivityIndicator, Alert, Platform, Pressable, Text, View } from 'react
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Info } from 'lucide-react-native';
-import { CARE } from '@/src/care/theme';
+import { EDA, EdPill, MonoLabel } from '@/src/ui/editorial';
 import { useOnboarding } from '@/src/onboarding/context';
 import { cancelSession } from '@/src/api/booking';
+import { fmt, useI18n, type Locale } from '@/src/i18n';
+
+// Destructive tone for the cancel action, in an editorial-warm register.
+const DANGER = '#B04A32';
+const DANGER_BORDER = '#E0C4BA';
+
+const T = {
+  en: {
+    session: 'Session',
+    with: 'with',
+    startsIn: 'Starts in',
+    format: 'Format',
+    changesNotice: 'Changes allowed up to {hours} hours before the session.',
+    reschedule: 'Reschedule session',
+    cancel: 'Cancel session',
+    contactPractitioner: 'To change or cancel this session, contact your practitioner.',
+    cancelledDemo: 'Session cancelled (demo)',
+    cancelConfirm: 'Cancel this session?',
+    cancelTitle: 'Cancel session',
+    cancelBody: 'This will free the slot.',
+    keepIt: 'Keep it',
+    couldNotCancel: 'Could not cancel.',
+    today: 'Today',
+    tomorrow: 'Tomorrow',
+    days: '{n} days',
+    videoCall: 'Video call',
+    phone: 'Phone',
+    inPerson: 'In person',
+  },
+  fr: {
+    session: 'Séance',
+    with: 'avec',
+    startsIn: 'Commence dans',
+    format: 'Format',
+    changesNotice: 'Modifications possibles jusqu’à {hours} heures avant la séance.',
+    reschedule: 'Reprogrammer la séance',
+    cancel: 'Annuler la séance',
+    contactPractitioner: 'Pour modifier ou annuler cette séance, contactez votre praticien.',
+    cancelledDemo: 'Séance annulée (démo)',
+    cancelConfirm: 'Annuler cette séance ?',
+    cancelTitle: 'Annuler la séance',
+    cancelBody: 'Cela libérera le créneau.',
+    keepIt: 'La conserver',
+    couldNotCancel: 'Annulation impossible.',
+    today: 'Aujourd’hui',
+    tomorrow: 'Demain',
+    days: '{n} jours',
+    videoCall: 'Appel vidéo',
+    phone: 'Téléphone',
+    inPerson: 'En personne',
+  },
+} as const;
 
 export default function SessionMenu() {
+  const { locale } = useI18n();
+  const tr = T[locale];
   const router = useRouter();
   const p = useLocalSearchParams<{ id?: string; scheduledAt?: string; durationMinutes?: string; sessionFormat?: string; sessionType?: string; meetLink?: string; demo?: string; canCancel?: string; canReschedule?: string; noticeHours?: string }>();
   const { practitionerName } = useOnboarding();
@@ -40,17 +94,17 @@ export default function SessionMenu() {
     const res = await cancelSession(id);
     setBusy(false);
     if (res.ok) { close(); return; }
-    if (Platform.OS === 'web') globalThis.alert?.(res.error ?? 'Could not cancel.');
+    if (Platform.OS === 'web') globalThis.alert?.(res.error ?? tr.couldNotCancel);
   };
 
   const confirmCancel = () => {
-    if (isDemo) { if (Platform.OS === 'web') globalThis.alert?.('Session cancelled (demo)'); close(); return; }
+    if (isDemo) { if (Platform.OS === 'web') globalThis.alert?.(tr.cancelledDemo); close(); return; }
     if (Platform.OS === 'web') {
-      if (globalThis.confirm?.('Cancel this session?')) doCancel();
+      if (globalThis.confirm?.(tr.cancelConfirm)) doCancel();
     } else {
-      Alert.alert('Cancel session', 'This will free the slot.', [
-        { text: 'Keep it', style: 'cancel' },
-        { text: 'Cancel session', style: 'destructive', onPress: doCancel },
+      Alert.alert(tr.cancelTitle, tr.cancelBody, [
+        { text: tr.keepIt, style: 'cancel' },
+        { text: tr.cancel, style: 'destructive', onPress: doCancel },
       ]);
     }
   };
@@ -58,50 +112,50 @@ export default function SessionMenu() {
   return (
     <View style={{ flex: 1, backgroundColor: 'rgba(20,20,20,0.4)', justifyContent: 'flex-end' }}>
       <Pressable style={{ flex: 1 }} onPress={close} />
-      <SafeAreaView edges={['bottom']} style={{ backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28 }}>
+      <SafeAreaView edges={['bottom']} style={{ backgroundColor: EDA.card, borderTopLeftRadius: 28, borderTopRightRadius: 28 }}>
         <View style={{ paddingHorizontal: 24, paddingTop: 14, paddingBottom: 8 }}>
-          <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: '#E5E5E5', alignSelf: 'center', marginBottom: 18 }} />
+          <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: EDA.line, alignSelf: 'center', marginBottom: 18 }} />
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' }}>
-            <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: CARE.teal, alignItems: 'center', justifyContent: 'center' }}>
+          <MonoLabel color={EDA.faint} style={{ marginBottom: 12 }}>{tr.session}</MonoLabel>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: EDA.line }}>
+            <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: EDA.green, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ color: '#fff', fontWeight: '700', fontSize: 18 }}>{initial}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: CARE.ink }}>{start ? `${longDate(start)} · ${clock(start)}` : 'Session'}</Text>
-              <Text style={{ fontSize: 12.5, color: '#999', marginTop: 1 }}>with {name} · {duration} min · {fmtFormat(format)}</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: EDA.ink }}>{start ? `${longDate(start, locale)} · ${clock(start)}` : tr.session}</Text>
+              <Text style={{ fontSize: 12.5, color: EDA.inkSoft, marginTop: 1 }}>{tr.with} {name} · {duration} min · {fmtFormat(format, tr)}</Text>
             </View>
           </View>
 
           <View style={{ flexDirection: 'row', gap: 10, paddingVertical: 16 }}>
-            <MiniFact label="Starts in" value={start ? startsIn(start) : '—'} />
-            <MiniFact label="Format" value={fmtFormat(format)} />
+            <MiniFact label={tr.startsIn} value={start ? startsIn(start, tr) : '—'} />
+            <MiniFact label={tr.format} value={fmtFormat(format, tr)} />
           </View>
 
           {(canCancel || canReschedule) && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: CARE.canvas, borderRadius: 14, padding: 13, marginBottom: 16 }}>
-              <Info size={15} color={CARE.teal} strokeWidth={2} />
-              <Text style={{ flex: 1, fontSize: 12.5, color: '#7A7A7A', lineHeight: 18 }}>
-                {`Changes allowed up to ${noticeHours} hours before the session.`}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: EDA.greenTint, borderRadius: 14, padding: 13, marginBottom: 16 }}>
+              <Info size={15} color={EDA.green} strokeWidth={2} />
+              <Text style={{ flex: 1, fontSize: 12.5, color: EDA.inkSoft, lineHeight: 18 }}>
+                {fmt(tr.changesNotice, { hours: noticeHours })}
               </Text>
             </View>
           )}
 
           {canReschedule && (
-            <Pressable onPress={reschedule} disabled={busy} style={{ height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: CARE.teal }}>
-              <Text style={{ fontSize: 16, fontWeight: '600', color: '#fff' }}>Reschedule session</Text>
-            </Pressable>
+            <EdPill label={tr.reschedule} variant="dark" onPress={busy ? undefined : reschedule} disabled={busy} />
           )}
           {canReschedule && canCancel && <View style={{ height: 10 }} />}
           {canCancel && (
-            <Pressable onPress={confirmCancel} disabled={busy} style={{ height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', borderWidth: 1, borderColor: CARE.dangerBorder }}>
-              {busy ? <ActivityIndicator color={CARE.danger} /> : <Text style={{ fontSize: 16, fontWeight: '600', color: CARE.danger }}>Cancel session</Text>}
+            <Pressable onPress={confirmCancel} disabled={busy} style={{ height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: EDA.card, borderWidth: 1.5, borderColor: DANGER_BORDER }}>
+              {busy ? <ActivityIndicator color={DANGER} /> : <Text style={{ fontSize: 15.5, fontWeight: '700', color: DANGER }}>{tr.cancel}</Text>}
             </Pressable>
           )}
 
           {/* Neither allowed: say so, so the sheet is not an empty panel. */}
           {!canCancel && !canReschedule && (
-            <Text style={{ fontSize: 12.5, color: '#999', textAlign: 'center', lineHeight: 18 }}>
-              To change or cancel this session, contact your practitioner.
+            <Text style={{ fontSize: 12.5, color: EDA.inkSoft, textAlign: 'center', lineHeight: 18 }}>
+              {tr.contactPractitioner}
             </Text>
           )}
         </View>
@@ -112,19 +166,20 @@ export default function SessionMenu() {
 
 function MiniFact({ label, value }: { label: string; value: string }) {
   return (
-    <View style={{ flex: 1, backgroundColor: CARE.canvas, borderWidth: 1, borderColor: '#EEE', borderRadius: 14, padding: 12, alignItems: 'center' }}>
-      <Text style={{ fontSize: 11, fontWeight: '600', color: CARE.muted, textTransform: 'uppercase', letterSpacing: 0.4 }}>{label}</Text>
-      <Text style={{ fontSize: 14, color: CARE.ink, fontWeight: '700', marginTop: 3 }}>{value}</Text>
+    <View style={{ flex: 1, backgroundColor: EDA.canvas, borderWidth: 1, borderColor: EDA.line, borderRadius: 14, padding: 12, alignItems: 'center' }}>
+      <MonoLabel color={EDA.faint} size={9.5}>{label}</MonoLabel>
+      <Text style={{ fontSize: 14, color: EDA.ink, fontWeight: '700', marginTop: 5 }}>{value}</Text>
     </View>
   );
 }
 
-const longDate = (d: Date) => `${d.toLocaleDateString(undefined, { weekday: 'long' })}, ${d.getDate()} ${d.toLocaleDateString(undefined, { month: 'long' })}`;
+const localeTag = (locale: Locale) => (locale === 'fr' ? 'fr-FR' : 'en-US');
+const longDate = (d: Date, locale: Locale) => `${d.toLocaleDateString(localeTag(locale), { weekday: 'long' })}, ${d.getDate()} ${d.toLocaleDateString(localeTag(locale), { month: 'long' })}`;
 const clock = (d: Date) => `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
-const fmtFormat = (f: string) => (f === 'video' ? 'Video call' : f === 'phone' ? 'Phone' : f === 'in_person' ? 'In person' : f);
-function startsIn(d: Date): string {
+const fmtFormat = (f: string, tr: (typeof T)[Locale]) => (f === 'video' ? tr.videoCall : f === 'phone' ? tr.phone : f === 'in_person' ? tr.inPerson : f);
+function startsIn(d: Date, tr: (typeof T)[Locale]): string {
   const days = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() - new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime()) / 86400000);
-  if (days <= 0) return 'Today';
-  if (days === 1) return 'Tomorrow';
-  return `${days} days`;
+  if (days <= 0) return tr.today;
+  if (days === 1) return tr.tomorrow;
+  return fmt(tr.days, { n: days });
 }
