@@ -8,7 +8,23 @@ module.exports = {
   darkMode: 'class',
   theme: {
     extend: {
+      fontFamily: {
+        // Manrope is the app-wide default (applied via text-global); these tokens
+        // are for explicit editorial usage.
+        sans: ['Manrope_400Regular'],
+        display: ['Manrope_800ExtraBold'],
+        mono: ['IBMPlexMono_400Regular'],
+      },
       colors: {
+        // Editorial palette (from the Editorial onboarding design).
+        editorial: {
+          canvas: '#E4E2DB',
+          ink: '#141414',
+          green: '#128069',
+          greenDeep: '#0C5B4B',
+          slot: '#101210',
+          sheet: '#FBFAF6',
+        },
         // v1 "bloom" teal — the single warm accent (active/confirm/links/avatars).
         brand: {
           DEFAULT: '#4A9A86',

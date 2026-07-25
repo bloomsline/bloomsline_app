@@ -2,18 +2,48 @@
 // always open, never assigned. Wired to GET /api/mobile/library.
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { ChevronLeft, Search } from 'lucide-react-native';
-import { CARE } from '@/src/care/theme';
+import { Search, ChevronRight } from 'lucide-react-native';
+import { EDA, EdHeader, EdCard, FadeIn, MonoLabel } from '@/src/ui/editorial';
+import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { resourceTypeMeta } from '@/src/care/resources';
 import { listLibrary, type LibraryItem } from '@/src/api/library';
+import { useI18n } from '@/src/i18n';
 
-const ORANGE = '#C87941';
+const T = {
+  en: {
+    explore: 'Explore',
+    subtitle: 'Practices you can do anytime — take what helps.',
+    emptyTitle: 'Nothing here yet',
+    emptyBody: 'Self-guided practices your practitioner shares will appear here.',
+    search: 'Search practices',
+    featured: 'Featured',
+    done: 'Done',
+    types: {
+      worksheet: 'Worksheet', assessment: 'Assessment', exercise: 'Exercise',
+      psychoeducation: 'Reading', table: 'Table', resource: 'Resource',
+    } as Record<string, string>,
+  },
+  fr: {
+    explore: 'Explorer',
+    subtitle: 'Des pratiques à faire quand vous le souhaitez, prenez ce qui vous aide.',
+    emptyTitle: 'Rien ici pour le moment',
+    emptyBody: 'Les pratiques en autonomie que votre praticien partage apparaîtront ici.',
+    search: 'Rechercher une pratique',
+    featured: 'À la une',
+    done: 'Fait',
+    types: {
+      worksheet: 'Fiche', assessment: 'Évaluation', exercise: 'Exercice',
+      psychoeducation: 'Lecture', table: 'Tableau', resource: 'Ressource',
+    } as Record<string, string>,
+  },
+} as const;
 
 export default function Library() {
   const router = useRouter();
+  const { locale } = useI18n();
+  const tr = T[locale];
   const [items, setItems] = useState<LibraryItem[] | null>(null);
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/for-you' as never));
   const open = (id: string) => router.navigate(`/library-practice?id=${id}` as never);
@@ -30,57 +60,58 @@ export default function Library() {
   const rest = items ? items.slice(1) : [];
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: CARE.canvas }}>
-      <View style={{ paddingHorizontal: 24, paddingTop: 8 }}>
-        <TouchableOpacity onPress={back} activeOpacity={0.7} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: '#fff', borderWidth: 1, borderColor: CARE.border, alignItems: 'center', justifyContent: 'center' }}>
-          <ChevronLeft size={18} color="#333" strokeWidth={2} />
-        </TouchableOpacity>
-      </View>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 14, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-        <Text style={{ fontSize: 28, fontWeight: '700', letterSpacing: -0.6, color: CARE.ink, marginBottom: 4 }}>Explore</Text>
-        <Text style={{ fontSize: 13.5, color: '#9A9A9A', marginBottom: 18 }}>Practices you can do anytime — take what helps.</Text>
+    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+      <StatusBar style="dark" />
+      <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+        <EdHeader source={ONBOARDING_IMAGES.card1} kicker="LIBRARY" title={tr.explore} subtitle={tr.subtitle} onBack={back} />
 
-        {items === null ? (
-          <View style={{ paddingTop: 30, alignItems: 'center' }}><ActivityIndicator color={CARE.teal} /></View>
-        ) : items.length === 0 ? (
-          <View style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: CARE.border, borderRadius: 18, padding: 26, alignItems: 'center', marginTop: 4 }}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: CARE.ink }}>Nothing here yet</Text>
-            <Text style={{ fontSize: 13, color: '#999', marginTop: 6, textAlign: 'center', lineHeight: 19 }}>Self-guided practices your practitioner shares will appear here.</Text>
-          </View>
-        ) : (
-          <>
-            <View style={{ height: 44, borderRadius: 22, backgroundColor: '#fff', borderWidth: 1, borderColor: CARE.border, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, marginBottom: 20 }}>
-              <Search size={16} color={CARE.muted} strokeWidth={2} />
-              <Text style={{ color: CARE.muted, fontSize: 14 }}>Search practices</Text>
-            </View>
+        <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
+          {items === null ? (
+            <View style={{ paddingTop: 30, alignItems: 'center' }}><ActivityIndicator color={EDA.green} /></View>
+          ) : items.length === 0 ? (
+            <EdCard style={{ padding: 26, alignItems: 'center' }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink }}>{tr.emptyTitle}</Text>
+              <Text style={{ fontSize: 13, color: EDA.inkSoft, marginTop: 6, textAlign: 'center', lineHeight: 19 }}>{tr.emptyBody}</Text>
+            </EdCard>
+          ) : (
+            <>
+              {/* Search */}
+              <View style={{ height: 46, borderRadius: 23, backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, marginBottom: 20 }}>
+                <Search size={16} color={EDA.faint} strokeWidth={2} />
+                <Text style={{ color: EDA.faint, fontSize: 14 }}>{tr.search}</Text>
+              </View>
 
-            {featured && (
-              <TouchableOpacity onPress={() => open(featured.id)} activeOpacity={0.9} style={{ borderRadius: 20, overflow: 'hidden', marginBottom: 18 }}>
-                <LinearGradient colors={['#009B8E', '#00B4A3']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ padding: 20 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', color: 'rgba(255,255,255,0.75)', marginBottom: 8 }}>Featured</Text>
-                  <Text style={{ fontSize: 19, fontWeight: '700', color: '#fff', marginBottom: 4 }}>{featured.title}</Text>
-                  {featured.description ? <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 20 }} numberOfLines={2}>{featured.description}</Text> : null}
-                </LinearGradient>
-              </TouchableOpacity>
-            )}
+              {/* Featured — the one dark accent block */}
+              {featured && (
+                <TouchableOpacity onPress={() => open(featured.id)} activeOpacity={0.9} style={{ backgroundColor: EDA.ink, borderRadius: 20, padding: 20, marginBottom: 18 }}>
+                  <MonoLabel color="rgba(255,255,255,0.6)" style={{ marginBottom: 8 }}>{tr.featured}</MonoLabel>
+                  <Text style={{ fontSize: 19, fontWeight: '800', color: '#fff', letterSpacing: -0.3 }}>{featured.title}</Text>
+                  {featured.description ? <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.72)', lineHeight: 20, marginTop: 4 }} numberOfLines={2}>{featured.description}</Text> : null}
+                </TouchableOpacity>
+              )}
 
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-              {rest.map((it) => {
-                const meta = resourceTypeMeta(it.type);
-                return (
-                  <TouchableOpacity key={it.id} onPress={() => open(it.id)} activeOpacity={0.85} style={{ width: '47%', flexGrow: 1, backgroundColor: '#fff', borderWidth: 1, borderColor: CARE.border, borderRadius: 18, padding: 16 }}>
-                    <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: '#FCF1E7', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-                      <meta.Icon size={18} color={ORANGE} strokeWidth={2} />
-                    </View>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: CARE.ink }} numberOfLines={2}>{it.title}</Text>
-                    <Text style={{ fontSize: 12, color: '#9A9A9A', marginTop: 2 }}>{it.runCount > 0 ? `Done ${it.runCount}×` : meta.label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </>
-        )}
+              {/* Practices */}
+              <View style={{ gap: 10 }}>
+                {rest.map((it) => {
+                  const meta = resourceTypeMeta(it.type, locale);
+                  return (
+                    <TouchableOpacity key={it.id} onPress={() => open(it.id)} activeOpacity={0.8} style={{ backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, borderRadius: 18, padding: 15, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                      <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center' }}>
+                        <meta.Icon size={19} color={EDA.green} strokeWidth={2} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 14.5, fontWeight: '700', color: EDA.ink }} numberOfLines={2}>{it.title}</Text>
+                        <Text style={{ fontSize: 12, color: EDA.inkSoft, marginTop: 1 }}>{it.runCount > 0 ? `${tr.done} ${it.runCount}×` : (tr.types[it.type] ?? tr.types.resource)}</Text>
+                      </View>
+                      <ChevronRight size={18} color={EDA.faint} strokeWidth={2} />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          )}
+        </FadeIn>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

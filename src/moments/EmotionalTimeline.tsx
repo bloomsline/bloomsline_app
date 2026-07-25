@@ -8,7 +8,14 @@ import { useEffect, useRef, useState } from 'react';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop, Line, Text as SvgText } from 'react-native-svg';
 import { MOOD_SCORES, MOOD_COLORS, moodLabel } from './moods';
 import { formatTime } from './DayNav';
+import { useI18n } from '@/src/i18n';
+import { EDA, MonoLabel } from '@/src/ui/editorial';
 import type { MomentDTO } from '@/src/api/moments';
+
+const T = {
+  en: { emotionalFlow: 'Emotional Flow', moment: 'moment', moments: 'moments', now: 'Now', tap: '↑ Tap' },
+  fr: { emotionalFlow: 'Fil du jour', moment: 'moment', moments: 'moments', now: 'maint.', tap: '↑ Appuyer' },
+} as const;
 
 const TL_H = 180;
 const CURVE_TOP = 28;
@@ -26,6 +33,8 @@ export function EmotionalTimeline({
   onMomentPress?: (m: MomentDTO) => void;
   glowDots?: boolean;
 }) {
+  const { locale } = useI18n();
+  const tr = T[locale];
   const [containerWidth, setContainerWidth] = useState(350);
   const CHART_W = containerWidth - 8;
   const pulseAnim = useRef(new Animated.Value(0)).current;
@@ -87,14 +96,14 @@ export function EmotionalTimeline({
   return (
     <View
       onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
-      style={{ backgroundColor: '#fff', borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: '#EBEBEB' }}
+      style={{ backgroundColor: EDA.card, borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: EDA.line }}
     >
       {/* Card header */}
       <View style={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 4, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={{ fontSize: 12, fontWeight: '600', letterSpacing: 1, color: '#8A8A8A', textTransform: 'uppercase' }}>Emotional Flow</Text>
-        <View style={{ backgroundColor: '#f5f5f5', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 }}>
-          <Text style={{ fontSize: 12, fontWeight: '600', color: '#999' }}>
-            {sorted.length} {sorted.length === 1 ? 'moment' : 'moments'}
+        <MonoLabel color={EDA.faint} size={11}>{tr.emotionalFlow}</MonoLabel>
+        <View style={{ backgroundColor: EDA.greenTint, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 }}>
+          <Text style={{ fontSize: 12, fontWeight: '600', color: EDA.green }}>
+            {sorted.length} {sorted.length === 1 ? tr.moment : tr.moments}
           </Text>
         </View>
       </View>
@@ -111,21 +120,21 @@ export function EmotionalTimeline({
 
           {[0.25, 0.5, 0.75].map((pct) => {
             const gy = CURVE_TOP + pct * (CURVE_BOT - CURVE_TOP);
-            return <Line key={pct} x1={16} y1={gy} x2={CHART_W - 16} y2={gy} stroke="#000" strokeWidth={0.5} opacity={0.06} />;
+            return <Line key={pct} x1={16} y1={gy} x2={CHART_W - 16} y2={gy} stroke={EDA.ink} strokeWidth={0.5} opacity={0.06} />;
           })}
 
           {fillPath ? <Path d={fillPath} fill="url(#curveGrad)" /> : null}
-          {curvePath ? <Path d={curvePath} stroke="#000" strokeWidth={2.5} fill="none" strokeLinecap="round" strokeLinejoin="round" /> : null}
+          {curvePath ? <Path d={curvePath} stroke={EDA.ink} strokeWidth={2.5} fill="none" strokeLinecap="round" strokeLinejoin="round" /> : null}
 
           {points.length === 1 && (
-            <Line x1={16} y1={points[0].y} x2={CHART_W - 16} y2={points[0].y} stroke="#000" strokeWidth={1} strokeDasharray="4,6" opacity={0.06} />
+            <Line x1={16} y1={points[0].y} x2={CHART_W - 16} y2={points[0].y} stroke={EDA.ink} strokeWidth={1} strokeDasharray="4,6" opacity={0.06} />
           )}
 
           {showNow && (
             <>
-              <Line x1={nowX} y1={CURVE_TOP - 4} x2={nowX} y2={CURVE_BOT + 4} stroke="#000" strokeWidth={1} strokeDasharray="2,4" opacity={0.1} />
-              <SvgText x={nowX} y={CURVE_TOP - 10} fontSize={9} fill="#ccc" textAnchor="middle" fontWeight="600">
-                Now
+              <Line x1={nowX} y1={CURVE_TOP - 4} x2={nowX} y2={CURVE_BOT + 4} stroke={EDA.green} strokeWidth={1} strokeDasharray="2,4" opacity={0.25} />
+              <SvgText x={nowX} y={CURVE_TOP - 10} fontSize={9} fill={EDA.green} textAnchor="middle" fontWeight="600">
+                {tr.now}
               </SvgText>
             </>
           )}
@@ -149,7 +158,7 @@ export function EmotionalTimeline({
           })}
 
           {timeLabels.map((l) => (
-            <SvgText key={l.hour} x={(l.hour / 24) * CHART_W} y={TIME_Y} fontSize={10} fill="#d4d4d4" textAnchor="middle">
+            <SvgText key={l.hour} x={(l.hour / 24) * CHART_W} y={TIME_Y} fontSize={10} fill={EDA.faint} textAnchor="middle">
               {l.text}
             </SvgText>
           ))}
@@ -182,7 +191,7 @@ export function EmotionalTimeline({
                     }}
                   />
                   <View style={{ position: 'absolute', top: 48, alignItems: 'center' }}>
-                    <Text style={{ fontSize: 11, fontWeight: '600', color }}>{'↑ Tap'}</Text>
+                    <Text style={{ fontSize: 11, fontWeight: '600', color }}>{tr.tap}</Text>
                   </View>
                 </>
               )}
@@ -195,8 +204,8 @@ export function EmotionalTimeline({
       <View style={{ paddingHorizontal: 20, paddingBottom: 18, paddingTop: 2 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: latestColor }} />
-          <Text style={{ fontSize: 15, fontWeight: '600', color: '#000' }}>{moodLabel(latest.mood)}</Text>
-          <Text style={{ fontSize: 13, color: '#bbb' }}>· {formatTime(latest.time.toISOString())}</Text>
+          <Text style={{ fontSize: 15, fontWeight: '600', color: EDA.ink }}>{moodLabel(latest.mood, locale)}</Text>
+          <Text style={{ fontSize: 13, color: EDA.faint }}>· {formatTime(latest.time.toISOString())}</Text>
         </View>
       </View>
     </View>

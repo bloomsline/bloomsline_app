@@ -5,36 +5,35 @@
 // recent window and filter to the selected day on the client.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Camera, Heart, Lightbulb, Mic, PenLine, Settings, Video } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
+import { TabIntro } from '@/src/ui/TabIntro';
 import { EmotionalTimeline } from '@/src/moments/EmotionalTimeline';
 import { MomentDetail } from '@/src/moments/MomentDetail';
-import { DayNav, getGreeting, getToday, isSameDay } from '@/src/moments/DayNav';
+import { DayNav, getToday, isSameDay } from '@/src/moments/DayNav';
+import { EDA, EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
+import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
+import { useLanding } from '@/src/prefs/landing';
+import { useI18n } from '@/src/i18n';
 import { listMoments, type MomentDTO } from '@/src/api/moments';
 import { useOnboarding } from '@/src/onboarding/context';
 
 const CAPTURE_TYPES = [
-  { key: 'video', Icon: Video, color: '#8B5CF6' },
-  { key: 'voice', Icon: Mic, color: '#F59E0B' },
-  { key: 'write', Icon: PenLine, color: '#10B981' },
-  { key: 'photo', Icon: Camera, color: '#3B82F6' },
+  { key: 'video', Icon: Video },
+  { key: 'voice', Icon: Mic },
+  { key: 'write', Icon: PenLine },
+  { key: 'photo', Icon: Camera },
 ];
-
-const EMPTY_MESSAGES = [
-  { text: 'How are you feeling right now?', sub: 'Take a second to check in with yourself.' },
-  { text: "What's on your mind?", sub: 'Even one word captures something real.' },
-  { text: 'Pause. Breathe. Notice.', sub: 'What do you feel in this moment?' },
-  { text: "You're here. That's enough.", sub: 'Capture whatever comes to mind.' },
-  { text: 'What would you like to remember?', sub: 'A thought, a photo, a feeling.' },
-  { text: 'This moment is yours.', sub: 'Write it, snap it, or say it.' },
-];
-const PAST_MESSAGES = ['A quiet day.', 'No moments captured.', "Nothing here — and that's okay.", 'An empty page, a full life.'];
 
 export default function Moments() {
   const router = useRouter();
   const { firstName } = useOnboarding();
+  const { landing } = useLanding();
+  const { t } = useI18n();
+  const [introActive, setIntroActive] = useState(false);
+  const dim = { opacity: introActive ? 0.3 : 1 } as const;
   const [moments, setMoments] = useState<MomentDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -71,108 +70,114 @@ export default function Moments() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#FAFAF8', alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color="#4A9A86" />
+      <View style={{ flex: 1, backgroundColor: EDA.canvas, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={EDA.green} />
       </View>
     );
   }
 
+  // Header title — a time-of-day greeting when Moments is the landing tab, else
+  // the plain "Moments" title (mirrors ScreenHeading's isHome behaviour).
+  const greetHere = landing === 'moments';
+  const name = (firstName ?? '').trim();
+  const pretty = name ? name.charAt(0).toUpperCase() + name.slice(1) : '';
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? t.greeting.morning : hour < 18 ? t.greeting.afternoon : t.greeting.evening;
+  const headerTitle = greetHere ? (pretty ? `${greeting},\n${pretty}.` : `${greeting}.`) : t.moments.title;
+
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: '#FAFAF8' }}>
+    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+      <StatusBar style="dark" />
       <ScrollView
-        contentContainerStyle={{ paddingTop: 20, paddingBottom: 180, paddingHorizontal: 24 }}
+        contentContainerStyle={{ paddingBottom: 180 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4A9A86" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={EDA.green} />}
       >
-        {/* Header */}
-        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 12 }}>
-          <TouchableOpacity
-            onPress={() => router.navigate('/settings' as never)}
-            activeOpacity={0.7}
-            style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#f5f5f5', justifyContent: 'center', alignItems: 'center' }}
-          >
-            <Settings size={18} color="#666" strokeWidth={1.8} />
-          </TouchableOpacity>
-        </View>
-        <View style={{ marginBottom: 20 }}>
-          <Text style={{ fontSize: 30, fontWeight: '700', color: '#000', letterSpacing: -0.8, lineHeight: 38 }}>
-            {getGreeting()}
-            {firstName ? ',\n' : '.'}
-            {firstName ? <Text style={{ color: '#8A8A8A' }}>{firstName}.</Text> : null}
-          </Text>
-        </View>
+        <EdHeader
+          kicker="MOMENTS"
+          title={headerTitle}
+          source={ONBOARDING_IMAGES.card1}
+          rightIcon={Settings}
+          onRight={() => router.navigate('/settings' as never)}
+        />
 
-        {/* Date strip + Emotional Flow */}
-        <View style={{ marginBottom: 32 }}>
-          <DayNav selected={selectedDate} onSelect={setSelectedDate} />
-          {dayMoments.length === 0 ? (
-            <EmptyMomentCard isToday={isToday} onSelectType={openCapture} />
-          ) : (
-            <EmotionalTimeline moments={dayMoments} showNow={isToday} onMomentPress={setViewing} />
-          )}
-        </View>
+        <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
+          <TabIntro tabKey="moments" onActiveChange={setIntroActive} />
 
-        {/* Quick actions */}
-        <View style={{ gap: 14 }}>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <TouchableOpacity
-              onPress={() => {}}
-              activeOpacity={0.85}
-              style={{ flex: 1, backgroundColor: '#4A9A86', borderRadius: 24, padding: 20, minHeight: 160, justifyContent: 'space-between' }}
-            >
-              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' }}>
-                <Heart size={18} color="#fff" strokeWidth={2} />
-              </View>
-              <View>
-                <Text style={{ fontSize: 18, fontWeight: '800', color: '#fff', letterSpacing: -0.5, lineHeight: 24 }}>My Journey</Text>
-                <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 4 }}>Patterns and progress</Text>
-              </View>
-            </TouchableOpacity>
+          <View style={dim} pointerEvents={introActive ? 'none' : 'auto'}>
+            {/* Date strip + Emotional Flow */}
+            <View style={{ marginBottom: 28 }}>
+              <DayNav selected={selectedDate} onSelect={setSelectedDate} />
+              {dayMoments.length === 0 ? (
+                <EmptyMomentCard isToday={isToday} onSelectType={openCapture} />
+              ) : (
+                <EmotionalTimeline moments={dayMoments} showNow={isToday} onMomentPress={setViewing} />
+              )}
+            </View>
 
-            <TouchableOpacity
-              onPress={openCapture}
-              activeOpacity={0.85}
-              style={{ flex: 1, backgroundColor: '#1A1A1A', borderRadius: 24, padding: 20, minHeight: 160, justifyContent: 'space-between' }}
-            >
-              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center' }}>
-                <PenLine size={18} color="#fff" strokeWidth={2} />
+            {/* Quick actions */}
+            <View style={{ gap: 14 }}>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                {/* My Journey — light editorial card */}
+                <TouchableOpacity
+                  onPress={() => {}}
+                  activeOpacity={0.85}
+                  style={{ flex: 1, backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, borderRadius: 20, padding: 20, minHeight: 160, justifyContent: 'space-between' }}
+                >
+                  <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: EDA.greenTint, justifyContent: 'center', alignItems: 'center' }}>
+                    <Heart size={18} color={EDA.green} strokeWidth={2} />
+                  </View>
+                  <View>
+                    <Text style={{ fontSize: 18, fontWeight: '800', color: EDA.ink, letterSpacing: -0.5, lineHeight: 24 }}>{t.moments.myJourney}</Text>
+                    <Text style={{ fontSize: 11, color: EDA.inkSoft, marginTop: 4 }}>{t.moments.myJourneySub}</Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* New moment — the one dark ink block */}
+                <TouchableOpacity
+                  onPress={openCapture}
+                  activeOpacity={0.85}
+                  style={{ flex: 1, backgroundColor: EDA.ink, borderRadius: 20, padding: 20, minHeight: 160, justifyContent: 'space-between' }}
+                >
+                  <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.12)', justifyContent: 'center', alignItems: 'center' }}>
+                    <PenLine size={18} color="#fff" strokeWidth={2} />
+                  </View>
+                  <View>
+                    <Text style={{ fontSize: 18, fontWeight: '800', color: '#fff', letterSpacing: -0.5, lineHeight: 24 }}>{t.moments.newMoment}</Text>
+                    <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 4 }}>{t.moments.newMomentSub}</Text>
+                  </View>
+                </TouchableOpacity>
               </View>
-              <View>
-                <Text style={{ fontSize: 18, fontWeight: '800', color: '#fff', letterSpacing: -0.5, lineHeight: 24 }}>New moment</Text>
-                <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>Notice how you feel</Text>
-              </View>
-            </TouchableOpacity>
+
+              {/* Tips — light editorial card */}
+              <EdCard onPress={() => {}} style={{ flexDirection: 'row', alignItems: 'center', gap: 16, padding: 18 }}>
+                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: EDA.greenTint, justifyContent: 'center', alignItems: 'center' }}>
+                  <Lightbulb size={22} color={EDA.green} strokeWidth={1.8} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: EDA.ink, marginBottom: 2 }}>{t.moments.tipsTitle}</Text>
+                  <Text style={{ fontSize: 13, color: EDA.inkSoft }}>{t.moments.tipsSub}</Text>
+                </View>
+              </EdCard>
+            </View>
           </View>
-
-          <TouchableOpacity
-            onPress={() => {}}
-            activeOpacity={0.85}
-            style={{ backgroundColor: '#F8F7F4', borderRadius: 24, padding: 20, flexDirection: 'row', alignItems: 'center', gap: 16, borderWidth: 1, borderColor: '#EBEBEB' }}
-          >
-            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center' }}>
-              <Lightbulb size={22} color="#F59E0B" strokeWidth={1.8} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: '#000', marginBottom: 2 }}>Tips for you</Text>
-              <Text style={{ fontSize: 13, color: '#999' }}>Simple ideas to get more from your moments</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+        </FadeIn>
       </ScrollView>
 
       <TabBar active="moments" />
 
       {viewing && <MomentDetail moment={viewing} onClose={() => setViewing(null)} onChanged={load} />}
-    </SafeAreaView>
+    </View>
   );
 }
 
 // The animated glowing empty card (today) / quiet card (past days) — ported from v1.
 function EmptyMomentCard({ isToday, onSelectType }: { isToday: boolean; onSelectType: () => void }) {
+  const { t } = useI18n();
   const glowAnim = useRef(new Animated.Value(0)).current;
   const todayKey = new Date().toDateString();
-  const msg = useMemo(() => EMPTY_MESSAGES[Math.floor(Math.abs(hashStr(todayKey)) % EMPTY_MESSAGES.length)], [todayKey]);
-  const pastMsg = useMemo(() => PAST_MESSAGES[Math.floor(Math.abs(hashStr(todayKey + 'p')) % PAST_MESSAGES.length)], [todayKey]);
+  const msg = useMemo(() => t.moments.empty[Math.floor(Math.abs(hashStr(todayKey)) % t.moments.empty.length)], [todayKey, t]);
+  const pastMsg = useMemo(() => t.moments.past[Math.floor(Math.abs(hashStr(todayKey + 'p')) % t.moments.past.length)], [todayKey, t]);
 
   useEffect(() => {
     const loop = Animated.loop(
@@ -187,36 +192,36 @@ function EmptyMomentCard({ isToday, onSelectType }: { isToday: boolean; onSelect
 
   if (!isToday) {
     return (
-      <View style={{ backgroundColor: '#fff', borderRadius: 24, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: '#EBEBEB' }}>
-        <Text style={{ fontSize: 15, color: '#BBB', textAlign: 'center', fontStyle: 'italic' }}>{pastMsg}</Text>
+      <View style={{ backgroundColor: EDA.card, borderRadius: 24, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: EDA.line }}>
+        <Text style={{ fontSize: 15, color: EDA.faint, textAlign: 'center', fontStyle: 'italic' }}>{pastMsg}</Text>
       </View>
     );
   }
 
-  const borderColor = glowAnim.interpolate({ inputRange: [0, 1], outputRange: ['#4A9A8620', '#4A9A8660'] });
+  const borderColor = glowAnim.interpolate({ inputRange: [0, 1], outputRange: ['#12806922', '#12806966'] });
   const shadowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.05, 0.2] });
 
   return (
     <Animated.View
       style={{
-        backgroundColor: '#fff', borderRadius: 24, padding: 28, alignItems: 'center', borderWidth: 1.5, borderColor,
-        shadowColor: '#4A9A86', shadowOffset: { width: 0, height: 0 }, shadowOpacity, shadowRadius: 16, elevation: 4,
+        backgroundColor: EDA.card, borderRadius: 24, padding: 28, alignItems: 'center', borderWidth: 1.5, borderColor,
+        shadowColor: EDA.green, shadowOffset: { width: 0, height: 0 }, shadowOpacity, shadowRadius: 16, elevation: 4,
       }}
     >
-      <Text style={{ fontSize: 20, fontWeight: '600', color: '#000', textAlign: 'center', marginBottom: 8, lineHeight: 28 }}>{msg.text}</Text>
-      <Text style={{ fontSize: 14, color: '#999', textAlign: 'center', lineHeight: 20, marginBottom: 20 }}>{msg.sub}</Text>
+      <Text style={{ fontSize: 20, fontWeight: '600', color: EDA.ink, textAlign: 'center', marginBottom: 8, lineHeight: 28 }}>{msg.text}</Text>
+      <Text style={{ fontSize: 14, color: EDA.inkSoft, textAlign: 'center', lineHeight: 20, marginBottom: 20 }}>{msg.sub}</Text>
       <View style={{ flexDirection: 'row', gap: 14, justifyContent: 'center' }}>
-        {CAPTURE_TYPES.map(({ key, Icon, color }) => (
+        {CAPTURE_TYPES.map(({ key, Icon }) => (
           <TouchableOpacity
             key={key}
             onPress={onSelectType}
             activeOpacity={0.7}
             style={{
-              width: 52, height: 52, borderRadius: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: '#EFEFEF',
-              justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 3, elevation: 1,
+              width: 52, height: 52, borderRadius: 16, backgroundColor: EDA.greenTint, borderWidth: 1, borderColor: EDA.line,
+              justifyContent: 'center', alignItems: 'center',
             }}
           >
-            <Icon size={22} color={color} strokeWidth={2} />
+            <Icon size={22} color={EDA.green} strokeWidth={2} />
           </TouchableOpacity>
         ))}
       </View>

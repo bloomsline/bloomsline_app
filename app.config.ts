@@ -25,6 +25,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ...config,
     name: config.name ?? 'Bloomsline',
     slug: config.slug ?? 'bloomsline-mobile-v2',
+    plugins: [...(config.plugins ?? []), 'expo-font'],
     ios: {
       ...config.ios,
       infoPlist: {

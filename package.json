@@ -15,12 +15,15 @@
     "audit:gate": "node scripts/audit-gate.mjs"
   },
   "dependencies": {
+    "@expo-google-fonts/ibm-plex-mono": "^0.4.1",
+    "@expo-google-fonts/manrope": "^0.4.2",
     "expo": "~55.0.4",
     "expo-audio": "~55.0.16",
     "expo-auth-session": "~55.0.0",
     "expo-constants": "^55.0.14",
     "expo-crypto": "~55.0.0",
     "expo-dev-client": "~55.0.0",
+    "expo-font": "~55.0.8",
     "expo-image-manipulator": "~55.0.19",
     "expo-image-picker": "~55.0.22",
     "expo-linear-gradient": "~55.0.16",
@@ -49,5 +52,8 @@
     "eslint-config-expo": "~55.0.1",
     "tailwindcss": "^3.4.19",
     "typescript": "~5.9.2"
+  },
+  "overrides": {
+    "brace-expansion": "5.0.8"
   }
 }

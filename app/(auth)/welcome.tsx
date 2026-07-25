@@ -1,41 +1,72 @@
 import { router } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { Lock } from 'lucide-react-native';
-import { SunriseHero } from '@/src/ui/SunriseHero';
-import { Button } from '@/src/ui/Button';
+import { EditorialBg, Scrim, RiseIn, MonoKicker, Pill } from '@/src/onboarding/editorial/kit';
+import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
+import { useI18n } from '@/src/i18n';
+
+const T = {
+  en: {
+    kicker: 'bloomsline',
+    headlinePre: 'However you’re\narriving, you’re ',
+    headlineAccent: 'welcome.',
+    tagline: 'A private space for your wellbeing, one small moment at a time.',
+    private: 'Private by default. Yours alone.',
+    createProfile: 'Create my profile',
+    haveAccount: 'I already have an account',
+  },
+  fr: {
+    kicker: 'bloomsline',
+    headlinePre: 'Peu importe comment\nvous arrivez, vous êtes ',
+    headlineAccent: 'le bienvenu.',
+    tagline: 'Un espace privé pour votre bien-être, un petit moment à la fois.',
+    private: 'Privé par défaut. Rien qu’à vous.',
+    createProfile: 'Créer mon profil',
+    haveAccount: 'J’ai déjà un compte',
+  },
+} as const;
 
 // Welcome. Warm, inclusive entry; role (patient vs practitioner) is decided
-// after sign-in. Soft dawn hero + a quiet trust cue.
+// after sign-in. Full-bleed editorial hero matching the onboarding world.
 export default function Welcome() {
+  const { locale } = useI18n();
+  const tr = T[locale];
   return (
-    <View className="flex-1 bg-white">
-      <SunriseHero height={260} />
+    <View style={{ flex: 1 }}>
+      <StatusBar style="light" />
+      <EditorialBg source={ONBOARDING_IMAGES.splash} zoom>
+        <Scrim colors={['rgba(16,18,16,0.55)', 'rgba(16,18,16,0.18)', 'rgba(16,18,16,0.92)']} locations={[0, 0.34, 1]} />
+        <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
+          <View style={{ flex: 1, paddingHorizontal: 28 }}>
+            <RiseIn style={{ marginTop: 26 }}>
+              <View style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 3, borderColor: '#fff', marginBottom: 18 }} />
+              <MonoKicker>{tr.kicker}</MonoKicker>
+              <Text style={{ marginTop: 12, fontSize: 36, fontWeight: '800', color: '#fff', letterSpacing: -1.2, lineHeight: 42 }}>
+                {tr.headlinePre}
+                <Text style={{ color: '#7FD9C0' }}>{tr.headlineAccent}</Text>
+              </Text>
+              <Text style={{ marginTop: 14, fontSize: 15, color: 'rgba(255,255,255,0.82)', lineHeight: 23, maxWidth: 300 }}>{tr.tagline}</Text>
+            </RiseIn>
 
-      <View className="flex-1 justify-between px-7 pt-8">
-        <View>
-          <Text className="text-[15px] font-extrabold tracking-[0.5px] text-brand">bloomsline</Text>
-          <Text className="mt-4 text-[28px] font-bold leading-[35px] tracking-[-0.5px] text-ink">
-            However you’re arriving,{'\n'}you’re <Text className="text-brand">welcome here.</Text>
-          </Text>
-          <Text className="mt-3 text-[16px] leading-[24px] text-muted">
-            A private space for your wellbeing, one small moment at a time.
-          </Text>
-        </View>
+            <View style={{ flex: 1 }} />
 
-        <SafeAreaView edges={['bottom']} className="pb-2">
-          <View className="mb-5 flex-row items-center justify-center gap-1.5">
-            <Lock size={13} color="#8A8A8A" strokeWidth={2} />
-            <Text className="text-[12.5px] font-medium text-muted-dark">Private by default. Yours alone.</Text>
+            <RiseIn delay={350} style={{ paddingBottom: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 16 }}>
+                <Lock size={13} color="rgba(255,255,255,0.7)" strokeWidth={2} />
+                <Text style={{ fontSize: 12.5, fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>{tr.private}</Text>
+              </View>
+
+              <Pill label={tr.createProfile} onPress={() => router.push('/(auth)/sign-up')} />
+
+              <Pressable onPress={() => router.push('/(auth)/sign-up')} style={{ alignItems: 'center', paddingVertical: 16 }}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: 'rgba(255,255,255,0.9)' }}>{tr.haveAccount}</Text>
+              </Pressable>
+            </RiseIn>
           </View>
-
-          <Button label="Create my profile" onPress={() => router.push('/(auth)/sign-up')} />
-
-          <Pressable onPress={() => router.push('/(auth)/sign-up')} className="items-center py-4">
-            <Text className="text-[15px] font-semibold text-ink">I already have an account</Text>
-          </Pressable>
         </SafeAreaView>
-      </View>
+      </EditorialBg>
     </View>
   );
 }

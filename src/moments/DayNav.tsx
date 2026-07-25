@@ -1,7 +1,24 @@
-// Day navigation strip — ported from v1 (components/DayNav.tsx). English labels
-// (i18n can be layered later). Also exports the date helpers the Moments screen
-// + timeline share.
+// Day navigation strip — ported from v1 (components/DayNav.tsx). Localized
+// (English / French). Also exports the date helpers the Moments screen +
+// timeline share.
 import { View, Text, TouchableOpacity } from 'react-native';
+import { useI18n, type Locale } from '@/src/i18n';
+import { EDA } from '@/src/ui/editorial';
+
+// Localized short weekday + month names (Sun-indexed / Jan-indexed) plus the
+// relative-day labels. Kept local so the date math stays intact.
+const WEEKDAYS: Record<Locale, string[]> = {
+  en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+  fr: ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'],
+};
+const MONTHS: Record<Locale, string[]> = {
+  en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+  fr: ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'],
+};
+const T = {
+  en: { today: 'Today', yesterday: 'Yesterday' },
+  fr: { today: "Aujourd'hui", yesterday: 'Hier' },
+} as const;
 
 export function getToday(): Date {
   const d = new Date();
@@ -13,13 +30,17 @@ export function isSameDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-export function getDateLabel(date: Date): string {
+export function getDateLabel(date: Date, locale: Locale = 'en'): string {
   const today = getToday();
-  if (isSameDay(date, today)) return 'Today';
+  if (isSameDay(date, today)) return T[locale].today;
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  if (isSameDay(date, yesterday)) return 'Yesterday';
-  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  if (isSameDay(date, yesterday)) return T[locale].yesterday;
+  const weekday = WEEKDAYS[locale][date.getDay()];
+  const month = MONTHS[locale][date.getMonth()];
+  const day = date.getDate();
+  // English reads "Thu, Jul 24"; French reads "jeu. 24 juil.".
+  return locale === 'fr' ? `${weekday} ${day} ${month}` : `${weekday}, ${month} ${day}`;
 }
 
 export function getGreeting(): string {
@@ -35,6 +56,7 @@ export function formatTime(dateStr: string): string {
 }
 
 export function DayNav({ selected, onSelect }: { selected: Date; onSelect: (d: Date) => void }) {
+  const { locale } = useI18n();
   const today = getToday();
   const isViewingToday = isSameDay(selected, today);
 
@@ -56,13 +78,13 @@ export function DayNav({ selected, onSelect }: { selected: Date; onSelect: (d: D
         onPress={goBack}
         activeOpacity={0.6}
         hitSlop={12}
-        style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#f5f5f5', alignItems: 'center', justifyContent: 'center' }}
+        style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, alignItems: 'center', justifyContent: 'center' }}
       >
-        <Text style={{ fontSize: 18, fontWeight: '600', color: '#999', marginTop: -1 }}>‹</Text>
+        <Text style={{ fontSize: 18, fontWeight: '600', color: EDA.inkSoft, marginTop: -1 }}>‹</Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={!isViewingToday ? () => onSelect(today) : undefined} activeOpacity={isViewingToday ? 1 : 0.6}>
-        <Text style={{ fontSize: 14, fontWeight: '700', color: '#000', letterSpacing: -0.2 }}>{getDateLabel(selected)}</Text>
+        <Text style={{ fontSize: 14, fontWeight: '700', color: isViewingToday ? EDA.green : EDA.ink, letterSpacing: -0.2 }}>{getDateLabel(selected, locale)}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -71,11 +93,11 @@ export function DayNav({ selected, onSelect }: { selected: Date; onSelect: (d: D
         hitSlop={12}
         style={{
           width: 34, height: 34, borderRadius: 17,
-          backgroundColor: isViewingToday ? '#f8f8f8' : '#f5f5f5',
+          backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line,
           alignItems: 'center', justifyContent: 'center', opacity: isViewingToday ? 0.4 : 1,
         }}
       >
-        <Text style={{ fontSize: 18, fontWeight: '600', color: '#999', marginTop: -1 }}>›</Text>
+        <Text style={{ fontSize: 18, fontWeight: '600', color: EDA.inkSoft, marginTop: -1 }}>›</Text>
       </TouchableOpacity>
     </View>
   );

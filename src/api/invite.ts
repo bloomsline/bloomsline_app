@@ -7,6 +7,7 @@ import { API_URL } from '../config';
 export interface PatientInvite {
   email: string;
   practitionerName: string | null;
+  locale: 'en' | 'fr'; // the language the invite was sent in → the app opens in it
 }
 
 /**
@@ -23,7 +24,7 @@ export async function fetchInvite(token: string): Promise<PatientInvite | null> 
     if (!res.ok) return null;
     const data = (await res.json()) as Partial<PatientInvite>;
     return typeof data.email === 'string' && data.email
-      ? { email: data.email, practitionerName: data.practitionerName ?? null }
+      ? { email: data.email, practitionerName: data.practitionerName ?? null, locale: data.locale === 'fr' ? 'fr' : 'en' }
       : null;
   } catch {
     return null;

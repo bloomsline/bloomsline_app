@@ -1,11 +1,16 @@
 import '../global.css';
+import '@/src/ui/text-global'; // Manrope as the app-wide default Text font
 import { Platform, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as WebBrowser from 'expo-web-browser';
+import { useFonts } from 'expo-font';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '@/src/auth/auth-context';
 import { OnboardingProvider } from '@/src/onboarding/context';
+import { LandingProvider } from '@/src/prefs/landing';
+import { I18nProvider } from '@/src/i18n';
+import { FONT_ASSETS } from '@/src/ui/fonts';
 
 // MUST be at the ROOT, not only in the auth modules that start the flow.
 //
@@ -32,15 +37,22 @@ function PhoneFrame({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts(FONT_ASSETS);
+  // Hold render until the type is ready, so nothing flashes in the system font.
+  if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: '#E4E2DB' }} />;
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <OnboardingProvider>
-          <StatusBar style="dark" />
-          <PhoneFrame>
-            <Stack screenOptions={{ headerShown: false }} />
-          </PhoneFrame>
-        </OnboardingProvider>
+        <I18nProvider>
+          <OnboardingProvider>
+            <LandingProvider>
+              <StatusBar style="dark" />
+              <PhoneFrame>
+                <Stack screenOptions={{ headerShown: false }} />
+              </PhoneFrame>
+            </LandingProvider>
+          </OnboardingProvider>
+        </I18nProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );
