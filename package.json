@@ -52,5 +52,8 @@
     "eslint-config-expo": "~55.0.1",
     "tailwindcss": "^3.4.19",
     "typescript": "~5.9.2"
+  },
+  "overrides": {
+    "brace-expansion": "5.0.8"
   }
 }
