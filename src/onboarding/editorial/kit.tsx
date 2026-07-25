@@ -105,6 +105,25 @@ export function Pill({
   );
 }
 
+/** A compact EN/FR segmented toggle for the dark photographic screens. Glassy
+ *  track, the active segment fills white. Wire `value`/`onChange` to the i18n
+ *  locale so it switches the whole app immediately. */
+export function LangToggle({ value, onChange, options }: { value: string; onChange: (v: string) => void; options?: Array<{ code: string; label: string }> }) {
+  const opts = options ?? [{ code: 'en', label: 'EN' }, { code: 'fr', label: 'FR' }];
+  return (
+    <View style={{ flexDirection: 'row', padding: 3, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' }}>
+      {opts.map((o) => {
+        const on = value === o.code;
+        return (
+          <Pressable key={o.code} onPress={() => onChange(o.code)} style={{ paddingHorizontal: 13, height: 30, borderRadius: 15, backgroundColor: on ? '#fff' : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 12.5, fontWeight: '700', letterSpacing: 0.3, color: on ? ED.ink : 'rgba(255,255,255,0.75)' }}>{o.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 /** The glowing, gently-nudging "next" affordance from the carousel cards. */
 export function HaloArrow({ size = 46 }: { size?: number }) {
   const halo = useRef(new Animated.Value(0)).current;

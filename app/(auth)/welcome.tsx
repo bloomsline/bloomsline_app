@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Lock } from 'lucide-react-native';
-import { EditorialBg, Scrim, RiseIn, MonoKicker, Pill } from '@/src/onboarding/editorial/kit';
+import { EditorialBg, Scrim, RiseIn, MonoKicker, Pill, LangToggle } from '@/src/onboarding/editorial/kit';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useI18n } from '@/src/i18n';
 
@@ -31,7 +31,7 @@ const T = {
 // Welcome. Warm, inclusive entry; role (patient vs practitioner) is decided
 // after sign-in. Full-bleed editorial hero matching the onboarding world.
 export default function Welcome() {
-  const { locale } = useI18n();
+  const { locale, setLocale } = useI18n();
   const tr = T[locale];
   return (
     <View style={{ flex: 1 }}>
@@ -41,7 +41,10 @@ export default function Welcome() {
         <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
           <View style={{ flex: 1, paddingHorizontal: 28 }}>
             <RiseIn style={{ marginTop: 26 }}>
-              <View style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 3, borderColor: '#fff', marginBottom: 18 }} />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
+                <View style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 3, borderColor: '#fff' }} />
+                <LangToggle value={locale} onChange={(v) => setLocale(v as typeof locale)} />
+              </View>
               <MonoKicker>{tr.kicker}</MonoKicker>
               <Text style={{ marginTop: 12, fontSize: 36, fontWeight: '800', color: '#fff', letterSpacing: -1.2, lineHeight: 42 }}>
                 {tr.headlinePre}
