@@ -2,7 +2,7 @@
 // (app/(app)/resource/[id]) and the self-guided Library flow (library-practice).
 // Renders content blocks + every interactive input; collects answers keyed by
 // block id (owned by the parent screen).
-import { Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Check } from 'lucide-react-native';
 import { CARE } from '@/src/care/theme';
 import type { PatientBlock } from '@/src/api/resources';
@@ -131,7 +131,7 @@ function Input({ value, onChangeText, placeholder, multiline, keyboardType }: { 
         placeholderTextColor="#BBB"
         multiline={multiline}
         keyboardType={keyboardType}
-        style={{ fontSize: 15, color: CARE.ink, lineHeight: 22, minHeight: multiline ? 96 : undefined, textAlignVertical: multiline ? 'top' : 'center' }}
+        style={[{ fontSize: 15, color: CARE.ink, lineHeight: 22, minHeight: multiline ? 96 : undefined, textAlignVertical: multiline ? 'top' : 'center' }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
       />
     </View>
   );

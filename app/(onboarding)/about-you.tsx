@@ -101,11 +101,11 @@ export default function AboutYou() {
                 <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#8A8A83', marginBottom: 6 }}>{T.firstName}</Text>
-                    <TextInput value={first} onChangeText={setFirst} onFocus={() => setFocus('first')} onBlur={() => setFocus(null)} autoCapitalize="words" style={nameFieldStyle('first')} />
+                    <TextInput value={first} onChangeText={setFirst} onFocus={() => setFocus('first')} onBlur={() => setFocus(null)} autoCapitalize="words" style={[nameFieldStyle('first'), Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#8A8A83', marginBottom: 6 }}>{T.lastName}</Text>
-                    <TextInput value={last} onChangeText={setLast} onFocus={() => setFocus('last')} onBlur={() => setFocus(null)} autoCapitalize="words" style={nameFieldStyle('last')} />
+                    <TextInput value={last} onChangeText={setLast} onFocus={() => setFocus('last')} onBlur={() => setFocus(null)} autoCapitalize="words" style={[nameFieldStyle('last'), Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]} />
                   </View>
                 </View>
 

@@ -109,7 +109,7 @@ export default function Verify() {
                   maxLength={6}
                   autoFocus
                   onSubmitEditing={verify}
-                  style={{ marginTop: 22, height: 62, borderRadius: 16, backgroundColor: '#fff', borderWidth: focus ? 2 : 1.5, borderColor: focus ? ED.green : '#E7E6DF', textAlign: 'center', fontSize: 26, letterSpacing: 10, fontWeight: '700', color: '#141414' }}
+                  style={[{ marginTop: 22, height: 62, borderRadius: 16, backgroundColor: '#fff', borderWidth: focus ? 2 : 1.5, borderColor: focus ? ED.green : '#E7E6DF', textAlign: 'center', fontSize: 26, letterSpacing: 10, fontWeight: '700', color: '#141414' }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
                 />
 
                 <Pill label={tr.verify} variant="dark" disabled={!ready} onPress={verify} style={{ marginTop: 18 }} />

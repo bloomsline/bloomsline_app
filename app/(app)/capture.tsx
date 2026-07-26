@@ -1,12 +1,12 @@
 // Capture — mood + note + one media item (photo/video from the library, or a
 // voice note recorded on-device). Media is compressed/thumbnailed on-device and
 // uploaded straight to object storage. Mood/note still work with no media.
-import { useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Image, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
-import { X, ImagePlus, Mic, Play, Square } from 'lucide-react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { X, ImagePlus, Mic, Play, Square, Sun, CloudRain } from 'lucide-react-native';
 import { useAudioRecorder, useAudioRecorderState, requestRecordingPermissionsAsync, RecordingPresets } from 'expo-audio';
 import { EDA, EdPill } from '@/src/ui/editorial';
 import { MOODS } from '@/src/moments/moods';
@@ -16,6 +16,11 @@ import { useI18n } from '@/src/i18n';
 
 const MAX_MOODS = 8;
 const REC = '#C0392B';
+// Feelings split into two gentle buckets by valence, so the picker shows a
+// scannable ~8-9 at a time instead of all 17 at once. The gap between the two
+// groups is wide (42 vs 72), so 55 is a clean divider.
+const LIGHTER_MIN = 55;
+const isLighter = (key: string) => (MOODS.find((m) => m.key === key)?.valence ?? 0) >= LIGHTER_MIN;
 const fmtDur = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 const T = {
@@ -28,6 +33,11 @@ const T = {
     newMoment: 'New moment',
     moodTitle: 'How are you\nfeeling right now?',
     moodSubtitle: 'Pick what fits. You can choose a few.',
+    howLanding: 'Start with how it’s landing.',
+    lighter: 'Lighter',
+    heavier: 'Heavier',
+    all: 'All',
+    seeAll: 'Feeling a mix? See all feelings',
     noteTitle: 'A few words, if you’d like',
     notePlaceholder: 'What’s here for you right now?',
     mediaTitle: 'Add a photo, video or voice note',
@@ -56,6 +66,11 @@ const T = {
     newMoment: 'Nouveau moment',
     moodTitle: 'Comment vous\nsentez-vous en ce moment ?',
     moodSubtitle: 'Choisissez ce qui vous correspond. Vous pouvez en sélectionner plusieurs.',
+    howLanding: 'Commencez par ce que vous ressentez.',
+    lighter: 'Plus léger',
+    heavier: 'Plus lourd',
+    all: 'Tout',
+    seeAll: 'Un mélange ? Voir tout',
     noteTitle: 'Quelques mots, si vous le souhaitez',
     notePlaceholder: 'Qu’est-ce qui vous habite en ce moment ?',
     mediaTitle: 'Ajoutez une photo, une vidéo ou une note vocale',
@@ -81,12 +96,45 @@ export default function Capture() {
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale];
-  const [selected, setSelected] = useState<string[]>([]);
+  // An `emotion` param (from the Moments empty-state arrival shortcut) pre-selects
+  // that feeling and opens straight into its bucket, ready to add more or write.
+  const { emotion, bucket } = useLocalSearchParams<{ emotion?: string; bucket?: string }>();
+  const initialEmotion = typeof emotion === 'string' && MOODS.some((m) => m.key === emotion) ? emotion : null;
+  const [selected, setSelected] = useState<string[]>(initialEmotion ? [initialEmotion] : []);
+  // Emotion picker view: the two-bucket chooser first, then the filtered grid. A
+  // pre-selected emotion opens straight into its bucket; a `bucket` param (from
+  // the Moments card's Lighter/Heavier shortcut) opens that cluster directly.
+  const [view, setView] = useState<'pick' | 'lighter' | 'heavier' | 'all'>(
+    initialEmotion
+      ? isLighter(initialEmotion) ? 'lighter' : 'heavier'
+      : bucket === 'lighter' || bucket === 'heavier' ? bucket : 'pick',
+  );
+  const shownMoods = view === 'all' ? MOODS : view === 'pick' ? [] : MOODS.filter((m) => isLighter(m.key) === (view === 'lighter'));
   const [note, setNote] = useState('');
   const [noteFocused, setNoteFocused] = useState(false);
   const [media, setMedia] = useState<PreparedMedia | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Soft reveal for the note + media once a feeling is picked. `showExtras` keeps
+  // them mounted through the exit fade; `reveal` drives opacity + a gentle rise.
+  const hasSelection = selected.length > 0;
+  const reveal = useRef(new Animated.Value(0)).current;
+  const [showExtras, setShowExtras] = useState(hasSelection);
+  const scrollRef = useRef<ScrollView>(null);
+  const noteY = useRef(0);
+  useEffect(() => {
+    if (hasSelection) {
+      setShowExtras(true);
+      Animated.timing(reveal, { toValue: 1, duration: 440, easing: Easing.bezier(0.16, 0.84, 0.24, 1), useNativeDriver: true }).start();
+      // Softly bring the note into focus as the natural next step.
+      const id = setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(noteY.current - 96, 0), animated: true }), 130);
+      return () => clearTimeout(id);
+    }
+    Animated.timing(reveal, { toValue: 0, duration: 240, easing: Easing.in(Easing.ease), useNativeDriver: true }).start(({ finished }) => {
+      if (finished) setShowExtras(false);
+    });
+  }, [hasSelection, reveal]);
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recState = useAudioRecorderState(recorder);
@@ -161,29 +209,72 @@ export default function Capture() {
           <View style={{ width: 38 }} />
         </View>
 
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingBottom: 24 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollView ref={scrollRef} contentContainerStyle={{ paddingHorizontal: 22, paddingBottom: 24 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <Text style={{ fontSize: 26, fontWeight: '800', color: EDA.ink, letterSpacing: -0.5, lineHeight: 32, marginTop: 12 }}>{tr.moodTitle}</Text>
-          <Text style={{ fontSize: 14, color: EDA.inkSoft, marginTop: 6 }}>{tr.moodSubtitle}</Text>
+          <Text style={{ fontSize: 14, color: EDA.inkSoft, marginTop: 6 }}>{view === 'pick' ? tr.howLanding : tr.moodSubtitle}</Text>
 
-          {/* Mood grid */}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 20 }}>
-            {MOODS.map((m) => {
-              const on = selected.includes(m.key);
-              return (
-                <TouchableOpacity key={m.key} onPress={() => toggle(m.key)} activeOpacity={0.8}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 7, paddingLeft: 12, paddingRight: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 1.5, backgroundColor: on ? EDA.greenTint : EDA.card, borderColor: on ? EDA.green : EDA.line }}>
-                  <m.Icon size={16} color={on ? EDA.green : EDA.faint} strokeWidth={2} />
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: on ? EDA.green : EDA.inkSoft }}>{tr.moods[m.key] ?? m.label}</Text>
+          {view === 'pick' ? (
+            /* Two gentle buckets first — one decision, not seventeen. */
+            <View style={{ marginTop: 20 }}>
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <TouchableOpacity onPress={() => setView('lighter')} activeOpacity={0.85}
+                  style={{ flex: 1, height: 104, borderRadius: 18, borderWidth: 1.5, borderColor: EDA.line, backgroundColor: EDA.card, alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                  <Sun size={26} color={EDA.green} strokeWidth={2} />
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: EDA.ink }}>{tr.lighter}</Text>
                 </TouchableOpacity>
-              );
-            })}
-          </View>
+                <TouchableOpacity onPress={() => setView('heavier')} activeOpacity={0.85}
+                  style={{ flex: 1, height: 104, borderRadius: 18, borderWidth: 1.5, borderColor: EDA.line, backgroundColor: EDA.card, alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                  <CloudRain size={26} color={EDA.inkSoft} strokeWidth={2} />
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: EDA.ink }}>{tr.heavier}</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity onPress={() => setView('all')} activeOpacity={0.7} style={{ alignSelf: 'center', marginTop: 16 }}>
+                <Text style={{ fontSize: 13.5, fontWeight: '700', color: EDA.green }}>{tr.seeAll}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              {/* Bucket switch — change your mind without going back. */}
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 18 }}>
+                {(['lighter', 'heavier', 'all'] as const).map((seg) => {
+                  const on = view === seg;
+                  return (
+                    <TouchableOpacity key={seg} onPress={() => setView(seg)} activeOpacity={0.8}
+                      style={{ flex: 1, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, backgroundColor: on ? EDA.green : EDA.card, borderColor: on ? EDA.green : EDA.line }}>
+                      <Text style={{ fontSize: 13.5, fontWeight: '700', color: on ? '#fff' : EDA.inkSoft }}>{seg === 'lighter' ? tr.lighter : seg === 'heavier' ? tr.heavier : tr.all}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
 
+              {/* Filtered mood grid */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
+                {shownMoods.map((m) => {
+                  const on = selected.includes(m.key);
+                  return (
+                    <TouchableOpacity key={m.key} onPress={() => toggle(m.key)} activeOpacity={0.8}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 7, paddingLeft: 12, paddingRight: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 1.5, backgroundColor: on ? EDA.greenTint : EDA.card, borderColor: on ? EDA.green : EDA.line }}>
+                      <m.Icon size={16} color={on ? EDA.green : EDA.faint} strokeWidth={2} />
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: on ? EDA.green : EDA.inkSoft }}>{tr.moods[m.key] ?? m.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          )}
+
+          {/* Note + media appear only after a feeling is chosen — one step at a time,
+              with a soft fade + rise (and an exit fade before they unmount). */}
+          {showExtras && (
+          <Animated.View
+            onLayout={(e) => { noteY.current = e.nativeEvent.layout.y; }}
+            style={{ opacity: reveal, transform: [{ translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }] }}
+          >
           {/* Note */}
           <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink, marginTop: 28 }}>{tr.noteTitle}</Text>
           <View style={{ marginTop: 10, borderRadius: 16, borderWidth: 1.5, borderColor: noteFocused ? EDA.green : EDA.line, backgroundColor: EDA.card, paddingHorizontal: 16, paddingVertical: 12 }}>
             <TextInput value={note} onChangeText={setNote} onFocus={() => setNoteFocused(true)} onBlur={() => setNoteFocused(false)} placeholder={tr.notePlaceholder} placeholderTextColor={EDA.faint} multiline maxLength={5000}
-              style={{ minHeight: 96, fontSize: 15, lineHeight: 22, color: EDA.ink, textAlignVertical: 'top' }} />
+              style={[{ minHeight: 96, fontSize: 15, lineHeight: 22, color: EDA.ink, textAlignVertical: 'top' }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]} />
           </View>
 
           {/* Media */}
@@ -213,12 +304,18 @@ export default function Capture() {
           )}
 
           {error && <Text style={{ marginTop: 12, fontSize: 13, fontWeight: '500', color: REC }}>{error}</Text>}
+          </Animated.View>
+          )}
         </ScrollView>
 
-        {/* CTA */}
-        <View style={{ paddingHorizontal: 22, paddingTop: 12, paddingBottom: 8, borderTopWidth: 1, borderTopColor: EDA.line }}>
-          <EdPill label={saving ? (media ? tr.uploading : tr.saving) : tr.saveMoment} variant="dark" disabled={!canSave || saving} onPress={save} />
-        </View>
+        {/* CTA — fades in with the note/media once there's a feeling to save. */}
+        {showExtras && (
+        <Animated.View style={{ opacity: reveal }}>
+          <View style={{ paddingHorizontal: 22, paddingTop: 12, paddingBottom: 8, borderTopWidth: 1, borderTopColor: EDA.line }}>
+            <EdPill label={saving ? (media ? tr.uploading : tr.saving) : tr.saveMoment} variant="dark" disabled={!canSave || saving} onPress={save} />
+          </View>
+        </Animated.View>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

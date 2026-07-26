@@ -189,7 +189,7 @@ export default function SignUp() {
                       inputMode="email"
                       returnKeyType="go"
                       onSubmitEditing={sendCode}
-                      style={{ flex: 1, height: '100%', fontSize: 16, fontWeight: '600', color: '#141414' }}
+                      style={[{ flex: 1, height: '100%', fontSize: 16, fontWeight: '600', color: '#141414' }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
                     />
                     <Pressable
                       onPress={sendCode}
