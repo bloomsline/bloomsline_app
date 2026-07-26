@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Text, TextInput, View, type TextInputProps } from 'react-native';
+import { Platform, Text, TextInput, View, type TextInputProps } from 'react-native';
 
 // Labeled text input. Uppercase label + optional required asterisk; border turns
 // teal on focus. `radius` = 'lg' (16, form fields) or 'pill' (28, email row).
@@ -35,6 +35,7 @@ export function Field({
         placeholderTextColor="#BBBBBB"
         selectionColor="#4A9A86"
         className={`${r} border px-4 text-[16px] text-ink ${focused ? 'border-[1.5px] border-brand' : 'border-[#E5E5E5]'}`}
+        style={[input.style, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
       />
     </View>
   );

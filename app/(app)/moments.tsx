@@ -3,35 +3,51 @@
 // wired to the v2 REST API. Greeting → DayNav → Emotional Flow (or the animated
 // empty card) → quick-action cards. The v2 API is keyset-only, so we fetch the
 // recent window and filter to the selected day on the client.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Camera, Heart, Lightbulb, Mic, PenLine, Settings, Video } from 'lucide-react-native';
+import { CloudRain, Heart, Lightbulb, PenLine, Settings, Sun } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
 import { TabIntro } from '@/src/ui/TabIntro';
 import { EmotionalTimeline } from '@/src/moments/EmotionalTimeline';
 import { MomentDetail } from '@/src/moments/MomentDetail';
 import { DayNav, getToday, isSameDay } from '@/src/moments/DayNav';
-import { EDA, EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
+import { EDA, EdHeader, EdCard, FadeIn, MonoLabel } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useLanding } from '@/src/prefs/landing';
 import { useI18n } from '@/src/i18n';
 import { listMoments, type MomentDTO } from '@/src/api/moments';
 import { useOnboarding } from '@/src/onboarding/context';
 
-const CAPTURE_TYPES = [
-  { key: 'video', Icon: Video },
-  { key: 'voice', Icon: Mic },
-  { key: 'write', Icon: PenLine },
-  { key: 'photo', Icon: Camera },
-];
+// Warm, simple check-in questions for the empty state. One is picked at random
+// each session so the invitation feels alive and personal, never canned.
+const QUESTIONS: Record<'en' | 'fr', string[]> = {
+  en: [
+    'How are you, really?',
+    'How’s your heart today?',
+    'What’s here for you right now?',
+    'How are you feeling today?',
+    'How’s today treating you?',
+    'What’s on your mind?',
+    'How’s your day feeling?',
+  ],
+  fr: [
+    'Comment allez-vous, vraiment ?',
+    'Comment va votre cœur aujourd’hui ?',
+    'Qu’est-ce qui vous habite, là ?',
+    'Comment vous sentez-vous aujourd’hui ?',
+    'Comment se passe votre journée ?',
+    'À quoi pensez-vous ?',
+    'Où en êtes-vous, là ?',
+  ],
+};
 
 export default function Moments() {
   const router = useRouter();
   const { firstName } = useOnboarding();
   const { landing } = useLanding();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [introActive, setIntroActive] = useState(false);
   const dim = { opacity: introActive ? 0.3 : 1 } as const;
   const [moments, setMoments] = useState<MomentDTO[]>([]);
@@ -66,7 +82,8 @@ export default function Moments() {
   const isToday = isSameDay(selectedDate, getToday());
   const dayMoments = useMemo(() => moments.filter((m) => isSameDay(new Date(m.capturedAt), selectedDate)), [moments, selectedDate]);
 
-  const openCapture = () => router.navigate('/capture' as never);
+  const openCapture = (bucket?: 'lighter' | 'heavier') =>
+    router.navigate((bucket ? `/capture?bucket=${bucket}` : '/capture') as never);
 
   if (loading) {
     return (
@@ -109,7 +126,7 @@ export default function Moments() {
             <View style={{ marginBottom: 28 }}>
               <DayNav selected={selectedDate} onSelect={setSelectedDate} />
               {dayMoments.length === 0 ? (
-                <EmptyMomentCard isToday={isToday} onSelectType={openCapture} />
+                <EmptyMomentCard isToday={isToday} firstEver={moments.length === 0} locale={locale} onArrive={openCapture} onWrite={() => openCapture()} />
               ) : (
                 <EmotionalTimeline moments={dayMoments} showNow={isToday} onMomentPress={setViewing} />
               )}
@@ -135,7 +152,7 @@ export default function Moments() {
 
                 {/* New moment — the one dark ink block */}
                 <TouchableOpacity
-                  onPress={openCapture}
+                  onPress={() => openCapture()}
                   activeOpacity={0.85}
                   style={{ flex: 1, backgroundColor: EDA.ink, borderRadius: 20, padding: 20, minHeight: 160, justifyContent: 'space-between' }}
                 >
@@ -171,24 +188,27 @@ export default function Moments() {
   );
 }
 
-// The animated glowing empty card (today) / quiet card (past days) — ported from v1.
-function EmptyMomentCard({ isToday, onSelectType }: { isToday: boolean; onSelectType: () => void }) {
+// Empty state. On TODAY: a warm green "arrival" card that invites the moment and
+// launches capture with the tapped feeling pre-selected. On past days: a quiet
+// note — we don't nudge capturing in the past.
+function EmptyMomentCard({
+  isToday,
+  firstEver,
+  locale,
+  onArrive,
+  onWrite,
+}: {
+  isToday: boolean;
+  firstEver: boolean;
+  locale: 'en' | 'fr';
+  onArrive: (bucket: 'lighter' | 'heavier') => void;
+  onWrite: () => void;
+}) {
   const { t } = useI18n();
-  const glowAnim = useRef(new Animated.Value(0)).current;
   const todayKey = new Date().toDateString();
-  const msg = useMemo(() => t.moments.empty[Math.floor(Math.abs(hashStr(todayKey)) % t.moments.empty.length)], [todayKey, t]);
   const pastMsg = useMemo(() => t.moments.past[Math.floor(Math.abs(hashStr(todayKey + 'p')) % t.moments.past.length)], [todayKey, t]);
-
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowAnim, { toValue: 1, duration: 2000, useNativeDriver: false }),
-        Animated.timing(glowAnim, { toValue: 0, duration: 2000, useNativeDriver: false }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [glowAnim]);
+  // Random per mount (session) so the check-in question feels fresh each time.
+  const [qIdx] = useState(() => Math.floor(Math.random() * QUESTIONS.en.length));
 
   if (!isToday) {
     return (
@@ -198,34 +218,37 @@ function EmptyMomentCard({ isToday, onSelectType }: { isToday: boolean; onSelect
     );
   }
 
-  const borderColor = glowAnim.interpolate({ inputRange: [0, 1], outputRange: ['#12806922', '#12806966'] });
-  const shadowOpacity = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.05, 0.2] });
+  const question = QUESTIONS[locale][qIdx];
+  const c = {
+    en: { eyebrow: firstEver ? 'YOUR FIRST MOMENT' : 'TODAY', write: 'Or just write a moment' },
+    fr: { eyebrow: firstEver ? 'VOTRE PREMIER MOMENT' : "AUJOURD'HUI", write: 'Ou écrire un moment' },
+  }[locale];
 
   return (
-    <Animated.View
-      style={{
-        backgroundColor: EDA.card, borderRadius: 24, padding: 28, alignItems: 'center', borderWidth: 1.5, borderColor,
-        shadowColor: EDA.green, shadowOffset: { width: 0, height: 0 }, shadowOpacity, shadowRadius: 16, elevation: 4,
-      }}
-    >
-      <Text style={{ fontSize: 20, fontWeight: '600', color: EDA.ink, textAlign: 'center', marginBottom: 8, lineHeight: 28 }}>{msg.text}</Text>
-      <Text style={{ fontSize: 14, color: EDA.inkSoft, textAlign: 'center', lineHeight: 20, marginBottom: 20 }}>{msg.sub}</Text>
-      <View style={{ flexDirection: 'row', gap: 14, justifyContent: 'center' }}>
-        {CAPTURE_TYPES.map(({ key, Icon }) => (
-          <TouchableOpacity
-            key={key}
-            onPress={onSelectType}
-            activeOpacity={0.7}
-            style={{
-              width: 52, height: 52, borderRadius: 16, backgroundColor: EDA.greenTint, borderWidth: 1, borderColor: EDA.line,
-              justifyContent: 'center', alignItems: 'center',
-            }}
-          >
-            <Icon size={22} color={EDA.green} strokeWidth={2} />
-          </TouchableOpacity>
-        ))}
+    <View style={{ backgroundColor: EDA.green, borderRadius: 24, padding: 26, overflow: 'hidden' }}>
+      {/* soft decorative halo */}
+      <View style={{ position: 'absolute', top: -44, right: -34, width: 170, height: 170, borderRadius: 85, backgroundColor: 'rgba(255,255,255,0.06)' }} pointerEvents="none" />
+
+      <MonoLabel color="rgba(255,255,255,0.7)" style={{ marginBottom: 10 }}>{c.eyebrow}</MonoLabel>
+      <Text style={{ fontSize: 25, fontWeight: '800', color: '#fff', letterSpacing: -0.6, lineHeight: 31, marginBottom: 22, maxWidth: 260 }}>{question}</Text>
+
+      <View style={{ flexDirection: 'row', gap: 12 }}>
+        <TouchableOpacity onPress={() => onArrive('lighter')} activeOpacity={0.85}
+          style={{ flex: 1, height: 86, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center', gap: 9 }}>
+          <Sun size={25} color="#fff" strokeWidth={2} />
+          <Text style={{ fontSize: 15.5, fontWeight: '700', color: '#fff' }}>{locale === 'fr' ? 'Plus léger' : 'Lighter'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => onArrive('heavier')} activeOpacity={0.85}
+          style={{ flex: 1, height: 86, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center', gap: 9 }}>
+          <CloudRain size={25} color="#fff" strokeWidth={2} />
+          <Text style={{ fontSize: 15.5, fontWeight: '700', color: '#fff' }}>{locale === 'fr' ? 'Plus lourd' : 'Heavier'}</Text>
+        </TouchableOpacity>
       </View>
-    </Animated.View>
+
+      <TouchableOpacity onPress={onWrite} activeOpacity={0.7} style={{ alignSelf: 'center', marginTop: 20 }}>
+        <Text style={{ fontSize: 13.5, fontWeight: '700', color: 'rgba(255,255,255,0.85)', textDecorationLine: 'underline' }}>{c.write}</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 

@@ -146,7 +146,7 @@ export default function JournalEntry() {
               onChangeText={onTitle}
               placeholder={tr.titlePlaceholder}
               placeholderTextColor={EDA.faint}
-              style={{ fontSize: 23, fontWeight: '800', color: EDA.ink, letterSpacing: -0.4, marginBottom: 16 }}
+              style={[{ fontSize: 23, fontWeight: '800', color: EDA.ink, letterSpacing: -0.4, marginBottom: 16 }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
             />
             <TextInput
               value={body}
@@ -154,7 +154,7 @@ export default function JournalEntry() {
               placeholder={tr.bodyPlaceholder}
               placeholderTextColor={EDA.faint}
               multiline
-              style={{ fontSize: 15.5, color: EDA.inkSoft, lineHeight: 27, minHeight: 320, textAlignVertical: 'top' }}
+              style={[{ fontSize: 15.5, color: EDA.inkSoft, lineHeight: 27, minHeight: 320, textAlignVertical: 'top' }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
             />
           </ScrollView>
         )}
