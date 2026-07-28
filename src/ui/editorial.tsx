@@ -61,26 +61,34 @@ export function EdHeader({
   const insets = useSafeAreaInsets();
   const RightIcon = rightIcon;
   const circle = { width: 38, height: 38, borderRadius: 19, backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, alignItems: 'center' as const, justifyContent: 'center' as const };
+  const rightBtn =
+    RightIcon && onRight ? (
+      <Pressable onPress={onRight} style={circle}>
+        <RightIcon size={18} color={EDA.ink} strokeWidth={2} />
+      </Pressable>
+    ) : null;
+  // A back chevron keeps its own top row (standard nav). Otherwise the right
+  // action sits in-line with the title block, top-aligned to the kicker — so the
+  // kicker reads level with the icon instead of below it.
   return (
     <View style={{ paddingTop: insets.top, backgroundColor: EDA.canvas }}>
       <View style={{ paddingHorizontal: 22, paddingTop: 12, paddingBottom: 4 }}>
-        {(onBack || (RightIcon && onRight)) && (
-          <View style={{ flexDirection: 'row', justifyContent: onBack ? 'space-between' : 'flex-end', alignItems: 'center', marginBottom: 14 }}>
-            {onBack ? (
-              <Pressable onPress={onBack} style={circle}>
-                <ChevronLeft size={18} color={EDA.ink} strokeWidth={2} />
-              </Pressable>
-            ) : null}
-            {RightIcon && onRight ? (
-              <Pressable onPress={onRight} style={circle}>
-                <RightIcon size={18} color={EDA.ink} strokeWidth={2} />
-              </Pressable>
-            ) : null}
+        {onBack ? (
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <Pressable onPress={onBack} style={circle}>
+              <ChevronLeft size={18} color={EDA.ink} strokeWidth={2} />
+            </Pressable>
+            {rightBtn}
           </View>
-        )}
-        <MonoLabel color={EDA.green} style={{ marginBottom: 8 }}>{kicker}</MonoLabel>
-        <Text style={{ fontSize: 30, fontWeight: '800', color: EDA.ink, letterSpacing: -0.9, lineHeight: 34 }}>{title}</Text>
-        {subtitle ? <Text style={{ fontSize: 14.5, color: EDA.inkSoft, lineHeight: 21, marginTop: 8, maxWidth: 320 }}>{subtitle}</Text> : null}
+        ) : null}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+          <View style={{ flex: 1 }}>
+            <MonoLabel color={EDA.green} style={{ marginBottom: 8 }}>{kicker}</MonoLabel>
+            <Text style={{ fontSize: 30, fontWeight: '800', color: EDA.ink, letterSpacing: -0.9, lineHeight: 34 }}>{title}</Text>
+            {subtitle ? <Text style={{ fontSize: 14.5, color: EDA.inkSoft, lineHeight: 21, marginTop: 8, maxWidth: 320 }}>{subtitle}</Text> : null}
+          </View>
+          {!onBack && rightBtn ? <View style={{ marginLeft: 12 }}>{rightBtn}</View> : null}
+        </View>
       </View>
     </View>
   );

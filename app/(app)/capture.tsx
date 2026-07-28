@@ -247,8 +247,11 @@ export default function Capture() {
                 })}
               </View>
 
+              {/* Divider: the tone buckets (category) above, the moods (sub-category) below. */}
+              <View style={{ height: 1, backgroundColor: EDA.line, marginTop: 20 }} />
+
               {/* Filtered mood grid */}
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 18 }}>
                 {shownMoods.map((m) => {
                   const on = selected.includes(m.key);
                   return (
