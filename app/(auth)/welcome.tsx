@@ -41,8 +41,7 @@ export default function Welcome() {
         <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
           <View style={{ flex: 1, paddingHorizontal: 28 }}>
             <RiseIn style={{ marginTop: 26 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
-                <View style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 3, borderColor: '#fff' }} />
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'flex-start', marginBottom: 18 }}>
                 <LangToggle value={locale} onChange={(v) => setLocale(v as typeof locale)} />
               </View>
               <MonoKicker>{tr.kicker}</MonoKicker>
