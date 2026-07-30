@@ -4,7 +4,7 @@
 // ones are patched. Media uploads straight to storage via the journal presign.
 // Private to the patient (sharing is a later phase).
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Linking, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -12,7 +12,7 @@ import { useAudioRecorder, useAudioRecorderState, requestRecordingPermissionsAsy
 import {
   ChevronLeft, Check, Trash2, Type, Heading as HeadingIcon, List as ListIcon, Quote as QuoteIcon,
   Megaphone, Link2, Image as ImageIcon, Video as VideoIcon, Mic, Play, ChevronUp, ChevronDown, X,
-  Send, CircleCheckBig,
+  Send, CircleCheckBig, Pencil,
 } from 'lucide-react-native';
 import { EDA, MonoLabel } from '@/src/ui/editorial';
 import { createJournal, deleteJournal, getJournal, shareJournal, updateJournal } from '@/src/api/journal';
@@ -46,6 +46,7 @@ const T = {
 } as const;
 
 const fmtDur = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
+const openMedia = (url: string) => (Platform.OS === 'web' ? globalThis.open?.(url, '_blank') : Linking.openURL(url).catch(() => {}));
 
 export default function JournalEntry() {
   const router = useRouter();
@@ -61,6 +62,8 @@ export default function JournalEntry() {
   const [savedId, setSavedId] = useState<string | null>(typeof paramId === 'string' ? paramId : null);
   const [shared, setShared] = useState(false);
   const [sharing, setSharing] = useState(false);
+  // Existing entries open READ-ONLY (tap Edit to change); new ones open in edit.
+  const [mode, setMode] = useState<'read' | 'edit'>(typeof paramId === 'string' ? 'read' : 'edit');
 
   const idRef = useRef<string | null>(typeof paramId === 'string' ? paramId : null);
   const latest = useRef({ title: '', blocks: [] as JournalBlock[] });
@@ -246,19 +249,27 @@ export default function JournalEntry() {
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 22, paddingVertical: 12 }}>
           <TouchableOpacity onPress={back} activeOpacity={0.7} style={circleBtn}><ChevronLeft size={18} color={EDA.ink} strokeWidth={2} /></TouchableOpacity>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            {status === 'saved' && <Check size={13} color={EDA.green} strokeWidth={2.5} />}
-            {status !== 'idle' ? <MonoLabel color={EDA.faint} size={9.5}>{status === 'saving' ? tr.saving : tr.saved}</MonoLabel> : null}
+            {mode === 'edit' && status === 'saved' && <Check size={13} color={EDA.green} strokeWidth={2.5} />}
+            {mode === 'edit' && status !== 'idle' ? <MonoLabel color={EDA.faint} size={9.5}>{status === 'saving' ? tr.saving : tr.saved}</MonoLabel> : null}
           </View>
-          <TouchableOpacity onPress={confirmDelete} activeOpacity={0.7} style={circleBtn}><Trash2 size={16} color={EDA.faint} strokeWidth={2} /></TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {mode === 'read' && (
+              <TouchableOpacity onPress={() => setMode('edit')} activeOpacity={0.7} style={circleBtn}><Pencil size={16} color={EDA.ink} strokeWidth={2} /></TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={confirmDelete} activeOpacity={0.7} style={circleBtn}><Trash2 size={16} color={EDA.faint} strokeWidth={2} /></TouchableOpacity>
+          </View>
         </View>
 
-        {loaded && (
+        {loaded && (mode === 'read' ? (
+          <ReadView title={title} blocks={blocks} tr={tr} />
+        ) : (
           <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <TextInput
               value={title}
               onChangeText={onTitle}
               placeholder={tr.titlePlaceholder}
               placeholderTextColor={EDA.faint}
+              multiline
               style={[{ fontSize: 23, fontWeight: '800', color: EDA.ink, letterSpacing: -0.4, marginBottom: 14, paddingHorizontal: 4 }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
             />
             {blocks.map((b, i) => (
@@ -267,10 +278,10 @@ export default function JournalEntry() {
             ))}
             {error && <Text style={{ color: '#DC2626', fontSize: 13, marginTop: 8, paddingHorizontal: 4 }}>{error}</Text>}
           </ScrollView>
-        )}
+        ))}
 
-        {/* Recording bar OR the block toolbar */}
-        {recording ? (
+        {/* Recording bar OR the block toolbar — edit mode only */}
+        {mode === 'edit' && (recording ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 12, borderTopWidth: 1, borderTopColor: EDA.line }}>
             <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: '#DC2626' }} />
             <Text style={{ fontSize: 14, fontWeight: '600', color: EDA.ink }}>{tr.recording} {fmtDur(Math.round((recState.durationMillis ?? 0) / 1000))}</Text>
@@ -291,7 +302,7 @@ export default function JournalEntry() {
               ))}
             </ScrollView>
           </View>
-        )}
+        ))}
 
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 8, gap: 12 }}>
           {savedId && !entryIsEmpty(title, blocks) && (
@@ -314,14 +325,71 @@ const circleBtn = { width: 38, height: 38, borderRadius: 19, backgroundColor: ED
 
 type Tr = { [K in keyof (typeof T)['en']]: string };
 
+// Multiline input that grows to its content height (native grows on its own;
+// web needs this) and always spans the full width — no clipped box / overflow.
+function AutoGrowInput({ value, onChange, placeholder, style }: { value: string; onChange: (v: string) => void; placeholder: string; style: object }) {
+  const [h, setH] = useState(0);
+  const minH = (style as { lineHeight?: number }).lineHeight ?? 24;
+  return (
+    <TextInput
+      value={value} onChangeText={onChange} placeholder={placeholder} placeholderTextColor={EDA.faint} multiline
+      onContentSizeChange={(e) => setH(e.nativeEvent.contentSize.height)}
+      style={[{ color: EDA.ink, padding: 0, width: '100%', height: Math.max(h, minH) }, style, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
+    />
+  );
+}
+
+// Read-only rendering of an entry — the readable "journal" view (tap Edit to
+// change). Plain Text flows and wraps naturally, so nothing is clipped.
+function ReadView({ title, blocks, tr }: { title: string; blocks: JournalBlock[]; tr: Tr }) {
+  return (
+    <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 12, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      {title.trim() ? <Text style={{ fontSize: 24, fontWeight: '800', color: EDA.ink, letterSpacing: -0.4, marginBottom: 18 }}>{title}</Text> : null}
+      <View style={{ gap: 16 }}>{blocks.map((b) => <ReadBlock key={b.id} block={b} tr={tr} />)}</View>
+    </ScrollView>
+  );
+}
+
+function ReadBlock({ block: b, tr }: { block: JournalBlock; tr: Tr }) {
+  switch (b.type) {
+    case 'heading': return <Text style={{ fontSize: 19, fontWeight: '800', color: EDA.ink, letterSpacing: -0.3 }}>{b.text}</Text>;
+    case 'text': return <Text style={{ fontSize: 16, lineHeight: 27, color: EDA.inkSoft }}>{b.text}</Text>;
+    case 'quote': return <View style={{ borderLeftWidth: 3, borderLeftColor: EDA.green, paddingLeft: 14 }}><Text style={{ fontSize: 16, lineHeight: 26, fontStyle: 'italic', color: EDA.inkSoft }}>{b.text}</Text></View>;
+    case 'callout': return <View style={{ backgroundColor: EDA.greenTint, borderRadius: 16, padding: 16 }}><Text style={{ fontSize: 15.5, lineHeight: 25, color: EDA.ink }}>{b.text}</Text></View>;
+    case 'list': return (
+      <View style={{ gap: 8 }}>
+        {(b.items ?? []).map((it, i) => (
+          <View key={i} style={{ flexDirection: 'row', gap: 10 }}>
+            <Text style={{ fontSize: 16, color: EDA.green, lineHeight: 25 }}>{b.ordered ? `${i + 1}.` : '•'}</Text>
+            <Text style={{ flex: 1, fontSize: 16, lineHeight: 25, color: EDA.inkSoft }}>{it}</Text>
+          </View>
+        ))}
+      </View>
+    );
+    case 'link': return (
+      <TouchableOpacity onPress={() => b.url && openMedia(b.url)} activeOpacity={0.7} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Link2 size={16} color={EDA.green} /><Text style={{ fontSize: 15.5, fontWeight: '600', color: EDA.green }}>{b.label || b.url}</Text>
+      </TouchableOpacity>
+    );
+    case 'image': case 'video': case 'voice':
+      return <TouchableOpacity activeOpacity={0.9} disabled={!b.url} onPress={() => b.url && openMedia(b.url)}><MediaBlock block={b} tr={tr} /></TouchableOpacity>;
+    default: return null;
+  }
+}
+
 function BlockRow({ block: b, tr, first, last, onPatch, onRemove, onUp, onDown }: {
   block: JournalBlock; tr: Tr; first: boolean; last: boolean;
   onPatch: (p: Partial<JournalBlock>) => void; onRemove: () => void; onUp: () => void; onDown: () => void;
 }) {
-  const input = (extra: object, value: string, onChange: (v: string) => void, placeholder: string, multiline = true) => (
-    <TextInput value={value} onChangeText={onChange} placeholder={placeholder} placeholderTextColor={EDA.faint} multiline={multiline}
-      style={[{ color: EDA.ink, padding: 0 }, extra, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]} />
-  );
+  // Multiline text grows to fit its content (fixes the tiny fixed-height box +
+  // horizontal overflow on web); single-line inputs stay plain.
+  const input = (extra: object, value: string, onChange: (v: string) => void, placeholder: string, multiline = true) =>
+    multiline ? (
+      <AutoGrowInput value={value} onChange={onChange} placeholder={placeholder} style={extra} />
+    ) : (
+      <TextInput value={value} onChangeText={onChange} placeholder={placeholder} placeholderTextColor={EDA.faint}
+        style={[{ color: EDA.ink, padding: 0 }, extra, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]} />
+    );
 
   let content: React.ReactNode = null;
   if (b.type === 'text') content = input({ fontSize: 15.5, lineHeight: 26, color: EDA.inkSoft }, b.text ?? '', (v) => onPatch({ text: v }), tr.writePlaceholder);
