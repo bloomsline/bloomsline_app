@@ -24,6 +24,12 @@ const T = {
     deleteMoment: 'Delete moment',
     voiceNote: 'Voice note',
     voice: 'Voice',
+    shareTitle: 'Share moment',
+    shareBody: 'Share this moment with your practitioner? They’ll be able to see it.',
+    share: 'Share',
+    stopShareTitle: 'Stop sharing',
+    stopShareBody: 'Stop sharing this moment? Your practitioner will no longer see it.',
+    stopSharing: 'Stop sharing',
   },
   fr: {
     updateSharingError: 'Impossible de mettre à jour le partage. Veuillez réessayer.',
@@ -37,6 +43,12 @@ const T = {
     deleteMoment: 'Supprimer le moment',
     voiceNote: 'Note vocale',
     voice: 'Vocal',
+    shareTitle: 'Partager le moment',
+    shareBody: 'Partager ce moment avec votre praticien ? Il pourra le consulter.',
+    share: 'Partager',
+    stopShareTitle: 'Arrêter le partage',
+    stopShareBody: 'Arrêter de partager ce moment ? Votre praticien ne le verra plus.',
+    stopSharing: 'Arrêter',
   },
 } as const;
 
@@ -53,6 +65,24 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
   const [sharing, setSharing] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+
+  // Sharing sends the moment to the practitioner (or withdraws it), so both
+  // directions confirm first — mirrors the delete flow (web confirm / native Alert).
+  const confirmToggleShare = () => {
+    if (sharing) return;
+    const next = !shared;
+    const title = next ? tr.shareTitle : tr.stopShareTitle;
+    const body = next ? tr.shareBody : tr.stopShareBody;
+    const okLabel = next ? tr.share : tr.stopSharing;
+    if (Platform.OS === 'web') {
+      if (globalThis.confirm?.(body)) toggleShare();
+    } else {
+      Alert.alert(title, body, [
+        { text: t.common.cancel, style: 'cancel' },
+        { text: okLabel, onPress: toggleShare },
+      ]);
+    }
+  };
 
   const toggleShare = async () => {
     if (sharing) return;
@@ -147,7 +177,7 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
 
               {/* Share to practitioner */}
               <TouchableOpacity
-                onPress={toggleShare}
+                onPress={confirmToggleShare}
                 disabled={sharing}
                 activeOpacity={0.85}
                 style={{

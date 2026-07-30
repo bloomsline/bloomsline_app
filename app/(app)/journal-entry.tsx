@@ -1,45 +1,51 @@
-// e2 — Journal writing. Distraction-free editor that SAVES AS YOU GO (debounced
-// autosave) to /api/mobile/journal. New entries are created on first real edit;
-// existing ones are patched. Delete via the trash action. Private to the patient.
-// Hybrid editorial re-skin.
+// e2 — Journal writing, block editor. An entry is an ordered list of blocks
+// (text/heading/list/quote/callout/link + image/video/voice). SAVES AS YOU GO
+// (debounced autosave). New entries are created on first real content; existing
+// ones are patched. Media uploads straight to storage via the journal presign.
+// Private to the patient (sharing is a later phase).
 import { useEffect, useRef, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft, Check, Trash2 } from 'lucide-react-native';
+import { useAudioRecorder, useAudioRecorderState, requestRecordingPermissionsAsync, RecordingPresets } from 'expo-audio';
+import {
+  ChevronLeft, Check, Trash2, Type, Heading as HeadingIcon, List as ListIcon, Quote as QuoteIcon,
+  Megaphone, Link2, Image as ImageIcon, Video as VideoIcon, Mic, Play, ChevronUp, ChevronDown, X,
+  Send, CircleCheckBig,
+} from 'lucide-react-native';
 import { EDA, MonoLabel } from '@/src/ui/editorial';
-import { createJournal, deleteJournal, getJournal, updateJournal } from '@/src/api/journal';
+import { createJournal, deleteJournal, getJournal, shareJournal, updateJournal } from '@/src/api/journal';
+import { newBlock, serializeForSave, entryIsEmpty, isMedia, type BlockType, type JournalBlock } from '@/src/journal/blocks';
+import { pickImage, pickVideo, uploadImage, uploadVideo, uploadVoice } from '@/src/journal/media';
 import { useI18n } from '@/src/i18n';
 
 type Status = 'idle' | 'saving' | 'saved';
 
 const T = {
   en: {
-    saving: 'Saving…',
-    saved: 'Saved',
-    titlePlaceholder: 'Title',
-    bodyPlaceholder: 'Start writing…',
-    words: 'words',
-    confirmWeb: 'Delete this entry?',
-    deleteTitle: 'Delete entry',
-    deleteMessage: 'This can’t be undone.',
-    cancel: 'Cancel',
-    delete: 'Delete',
+    saving: 'Saving…', saved: 'Saved', titlePlaceholder: 'Title', words: 'words',
+    confirmWeb: 'Delete this entry?', deleteTitle: 'Delete entry', deleteMessage: 'This can’t be undone.', cancel: 'Cancel', delete: 'Delete',
+    text: 'Text', heading: 'Heading', list: 'List', quote: 'Quote', callout: 'Callout', video: 'Video', link: 'Link', image: 'Image', voice: 'Voice',
+    writePlaceholder: 'Start writing…', headingPlaceholder: 'Heading', quotePlaceholder: 'Quote', calloutPlaceholder: 'Callout', itemPlaceholder: 'List item',
+    addItem: 'Add item', linkUrl: 'https://…', linkLabel: 'Link text (optional)', recording: 'Recording…', stop: 'Stop', tapRecord: 'Tap to record a voice note', uploadFailed: 'Upload failed', mediaUnavailable: 'Media unavailable', micNeeded: 'Microphone access is needed.', voiceNote: 'Voice note',
+    share: 'Share with practitioner', sharedTap: 'Shared · Tap to stop', shareError: 'Could not update sharing. Please try again.',
+    shareConfirmTitle: 'Share entry', shareConfirmBody: 'Share this journal entry with your practitioner? They’ll be able to read it.', shareConfirm: 'Share',
+    stopConfirmTitle: 'Stop sharing', stopConfirmBody: 'Stop sharing this entry? Your practitioner will no longer see it.', stopConfirm: 'Stop sharing',
   },
   fr: {
-    saving: 'Enregistrement…',
-    saved: 'Enregistré',
-    titlePlaceholder: 'Titre',
-    bodyPlaceholder: 'Commencez à écrire…',
-    words: 'mots',
-    confirmWeb: 'Supprimer cette entrée ?',
-    deleteTitle: 'Supprimer l’entrée',
-    deleteMessage: 'Cette action est irréversible.',
-    cancel: 'Annuler',
-    delete: 'Supprimer',
+    saving: 'Enregistrement…', saved: 'Enregistré', titlePlaceholder: 'Titre', words: 'mots',
+    confirmWeb: 'Supprimer cette entrée ?', deleteTitle: 'Supprimer l’entrée', deleteMessage: 'Cette action est irréversible.', cancel: 'Annuler', delete: 'Supprimer',
+    text: 'Texte', heading: 'Titre', list: 'Liste', quote: 'Citation', callout: 'Encart', video: 'Vidéo', link: 'Lien', image: 'Image', voice: 'Vocal',
+    writePlaceholder: 'Commencez à écrire…', headingPlaceholder: 'Titre', quotePlaceholder: 'Citation', calloutPlaceholder: 'Encart', itemPlaceholder: 'Élément',
+    addItem: 'Ajouter', linkUrl: 'https://…', linkLabel: 'Texte du lien (facultatif)', recording: 'Enregistrement…', stop: 'Arrêter', tapRecord: 'Appuyez pour enregistrer un vocal', uploadFailed: 'Échec de l’envoi', mediaUnavailable: 'Média indisponible', micNeeded: 'L’accès au micro est nécessaire.', voiceNote: 'Note vocale',
+    share: 'Partager avec le praticien', sharedTap: 'Partagé · Appuyez pour arrêter', shareError: 'Impossible de mettre à jour le partage. Réessayez.',
+    shareConfirmTitle: 'Partager la note', shareConfirmBody: 'Partager cette note de journal avec votre praticien ? Il pourra la lire.', shareConfirm: 'Partager',
+    stopConfirmTitle: 'Arrêter le partage', stopConfirmBody: 'Arrêter de partager cette note ? Votre praticien ne la verra plus.', stopConfirm: 'Arrêter',
   },
 } as const;
+
+const fmtDur = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
 
 export default function JournalEntry() {
   const router = useRouter();
@@ -48,24 +54,35 @@ export default function JournalEntry() {
   const { id: paramId } = useLocalSearchParams<{ id?: string }>();
 
   const [title, setTitle] = useState('');
-  const [body, setBody] = useState('');
+  const [blocks, setBlocks] = useState<JournalBlock[]>([{ ...newBlock('text') }]);
   const [status, setStatus] = useState<Status>('idle');
   const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(typeof paramId === 'string' ? paramId : null);
+  const [shared, setShared] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   const idRef = useRef<string | null>(typeof paramId === 'string' ? paramId : null);
-  const latest = useRef({ title: '', body: '' });
+  const latest = useRef({ title: '', blocks: [] as JournalBlock[] });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mounted = useRef(true);
 
-  // Load an existing entry.
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recState = useAudioRecorderState(recorder);
+  const recording = recState.isRecording;
+
   useEffect(() => {
     let alive = true;
     if (idRef.current) {
       getJournal(idRef.current).then((e) => {
-        if (!alive || !e) { setLoaded(true); return; }
-        setTitle(e.title ?? '');
-        setBody(e.body);
-        latest.current = { title: e.title ?? '', body: e.body };
+        if (!alive) return;
+        if (e) {
+          setTitle(e.title ?? '');
+          const bs = e.blocks && e.blocks.length ? e.blocks : [{ ...newBlock('text') }];
+          setBlocks(bs);
+          setShared(e.sharedWithPractitioner ?? false);
+          latest.current = { title: e.title ?? '', blocks: bs };
+        }
         setLoaded(true);
       });
     } else {
@@ -75,24 +92,60 @@ export default function JournalEntry() {
   }, []);
 
   const doSave = async () => {
-    const { title: t, body: b } = latest.current;
-    if (!t.trim() && !b.trim()) { if (mounted.current) setStatus('idle'); return; } // never persist an empty entry
+    const { title: tt, blocks: bs } = latest.current;
+    if (entryIsEmpty(tt, bs)) { if (mounted.current) setStatus('idle'); return; }
+    const payload = { title: tt.trim() || null, blocks: serializeForSave(bs) };
     if (idRef.current) {
-      await updateJournal(idRef.current, { title: t.trim() || null, body: b });
+      await updateJournal(idRef.current, payload);
     } else {
-      const created = await createJournal({ title: t.trim() || null, body: b });
-      if (created) idRef.current = created.id;
+      const created = await createJournal(payload);
+      if (created) { idRef.current = created.id; if (mounted.current) setSavedId(created.id); }
     }
     if (mounted.current) setStatus('saved');
+  };
+
+  // Sharing sends the entry to the practitioner (or withdraws it) — both
+  // directions confirm first, mirroring the delete + moments-share flows.
+  const toggleShare = async () => {
+    if (!savedId || sharing) return;
+    const next = !shared;
+    setSharing(true); setShared(next);
+    try {
+      const confirmed = await shareJournal(savedId, next);
+      setShared(confirmed);
+    } catch {
+      setShared(!next);
+      if (Platform.OS === 'web') globalThis.alert?.(tr.shareError); else setError(tr.shareError);
+    } finally {
+      setSharing(false);
+    }
+  };
+  const confirmToggleShare = () => {
+    if (!savedId || sharing) return;
+    const next = !shared;
+    const title = next ? tr.shareConfirmTitle : tr.stopConfirmTitle;
+    const body = next ? tr.shareConfirmBody : tr.stopConfirmBody;
+    const ok = next ? tr.shareConfirm : tr.stopConfirm;
+    if (Platform.OS === 'web') { if (globalThis.confirm?.(body)) toggleShare(); }
+    else Alert.alert(title, body, [{ text: tr.cancel, style: 'cancel' }, { text: ok, onPress: toggleShare }]);
   };
 
   const schedule = () => {
     setStatus('saving');
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(doSave, 900);
+    timer.current = setTimeout(doSave, 1000);
   };
 
-  // Flush on unmount (covers the back button too).
+  // Commit both state + the autosave ref, then schedule a save.
+  const commit = (nextTitle: string, nextBlocks: JournalBlock[]) => {
+    latest.current = { title: nextTitle, blocks: nextBlocks };
+    schedule();
+  };
+  const setBlocksAndSave = (updater: (prev: JournalBlock[]) => JournalBlock[]) => {
+    setBlocks((prev) => { const next = updater(prev); commit(latest.current.title || title, next); return next; });
+  };
+  const onTitle = (v: string) => { setTitle(v); commit(v, latest.current.blocks.length ? latest.current.blocks : blocks); };
+
   useEffect(() => {
     return () => {
       mounted.current = false;
@@ -101,70 +154,257 @@ export default function JournalEntry() {
     };
   }, []);
 
-  const onTitle = (t: string) => { setTitle(t); latest.current.title = t; schedule(); };
-  const onBody = (b: string) => { setBody(b); latest.current.body = b; schedule(); };
-
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/journal' as never));
 
   const remove = async () => {
     if (timer.current) clearTimeout(timer.current);
     if (idRef.current) await deleteJournal(idRef.current);
     idRef.current = null;
-    latest.current = { title: '', body: '' }; // stop the unmount flush from re-creating it
+    latest.current = { title: '', blocks: [] };
     back();
   };
   const confirmDelete = () => {
-    if (!idRef.current) { back(); return; }
+    if (!idRef.current && entryIsEmpty(title, blocks)) { back(); return; }
     if (Platform.OS === 'web') { if (globalThis.confirm?.(tr.confirmWeb)) remove(); }
     else Alert.alert(tr.deleteTitle, tr.deleteMessage, [{ text: tr.cancel, style: 'cancel' }, { text: tr.delete, style: 'destructive', onPress: remove }]);
   };
 
-  const words = body.trim() ? body.trim().split(/\s+/).length : 0;
+  // --- block ops -------------------------------------------------------------
+  const patch = (id: string, p: Partial<JournalBlock>) => setBlocksAndSave((prev) => prev.map((b) => (b.id === id ? { ...b, ...p } : b)));
+  const removeBlock = (id: string) => setBlocksAndSave((prev) => { const n = prev.filter((b) => b.id !== id); return n.length ? n : [{ ...newBlock('text') }]; });
+  const move = (id: string, dir: -1 | 1) => setBlocksAndSave((prev) => {
+    const i = prev.findIndex((b) => b.id === id); const j = i + dir;
+    if (i < 0 || j < 0 || j >= prev.length) return prev;
+    const n = [...prev]; [n[i], n[j]] = [n[j], n[i]]; return n;
+  });
+  const addText = (type: BlockType) => setBlocksAndSave((prev) => [...prev, newBlock(type)]);
+
+  const addImage = async () => {
+    setError(null);
+    const picked = await pickImage().catch(() => null);
+    if (!picked) return;
+    const b = newBlock('image'); b.localUri = picked.uri; b.width = picked.width; b.height = picked.height;
+    setBlocksAndSave((prev) => [...prev, b]);
+    const up = await uploadImage(picked).catch(() => null);
+    if (up) patch(b.id, { ...up, uploading: false });
+    else patch(b.id, { uploading: false, failed: true });
+  };
+  const addVideo = async () => {
+    setError(null);
+    const picked = await pickVideo().catch(() => null);
+    if (!picked) return;
+    const b = newBlock('video'); b.localUri = picked.thumbUri ?? picked.uri; b.durationSeconds = picked.durationSeconds;
+    setBlocksAndSave((prev) => [...prev, b]);
+    const up = await uploadVideo(picked).catch(() => null);
+    if (up) patch(b.id, { ...up, uploading: false });
+    else patch(b.id, { uploading: false, failed: true });
+  };
+  const startVoice = async () => {
+    setError(null);
+    try {
+      const { granted } = await requestRecordingPermissionsAsync();
+      if (!granted) { setError(tr.micNeeded); return; }
+      await recorder.prepareToRecordAsync();
+      recorder.record();
+    } catch { setError(tr.uploadFailed); }
+  };
+  const stopVoice = async () => {
+    try {
+      const seconds = Math.round((recState.durationMillis ?? 0) / 1000);
+      await recorder.stop();
+      const uri = recorder.uri;
+      if (!uri) return;
+      const mime = Platform.OS === 'web' ? 'audio/webm' : 'audio/mp4';
+      const b = newBlock('voice'); b.localUri = uri; b.durationSeconds = seconds;
+      setBlocksAndSave((prev) => [...prev, b]);
+      const up = await uploadVoice(uri, mime, seconds).catch(() => null);
+      if (up) patch(b.id, { ...up, uploading: false });
+      else patch(b.id, { uploading: false, failed: true });
+    } catch { setError(tr.uploadFailed); }
+  };
+
+  const words = latest.current.blocks
+    .flatMap((b) => (b.type === 'list' ? (b.items ?? []) : [b.text ?? '']))
+    .join(' ').trim().split(/\s+/).filter(Boolean).length;
+
+  const TOOLS: { type: BlockType; label: string; Icon: typeof Type; onPress: () => void }[] = [
+    { type: 'text', label: tr.text, Icon: Type, onPress: () => addText('text') },
+    { type: 'heading', label: tr.heading, Icon: HeadingIcon, onPress: () => addText('heading') },
+    { type: 'list', label: tr.list, Icon: ListIcon, onPress: () => addText('list') },
+    { type: 'quote', label: tr.quote, Icon: QuoteIcon, onPress: () => addText('quote') },
+    { type: 'callout', label: tr.callout, Icon: Megaphone, onPress: () => addText('callout') },
+    { type: 'video', label: tr.video, Icon: VideoIcon, onPress: addVideo },
+    { type: 'link', label: tr.link, Icon: Link2, onPress: () => addText('link') },
+    { type: 'image', label: tr.image, Icon: ImageIcon, onPress: addImage },
+    { type: 'voice', label: tr.voice, Icon: Mic, onPress: startVoice },
+  ];
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: EDA.canvas }}>
       <StatusBar style="dark" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        {/* Slim editorial top bar */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 22, paddingVertical: 12 }}>
-          <TouchableOpacity onPress={back} activeOpacity={0.7} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, alignItems: 'center', justifyContent: 'center' }}>
-            <ChevronLeft size={18} color={EDA.ink} strokeWidth={2} />
-          </TouchableOpacity>
+          <TouchableOpacity onPress={back} activeOpacity={0.7} style={circleBtn}><ChevronLeft size={18} color={EDA.ink} strokeWidth={2} /></TouchableOpacity>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             {status === 'saved' && <Check size={13} color={EDA.green} strokeWidth={2.5} />}
             {status !== 'idle' ? <MonoLabel color={EDA.faint} size={9.5}>{status === 'saving' ? tr.saving : tr.saved}</MonoLabel> : null}
           </View>
-          <TouchableOpacity onPress={confirmDelete} activeOpacity={0.7} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, alignItems: 'center', justifyContent: 'center' }}>
-            <Trash2 size={16} color={EDA.faint} strokeWidth={2} />
-          </TouchableOpacity>
+          <TouchableOpacity onPress={confirmDelete} activeOpacity={0.7} style={circleBtn}><Trash2 size={16} color={EDA.faint} strokeWidth={2} /></TouchableOpacity>
         </View>
 
         {loaded && (
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 12, paddingBottom: 24 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <TextInput
               value={title}
               onChangeText={onTitle}
               placeholder={tr.titlePlaceholder}
               placeholderTextColor={EDA.faint}
-              style={[{ fontSize: 23, fontWeight: '800', color: EDA.ink, letterSpacing: -0.4, marginBottom: 16 }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
+              style={[{ fontSize: 23, fontWeight: '800', color: EDA.ink, letterSpacing: -0.4, marginBottom: 14, paddingHorizontal: 4 }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
             />
-            <TextInput
-              value={body}
-              onChangeText={onBody}
-              placeholder={tr.bodyPlaceholder}
-              placeholderTextColor={EDA.faint}
-              multiline
-              style={[{ fontSize: 15.5, color: EDA.inkSoft, lineHeight: 27, minHeight: 320, textAlignVertical: 'top' }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
-            />
+            {blocks.map((b, i) => (
+              <BlockRow key={b.id} block={b} tr={tr} first={i === 0} last={i === blocks.length - 1}
+                onPatch={(p) => patch(b.id, p)} onRemove={() => removeBlock(b.id)} onUp={() => move(b.id, -1)} onDown={() => move(b.id, 1)} />
+            ))}
+            {error && <Text style={{ color: '#DC2626', fontSize: 13, marginTop: 8, paddingHorizontal: 4 }}>{error}</Text>}
           </ScrollView>
         )}
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 12, borderTopWidth: 1, borderTopColor: EDA.line }}>
-          <View style={{ marginLeft: 'auto' }}>
-            <MonoLabel color={EDA.faint}>{words} {tr.words}</MonoLabel>
+        {/* Recording bar OR the block toolbar */}
+        {recording ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 12, borderTopWidth: 1, borderTopColor: EDA.line }}>
+            <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: '#DC2626' }} />
+            <Text style={{ fontSize: 14, fontWeight: '600', color: EDA.ink }}>{tr.recording} {fmtDur(Math.round((recState.durationMillis ?? 0) / 1000))}</Text>
+            <TouchableOpacity onPress={stopVoice} activeOpacity={0.85} style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#DC2626', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 }}>
+              <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: '#fff' }} />
+              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>{tr.stop}</Text>
+            </TouchableOpacity>
           </View>
+        ) : (
+          <View style={{ borderTopWidth: 1, borderTopColor: EDA.line, paddingVertical: 8 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }} keyboardShouldPersistTaps="handled">
+              {TOOLS.map(({ type, label, Icon, onPress }) => (
+                <TouchableOpacity key={type} onPress={onPress} activeOpacity={0.8}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 }}>
+                  <Icon size={15} color={EDA.ink} strokeWidth={2} />
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: EDA.ink }}>{label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 8, gap: 12 }}>
+          {savedId && !entryIsEmpty(title, blocks) && (
+            <TouchableOpacity onPress={confirmToggleShare} disabled={sharing} activeOpacity={0.85}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: shared ? EDA.greenTint : EDA.green, borderWidth: shared ? 1 : 0, borderColor: EDA.line }}>
+              {sharing ? <ActivityIndicator size="small" color={shared ? EDA.green : '#fff'} />
+                : shared ? <CircleCheckBig size={15} color={EDA.green} strokeWidth={2} />
+                : <Send size={14} color="#fff" strokeWidth={2} />}
+              <Text style={{ fontSize: 12.5, fontWeight: '700', color: shared ? EDA.green : '#fff' }}>{shared ? tr.sharedTap : tr.share}</Text>
+            </TouchableOpacity>
+          )}
+          <View style={{ marginLeft: 'auto' }}><MonoLabel color={EDA.faint}>{words} {tr.words}</MonoLabel></View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+const circleBtn = { width: 38, height: 38, borderRadius: 19, backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, alignItems: 'center', justifyContent: 'center' } as const;
+
+type Tr = { [K in keyof (typeof T)['en']]: string };
+
+function BlockRow({ block: b, tr, first, last, onPatch, onRemove, onUp, onDown }: {
+  block: JournalBlock; tr: Tr; first: boolean; last: boolean;
+  onPatch: (p: Partial<JournalBlock>) => void; onRemove: () => void; onUp: () => void; onDown: () => void;
+}) {
+  const input = (extra: object, value: string, onChange: (v: string) => void, placeholder: string, multiline = true) => (
+    <TextInput value={value} onChangeText={onChange} placeholder={placeholder} placeholderTextColor={EDA.faint} multiline={multiline}
+      style={[{ color: EDA.ink, padding: 0 }, extra, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]} />
+  );
+
+  let content: React.ReactNode = null;
+  if (b.type === 'text') content = input({ fontSize: 15.5, lineHeight: 26, color: EDA.inkSoft }, b.text ?? '', (v) => onPatch({ text: v }), tr.writePlaceholder);
+  else if (b.type === 'heading') content = input({ fontSize: 19, fontWeight: '800', letterSpacing: -0.3 }, b.text ?? '', (v) => onPatch({ text: v }), tr.headingPlaceholder);
+  else if (b.type === 'quote') content = (
+    <View style={{ borderLeftWidth: 3, borderLeftColor: EDA.green, paddingLeft: 12 }}>
+      {input({ fontSize: 15.5, lineHeight: 25, fontStyle: 'italic', color: EDA.inkSoft }, b.text ?? '', (v) => onPatch({ text: v }), tr.quotePlaceholder)}
+    </View>
+  );
+  else if (b.type === 'callout') content = (
+    <View style={{ backgroundColor: EDA.greenTint, borderRadius: 14, padding: 14 }}>
+      {input({ fontSize: 15, lineHeight: 24, color: EDA.ink }, b.text ?? '', (v) => onPatch({ text: v }), tr.calloutPlaceholder)}
+    </View>
+  );
+  else if (b.type === 'list') content = (
+    <View style={{ gap: 8 }}>
+      {(b.items ?? ['']).map((it, idx) => (
+        <View key={idx} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: EDA.green, marginTop: 9 }} />
+          <View style={{ flex: 1 }}>
+            {input({ fontSize: 15.5, lineHeight: 24 }, it, (v) => onPatch({ items: (b.items ?? []).map((x, k) => (k === idx ? v : x)) }), tr.itemPlaceholder, false)}
+          </View>
+          {(b.items?.length ?? 0) > 1 && (
+            <TouchableOpacity onPress={() => onPatch({ items: (b.items ?? []).filter((_, k) => k !== idx) })} hitSlop={8}><X size={14} color={EDA.faint} /></TouchableOpacity>
+          )}
+        </View>
+      ))}
+      <TouchableOpacity onPress={() => onPatch({ items: [...(b.items ?? []), ''] })} activeOpacity={0.7} style={{ marginLeft: 16 }}>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: EDA.green }}>+ {tr.addItem}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+  else if (b.type === 'link') content = (
+    <View style={{ backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, borderRadius: 12, padding: 12, gap: 8 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Link2 size={15} color={EDA.green} />
+        {input({ fontSize: 14.5, color: EDA.ink, flex: 1 }, b.url ?? '', (v) => onPatch({ url: v }), tr.linkUrl, false)}
+      </View>
+      {input({ fontSize: 13.5, color: EDA.inkSoft }, b.label ?? '', (v) => onPatch({ label: v }), tr.linkLabel, false)}
+    </View>
+  );
+  else if (isMedia(b.type)) content = <MediaBlock block={b} tr={tr} />;
+
+  return (
+    <View style={{ marginBottom: 14 }}>
+      {content}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 4, opacity: 0.55 }}>
+        <TouchableOpacity onPress={onUp} disabled={first} hitSlop={6} style={{ padding: 4, opacity: first ? 0.3 : 1 }}><ChevronUp size={15} color={EDA.faint} /></TouchableOpacity>
+        <TouchableOpacity onPress={onDown} disabled={last} hitSlop={6} style={{ padding: 4, opacity: last ? 0.3 : 1 }}><ChevronDown size={15} color={EDA.faint} /></TouchableOpacity>
+        <TouchableOpacity onPress={onRemove} hitSlop={6} style={{ padding: 4, marginLeft: 'auto' }}><Trash2 size={14} color={EDA.faint} /></TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+function MediaBlock({ block: b, tr }: { block: JournalBlock; tr: Tr }) {
+  const uri = b.url ?? b.localUri ?? null;
+  if (b.type === 'voice') {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: EDA.greenTint, borderRadius: 14, padding: 14 }}>
+        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: EDA.green, alignItems: 'center', justifyContent: 'center' }}>
+          {b.uploading ? <ActivityIndicator size="small" color="#fff" /> : <Play size={16} color="#fff" fill="#fff" />}
+        </View>
+        <Text style={{ fontSize: 15, fontWeight: '600', color: EDA.ink }}>{tr.voiceNote}{b.durationSeconds ? ` · ${fmtDur(b.durationSeconds)}` : ''}</Text>
+        {b.failed && <Text style={{ marginLeft: 'auto', fontSize: 12, color: '#DC2626' }}>{tr.uploadFailed}</Text>}
+      </View>
+    );
+  }
+  // image / video
+  return (
+    <View style={{ borderRadius: 14, overflow: 'hidden', backgroundColor: EDA.slot }}>
+      {uri ? <Image source={{ uri }} style={{ width: '100%', height: 200 }} resizeMode="cover" /> : <View style={{ width: '100%', height: 200 }} />}
+      {b.type === 'video' && !b.uploading && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}><Play size={22} color="#fff" fill="#fff" /></View>
+        </View>
+      )}
+      {b.uploading && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.25)' }}><ActivityIndicator color="#fff" /></View>
+      )}
+      {b.failed && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}><Text style={{ color: '#fff', fontSize: 13 }}>{tr.uploadFailed}</Text></View>
+      )}
+    </View>
   );
 }
