@@ -51,3 +51,29 @@ export async function submitAssignment(id: string, answers: Record<string, unkno
   if (!res.ok) return { ok: false, error: data?.error ?? `Could not submit (${res.status})`, missingBlockId: data?.missingBlockId };
   return { ok: true, score: data.score };
 }
+
+/** The descriptor a `file_upload` answer stores (matches the web + server shape). */
+export interface UploadedFile {
+  key: string;
+  name: string;
+  type: string;
+  size: number;
+}
+
+// Presign a single response-file upload under the caller's own
+// resource-responses/ prefix, then PUT the bytes straight to object storage
+// (the app server never touches them — same path Moments media uses). Returns
+// the descriptor to store in the answer, or null on failure.
+export async function uploadResponseFile(file: { uri: string; name: string; type: string; size: number }): Promise<UploadedFile | null> {
+  const res = await apiFetch('/api/mobile/care/upload', {
+    method: 'POST',
+    body: JSON.stringify({ fileName: file.name, contentType: file.type, sizeBytes: file.size }),
+  });
+  if (!res.ok) return null;
+  const { key, url, headers } = (await res.json()) as { key?: string; url?: string; headers?: Record<string, string> };
+  if (!key || !url) return null;
+  const blob = await (await fetch(file.uri)).blob();
+  const put = await fetch(url, { method: 'PUT', headers: { ...headers, 'content-type': file.type }, body: blob });
+  if (!put.ok) return null;
+  return { key, name: file.name, type: file.type, size: file.size };
+}
