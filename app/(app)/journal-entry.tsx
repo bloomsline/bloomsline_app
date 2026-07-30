@@ -12,9 +12,10 @@ import { useAudioRecorder, useAudioRecorderState, requestRecordingPermissionsAsy
 import {
   ChevronLeft, Check, Trash2, Type, Heading as HeadingIcon, List as ListIcon, Quote as QuoteIcon,
   Megaphone, Link2, Image as ImageIcon, Video as VideoIcon, Mic, Play, ChevronUp, ChevronDown, X,
+  Send, CircleCheckBig,
 } from 'lucide-react-native';
 import { EDA, MonoLabel } from '@/src/ui/editorial';
-import { createJournal, deleteJournal, getJournal, updateJournal } from '@/src/api/journal';
+import { createJournal, deleteJournal, getJournal, shareJournal, updateJournal } from '@/src/api/journal';
 import { newBlock, serializeForSave, entryIsEmpty, isMedia, type BlockType, type JournalBlock } from '@/src/journal/blocks';
 import { pickImage, pickVideo, uploadImage, uploadVideo, uploadVoice } from '@/src/journal/media';
 import { useI18n } from '@/src/i18n';
@@ -28,6 +29,9 @@ const T = {
     text: 'Text', heading: 'Heading', list: 'List', quote: 'Quote', callout: 'Callout', video: 'Video', link: 'Link', image: 'Image', voice: 'Voice',
     writePlaceholder: 'Start writing…', headingPlaceholder: 'Heading', quotePlaceholder: 'Quote', calloutPlaceholder: 'Callout', itemPlaceholder: 'List item',
     addItem: 'Add item', linkUrl: 'https://…', linkLabel: 'Link text (optional)', recording: 'Recording…', stop: 'Stop', tapRecord: 'Tap to record a voice note', uploadFailed: 'Upload failed', mediaUnavailable: 'Media unavailable', micNeeded: 'Microphone access is needed.', voiceNote: 'Voice note',
+    share: 'Share with practitioner', sharedTap: 'Shared · Tap to stop', shareError: 'Could not update sharing. Please try again.',
+    shareConfirmTitle: 'Share entry', shareConfirmBody: 'Share this journal entry with your practitioner? They’ll be able to read it.', shareConfirm: 'Share',
+    stopConfirmTitle: 'Stop sharing', stopConfirmBody: 'Stop sharing this entry? Your practitioner will no longer see it.', stopConfirm: 'Stop sharing',
   },
   fr: {
     saving: 'Enregistrement…', saved: 'Enregistré', titlePlaceholder: 'Titre', words: 'mots',
@@ -35,6 +39,9 @@ const T = {
     text: 'Texte', heading: 'Titre', list: 'Liste', quote: 'Citation', callout: 'Encart', video: 'Vidéo', link: 'Lien', image: 'Image', voice: 'Vocal',
     writePlaceholder: 'Commencez à écrire…', headingPlaceholder: 'Titre', quotePlaceholder: 'Citation', calloutPlaceholder: 'Encart', itemPlaceholder: 'Élément',
     addItem: 'Ajouter', linkUrl: 'https://…', linkLabel: 'Texte du lien (facultatif)', recording: 'Enregistrement…', stop: 'Arrêter', tapRecord: 'Appuyez pour enregistrer un vocal', uploadFailed: 'Échec de l’envoi', mediaUnavailable: 'Média indisponible', micNeeded: 'L’accès au micro est nécessaire.', voiceNote: 'Note vocale',
+    share: 'Partager avec le praticien', sharedTap: 'Partagé · Appuyez pour arrêter', shareError: 'Impossible de mettre à jour le partage. Réessayez.',
+    shareConfirmTitle: 'Partager la note', shareConfirmBody: 'Partager cette note de journal avec votre praticien ? Il pourra la lire.', shareConfirm: 'Partager',
+    stopConfirmTitle: 'Arrêter le partage', stopConfirmBody: 'Arrêter de partager cette note ? Votre praticien ne la verra plus.', stopConfirm: 'Arrêter',
   },
 } as const;
 
@@ -51,6 +58,9 @@ export default function JournalEntry() {
   const [status, setStatus] = useState<Status>('idle');
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(typeof paramId === 'string' ? paramId : null);
+  const [shared, setShared] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   const idRef = useRef<string | null>(typeof paramId === 'string' ? paramId : null);
   const latest = useRef({ title: '', blocks: [] as JournalBlock[] });
@@ -70,6 +80,7 @@ export default function JournalEntry() {
           setTitle(e.title ?? '');
           const bs = e.blocks && e.blocks.length ? e.blocks : [{ ...newBlock('text') }];
           setBlocks(bs);
+          setShared(e.sharedWithPractitioner ?? false);
           latest.current = { title: e.title ?? '', blocks: bs };
         }
         setLoaded(true);
@@ -88,9 +99,35 @@ export default function JournalEntry() {
       await updateJournal(idRef.current, payload);
     } else {
       const created = await createJournal(payload);
-      if (created) idRef.current = created.id;
+      if (created) { idRef.current = created.id; if (mounted.current) setSavedId(created.id); }
     }
     if (mounted.current) setStatus('saved');
+  };
+
+  // Sharing sends the entry to the practitioner (or withdraws it) — both
+  // directions confirm first, mirroring the delete + moments-share flows.
+  const toggleShare = async () => {
+    if (!savedId || sharing) return;
+    const next = !shared;
+    setSharing(true); setShared(next);
+    try {
+      const confirmed = await shareJournal(savedId, next);
+      setShared(confirmed);
+    } catch {
+      setShared(!next);
+      if (Platform.OS === 'web') globalThis.alert?.(tr.shareError); else setError(tr.shareError);
+    } finally {
+      setSharing(false);
+    }
+  };
+  const confirmToggleShare = () => {
+    if (!savedId || sharing) return;
+    const next = !shared;
+    const title = next ? tr.shareConfirmTitle : tr.stopConfirmTitle;
+    const body = next ? tr.shareConfirmBody : tr.stopConfirmBody;
+    const ok = next ? tr.shareConfirm : tr.stopConfirm;
+    if (Platform.OS === 'web') { if (globalThis.confirm?.(body)) toggleShare(); }
+    else Alert.alert(title, body, [{ text: tr.cancel, style: 'cancel' }, { text: ok, onPress: toggleShare }]);
   };
 
   const schedule = () => {
@@ -256,7 +293,16 @@ export default function JournalEntry() {
           </View>
         )}
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 8, gap: 12 }}>
+          {savedId && !entryIsEmpty(title, blocks) && (
+            <TouchableOpacity onPress={confirmToggleShare} disabled={sharing} activeOpacity={0.85}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: shared ? EDA.greenTint : EDA.green, borderWidth: shared ? 1 : 0, borderColor: EDA.line }}>
+              {sharing ? <ActivityIndicator size="small" color={shared ? EDA.green : '#fff'} />
+                : shared ? <CircleCheckBig size={15} color={EDA.green} strokeWidth={2} />
+                : <Send size={14} color="#fff" strokeWidth={2} />}
+              <Text style={{ fontSize: 12.5, fontWeight: '700', color: shared ? EDA.green : '#fff' }}>{shared ? tr.sharedTap : tr.share}</Text>
+            </TouchableOpacity>
+          )}
           <View style={{ marginLeft: 'auto' }}><MonoLabel color={EDA.faint}>{words} {tr.words}</MonoLabel></View>
         </View>
       </KeyboardAvoidingView>

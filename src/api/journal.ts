@@ -8,6 +8,7 @@ export interface JournalEntry {
   body: string; // flattened plain-text preview (list uses this)
   blocks?: JournalBlock[]; // full block content (GET /:id only)
   wordCount: number;
+  sharedWithPractitioner?: boolean; // GET /:id only
   createdAt: string; // ISO
   updatedAt: string; // ISO
 }
@@ -58,4 +59,13 @@ export async function deleteJournal(id: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** Share / unshare an entry with the practitioner. Returns the confirmed state;
+ *  throws on failure so the caller can revert an optimistic toggle. */
+export async function shareJournal(id: string, shared: boolean): Promise<boolean> {
+  const res = await apiFetch(`/api/mobile/journal/${id}/share`, { method: 'POST', body: JSON.stringify({ shared }) });
+  if (!res.ok) throw new Error(`share failed (${res.status})`);
+  const data = await res.json().catch(() => ({}));
+  return data?.shared === true;
 }
