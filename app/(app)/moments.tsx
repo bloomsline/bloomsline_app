@@ -7,7 +7,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { CloudRain, Heart, Lightbulb, PenLine, Settings, Sun } from 'lucide-react-native';
+import { CloudRain, Heart, Lightbulb, Settings, Sun } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
 import { TabIntro } from '@/src/ui/TabIntro';
 import { EmotionalTimeline } from '@/src/moments/EmotionalTimeline';
@@ -147,21 +147,6 @@ export default function Moments() {
                   <View>
                     <Text style={{ fontSize: 18, fontWeight: '800', color: EDA.ink, letterSpacing: -0.5, lineHeight: 24 }}>{t.moments.myJourney}</Text>
                     <Text style={{ fontSize: 11, color: EDA.inkSoft, marginTop: 4 }}>{t.moments.myJourneySub}</Text>
-                  </View>
-                </TouchableOpacity>
-
-                {/* New moment — the one dark ink block */}
-                <TouchableOpacity
-                  onPress={() => openCapture()}
-                  activeOpacity={0.85}
-                  style={{ flex: 1, backgroundColor: EDA.ink, borderRadius: 20, padding: 20, minHeight: 160, justifyContent: 'space-between' }}
-                >
-                  <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.12)', justifyContent: 'center', alignItems: 'center' }}>
-                    <PenLine size={18} color="#fff" strokeWidth={2} />
-                  </View>
-                  <View>
-                    <Text style={{ fontSize: 18, fontWeight: '800', color: '#fff', letterSpacing: -0.5, lineHeight: 24 }}>{t.moments.newMoment}</Text>
-                    <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 4 }}>{t.moments.newMomentSub}</Text>
                   </View>
                 </TouchableOpacity>
               </View>
