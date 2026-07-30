@@ -4,7 +4,7 @@
 // ones are patched. Media uploads straight to storage via the journal presign.
 // Private to the patient (sharing is a later phase).
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Linking, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Linking, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -18,6 +18,7 @@ import { EDA, MonoLabel } from '@/src/ui/editorial';
 import { createJournal, deleteJournal, getJournal, shareJournal, updateJournal } from '@/src/api/journal';
 import { newBlock, serializeForSave, entryIsEmpty, isMedia, type BlockType, type JournalBlock } from '@/src/journal/blocks';
 import { pickImage, pickVideo, uploadImage, uploadVideo, uploadVoice } from '@/src/journal/media';
+import { useConfirm } from '@/src/ui/confirm';
 import { useI18n } from '@/src/i18n';
 
 type Status = 'idle' | 'saving' | 'saved';
@@ -51,6 +52,7 @@ const openMedia = (url: string) => (Platform.OS === 'web' ? globalThis.open?.(ur
 export default function JournalEntry() {
   const router = useRouter();
   const { locale } = useI18n();
+  const confirm = useConfirm();
   const tr = T[locale];
   const { id: paramId } = useLocalSearchParams<{ id?: string }>();
 
@@ -123,14 +125,16 @@ export default function JournalEntry() {
       setSharing(false);
     }
   };
-  const confirmToggleShare = () => {
+  const confirmToggleShare = async () => {
     if (!savedId || sharing) return;
     const next = !shared;
-    const title = next ? tr.shareConfirmTitle : tr.stopConfirmTitle;
-    const body = next ? tr.shareConfirmBody : tr.stopConfirmBody;
-    const ok = next ? tr.shareConfirm : tr.stopConfirm;
-    if (Platform.OS === 'web') { if (globalThis.confirm?.(body)) toggleShare(); }
-    else Alert.alert(title, body, [{ text: tr.cancel, style: 'cancel' }, { text: ok, onPress: toggleShare }]);
+    const ok = await confirm({
+      title: next ? tr.shareConfirmTitle : tr.stopConfirmTitle,
+      message: next ? tr.shareConfirmBody : tr.stopConfirmBody,
+      confirmLabel: next ? tr.shareConfirm : tr.stopConfirm,
+      cancelLabel: tr.cancel,
+    });
+    if (ok) toggleShare();
   };
 
   const schedule = () => {
@@ -166,10 +170,9 @@ export default function JournalEntry() {
     latest.current = { title: '', blocks: [] };
     back();
   };
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!idRef.current && entryIsEmpty(title, blocks)) { back(); return; }
-    if (Platform.OS === 'web') { if (globalThis.confirm?.(tr.confirmWeb)) remove(); }
-    else Alert.alert(tr.deleteTitle, tr.deleteMessage, [{ text: tr.cancel, style: 'cancel' }, { text: tr.delete, style: 'destructive', onPress: remove }]);
+    if (await confirm({ title: tr.deleteTitle, message: tr.deleteMessage, confirmLabel: tr.delete, cancelLabel: tr.cancel, destructive: true })) remove();
   };
 
   // --- block ops -------------------------------------------------------------

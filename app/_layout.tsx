@@ -10,6 +10,7 @@ import { AuthProvider } from '@/src/auth/auth-context';
 import { OnboardingProvider } from '@/src/onboarding/context';
 import { LandingProvider } from '@/src/prefs/landing';
 import { I18nProvider } from '@/src/i18n';
+import { ConfirmProvider } from '@/src/ui/confirm';
 import { FONT_ASSETS } from '@/src/ui/fonts';
 
 // MUST be at the ROOT, not only in the auth modules that start the flow.
@@ -46,10 +47,12 @@ export default function RootLayout() {
         <I18nProvider>
           <OnboardingProvider>
             <LandingProvider>
-              <StatusBar style="dark" />
-              <PhoneFrame>
-                <Stack screenOptions={{ headerShown: false }} />
-              </PhoneFrame>
+              <ConfirmProvider>
+                <StatusBar style="dark" />
+                <PhoneFrame>
+                  <Stack screenOptions={{ headerShown: false }} />
+                </PhoneFrame>
+              </ConfirmProvider>
             </LandingProvider>
           </OnboardingProvider>
         </I18nProvider>

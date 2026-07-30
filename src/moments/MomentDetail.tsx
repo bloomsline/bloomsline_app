@@ -3,11 +3,12 @@
 // wired Share-to-practitioner and Delete. Deferred vs v1: the conversation thread
 // (no moment_comments backend yet) and the video/voice player (media storage dark).
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Image, Linking, Modal, Platform, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Modal, Platform, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Send, CircleCheckBig, Trash2, Play, Mic } from 'lucide-react-native';
 import { MOOD_COLORS, moodLabel } from './moods';
 import { deleteMoment, shareMoment, type MomentDTO, type MomentMediaDTO } from '@/src/api/moments';
+import { useConfirm } from '@/src/ui/confirm';
 import { useI18n } from '@/src/i18n';
 import { EDA, MonoLabel } from '@/src/ui/editorial';
 
@@ -60,6 +61,7 @@ const BLOOM = EDA.green;
 export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO; onClose: () => void; onChanged: () => void }) {
   const insets = useSafeAreaInsets();
   const { locale, t } = useI18n();
+  const confirm = useConfirm();
   const tr = T[locale];
   const [shared, setShared] = useState(moment.sharedWithPractitioner);
   const [sharing, setSharing] = useState(false);
@@ -68,20 +70,16 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
 
   // Sharing sends the moment to the practitioner (or withdraws it), so both
   // directions confirm first — mirrors the delete flow (web confirm / native Alert).
-  const confirmToggleShare = () => {
+  const confirmToggleShare = async () => {
     if (sharing) return;
     const next = !shared;
-    const title = next ? tr.shareTitle : tr.stopShareTitle;
-    const body = next ? tr.shareBody : tr.stopShareBody;
-    const okLabel = next ? tr.share : tr.stopSharing;
-    if (Platform.OS === 'web') {
-      if (globalThis.confirm?.(body)) toggleShare();
-    } else {
-      Alert.alert(title, body, [
-        { text: t.common.cancel, style: 'cancel' },
-        { text: okLabel, onPress: toggleShare },
-      ]);
-    }
+    const ok = await confirm({
+      title: next ? tr.shareTitle : tr.stopShareTitle,
+      message: next ? tr.shareBody : tr.stopShareBody,
+      confirmLabel: next ? tr.share : tr.stopSharing,
+      cancelLabel: t.common.cancel,
+    });
+    if (ok) toggleShare();
   };
 
   const toggleShare = async () => {
@@ -113,15 +111,8 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
     }
   };
 
-  const confirmDelete = () => {
-    if (Platform.OS === 'web') {
-      if (globalThis.confirm?.(tr.deleteConfirmWeb)) doDelete();
-    } else {
-      Alert.alert(tr.deleteTitle, tr.deleteBody, [
-        { text: t.common.cancel, style: 'cancel' },
-        { text: tr.delete, style: 'destructive', onPress: doDelete },
-      ]);
-    }
+  const confirmDelete = async () => {
+    if (await confirm({ title: tr.deleteTitle, message: tr.deleteBody, confirmLabel: tr.delete, cancelLabel: t.common.cancel, destructive: true })) doDelete();
   };
 
   const when = new Date(moment.capturedAt);

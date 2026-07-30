@@ -1,23 +1,18 @@
-import { Alert, Platform, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { Stethoscope } from 'lucide-react-native';
 import { Screen } from '@/src/ui/Screen';
 import { Button } from '@/src/ui/Button';
 import { useAuth } from '@/src/auth/auth-context';
+import { useConfirm } from '@/src/ui/confirm';
 
 // Placeholder practitioner home. A practitioner account lands here (routed by
 // role after sign-in). The full practitioner app is a later build.
 export default function PractitionerHome() {
   const { signOut } = useAuth();
+  const confirm = useConfirm();
 
-  const confirmSignOut = () => {
-    if (Platform.OS === 'web') {
-      if (globalThis.confirm?.('Sign out?')) signOut();
-      return;
-    }
-    Alert.alert('Account', undefined, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive', onPress: () => signOut() },
-    ]);
+  const confirmSignOut = async () => {
+    if (await confirm({ title: 'Sign out?', confirmLabel: 'Sign out', cancelLabel: 'Cancel', destructive: true })) signOut();
   };
 
   return (
