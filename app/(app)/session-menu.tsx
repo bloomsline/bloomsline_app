@@ -3,13 +3,14 @@
 // /api/mobile/care/sessions/[id]/cancel). Demo sessions (FORCE_CARE_HUB preview)
 // don't hit the backend.
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Info } from 'lucide-react-native';
 import { EDA, EdPill, MonoLabel } from '@/src/ui/editorial';
 import { useOnboarding } from '@/src/onboarding/context';
 import { cancelSession } from '@/src/api/booking';
+import { useConfirm } from '@/src/ui/confirm';
 import { fmt, useI18n, type Locale } from '@/src/i18n';
 
 // Destructive tone for the cancel action, in an editorial-warm register.
@@ -65,6 +66,7 @@ const T = {
 
 export default function SessionMenu() {
   const { locale } = useI18n();
+  const confirm = useConfirm();
   const tr = T[locale];
   const router = useRouter();
   const p = useLocalSearchParams<{ id?: string; scheduledAt?: string; durationMinutes?: string; sessionFormat?: string; sessionType?: string; meetLink?: string; demo?: string; canCancel?: string; canReschedule?: string; noticeHours?: string }>();
@@ -97,16 +99,9 @@ export default function SessionMenu() {
     if (Platform.OS === 'web') globalThis.alert?.(res.error ?? tr.couldNotCancel);
   };
 
-  const confirmCancel = () => {
+  const confirmCancel = async () => {
     if (isDemo) { if (Platform.OS === 'web') globalThis.alert?.(tr.cancelledDemo); close(); return; }
-    if (Platform.OS === 'web') {
-      if (globalThis.confirm?.(tr.cancelConfirm)) doCancel();
-    } else {
-      Alert.alert(tr.cancelTitle, tr.cancelBody, [
-        { text: tr.keepIt, style: 'cancel' },
-        { text: tr.cancel, style: 'destructive', onPress: doCancel },
-      ]);
-    }
+    if (await confirm({ title: tr.cancelTitle, message: tr.cancelBody, confirmLabel: tr.cancel, cancelLabel: tr.keepIt, destructive: true })) doCancel();
   };
 
   return (

@@ -12,6 +12,7 @@ import { useAuth } from '@/src/auth/auth-context';
 import { useOnboarding } from '@/src/onboarding/context';
 import { useLanding } from '@/src/prefs/landing';
 import { useI18n, type Locale } from '@/src/i18n';
+import { useConfirm } from '@/src/ui/confirm';
 import { fetchMe, saveProfile } from '@/src/api/me';
 
 const APP_VERSION = 'Bloomsline · v2 (preview)';
@@ -22,6 +23,7 @@ export default function Settings() {
   const onboarding = useOnboarding();
   const { landing, setLanding } = useLanding();
   const { t, locale, setLocale } = useI18n();
+  const confirm = useConfirm();
   const [name, setName] = useState(`${onboarding.firstName} ${onboarding.lastName}`.trim());
   const [role, setRole] = useState<string | null>(null);
 
@@ -52,12 +54,8 @@ export default function Settings() {
     else Linking.openURL(url).catch(() => {});
   };
 
-  const doSignOut = () => {
-    if (Platform.OS === 'web') {
-      if (globalThis.confirm?.(t.settings.signOutConfirm)) signOut();
-    } else {
-      signOut();
-    }
+  const doSignOut = async () => {
+    if (await confirm({ title: t.settings.signOutConfirm, confirmLabel: t.settings.signOut, cancelLabel: t.common.cancel, destructive: true })) signOut();
   };
 
   return (
