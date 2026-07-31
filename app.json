@@ -7,16 +7,31 @@
     "userInterfaceStyle": "light",
     "scheme": "bloomsline",
     "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "description": "Your space for moments, care and reflection with Bloomsline.",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.bloomsline.app"
     },
     "android": {
-      "package": "com.bloomsline.app"
+      "package": "com.bloomsline.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
     },
     "web": {
       "bundler": "metro",
-      "output": "single"
+      "output": "single",
+      "favicon": "./assets/favicon.png",
+      "name": "Bloomsline",
+      "shortName": "Bloomsline",
+      "description": "Your space for moments, care and reflection with Bloomsline.",
+      "lang": "en",
+      "display": "standalone",
+      "startUrl": "/",
+      "themeColor": "#0d9488",
+      "backgroundColor": "#ffffff"
     },
     "plugins": [
       "expo-router",
