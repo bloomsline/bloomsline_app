@@ -62,6 +62,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return setStatus(me.onboardedAt || onboardedLocal ? 'authed' : 'onboarding');
   }, []);
 
+  // After an EXPLICIT sign-in, drop any onboarding flag left in this browser by a
+  // previous account. localStorage outlives the server data (and a DB wipe), so a
+  // stale `bl_onboarded` would otherwise skip a brand-new patient straight past
+  // onboarding. Cold-start (app reopened as the same user) keeps its flag — only
+  // a fresh sign-in resets it, so the SERVER's onboardedAt decides for the new user.
+  const afterSignIn = useCallback(async () => {
+    await storageDelete(ONBOARDED_KEY);
+    await resolveSession();
+  }, [resolveSession]);
+
   // On launch: token present → resolve which app; else anon.
   useEffect(() => {
     (async () => {
@@ -80,26 +90,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const devSignIn = useCallback(async () => {
     await saveTokens(mockPair());
-    await resolveSession();
-  }, [resolveSession]);
+    await afterSignIn();
+  }, [afterSignIn]);
 
   const verifyEmailCode = useCallback(async (email: string, code: string) => {
-    if (MOCK_AUTH) { await saveTokens(mockPair()); await resolveSession(); return true; } // any code
+    if (MOCK_AUTH) { await saveTokens(mockPair()); await afterSignIn(); return true; } // any code
     const res = await postJson('/api/mobile/auth/magic-link/verify', { email, code });
     if (!res.ok) return false;
     await saveTokens(await res.json());
-    await resolveSession();
+    await afterSignIn();
     return true;
-  }, [resolveSession]);
+  }, [afterSignIn]);
 
   const exchangeIdToken = useCallback(async (path: string, idToken: string) => {
-    if (MOCK_AUTH) { await saveTokens(mockPair()); await resolveSession(); return true; }
+    if (MOCK_AUTH) { await saveTokens(mockPair()); await afterSignIn(); return true; }
     const res = await postJson(path, { idToken });
     if (!res.ok) return false;
     await saveTokens(await res.json());
-    await resolveSession();
+    await afterSignIn();
     return true;
-  }, [resolveSession]);
+  }, [afterSignIn]);
 
   const signInWithGoogleIdToken = useCallback((idToken: string) => exchangeIdToken('/api/mobile/auth/google', idToken), [exchangeIdToken]);
   const signInWithMicrosoftIdToken = useCallback((idToken: string) => exchangeIdToken('/api/mobile/auth/microsoft', idToken), [exchangeIdToken]);
