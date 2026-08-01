@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Lock } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
-import { EditorialBg, Scrim, RiseIn, MonoKicker, Pill } from '@/src/onboarding/editorial/kit';
+import { EditorialBg, Scrim, RiseIn, MonoKicker, Pill, LangToggle } from '@/src/onboarding/editorial/kit';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { fetchInvite, type PatientInvite } from '@/src/api/invite';
 import { useI18n, fmt } from '@/src/i18n';
@@ -23,7 +23,7 @@ import { useI18n, fmt } from '@/src/i18n';
 // cost them is a pre-filled field.
 export default function InviteLanding() {
   const { token } = useLocalSearchParams<{ token: string }>();
-  const { t, setLocale } = useI18n();
+  const { t, locale, setLocale } = useI18n();
   const [invite, setInvite] = useState<PatientInvite | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -56,7 +56,9 @@ export default function InviteLanding() {
         <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
           <View style={{ flex: 1, paddingHorizontal: 28 }}>
             <RiseIn style={{ marginTop: 26 }}>
-              <View style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 3, borderColor: '#fff', marginBottom: 18 }} />
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'flex-start', marginBottom: 18 }}>
+                <LangToggle value={locale} onChange={(v) => setLocale(v as typeof locale)} />
+              </View>
               <MonoKicker>{t.invite.bloomsline}</MonoKicker>
 
               {loading ? (
