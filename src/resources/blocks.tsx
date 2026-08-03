@@ -5,7 +5,7 @@
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { Check, Paperclip, Upload, X } from 'lucide-react-native';
+import { Check, Paperclip, Plus, Upload, X } from 'lucide-react-native';
 import { CARE } from '@/src/care/theme';
 import { EDA } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
@@ -41,12 +41,17 @@ export function Block({ block, value, onChange, missing }: { block: PatientBlock
           <FileUploadField value={value as UploadedFile | undefined} onChange={onChange} />
         </Field>
       );
-    case 'media':
     case 'table':
       return (
         <Field label={b.label} required={b.required} missing={missing}>
+          <TableField columns={b.columns ?? []} value={value} onChange={onChange} />
+        </Field>
+      );
+    case 'media':
+      return (
+        <Field label={b.label} required={b.required} missing={missing}>
           <View style={{ backgroundColor: '#F6F6F4', borderRadius: 12, padding: 14 }}>
-            <Text style={{ fontSize: 13, color: '#9A9A9A' }}>{b.type === 'table' ? 'Table' : 'Media'} — open this one in the web app for now.</Text>
+            <Text style={{ fontSize: 13, color: '#9A9A9A' }}>Media — open this one in the web app for now.</Text>
           </View>
         </Field>
       );
@@ -310,6 +315,105 @@ function FileUploadField({ value, onChange }: { value: UploadedFile | undefined;
         <Text style={{ fontSize: 15, fontWeight: '600', color: CARE.ink }}>Upload a photo or video</Text>
       </TouchableOpacity>
       {error ? <Text style={{ fontSize: 12, color: CARE.danger, marginTop: 6 }}>{error}</Text> : null}
+    </View>
+  );
+}
+
+interface TableColumn { id: string; label: string; type: string }
+type TableRow = Record<string, string | number>;
+
+// The server caps a table at 200 rows and silently drops the rest, so the UI
+// stops there too rather than letting someone type into a row that will not
+// survive the trip (apps/care/src/lib/resources/answers.ts).
+const MAX_TABLE_ROWS = 200;
+
+const TABLE_COPY = {
+  en: { addRow: 'Add row', row: 'Row', remove: 'Remove row', noColumns: 'This table has no columns yet.', empty: 'Nothing added yet.' },
+  fr: { addRow: 'Ajouter une ligne', row: 'Ligne', remove: 'Supprimer la ligne', noColumns: 'Ce tableau n’a pas encore de colonnes.', empty: 'Rien pour l’instant.' },
+} as const;
+
+/**
+ * A table answer, laid out for a phone. The web renders a real <table> with a
+ * column per field, which is right on a wide screen and unusable on a narrow
+ * one: three or four columns leave each cell too small to read what you typed.
+ * So a row becomes a CARD with its columns stacked as labelled fields — the
+ * pattern phones use for repeating groups.
+ *
+ * The stored value is identical to the web's either way — an array of row
+ * objects keyed by column id, numbers stored as numbers, empty cells absent —
+ * so a table filled in on the phone opens correctly in the practitioner's
+ * browser, and one started on the web can be finished on the phone.
+ */
+function TableField({ columns, value, onChange }: { columns: TableColumn[]; value: unknown; onChange: (v: unknown) => void }) {
+  const { locale } = useI18n();
+  const t = TABLE_COPY[locale] ?? TABLE_COPY.en;
+  const rows: TableRow[] = Array.isArray(value) ? (value as TableRow[]) : [];
+
+  if (columns.length === 0) {
+    return (
+      <View style={{ backgroundColor: '#F6F6F4', borderRadius: 12, padding: 14 }}>
+        <Text style={{ fontSize: 13, color: '#9A9A9A' }}>{t.noColumns}</Text>
+      </View>
+    );
+  }
+
+  // Mirrors the web cell exactly: a number column stores a number, and a cleared
+  // or unparseable cell drops its key instead of storing an empty string, which
+  // is what lets the server tell a blank row from a filled one.
+  const setCell = (index: number, column: TableColumn, raw: string) => {
+    const next = rows.map((row, i) => {
+      if (i !== index) return row;
+      const copy: TableRow = { ...row };
+      if (column.type === 'number') {
+        const n = raw === '' ? NaN : Number(raw);
+        if (Number.isFinite(n)) copy[column.id] = n;
+        else delete copy[column.id];
+      } else if (raw === '') {
+        delete copy[column.id];
+      } else {
+        copy[column.id] = raw;
+      }
+      return copy;
+    });
+    onChange(next);
+  };
+
+  return (
+    <View style={{ gap: 10 }}>
+      {rows.length === 0 && <Text style={{ fontSize: 13, color: '#9A9A9A' }}>{t.empty}</Text>}
+
+      {rows.map((row, i) => (
+        <View key={i} style={{ borderWidth: 1, borderColor: CARE.border, borderRadius: 14, backgroundColor: '#fff', padding: 12, gap: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#9A9A9A' }}>{t.row} {i + 1}</Text>
+            <TouchableOpacity onPress={() => onChange(rows.filter((_, idx) => idx !== i))} hitSlop={8} accessibilityLabel={t.remove}>
+              <X size={16} color="#9A9A9A" />
+            </TouchableOpacity>
+          </View>
+          {columns.map((c) => (
+            <View key={c.id} style={{ gap: 6 }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: CARE.ink }}>{c.label}</Text>
+              <Input
+                value={row[c.id] != null ? String(row[c.id]) : ''}
+                onChangeText={(text) => setCell(i, c, text)}
+                keyboardType={c.type === 'number' ? 'numeric' : 'default'}
+                placeholder={c.type === 'number' ? '0' : undefined}
+              />
+            </View>
+          ))}
+        </View>
+      ))}
+
+      {rows.length < MAX_TABLE_ROWS && (
+        <TouchableOpacity
+          onPress={() => onChange([...rows, {}])}
+          activeOpacity={0.8}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: CARE.border, borderStyle: 'dashed', borderRadius: 14, paddingVertical: 14 }}
+        >
+          <Plus size={16} color={CARE.teal} />
+          <Text style={{ fontSize: 14.5, fontWeight: '600', color: CARE.ink }}>{t.addRow}</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
