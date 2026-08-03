@@ -10,9 +10,10 @@ import { CARE } from '@/src/care/theme';
 import { EDA } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 import { htmlToPlainText, parseRichText, type Span } from '@/src/resources/html';
+import { ZonedCanvasField } from '@/src/resources/zoned-canvas-field';
 import { uploadResponseFile, type PatientBlock, type UploadedFile } from '@/src/api/resources';
 
-export const INTERACTIVE = new Set(['short_text', 'long_text', 'single_choice', 'multi_choice', 'scale', 'yes_no', 'number', 'date', 'table', 'file_upload']);
+export const INTERACTIVE = new Set(['short_text', 'long_text', 'single_choice', 'multi_choice', 'scale', 'yes_no', 'number', 'date', 'table', 'file_upload', 'zoned_canvas']);
 
 // Reading material runs long — the practitioner's relaxation script is 14 blocks
 // — so body copy is sized for sustained reading rather than for form labels.
@@ -45,6 +46,12 @@ export function Block({ block, value, onChange, missing }: { block: PatientBlock
       return (
         <Field label={b.label} required={b.required} missing={missing}>
           <TableField columns={b.columns ?? []} value={value} onChange={onChange} />
+        </Field>
+      );
+    case 'zoned_canvas':
+      return (
+        <Field label={b.label} required={b.required} missing={missing}>
+          <ZonedCanvasField zones={b.zones ?? []} canvas={b.canvas} value={value} onChange={onChange} />
         </Field>
       );
     case 'media':

@@ -2,6 +2,8 @@
 // submit answers. Scoring is server-side; the client never receives option scores.
 import { apiFetch } from '../auth/api';
 
+import type { CanvasZone } from '@/src/resources/canvas';
+
 export interface PatientBlock {
   id: string;
   type: string;
@@ -12,6 +14,10 @@ export interface PatientBlock {
   options?: { id: string; label: string }[];
   scale?: { min: number; max: number; step?: number; minLabel?: string; maxLabel?: string };
   columns?: { id: string; label: string; type: string }[];
+  // zoned_canvas: the regions the patient files entries into.
+  canvas?: { width: number; height: number };
+  zones?: CanvasZone[];
+  templateId?: string;
 }
 
 export interface PatientScore {
