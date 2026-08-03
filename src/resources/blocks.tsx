@@ -2,23 +2,37 @@
 // (app/(app)/resource/[id]) and the self-guided Library flow (library-practice).
 // Renders content blocks + every interactive input; collects answers keyed by
 // block id (owned by the parent screen).
-import { useState } from 'react';
-import { ActivityIndicator, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { ActivityIndicator, Linking, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Check, Paperclip, Upload, X } from 'lucide-react-native';
 import { CARE } from '@/src/care/theme';
+import { EDA } from '@/src/ui/editorial';
+import { useI18n } from '@/src/i18n';
+import { htmlToPlainText, parseRichText, type Span } from '@/src/resources/html';
 import { uploadResponseFile, type PatientBlock, type UploadedFile } from '@/src/api/resources';
 
 export const INTERACTIVE = new Set(['short_text', 'long_text', 'single_choice', 'multi_choice', 'scale', 'yes_no', 'number', 'date', 'table', 'file_upload']);
-export const stripHtml = (s: string) => s.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').trim();
+
+// Reading material runs long — the practitioner's relaxation script is 14 blocks
+// — so body copy is sized for sustained reading rather than for form labels.
+const BODY = { fontSize: 16, color: '#3A3A3A', lineHeight: 26 } as const;
+const PARAGRAPH_GAP = 12;
+const ITEM_GAP = 7;
+
+// The web picks « » vs “ ” from <html lang>; there is no equivalent here, so
+// the pair is chosen per locale. Module-level to keep the reference stable.
+const QUOTES = { en: ['\u201c', '\u201d'], fr: ['\u00ab\u00a0', '\u00a0\u00bb'] } as const;
 
 export function Block({ block, value, onChange, missing }: { block: PatientBlock; value: unknown; onChange: (v: unknown) => void; missing: boolean }) {
   const b = block;
   switch (b.type) {
     case 'heading':
-      return <Text style={{ fontSize: 18, fontWeight: '700', color: CARE.ink, marginTop: 8, marginBottom: 10 }}>{stripHtml(b.text ?? '')}</Text>;
+      // Sections are the handholds in a long read: more air above than below, so
+      // a heading reads as belonging to what follows it.
+      return <Text style={{ fontSize: 19, fontWeight: '700', color: CARE.ink, marginTop: 22, marginBottom: 10 }}>{htmlToPlainText(b.text ?? '')}</Text>;
     case 'rich_text':
-      return <Text style={{ fontSize: 15, color: '#3A3A3A', lineHeight: 24, marginBottom: 16 }}>{stripHtml(b.text ?? '')}</Text>;
+      return <RichText html={b.text ?? ''} />;
     case 'divider':
       return <View style={{ height: 1, backgroundColor: '#ECECEC', marginVertical: 14 }} />;
     case 'file_upload':
@@ -111,6 +125,94 @@ export function Block({ block, value, onChange, missing }: { block: PatientBlock
     default:
       return null;
   }
+}
+
+// The practitioner's framing for the piece — "why you are about to read this".
+// It used to be plain body copy sitting directly above the content, so on a long
+// read it looked like the opening paragraph and stopped reading as framing at
+// all. A tinted card gives it a surface of its own and the eye a place to land
+// before the material starts. EDA rather than CARE tokens: this renders inside
+// the editorial screens, next to their green chips.
+export function ResourceIntro({ text }: { text: string | null | undefined }) {
+  const body = text?.trim();
+  if (!body) return null;
+  return (
+    <View style={{ backgroundColor: EDA.greenTint, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 22 }}>
+      <Text style={{ fontSize: 15, color: EDA.greenDeep, lineHeight: 23 }}>{body}</Text>
+    </View>
+  );
+}
+
+// A practitioner's rich_text arrives as sanitized HTML. RN has no innerHTML, so
+// the markup is parsed into blocks (see ./html) and laid out here: paragraphs
+// with air between them, list items as a marker column beside flexed text so
+// wrapped lines hang-indent instead of sliding under the bullet.
+export function RichText({ html }: { html: string }) {
+  const { locale } = useI18n();
+  const quotes = QUOTES[locale] ?? QUOTES.en;
+  const blocks = useMemo(() => parseRichText(html, { quotes }), [html, quotes]);
+
+  if (blocks.length === 0) return null;
+
+  return (
+    <View style={{ marginBottom: 16 }}>
+      {blocks.map((b, i) => {
+        const last = i === blocks.length - 1;
+        if (b.kind === 'item') {
+          return (
+            <View key={i} style={{ flexDirection: 'row', marginLeft: b.depth * 16, marginBottom: last ? 0 : ITEM_GAP }}>
+              <Text style={[BODY, { minWidth: 20 }]}>{b.marker}</Text>
+              <Text style={[BODY, { flex: 1 }]}><Spans spans={b.spans} /></Text>
+            </View>
+          );
+        }
+        if (b.kind === 'quote') {
+          return (
+            <View key={i} style={{ borderLeftWidth: 3, borderLeftColor: CARE.border, paddingLeft: 12, marginBottom: last ? 0 : PARAGRAPH_GAP }}>
+              <Text style={[BODY, { fontStyle: 'italic' }]}><Spans spans={b.spans} /></Text>
+            </View>
+          );
+        }
+        return (
+          <Text key={i} style={[BODY, { marginBottom: last ? 0 : PARAGRAPH_GAP }]}>
+            <Spans spans={b.spans} />
+          </Text>
+        );
+      })}
+    </View>
+  );
+}
+
+// Nested <Text> inherits from its parent, so each span only carries what it
+// changes.
+function Spans({ spans }: { spans: Span[] }) {
+  return (
+    <>
+      {spans.map((s, i) => (
+        <Text
+          key={i}
+          style={{
+            fontWeight: s.bold ? '700' : undefined,
+            fontStyle: s.italic ? 'italic' : undefined,
+            textDecorationLine: decoration(s),
+            backgroundColor: s.mark ? CARE.mint : undefined,
+            color: s.mark ? CARE.mintInk : s.href ? CARE.teal : undefined,
+          }}
+          onPress={s.href ? () => { void Linking.openURL(s.href as string); } : undefined}
+        >
+          {s.text}
+        </Text>
+      ))}
+    </>
+  );
+}
+
+function decoration(s: Span): 'underline' | 'line-through' | 'underline line-through' | undefined {
+  const underline = s.underline || Boolean(s.href);
+  if (underline && s.strike) return 'underline line-through';
+  if (underline) return 'underline';
+  if (s.strike) return 'line-through';
+  return undefined;
 }
 
 export function Field({ label, required, missing, children }: { label?: string; required?: boolean; missing: boolean; children: React.ReactNode }) {

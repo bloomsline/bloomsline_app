@@ -8,7 +8,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Check, CircleCheckBig } from 'lucide-react-native';
 import { EDA, EdHeader, EdPill, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
-import { Block, INTERACTIVE } from '@/src/resources/blocks';
+import { Block, INTERACTIVE, ResourceIntro } from '@/src/resources/blocks';
 import { fetchAssignment, submitAssignment, type AssignmentView, type PatientScore } from '@/src/api/resources';
 import { useI18n } from '@/src/i18n';
 
@@ -124,7 +124,7 @@ export default function ResourceDetail() {
           <EdHeader source={ONBOARDING_IMAGES.card2} kicker={kicker} title={view.resource.title} onBack={back} />
 
           <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
-            {view.resource.description ? <Text style={{ fontSize: 14, color: EDA.inkSoft, lineHeight: 21, marginBottom: 18 }}>{view.resource.description}</Text> : null}
+            <ResourceIntro text={view.resource.description} />
             {view.response?.status === 'submitted' && (
               <View style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: EDA.greenTint, borderRadius: 12, paddingVertical: 5, paddingHorizontal: 10, marginBottom: 16 }}>
                 <Check size={13} color={EDA.green} strokeWidth={3} />
