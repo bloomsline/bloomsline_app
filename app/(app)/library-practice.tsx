@@ -9,7 +9,7 @@ import { Lock, CircleCheckBig } from 'lucide-react-native';
 import { EDA, EdHeader, EdPill, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { resourceTypeMeta } from '@/src/care/resources';
-import { Block, INTERACTIVE } from '@/src/resources/blocks';
+import { Block, INTERACTIVE, ResourceIntro } from '@/src/resources/blocks';
 import { getLibraryResource, runLibraryActivity, type LibraryResourceView } from '@/src/api/library';
 import type { PatientScore } from '@/src/api/resources';
 import { useI18n } from '@/src/i18n';
@@ -113,7 +113,7 @@ export default function LibraryPractice() {
               <Text style={{ fontSize: 12.5, fontWeight: '700', color: EDA.green }}>{tr.privateToYou}{view.runCount > 0 ? ` · ${tr.doneCount} ${view.runCount}×` : ''}</Text>
             </View>
 
-            {view.resource.description ? <Text style={{ fontSize: 15, color: EDA.inkSoft, lineHeight: 24, marginBottom: 18 }}>{view.resource.description}</Text> : null}
+            <ResourceIntro text={view.resource.description} />
             {blocks.map((b) => (
               <Block key={b.id} block={b} value={answers[b.id]} onChange={(v) => set(b.id, v)} missing={false} />
             ))}
