@@ -14,6 +14,27 @@ import { useI18n } from '@/src/i18n';
 
 const DANGER = '#C0392B';
 
+// "4 August", or "4 August 2025" once the year stops being obvious. Returns null
+// for a missing or unparseable date so callers can fall back to a dateless
+// label rather than printing "Invalid Date" at a patient.
+function formatDone(iso: string | null | undefined, locale: 'en' | 'fr'): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  try {
+    return d.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', {
+      day: 'numeric',
+      month: 'long',
+      ...(sameYear ? {} : { year: 'numeric' }),
+    });
+  } catch {
+    // Intl is present on every platform we ship, but a formatting failure must
+    // not cost the patient the whole screen.
+    return null;
+  }
+}
+
 const T = {
   en: {
     couldNotSubmit: 'Could not submit. Please try again.',
@@ -21,9 +42,13 @@ const T = {
     unavailableBody: 'This resource is no longer available.',
     reading: 'Reading',
     worksheet: 'Worksheet',
-    completedUpdate: 'Completed · you can update it',
     submit: 'Submit',
     markDone: 'Mark as done',
+    submittedOn: (d: string) => `Submitted on ${d}`,
+    doneOn: (d: string) => `Done on ${d}`,
+    alreadySubmitted: 'Already submitted',
+    alreadyDone: 'Already marked as done',
+    updateAnswers: 'Update my answers',
     resultTitle: 'All done',
     resultBodySuffix: ' is saved and shared with your practitioner.',
     yourScore: 'Your score',
@@ -35,9 +60,13 @@ const T = {
     unavailableBody: 'Cette ressource n’est plus disponible.',
     reading: 'Lecture',
     worksheet: 'Fiche',
-    completedUpdate: 'Terminé · vous pouvez le modifier',
     submit: 'Soumettre',
     markDone: 'Marquer comme fait',
+    submittedOn: (d: string) => `Envoyé le ${d}`,
+    doneOn: (d: string) => `Terminé le ${d}`,
+    alreadySubmitted: 'Déjà envoyé',
+    alreadyDone: 'Déjà marqué comme terminé',
+    updateAnswers: 'Modifier mes réponses',
     resultTitle: 'Terminé',
     resultBodySuffix: ' est enregistré et partagé avec votre praticien.',
     yourScore: 'Votre score',
@@ -75,6 +104,15 @@ export default function ResourceDetail() {
 
   const blocks = view?.version.blocks ?? [];
   const hasInteractive = useMemo(() => (view?.version.blocks ?? []).some((b) => INTERACTIVE.has(b.type)), [view]);
+  // Finished either way: a worksheet leaves a submitted response, while a
+  // reading-only resource leaves no row at all and only flips the assignment.
+  const finished = view?.response?.status === 'submitted' || view?.assignment.status === 'completed';
+  const finishedAt = formatDone(view?.response?.submittedAt ?? view?.assignment.completedAt, locale);
+  const finishedLabel = finishedAt
+    ? (hasInteractive ? tr.submittedOn(finishedAt) : tr.doneOn(finishedAt))
+    : hasInteractive
+      ? tr.alreadySubmitted
+      : tr.alreadyDone;
   const set = (blockId: string, value: unknown) => setAnswers((prev) => ({ ...prev, [blockId]: value }));
 
   const submit = async () => {
@@ -125,10 +163,10 @@ export default function ResourceDetail() {
 
           <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
             <ResourceIntro text={view.resource.description} />
-            {view.response?.status === 'submitted' && (
+            {finished && (
               <View style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: EDA.greenTint, borderRadius: 12, paddingVertical: 5, paddingHorizontal: 10, marginBottom: 16 }}>
                 <Check size={13} color={EDA.green} strokeWidth={3} />
-                <Text style={{ fontSize: 12, fontWeight: '700', color: EDA.green }}>{tr.completedUpdate}</Text>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: EDA.green }}>{finishedLabel}</Text>
               </View>
             )}
 
@@ -141,9 +179,26 @@ export default function ResourceDetail() {
         </ScrollView>
 
         <View style={{ paddingHorizontal: 22, paddingTop: 12, paddingBottom: 10, borderTopWidth: 1, borderTopColor: EDA.line }}>
-          <Pressable onPress={submit} disabled={submitting} style={{ height: 54, borderRadius: 27, backgroundColor: submitting ? EDA.faint : EDA.ink, alignItems: 'center', justifyContent: 'center' }}>
-            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={{ fontSize: 15.5, fontWeight: '700', color: '#fff' }}>{hasInteractive ? tr.submit : tr.markDone}</Text>}
-          </Pressable>
+          {finished ? (
+            // Offering "Submit" again on something already finished reads as if
+            // the first one did not take. The state comes first; re-submitting
+            // stays possible for a worksheet, but as a deliberate second step.
+            <View style={{ gap: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 54, borderRadius: 27, backgroundColor: EDA.greenTint, paddingHorizontal: 18 }}>
+                <CircleCheckBig size={18} color={EDA.green} strokeWidth={2.5} />
+                <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.greenDeep, textAlign: 'center' }}>{finishedLabel}</Text>
+              </View>
+              {hasInteractive && (
+                <Pressable onPress={submit} disabled={submitting} style={{ height: 48, borderRadius: 24, borderWidth: 1.5, borderColor: EDA.line, alignItems: 'center', justifyContent: 'center' }}>
+                  {submitting ? <ActivityIndicator color={EDA.ink} /> : <Text style={{ fontSize: 15, fontWeight: '600', color: EDA.inkSoft }}>{tr.updateAnswers}</Text>}
+                </Pressable>
+              )}
+            </View>
+          ) : (
+            <Pressable onPress={submit} disabled={submitting} style={{ height: 54, borderRadius: 27, backgroundColor: submitting ? EDA.faint : EDA.ink, alignItems: 'center', justifyContent: 'center' }}>
+              {submitting ? <ActivityIndicator color="#fff" /> : <Text style={{ fontSize: 15.5, fontWeight: '700', color: '#fff' }}>{hasInteractive ? tr.submit : tr.markDone}</Text>}
+            </Pressable>
+          )}
         </View>
       </KeyboardAvoidingView>
     </View>

@@ -21,11 +21,20 @@ export interface PatientScore {
 }
 
 export interface AssignmentView {
-  assignment: { id: string; status: string };
+  // completedAt / submittedAt are OPTIONAL on purpose: the app ships ahead of
+  // the server that added them, so a build talking to an older API must still
+  // render the finished state, just without a date.
+  assignment: { id: string; status: string; completedAt?: string | null };
   resource: { title: string; type: string; description: string | null };
   version: { id: string; blocks: PatientBlock[] };
   scored: boolean;
-  response: { id: string; answers: Record<string, unknown>; status: string; score: PatientScore | null } | null;
+  response: {
+    id: string;
+    answers: Record<string, unknown>;
+    status: string;
+    score: PatientScore | null;
+    submittedAt?: string | null;
+  } | null;
 }
 
 export async function fetchAssignment(id: string): Promise<AssignmentView | null> {
