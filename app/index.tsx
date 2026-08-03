@@ -2,6 +2,7 @@ import { Redirect } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '@/src/auth/auth-context';
 import { hrefForStatus } from '@/src/auth/route';
+import { takeRoute } from '@/src/auth/pending-route';
 import { useLanding, LANDING_HREF } from '@/src/prefs/landing';
 
 // Entry gate: route by session status (anon / practitioner / onboarding / authed).
@@ -18,6 +19,12 @@ export default function Index() {
       </View>
     );
   }
-  if (status === 'authed') return <Redirect href={LANDING_HREF[landing] as never} />;
+  if (status === 'authed') {
+    // If they arrived on a link before signing in (an emailed exercise, say),
+    // finish that journey rather than dropping them on the default tab.
+    const resume = takeRoute();
+    if (resume) return <Redirect href={resume as never} />;
+    return <Redirect href={LANDING_HREF[landing] as never} />;
+  }
   return <Redirect href={hrefForStatus(status)} />;
 }
