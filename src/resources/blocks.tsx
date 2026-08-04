@@ -2,10 +2,10 @@
 // (app/(app)/resource/[id]) and the self-guided Library flow (library-practice).
 // Renders content blocks + every interactive input; collects answers keyed by
 // block id (owned by the parent screen).
-import { useMemo, useState } from 'react';
-import { ActivityIndicator, Linking, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Image, Linking, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { Check, Paperclip, Plus, Upload, X } from 'lucide-react-native';
+import { Check, ExternalLink, Paperclip, Play, Plus, Upload, X } from 'lucide-react-native';
 import { CARE } from '@/src/care/theme';
 import { EDA } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
@@ -28,7 +28,7 @@ const QUOTES = { en: ['\u201c', '\u201d'], fr: ['\u00ab\u00a0', '\u00a0\u00bb'] 
 // `readOnly` renders a sent response: everything visible, nothing editable. It
 // is the screen half of the rule the server enforces — a submitted response
 // belongs to the practitioner until they hand it back.
-export function Block({ block, value, onChange, missing, readOnly = false }: { block: PatientBlock; value: unknown; onChange: (v: unknown) => void; missing: boolean; readOnly?: boolean }) {
+export function Block({ block, value, onChange, missing, readOnly = false, mediaUrl }: { block: PatientBlock; value: unknown; onChange: (v: unknown) => void; missing: boolean; readOnly?: boolean; mediaUrl?: string }) {
   const b = block;
   switch (b.type) {
     case 'heading':
@@ -58,13 +58,7 @@ export function Block({ block, value, onChange, missing, readOnly = false }: { b
         </Field>
       );
     case 'media':
-      return (
-        <Field label={b.label} required={b.required} missing={missing}>
-          <View style={{ backgroundColor: '#F6F6F4', borderRadius: 12, padding: 14 }}>
-            <Text style={{ fontSize: 13, color: '#9A9A9A' }}>Media — open this one in the web app for now.</Text>
-          </View>
-        </Field>
-      );
+      return <MediaBlock kind={b.mediaKind} url={mediaUrl} name={b.label} />;
     case 'short_text':
     case 'number':
     case 'date':
@@ -229,6 +223,57 @@ function decoration(s: Span): 'underline' | 'line-through' | 'underline line-thr
   if (underline) return 'underline';
   if (s.strike) return 'line-through';
   return undefined;
+}
+
+// A practitioner's image, video or audio. The URL is signed server-side (the
+// app cannot sign anything itself), so no url means there is nothing to show.
+//
+// Images render inline. Video and audio open in the phone's own player: this
+// project ships no video component, and a broken inline player is worse than a
+// button that works.
+function MediaBlock({ kind, url, name }: { kind?: string; url?: string; name?: string }) {
+  const [ratio, setRatio] = useState(16 / 9);
+
+  useEffect(() => {
+    if (!url || (kind && kind !== 'image')) return;
+    let alive = true;
+    // The natural size is unknown until it loads; until then the placeholder
+    // holds 16:9 so the page does not jump when it arrives.
+    Image.getSize(url, (w, h) => { if (alive && w > 0 && h > 0) setRatio(w / h); }, () => {});
+    return () => { alive = false; };
+  }, [url, kind]);
+
+  if (!url) {
+    return (
+      <View style={{ backgroundColor: '#F6F6F4', borderRadius: 12, padding: 14, marginBottom: 16 }}>
+        <Text style={{ fontSize: 13, color: '#9A9A9A' }}>This media could not be loaded.</Text>
+      </View>
+    );
+  }
+
+  if (!kind || kind === 'image') {
+    return (
+      <View style={{ marginBottom: 16, borderRadius: 14, overflow: 'hidden', backgroundColor: '#F1F1EF' }}>
+        <Image source={{ uri: url }} style={{ width: '100%', aspectRatio: ratio }} resizeMode="cover" accessibilityLabel={name || 'Image'} />
+      </View>
+    );
+  }
+
+  return (
+    <TouchableOpacity
+      onPress={() => { void Linking.openURL(url); }}
+      activeOpacity={0.85}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: CARE.border, borderRadius: 14, backgroundColor: '#fff', padding: 14, marginBottom: 16 }}
+    >
+      <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: CARE.mint, alignItems: 'center', justifyContent: 'center' }}>
+        <Play size={16} color={CARE.teal} />
+      </View>
+      <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: CARE.ink }}>
+        {name || (kind === 'audio' ? 'Audio' : 'Video')}
+      </Text>
+      <ExternalLink size={16} color="#9A9A9A" />
+    </TouchableOpacity>
+  );
 }
 
 export function Field({ label, required, missing, children }: { label?: string; required?: boolean; missing: boolean; children: React.ReactNode }) {

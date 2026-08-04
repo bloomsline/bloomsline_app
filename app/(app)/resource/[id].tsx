@@ -181,7 +181,7 @@ export default function ResourceDetail() {
             )}
 
             {blocks.map((b) => (
-              <Block key={b.id} block={b} value={answers[b.id]} onChange={(v) => set(b.id, v)} missing={missingId === b.id} readOnly={locked} />
+              <Block key={b.id} block={b} value={answers[b.id]} onChange={(v) => set(b.id, v)} missing={missingId === b.id} readOnly={locked} mediaUrl={view.mediaUrls?.[b.id]} />
             ))}
 
             {error && <Text style={{ marginTop: 14, fontSize: 13.5, fontWeight: '600', color: DANGER }}>{error}</Text>}

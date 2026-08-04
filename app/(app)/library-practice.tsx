@@ -115,7 +115,7 @@ export default function LibraryPractice() {
 
             <ResourceIntro text={view.resource.description} />
             {blocks.map((b) => (
-              <Block key={b.id} block={b} value={answers[b.id]} onChange={(v) => set(b.id, v)} missing={false} />
+              <Block key={b.id} block={b} value={answers[b.id]} onChange={(v) => set(b.id, v)} missing={false} mediaUrl={view.mediaUrls?.[b.id]} />
             ))}
           </FadeIn>
         </ScrollView>
