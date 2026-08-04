@@ -187,7 +187,9 @@ export function chipSlots(zone: CanvasZone, zones: CanvasZone[], count: number):
 
   // A short zone (the Body Map's head) would have no room left if the label
   // band were reserved, so it is only kept clear where there is height to spare.
-  const band = box.h > LABEL_BAND * 3 ? LABEL_BAND + (zone.parentZoneId ? 8 : 0) : 0;
+  const lines = wrapLabel(zoneLabel(zone.label), box.w - 24).length || 1;
+  const wanted = LABEL_BAND + (lines - 1) * 20 + (zone.parentZoneId ? 8 : 0);
+  const band = box.h > wanted * 2 ? wanted : 0;
 
   const fits = (p: Point): boolean => {
     if (p.y - CHIP_RADIUS < box.y + band) return false;
@@ -223,6 +225,61 @@ export function chipSlots(zone: CanvasZone, zones: CanvasZone[], count: number):
     if (best.length >= count) break;
   }
   return best.slice(0, count);
+}
+
+
+/**
+ * Flatten a canvas block's per-language zone labels down to the ONE the
+ * practitioner wrote, using the resource's own language.
+ *
+ * v1's starter templates ship a label per language; a practitioner who rewrites
+ * them edits the language they work in and leaves the rest as the stock text. So
+ * choosing by the READER's locale showed an English patient "What I CAN'T
+ * Control" while their French practitioner had written a whole sentence of their
+ * own. The resource's language is the author's language, and what the author
+ * wrote is what everybody should read, whatever their phone is set to.
+ */
+export function resolveZoneLabels<T extends { type: string; zones?: CanvasZone[] }>(blocks: T[], language?: string): T[] {
+  return blocks.map((b) => {
+    if (b.type !== 'zoned_canvas' || !b.zones?.length) return b;
+    return { ...b, zones: b.zones.map((z) => ({ ...z, label: zoneLabel(z.label, language) })) };
+  });
+}
+
+// Roughly how wide a character is at the label font size, in canvas units. SVG
+// text does not wrap, and a practitioner's label can be a full sentence, so the
+// wrap has to be computed rather than left to the renderer.
+const CHAR_WIDTH = 8.6;
+const MAX_LABEL_LINES = 3;
+
+/** Break a label into lines that fit the given width, longest-word-safe and
+ *  capped so a paragraph cannot swallow the zone. The full text always remains
+ *  in the legend below the canvas. */
+export function wrapLabel(text: string, widthUnits: number, fontSize = 17): string[] {
+  const clean = (text ?? '').trim().replace(/\s+/g, ' ');
+  if (!clean) return [];
+  const perLine = Math.max(8, Math.floor(widthUnits / (CHAR_WIDTH * (fontSize / 17))));
+  if (clean.length <= perLine) return [clean];
+
+  const lines: string[] = [];
+  let line = '';
+  for (const word of clean.split(' ')) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (candidate.length <= perLine) { line = candidate; continue; }
+    if (line) lines.push(line);
+    // A single word longer than the line is cut rather than allowed to overflow.
+    line = word.length > perLine ? `${word.slice(0, perLine - 1)}…` : word;
+    if (lines.length === MAX_LABEL_LINES) break;
+  }
+  if (line && lines.length < MAX_LABEL_LINES) lines.push(line);
+  if (lines.length === MAX_LABEL_LINES) {
+    const last = lines[MAX_LABEL_LINES - 1];
+    const consumed = lines.join(' ').length;
+    if (consumed < clean.length && !last.endsWith('…')) {
+      lines[MAX_LABEL_LINES - 1] = `${last.slice(0, Math.max(1, perLine - 1))}…`;
+    }
+  }
+  return lines;
 }
 
 // The strip at the top of a zone the label occupies. Chips keep out of it, so a
