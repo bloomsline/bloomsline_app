@@ -3,10 +3,10 @@
 // Renders content blocks + every interactive input; collects answers keyed by
 // block id (owned by the parent screen).
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Modal, Platform, Pressable, ScrollView, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as WebBrowser from 'expo-web-browser';
-import { Check, ExternalLink, FileText, Paperclip, Play, Plus, Upload, X } from 'lucide-react-native';
+import { Check, ExternalLink, FileText, Minus, Paperclip, Play, Plus, Upload, X } from 'lucide-react-native';
 import { CARE } from '@/src/care/theme';
 import { EDA } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
@@ -226,6 +226,79 @@ function decoration(s: Span): 'underline' | 'line-through' | 'underline line-thr
   return undefined;
 }
 
+
+// An image a practitioner attached, and the full-screen viewer behind it. A
+// diagram or a worksheet photographed at A4 is unreadable at phone width, so the
+// image opens on tap and can be enlarged.
+//
+// Zoom is driven three ways because no one way covers every platform here:
+// pinch (ScrollView's own, iOS), double-tap, and explicit +/− buttons. The
+// buttons are not a fallback so much as the only thing that works everywhere and
+// is reachable without a gesture — proper pinch on Android needs
+// react-native-gesture-handler, which is a native module and a new build.
+function ZoomableImage({ url, ratio, name }: { url: string; ratio: number; name?: string }) {
+  const [open, setOpen] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const { width, height } = useWindowDimensions();
+
+  const close = () => { setOpen(false); setZoom(1); };
+  const cycle = () => setZoom((z) => (z >= 3 ? 1 : z + 1));
+
+  // Fit the image to the screen first, then scale that up. Zooming a
+  // screen-width image would otherwise crop a tall one before it was readable.
+  const fitWidth = Math.min(width, height * ratio);
+  const shown = fitWidth * zoom;
+
+  return (
+    <>
+      <TouchableOpacity activeOpacity={0.9} onPress={() => setOpen(true)} accessibilityLabel={name || 'Image'} accessibilityHint="Opens larger">
+        <View style={{ marginBottom: 16, borderRadius: 14, overflow: 'hidden', backgroundColor: '#F1F1EF' }}>
+          <Image source={{ uri: url }} style={{ width: '100%', aspectRatio: ratio }} resizeMode="cover" />
+        </View>
+      </TouchableOpacity>
+
+      <Modal visible={open} transparent={false} animationType="fade" onRequestClose={close} supportedOrientations={['portrait', 'landscape']}>
+        <View style={{ flex: 1, backgroundColor: '#0B0B0B' }}>
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ minWidth: '100%', minHeight: '100%', alignItems: 'center', justifyContent: 'center' }}
+            maximumZoomScale={4}
+            minimumZoomScale={1}
+            bouncesZoom
+            centerContent
+            showsHorizontalScrollIndicator={false}
+            showsVerticalScrollIndicator={false}
+            horizontal={false}
+          >
+            {/* Panning comes free once the image is wider or taller than the
+                viewport, which is what makes "any part of the image" reachable. */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Pressable onPress={cycle}>
+                <Image source={{ uri: url }} style={{ width: shown, height: shown / ratio }} resizeMode="contain" accessibilityLabel={name || 'Image'} />
+              </Pressable>
+            </ScrollView>
+          </ScrollView>
+
+          <View style={{ position: 'absolute', top: 44, left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <TouchableOpacity onPress={close} hitSlop={10} accessibilityLabel="Close" style={pill}>
+              <X size={18} color="#fff" />
+            </TouchableOpacity>
+            <View style={{ flex: 1 }} />
+            <TouchableOpacity onPress={() => setZoom((z) => Math.max(1, z - 1))} disabled={zoom <= 1} hitSlop={10} accessibilityLabel="Zoom out" style={[pill, { opacity: zoom <= 1 ? 0.4 : 1 }]}>
+              <Minus size={18} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setZoom((z) => Math.min(3, z + 1))} disabled={zoom >= 3} hitSlop={10} accessibilityLabel="Zoom in" style={[pill, { opacity: zoom >= 3 ? 0.4 : 1 }]}>
+              <Plus size={18} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+}
+
+const pill = { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' } as const;
+
 // A practitioner's image, video or audio. The URL is signed server-side (the
 // app cannot sign anything itself), so no url means there is nothing to show.
 //
@@ -262,11 +335,7 @@ function MediaBlock({ kind, url, name }: { kind?: string; url?: string; name?: s
   }
 
   if (!kind || kind === 'image') {
-    return (
-      <View style={{ marginBottom: 16, borderRadius: 14, overflow: 'hidden', backgroundColor: '#F1F1EF' }}>
-        <Image source={{ uri: url }} style={{ width: '100%', aspectRatio: ratio }} resizeMode="cover" accessibilityLabel={name || 'Image'} />
-      </View>
-    );
+    return <ZoomableImage url={url} ratio={ratio} name={name} />;
   }
 
   return (
