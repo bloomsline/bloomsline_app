@@ -185,7 +185,12 @@ export function chipSlots(zone: CanvasZone, zones: CanvasZone[], count: number):
   if (box.w <= 0 || box.h <= 0) return [];
   const children = childZonesOf(zones, zone.id);
 
+  // A short zone (the Body Map's head) would have no room left if the label
+  // band were reserved, so it is only kept clear where there is height to spare.
+  const band = box.h > LABEL_BAND * 3 ? LABEL_BAND + (zone.parentZoneId ? 8 : 0) : 0;
+
   const fits = (p: Point): boolean => {
+    if (p.y - CHIP_RADIUS < box.y + band) return false;
     // The chip is a disc, not a point: it has to sit WHOLLY inside the zone and
     // wholly clear of any nested one. Sampling a few offsets is not enough —
     // on a circle, a chip on the diagonal passes a north/south/east/west check
@@ -220,12 +225,16 @@ export function chipSlots(zone: CanvasZone, zones: CanvasZone[], count: number):
   return best.slice(0, count);
 }
 
-/** Where a zone's label sits: above a rect's top edge, above the widest point of
- *  a round shape, and at the top of a polygon's box. Kept out of the chip area
- *  so a label never lands on an entry. */
-export function labelAnchor(shape: ZoneShape): Point {
+// The strip at the top of a zone the label occupies. Chips keep out of it, so a
+// number never lands on the words naming the region.
+const LABEL_BAND = 30;
+
+/** Where a zone's label sits. A NESTED zone is pushed further down: at the top
+ *  of a circle drawn inside a rect, the two labels and the circle's own outline
+ *  all converge, which is exactly the overlap v1 spent a polish pass fixing. */
+export function labelAnchor(shape: ZoneShape, nested = false): Point {
   const box = shapeBox(shape);
-  return { x: box.x + box.w / 2, y: box.y + 22 };
+  return { x: box.x + box.w / 2, y: box.y + (nested ? 38 : 22) };
 }
 
 /** Total entries across every zone — used to tell an untouched canvas from a

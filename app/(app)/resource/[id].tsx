@@ -48,7 +48,8 @@ const T = {
     doneOn: (d: string) => `Done on ${d}`,
     alreadySubmitted: 'Already submitted',
     alreadyDone: 'Already marked as done',
-    updateAnswers: 'Update my answers',
+    fromPractitioner: 'From your practitioner',
+    lockedNote: 'Your practitioner can reopen this if you need to change it.',
     resultTitle: 'All done',
     resultBodySuffix: ' is saved and shared with your practitioner.',
     yourScore: 'Your score',
@@ -66,7 +67,8 @@ const T = {
     doneOn: (d: string) => `Terminé le ${d}`,
     alreadySubmitted: 'Déjà envoyé',
     alreadyDone: 'Déjà marqué comme terminé',
-    updateAnswers: 'Modifier mes réponses',
+    fromPractitioner: 'De votre praticien',
+    lockedNote: 'Votre praticien peut le rouvrir si vous devez le modifier.',
     resultTitle: 'Terminé',
     resultBodySuffix: ' est enregistré et partagé avec votre praticien.',
     yourScore: 'Votre score',
@@ -106,7 +108,9 @@ export default function ResourceDetail() {
   const hasInteractive = useMemo(() => (view?.version.blocks ?? []).some((b) => INTERACTIVE.has(b.type)), [view]);
   // Finished either way: a worksheet leaves a submitted response, while a
   // reading-only resource leaves no row at all and only flips the assignment.
-  const finished = view?.response?.status === 'submitted' || view?.assignment.status === 'completed';
+  const sentStatus = view?.response?.status === 'submitted' || view?.response?.status === 'reviewed';
+  const locked = view?.locked ?? sentStatus;
+  const finished = sentStatus || view?.assignment.status === 'completed';
   const finishedAt = formatDone(view?.response?.submittedAt ?? view?.assignment.completedAt, locale);
   const finishedLabel = finishedAt
     ? (hasInteractive ? tr.submittedOn(finishedAt) : tr.doneOn(finishedAt))
@@ -163,6 +167,12 @@ export default function ResourceDetail() {
 
           <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
             <ResourceIntro text={view.resource.description} />
+            {view.response?.practitionerNote ? (
+              <View style={{ backgroundColor: EDA.greenTint, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 22 }}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: EDA.green, marginBottom: 6 }}>{tr.fromPractitioner}</Text>
+                <Text style={{ fontSize: 15, color: EDA.greenDeep, lineHeight: 23 }}>{view.response.practitionerNote}</Text>
+              </View>
+            ) : null}
             {finished && (
               <View style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: EDA.greenTint, borderRadius: 12, paddingVertical: 5, paddingHorizontal: 10, marginBottom: 16 }}>
                 <Check size={13} color={EDA.green} strokeWidth={3} />
@@ -171,7 +181,7 @@ export default function ResourceDetail() {
             )}
 
             {blocks.map((b) => (
-              <Block key={b.id} block={b} value={answers[b.id]} onChange={(v) => set(b.id, v)} missing={missingId === b.id} />
+              <Block key={b.id} block={b} value={answers[b.id]} onChange={(v) => set(b.id, v)} missing={missingId === b.id} readOnly={locked} />
             ))}
 
             {error && <Text style={{ marginTop: 14, fontSize: 13.5, fontWeight: '600', color: DANGER }}>{error}</Text>}
@@ -188,9 +198,15 @@ export default function ResourceDetail() {
                 <CircleCheckBig size={18} color={EDA.green} strokeWidth={2.5} />
                 <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.greenDeep, textAlign: 'center' }}>{finishedLabel}</Text>
               </View>
-              {hasInteractive && (
+              {hasInteractive && locked && (
+                // Deliberately not a button. A sent response belongs to the
+                // practitioner until they hand it back, so offering "update"
+                // here would promise something the server refuses.
+                <Text style={{ fontSize: 12.5, color: EDA.faint, textAlign: 'center' }}>{tr.lockedNote}</Text>
+              )}
+              {hasInteractive && !locked && (
                 <Pressable onPress={submit} disabled={submitting} style={{ height: 48, borderRadius: 24, borderWidth: 1.5, borderColor: EDA.line, alignItems: 'center', justifyContent: 'center' }}>
-                  {submitting ? <ActivityIndicator color={EDA.ink} /> : <Text style={{ fontSize: 15, fontWeight: '600', color: EDA.inkSoft }}>{tr.updateAnswers}</Text>}
+                  {submitting ? <ActivityIndicator color={EDA.ink} /> : <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink }}>{tr.submit}</Text>}
                 </Pressable>
               )}
             </View>
