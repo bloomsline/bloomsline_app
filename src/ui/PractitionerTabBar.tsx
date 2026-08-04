@@ -1,6 +1,6 @@
 import { Platform, Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LayoutGrid, Users, CalendarDays, Library, PenLine, type LucideIcon } from 'lucide-react-native';
+import { Users, CalendarDays, Library, PenLine, type LucideIcon } from 'lucide-react-native';
 import { EDA } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 
@@ -11,16 +11,17 @@ import { useI18n } from '@/src/i18n';
 // The action button takes a note, which is the practitioner's equivalent of the
 // patient capturing a moment: the thing you do in the five minutes after a
 // session, and the reason to reach for a phone instead of a laptop.
-export type PractitionerTabId = 'dashboard' | 'people' | 'bookings' | 'resources';
+export type PractitionerTabId = 'home' | 'people' | 'resources';
 
+// One day, one tab. "Today" and "Agenda" were two doors onto the same
+// information, which is the same duplication v1's ten tiles had.
 const TABS: Record<PractitionerTabId, { Icon: LucideIcon; href: string; en: string; fr: string }> = {
-  dashboard: { Icon: LayoutGrid, href: '/(practitioner)/home', en: 'Today', fr: 'Aujourd’hui' },
+  home: { Icon: CalendarDays, href: '/(practitioner)/home', en: 'Today', fr: 'Aujourd’hui' },
   people: { Icon: Users, href: '/(practitioner)/people', en: 'People', fr: 'Patients' },
-  bookings: { Icon: CalendarDays, href: '/(practitioner)/bookings', en: 'Agenda', fr: 'Agenda' },
   resources: { Icon: Library, href: '/(practitioner)/resources', en: 'Library', fr: 'Ressources' },
 };
 
-const ORDER: PractitionerTabId[] = ['dashboard', 'people', 'bookings', 'resources'];
+const ORDER: PractitionerTabId[] = ['home', 'people', 'resources'];
 
 export function PractitionerTabBar({ active }: { active: PractitionerTabId }) {
   const router = useRouter();

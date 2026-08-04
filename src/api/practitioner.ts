@@ -102,17 +102,49 @@ export async function fetchPatient(id: string): Promise<PatientDetail | null> {
   }
 }
 
-/** Notes are plain text on the server by design (no HTML, no stored-XSS
- *  surface), so nothing here sends markup. */
-export async function createNote(patientId: string, content: string, title?: string): Promise<{ ok: boolean; error?: string }> {
+export interface PatientSession {
+  id: string;
+  scheduledAt: string;
+  durationMinutes: number;
+  sessionFormat: string;
+  sessionType: string;
+  status: string;
+}
+
+export interface NoteVocabulary {
+  sessions: PatientSession[];
+  noteTypes: string[];
+  tags: { slug: string; label: string }[];
+}
+
+/** What a note can be attached to and labelled with — the same vocabulary the
+ *  web editor offers. */
+export async function fetchNoteVocabulary(patientId: string): Promise<NoteVocabulary | null> {
+  try {
+    const res = await apiFetch(`/api/mobile/practitioner/patients/${patientId}/sessions`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+/** A note belongs to a SESSION. The phone sends plain text; the server escapes
+ *  it into the sanitized HTML the web model stores and appends the tags as real
+ *  marks, so a note written here is the same object as one written there. */
+export async function createNote(input: {
+  patientId: string; appointmentId: string; content: string;
+  title?: string; noteType?: string; tags?: string[]; isPrivate?: boolean;
+}): Promise<{ ok: boolean; error?: string }> {
+  const { patientId, ...payload } = input;
   try {
     const res = await apiFetch(`/api/mobile/practitioner/patients/${patientId}/notes`, {
       method: 'POST',
-      body: JSON.stringify({ content, title }),
+      body: JSON.stringify(payload),
     });
     if (res.ok) return { ok: true };
-    const body = await res.json().catch(() => null);
-    return { ok: false, error: body?.error ?? 'Could not save the note.' };
+    const err = await res.json().catch(() => null);
+    return { ok: false, error: err?.error ?? 'Could not save the note.' };
   } catch {
     return { ok: false, error: 'Could not reach the server.' };
   }

@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { EDA, EdHeader, EdCard, EdPill, EdSection, FadeIn } from '@/src/ui/editorial';
+import { EDA, EdHeader, EdCard, EdSection, FadeIn } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
-import { fetchPatients, fetchBookingOptions, bookSession, type PatientListItem, type SessionTypeOption } from '@/src/api/practitioner';
+import { fetchPatients, fetchBookingOptions, type PatientListItem, type SessionTypeOption } from '@/src/api/practitioner';
 
 // Book a session: who, what kind, which day, which slot.
 //
@@ -41,8 +41,6 @@ export default function Book() {
   const [date, setDate] = useState<string | null>(null);
   const [slots, setSlots] = useState<string[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
 
   useFocusEffect(
     useCallback(() => {
@@ -80,16 +78,18 @@ export default function Book() {
   const key = (d: Date) => d.toLocaleDateString('en-CA');
   const time = (iso: string) => new Date(iso).toLocaleTimeString(locale === 'fr' ? 'fr-FR' : 'en-GB', { hour: '2-digit', minute: '2-digit' });
 
-  const book = async (slot: string) => {
+  // Picking a time does NOT book it. It goes to a confirmation, the same shape
+  // as the patient's flow — booking is the one action here that reaches into
+  // somebody else's calendar and inbox, so it gets a deliberate second step.
+  const review = (slot: string) => {
     if (!patient || !type) return;
-    setError(''); setSaving(true);
-    const res = await bookSession({
-      memberId: patient.id, sessionTypeId: type.id, scheduledAt: slot,
-      sessionFormat: type.defaultFormat, durationMinutes: type.durationMinutes,
-    });
-    setSaving(false);
-    if (!res.ok) { setError(res.error ?? ''); return; }
-    router.back();
+    router.navigate({
+      pathname: '/(practitioner)/book-confirm',
+      params: {
+        memberId: patient.id, name: patient.name, sessionTypeId: type.id, label: type.label,
+        scheduledAt: slot, format: type.defaultFormat, duration: String(type.durationMinutes),
+      },
+    } as never);
   };
 
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/(practitioner)/home' as never));
@@ -174,20 +174,16 @@ export default function Book() {
                 {slots.map((s) => (
                   <Pressable
                     key={s}
-                    onPress={() => book(s)}
-                    disabled={saving}
-                    style={{ borderRadius: 18, paddingHorizontal: 16, paddingVertical: 11, backgroundColor: EDA.card, borderWidth: 1.5, borderColor: EDA.line, opacity: saving ? 0.5 : 1 }}
+                    onPress={() => review(s)}
+                    style={{ borderRadius: 18, paddingHorizontal: 16, paddingVertical: 11, backgroundColor: EDA.card, borderWidth: 1.5, borderColor: EDA.line }}
                   >
                     <Text style={{ fontSize: 14.5, fontWeight: '700', color: EDA.ink }}>{time(s)}</Text>
                   </Pressable>
                 ))}
               </View>
-              {saving && <ActivityIndicator style={{ marginTop: 14 }} />}
-              {error ? <Text style={{ fontSize: 13.5, color: '#C0392B', marginTop: 12 }}>{error}</Text> : null}
             </>
           )}
 
-          <EdPill label={tr.change} variant="outline" onPress={back} style={{ marginTop: 28, opacity: 0 }} />
         </FadeIn>
       </ScrollView>
     </View>
