@@ -2,7 +2,7 @@
 // (app/(app)/resource/[id]) and the self-guided Library flow (library-practice).
 // Renders content blocks + every interactive input; collects answers keyed by
 // block id (owned by the parent screen).
-import { useEffect, useMemo, useState } from 'react';
+import { createElement, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Modal, Platform, Pressable, ScrollView, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as WebBrowser from 'expo-web-browser';
@@ -326,12 +326,7 @@ function MediaBlock({ kind, url, name }: { kind?: string; url?: string; name?: s
   }
 
   if (kind === 'pdf') {
-    // openBrowserAsync is an in-app sheet the patient dismisses back onto this
-    // screen, rather than a jump to the browser that loses the exercise they
-    // were halfway through. No PDF component is needed, and it reopens on tap.
-    return (
-      <MediaCard icon="pdf" name={name || 'PDF'} action="Open PDF" onPress={() => { void WebBrowser.openBrowserAsync(url); }} />
-    );
+    return <PdfBlock url={url} name={name} />;
   }
 
   if (!kind || kind === 'image') {
@@ -348,11 +343,59 @@ function MediaBlock({ kind, url, name }: { kind?: string; url?: string; name?: s
   );
 }
 
+
+// A PDF, opened without leaving the exercise.
+//
+// The two platforms need different machinery for the same result. On native,
+// openBrowserAsync is already an in-app sheet the patient dismisses straight
+// back onto this screen. On WEB it is not — it falls through to window.open and
+// dumps them in a new tab, away from the exercise they were halfway through — so
+// the web build gets a real modal with the PDF inside it. Same promise either
+// way: it opens over the exercise and closes back onto it.
+function PdfBlock({ url, name }: { url: string; name?: string }) {
+  const [open, setOpen] = useState(false);
+  const title = name && !looksLikeStorageKey(name) ? name : 'PDF';
+
+  if (Platform.OS !== 'web') {
+    return <MediaCard icon="pdf" name={name || 'PDF'} action="Open PDF" onPress={() => { void WebBrowser.openBrowserAsync(url); }} />;
+  }
+
+  return (
+    <>
+      <MediaCard icon="pdf" name={name || 'PDF'} action="Open PDF" onPress={() => setOpen(true)} />
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', padding: 16 }}>
+          <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden', maxWidth: 900, width: '100%', alignSelf: 'center' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: CARE.border }}>
+              <Text numberOfLines={1} style={{ flex: 1, fontSize: 15, fontWeight: '700', color: CARE.ink }}>{title}</Text>
+              <TouchableOpacity onPress={() => setOpen(false)} hitSlop={10} accessibilityLabel="Close">
+                <X size={18} color="#6A6A6A" />
+              </TouchableOpacity>
+            </View>
+            {/* react-native-web renders a DOM element passed through
+                createElement, which is the only way to embed a PDF here without
+                pulling in a viewer dependency. */}
+            {createElement('iframe', {
+              src: url,
+              title,
+              style: { flex: 1, width: '100%', height: '100%', border: 'none' },
+            })}
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+}
+
+// A storage key is not a title: "69dd9f6420bec4.884_Guide_….pdf" tells a patient
+// nothing, so the card says "Open PDF" instead.
+const looksLikeStorageKey = (name: string): boolean => /^[0-9a-f]{8,}|\d{6,}/i.test(name);
+
 // One row for anything that opens rather than renders inline. The file's own
 // name is the title only when the practitioner gave it one — a storage filename
 // like "69dd9f6420bec4.884_Guide_….pdf" is not a thing to show a patient.
 function MediaCard({ icon, name, action, onPress }: { icon: 'pdf' | 'play'; name: string; action: string; onPress: () => void }) {
-  const looksLikeStorageName = /^[0-9a-f]{8,}|\d{6,}/i.test(name);
+  const looksLikeStorageName = looksLikeStorageKey(name);
   return (
     <TouchableOpacity
       onPress={onPress}
