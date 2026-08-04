@@ -12,7 +12,7 @@ import Svg, { Circle, Ellipse, G, Polygon, Rect, Text as SvgText } from 'react-n
 import { Plus, X } from 'lucide-react-native';
 import { CARE } from '@/src/care/theme';
 import { useI18n } from '@/src/i18n';
-import { chipSlots, labelAnchor, zoneLabel, type CanvasEntry, type CanvasZone, type ZoneShape } from '@/src/resources/canvas';
+import { chipSlots, labelAnchor, shapeBox, wrapLabel, zoneLabel, type CanvasEntry, type CanvasZone, type ZoneShape } from '@/src/resources/canvas';
 
 // v1's accent names, matched to the care app's palette so one exercise looks
 // like itself on both surfaces.
@@ -107,9 +107,13 @@ export function ZonedCanvasField({
             return (
               <Fragment key={z.id}>
                 <ZoneOutline shape={z.shape} stroke={a.stroke} fill={a.fill} />
-                <SvgText x={anchor.x} y={anchor.y} textAnchor="middle" fontSize={20} fontWeight="700" fill={a.text}>
-                  {zoneLabel(z.label, locale)}
-                </SvgText>
+                {/* SVG text does not wrap, and a practitioner's label can be a
+                    whole sentence. The full text is always in the panel below. */}
+                {wrapLabel(zoneLabel(z.label), shapeBox(z.shape).w - 24).map((line, li) => (
+                  <SvgText key={li} x={anchor.x} y={anchor.y + li * 22} textAnchor="middle" fontSize={20} fontWeight="700" fill={a.text}>
+                    {line}
+                  </SvgText>
+                ))}
               </Fragment>
             );
           })}
@@ -166,7 +170,7 @@ export function ZonedCanvasField({
                     <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff' }}>{open.n}</Text>
                   </View>
                   <Text style={{ flex: 1, fontSize: 13, fontWeight: '700', color: accentOf(open.zone.accent).text }}>
-                    {zoneLabel(open.zone.label, locale)}
+                    {zoneLabel(open.zone.label)}
                   </Text>
                 </View>
                 <Text style={{ fontSize: 17, color: CARE.ink, lineHeight: 25 }}>{open.entry.text}</Text>
@@ -224,7 +228,7 @@ function ZonePanel({
     <View style={{ borderWidth: 1, borderColor: CARE.border, borderRadius: 14, backgroundColor: '#fff', padding: 12, gap: 10 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: a.chip }} />
-        <Text style={{ fontSize: 14, fontWeight: '700', color: a.text, flex: 1 }}>{zoneLabel(zone.label, locale)}</Text>
+        <Text style={{ fontSize: 14, fontWeight: '700', color: a.text, flex: 1 }}>{zoneLabel(zone.label)}</Text>
       </View>
 
       {entries.length === 0 ? (

@@ -3,9 +3,10 @@
 // Renders content blocks + every interactive input; collects answers keyed by
 // block id (owned by the parent screen).
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Modal, Platform, Pressable, ScrollView, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { Check, ExternalLink, Paperclip, Play, Plus, Upload, X } from 'lucide-react-native';
+import * as WebBrowser from 'expo-web-browser';
+import { Check, ExternalLink, FileText, Minus, Paperclip, Play, Plus, Upload, X } from 'lucide-react-native';
 import { CARE } from '@/src/care/theme';
 import { EDA } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
@@ -225,6 +226,79 @@ function decoration(s: Span): 'underline' | 'line-through' | 'underline line-thr
   return undefined;
 }
 
+
+// An image a practitioner attached, and the full-screen viewer behind it. A
+// diagram or a worksheet photographed at A4 is unreadable at phone width, so the
+// image opens on tap and can be enlarged.
+//
+// Zoom is driven three ways because no one way covers every platform here:
+// pinch (ScrollView's own, iOS), double-tap, and explicit +/− buttons. The
+// buttons are not a fallback so much as the only thing that works everywhere and
+// is reachable without a gesture — proper pinch on Android needs
+// react-native-gesture-handler, which is a native module and a new build.
+function ZoomableImage({ url, ratio, name }: { url: string; ratio: number; name?: string }) {
+  const [open, setOpen] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const { width, height } = useWindowDimensions();
+
+  const close = () => { setOpen(false); setZoom(1); };
+  const cycle = () => setZoom((z) => (z >= 3 ? 1 : z + 1));
+
+  // Fit the image to the screen first, then scale that up. Zooming a
+  // screen-width image would otherwise crop a tall one before it was readable.
+  const fitWidth = Math.min(width, height * ratio);
+  const shown = fitWidth * zoom;
+
+  return (
+    <>
+      <TouchableOpacity activeOpacity={0.9} onPress={() => setOpen(true)} accessibilityLabel={name || 'Image'} accessibilityHint="Opens larger">
+        <View style={{ marginBottom: 16, borderRadius: 14, overflow: 'hidden', backgroundColor: '#F1F1EF' }}>
+          <Image source={{ uri: url }} style={{ width: '100%', aspectRatio: ratio }} resizeMode="cover" />
+        </View>
+      </TouchableOpacity>
+
+      <Modal visible={open} transparent={false} animationType="fade" onRequestClose={close} supportedOrientations={['portrait', 'landscape']}>
+        <View style={{ flex: 1, backgroundColor: '#0B0B0B' }}>
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ minWidth: '100%', minHeight: '100%', alignItems: 'center', justifyContent: 'center' }}
+            maximumZoomScale={4}
+            minimumZoomScale={1}
+            bouncesZoom
+            centerContent
+            showsHorizontalScrollIndicator={false}
+            showsVerticalScrollIndicator={false}
+            horizontal={false}
+          >
+            {/* Panning comes free once the image is wider or taller than the
+                viewport, which is what makes "any part of the image" reachable. */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Pressable onPress={cycle}>
+                <Image source={{ uri: url }} style={{ width: shown, height: shown / ratio }} resizeMode="contain" accessibilityLabel={name || 'Image'} />
+              </Pressable>
+            </ScrollView>
+          </ScrollView>
+
+          <View style={{ position: 'absolute', top: 44, left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <TouchableOpacity onPress={close} hitSlop={10} accessibilityLabel="Close" style={pill}>
+              <X size={18} color="#fff" />
+            </TouchableOpacity>
+            <View style={{ flex: 1 }} />
+            <TouchableOpacity onPress={() => setZoom((z) => Math.max(1, z - 1))} disabled={zoom <= 1} hitSlop={10} accessibilityLabel="Zoom out" style={[pill, { opacity: zoom <= 1 ? 0.4 : 1 }]}>
+              <Minus size={18} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setZoom((z) => Math.min(3, z + 1))} disabled={zoom >= 3} hitSlop={10} accessibilityLabel="Zoom in" style={[pill, { opacity: zoom >= 3 ? 0.4 : 1 }]}>
+              <Plus size={18} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+}
+
+const pill = { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' } as const;
+
 // A practitioner's image, video or audio. The URL is signed server-side (the
 // app cannot sign anything itself), so no url means there is nothing to show.
 //
@@ -251,26 +325,49 @@ function MediaBlock({ kind, url, name }: { kind?: string; url?: string; name?: s
     );
   }
 
-  if (!kind || kind === 'image') {
+  if (kind === 'pdf') {
+    // openBrowserAsync is an in-app sheet the patient dismisses back onto this
+    // screen, rather than a jump to the browser that loses the exercise they
+    // were halfway through. No PDF component is needed, and it reopens on tap.
     return (
-      <View style={{ marginBottom: 16, borderRadius: 14, overflow: 'hidden', backgroundColor: '#F1F1EF' }}>
-        <Image source={{ uri: url }} style={{ width: '100%', aspectRatio: ratio }} resizeMode="cover" accessibilityLabel={name || 'Image'} />
-      </View>
+      <MediaCard icon="pdf" name={name || 'PDF'} action="Open PDF" onPress={() => { void WebBrowser.openBrowserAsync(url); }} />
     );
   }
 
+  if (!kind || kind === 'image') {
+    return <ZoomableImage url={url} ratio={ratio} name={name} />;
+  }
+
+  return (
+    <MediaCard
+      icon="play"
+      name={name || (kind === 'audio' ? 'Audio' : 'Video')}
+      action={kind === 'audio' ? 'Play audio' : 'Play video'}
+      onPress={() => { void WebBrowser.openBrowserAsync(url); }}
+    />
+  );
+}
+
+// One row for anything that opens rather than renders inline. The file's own
+// name is the title only when the practitioner gave it one — a storage filename
+// like "69dd9f6420bec4.884_Guide_….pdf" is not a thing to show a patient.
+function MediaCard({ icon, name, action, onPress }: { icon: 'pdf' | 'play'; name: string; action: string; onPress: () => void }) {
+  const looksLikeStorageName = /^[0-9a-f]{8,}|\d{6,}/i.test(name);
   return (
     <TouchableOpacity
-      onPress={() => { void Linking.openURL(url); }}
+      onPress={onPress}
       activeOpacity={0.85}
       style={{ flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: CARE.border, borderRadius: 14, backgroundColor: '#fff', padding: 14, marginBottom: 16 }}
     >
-      <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: CARE.mint, alignItems: 'center', justifyContent: 'center' }}>
-        <Play size={16} color={CARE.teal} />
+      <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: icon === 'pdf' ? '#FDECEC' : CARE.mint, alignItems: 'center', justifyContent: 'center' }}>
+        {icon === 'pdf' ? <FileText size={16} color="#C0392B" /> : <Play size={16} color={CARE.teal} />}
       </View>
-      <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: CARE.ink }}>
-        {name || (kind === 'audio' ? 'Audio' : 'Video')}
-      </Text>
+      <View style={{ flex: 1 }}>
+        {!looksLikeStorageName && <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '600', color: CARE.ink }}>{name}</Text>}
+        <Text style={{ fontSize: looksLikeStorageName ? 15 : 12.5, fontWeight: looksLikeStorageName ? '600' : '400', color: looksLikeStorageName ? CARE.ink : '#9A9A9A' }}>
+          {action}
+        </Text>
+      </View>
       <ExternalLink size={16} color="#9A9A9A" />
     </TouchableOpacity>
   );
