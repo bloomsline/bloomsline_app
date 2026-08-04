@@ -111,6 +111,45 @@ export interface PatientSession {
   status: string;
 }
 
+/** A marked span of the note text. Half-open: [start, end). Composed into the
+ *  web's markup server-side, so this is the only shape the phone deals in. */
+export interface NoteRange {
+  start: number;
+  end: number;
+  type: 'bold' | 'italic' | 'quote' | 'tag';
+  slug?: string;
+}
+
+export interface UpcomingSession {
+  id: string;
+  memberId: string;
+  who: string;
+  scheduledAt: string;
+  durationMinutes: number;
+  sessionFormat: string;
+  sessionType: string;
+}
+
+export interface NoteWorkspace {
+  sessions: UpcomingSession[];
+  timezone: string;
+  noteTypes: string[];
+  tags: { slug: string; label: string }[];
+  templates: { id: string; label: string; body: string }[];
+}
+
+/** Everything the note flow opens with: sessions still to happen across every
+ *  patient, and the vocabulary to write one with. */
+export async function fetchNoteWorkspace(): Promise<NoteWorkspace | null> {
+  try {
+    const res = await apiFetch('/api/mobile/practitioner/sessions');
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 export interface NoteVocabulary {
   sessions: PatientSession[];
   noteTypes: string[];
@@ -134,7 +173,7 @@ export async function fetchNoteVocabulary(patientId: string): Promise<NoteVocabu
  *  marks, so a note written here is the same object as one written there. */
 export async function createNote(input: {
   patientId: string; appointmentId: string; content: string;
-  title?: string; noteType?: string; tags?: string[]; isPrivate?: boolean;
+  title?: string; noteType?: string; ranges?: NoteRange[]; isPrivate?: boolean;
 }): Promise<{ ok: boolean; error?: string }> {
   const { patientId, ...payload } = input;
   try {
