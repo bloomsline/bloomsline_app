@@ -69,6 +69,9 @@ export interface TodoItem {
   status: string; // assigned | in_progress | completed
   dueAt: string | null;
   assignedAt: string;
+  /** Their practitioner has written back on this one. Optional: a build talking
+   *  to a server that predates it simply shows no badge. */
+  hasReply?: boolean;
 }
 
 /** Resources the practitioner assigned to the patient. null on failure; [] when
