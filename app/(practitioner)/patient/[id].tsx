@@ -1,16 +1,16 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, PenLine } from 'lucide-react-native';
-import { Screen } from '@/src/ui/Screen';
+import { EDA, EdHeader, EdCard, EdPill, EdSection, FadeIn } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 import { fetchPatient, type PatientDetail } from '@/src/api/practitioner';
 
-// One patient: who they are and the last few notes, so a new note has context.
-// Deliberately not the record — no journals, documents or submissions.
+// One patient: who they are and their last few notes, so a new note has
+// context. Not the record — no journals, documents or submissions.
 const T = {
-  en: { notes: 'Recent notes', none: 'No notes yet.', take: 'Take a note', more: 'more in the care app', missing: 'Patient not found.' },
-  fr: { notes: 'Notes récentes', none: 'Aucune note.', take: 'Prendre une note', more: 'de plus dans l’app', missing: 'Patient introuvable.' },
+  en: { kicker: 'PATIENT', notes: 'RECENT NOTES', none: 'No notes yet.', take: 'Take a note', book: 'Book a session', more: 'more in the care app', missing: 'Patient not found.' },
+  fr: { kicker: 'PATIENT', notes: 'NOTES RÉCENTES', none: 'Aucune note.', take: 'Prendre une note', book: 'Réserver une séance', more: 'de plus dans l’app', missing: 'Patient introuvable.' },
 } as const;
 
 export default function PatientDetailScreen() {
@@ -30,48 +30,44 @@ export default function PatientDetailScreen() {
     }, [patientId]),
   );
 
-  const date = (iso: string) =>
-    new Date(iso).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const date = (iso: string) => new Date(iso).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const back = () => (router.canGoBack() ? router.back() : router.navigate('/(practitioner)/people' as never));
 
   return (
-    <Screen bg="bg-surface-soft" scroll className="px-6">
-      <TouchableOpacity onPress={() => router.back()} hitSlop={10} className="mt-2 h-9 w-9 items-center justify-center rounded-full bg-white">
-        <ArrowLeft size={18} color="#1A1A1A" />
-      </TouchableOpacity>
+    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+      <StatusBar style="dark" />
+      <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+        <EdHeader kicker={tr.kicker} title={data?.patient.name ?? '…'} onBack={back} />
 
-      {!loaded && <ActivityIndicator className="mt-10" />}
-      {loaded && !data && <Text className="mt-8 text-[14px] text-muted">{tr.missing}</Text>}
+        <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
+          {!loaded && <ActivityIndicator />}
+          {loaded && !data && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.missing}</Text>}
 
-      {data && (
-        <>
-          <Text className="mt-4 text-[26px] font-bold tracking-[-0.6px] text-ink">{data.patient.name}</Text>
+          {data && (
+            <>
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 26 }}>
+                <EdPill label={tr.take} onPress={() => router.navigate(`/(practitioner)/note?patientId=${data.patient.id}` as never)} style={{ flex: 1 }} />
+                <EdPill label={tr.book} variant="outline" onPress={() => router.navigate('/(practitioner)/book' as never)} style={{ flex: 1 }} />
+              </View>
 
-          <TouchableOpacity
-            onPress={() => router.navigate(`/(practitioner)/note?patientId=${data.patient.id}` as never)}
-            activeOpacity={0.85}
-            className="mt-5 flex-row items-center justify-center gap-2 rounded-full bg-ink py-3.5"
-          >
-            <PenLine size={16} color="#fff" strokeWidth={2.2} />
-            <Text className="text-[15px] font-bold text-white">{tr.take}</Text>
-          </TouchableOpacity>
-
-          <Text className="mt-8 text-[12px] font-extrabold uppercase tracking-[0.6px] text-muted">{tr.notes}</Text>
-          {data.notes.length === 0 && <Text className="mt-3 text-[14px] text-muted">{tr.none}</Text>}
-          {data.notes.map((n) => (
-            <View key={n.id} className="mt-3 rounded-2xl bg-white p-4">
-              <Text className="text-[12px] text-muted">{date(n.createdAt)}</Text>
-              {n.title ? <Text className="mt-1 text-[15px] font-bold text-ink">{n.title}</Text> : null}
-              <Text className="mt-1 text-[14.5px] leading-[22px] text-ink">{n.content}</Text>
-            </View>
-          ))}
-          {data.totalNotes > data.notes.length && (
-            <Text className="mt-3 text-[12.5px] text-muted">
-              +{data.totalNotes - data.notes.length} {tr.more}
-            </Text>
+              <EdSection label={tr.notes} />
+              {data.notes.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.none}</Text>}
+              {data.notes.map((n) => (
+                <EdCard key={n.id} style={{ marginBottom: 10 }}>
+                  <Text style={{ fontSize: 12, color: EDA.faint }}>{date(n.createdAt)}</Text>
+                  {n.title ? <Text style={{ fontSize: 15.5, fontWeight: '700', color: EDA.ink, marginTop: 4 }}>{n.title}</Text> : null}
+                  <Text style={{ fontSize: 14.5, lineHeight: 22, color: EDA.ink, marginTop: 4 }}>{n.content}</Text>
+                </EdCard>
+              ))}
+              {data.totalNotes > data.notes.length && (
+                <Text style={{ fontSize: 12.5, color: EDA.faint, marginTop: 6 }}>
+                  +{data.totalNotes - data.notes.length} {tr.more}
+                </Text>
+              )}
+            </>
           )}
-          <View className="h-10" />
-        </>
-      )}
-    </Screen>
+        </FadeIn>
+      </ScrollView>
+    </View>
   );
 }

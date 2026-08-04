@@ -117,3 +117,76 @@ export async function createNote(patientId: string, content: string, title?: str
     return { ok: false, error: 'Could not reach the server.' };
   }
 }
+
+export interface SessionTypeOption {
+  id: string;
+  label: string;
+  durationMinutes: number;
+  defaultFormat: string;
+}
+
+export interface ShareableResource {
+  id: string;
+  title: string;
+  type: string;
+  description: string | null;
+}
+
+export async function fetchBookingOptions(params?: { date?: string; duration?: number; format?: string }): Promise<{ sessionTypes: SessionTypeOption[]; timezone: string; slots: string[] } | null> {
+  try {
+    const qs = new URLSearchParams();
+    if (params?.date) qs.set('date', params.date);
+    if (params?.duration) qs.set('duration', String(params.duration));
+    if (params?.format) qs.set('format', params.format);
+    const res = await apiFetch(`/api/mobile/practitioner/bookings${qs.toString() ? `?${qs}` : ''}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function bookSession(input: {
+  memberId: string; sessionTypeId: string; scheduledAt: string; sessionFormat: string; durationMinutes: number;
+}): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await apiFetch('/api/mobile/practitioner/bookings', { method: 'POST', body: JSON.stringify(input) });
+    if (res.ok) return { ok: true };
+    const body = await res.json().catch(() => null);
+    return { ok: false, error: body?.error ?? 'Could not book.' };
+  } catch {
+    return { ok: false, error: 'Could not reach the server.' };
+  }
+}
+
+export async function addPatient(input: { firstName: string; lastName: string; email?: string }): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await apiFetch('/api/mobile/practitioner/patients', { method: 'POST', body: JSON.stringify(input) });
+    if (res.ok) return { ok: true };
+    const body = await res.json().catch(() => null);
+    return { ok: false, error: body?.error ?? 'Could not add the patient.' };
+  } catch {
+    return { ok: false, error: 'Could not reach the server.' };
+  }
+}
+
+export async function fetchShareableResources(): Promise<ShareableResource[] | null> {
+  try {
+    const res = await apiFetch('/api/mobile/practitioner/resources');
+    if (!res.ok) return null;
+    return (await res.json()).items as ShareableResource[];
+  } catch {
+    return null;
+  }
+}
+
+export async function shareResource(resourceId: string, memberId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await apiFetch(`/api/mobile/practitioner/resources/${resourceId}/assign`, { method: 'POST', body: JSON.stringify({ memberId }) });
+    if (res.ok) return { ok: true };
+    const body = await res.json().catch(() => null);
+    return { ok: false, error: body?.error ?? 'Could not share it.' };
+  } catch {
+    return { ok: false, error: 'Could not reach the server.' };
+  }
+}

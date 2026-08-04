@@ -1,17 +1,18 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, TextInput, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { ChevronRight, Search } from 'lucide-react-native';
-import { Screen } from '@/src/ui/Screen';
-import { PractitionerTabBar, PRACTITIONER_TAB_SPACER } from '@/src/ui/PractitionerTabBar';
+import { ChevronRight, Search, UserPlus } from 'lucide-react-native';
+import { EDA, EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
+import { PractitionerTabBar, PRACTITIONER_TAB_PAD } from '@/src/ui/PractitionerTabBar';
 import { useI18n } from '@/src/i18n';
 import { fetchPatients, type PatientListItem } from '@/src/api/practitioner';
 
-// The People tab: find someone, open them, write a note. That is the whole job.
-// It shows names, not records — the clinical history stays in the care app.
+// Find someone, open them, write a note. Names, not records — the clinical
+// history stays in the care app.
 const T = {
-  en: { title: 'People', search: 'Search by name', empty: 'No patients yet.', none: 'No one matches that.', last: 'Last session' },
-  fr: { title: 'Patients', search: 'Rechercher par nom', empty: 'Aucun patient.', none: 'Aucun résultat.', last: 'Dernière séance' },
+  en: { kicker: 'PEOPLE', title: 'Your patients', search: 'Search by name', empty: 'No patients yet.', none: 'No one matches that.', last: 'Last session' },
+  fr: { kicker: 'PATIENTS', title: 'Vos patients', search: 'Rechercher par nom', empty: 'Aucun patient.', none: 'Aucun résultat.', last: 'Dernière séance' },
 } as const;
 
 export default function People() {
@@ -30,56 +31,54 @@ export default function People() {
     }, []),
   );
 
-  // Filtering on device: the list is a practitioner's own caseload, not a
-  // directory, so it is small enough that a round trip per keystroke would be
-  // slower than the typing.
+  // Filtering on device: a caseload is not a directory, and it is smaller than
+  // the latency of a round trip per keystroke.
   const needle = q.trim().toLowerCase();
   const shown = needle ? items.filter((p) => p.name.toLowerCase().includes(needle)) : items;
-
   const when = (iso: string | null) =>
     iso ? new Date(iso).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'short' }) : null;
 
   return (
-    <Screen bg="bg-surface-soft" scroll className={`px-6 ${PRACTITIONER_TAB_SPACER}`}>
-      <Text className="mt-2 text-[26px] font-bold tracking-[-0.6px] text-ink">{tr.title}</Text>
+    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+      <StatusBar style="dark" />
+      <ScrollView contentContainerStyle={{ paddingBottom: PRACTITIONER_TAB_PAD }} showsVerticalScrollIndicator={false}>
+        <EdHeader kicker={tr.kicker} title={tr.title} rightIcon={UserPlus} onRight={() => router.navigate('/(practitioner)/add-patient' as never)} />
 
-      <View className="mt-4 flex-row items-center gap-2 rounded-2xl bg-white px-4 py-3">
-        <Search size={16} color="#9A9A9A" />
-        <TextInput
-          value={q}
-          onChangeText={setQ}
-          placeholder={tr.search}
-          placeholderTextColor="#BBB"
-          className="flex-1 text-[15px] text-ink"
-          autoCorrect={false}
-        />
-      </View>
+        <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
+          <EdCard style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, marginBottom: 16 }}>
+            <Search size={16} color={EDA.faint} />
+            <TextInput
+              value={q}
+              onChangeText={setQ}
+              placeholder={tr.search}
+              placeholderTextColor={EDA.faint}
+              style={{ flex: 1, fontSize: 15, color: EDA.ink }}
+              autoCorrect={false}
+            />
+          </EdCard>
 
-      {!loaded && <ActivityIndicator className="mt-10" />}
-      {loaded && shown.length === 0 && (
-        <Text className="mt-8 text-[14px] text-muted">{items.length === 0 ? tr.empty : tr.none}</Text>
-      )}
+          {!loaded && <ActivityIndicator />}
+          {loaded && shown.length === 0 && (
+            <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{items.length === 0 ? tr.empty : tr.none}</Text>
+          )}
 
-      {shown.map((p) => (
-        <TouchableOpacity
-          key={p.id}
-          onPress={() => router.navigate(`/(practitioner)/patient/${p.id}` as never)}
-          activeOpacity={0.85}
-          className="mt-3 flex-row items-center gap-3 rounded-2xl bg-white p-4"
-        >
-          <View className="h-10 w-10 items-center justify-center rounded-full bg-brand-tint">
-            <Text className="text-[14px] font-bold text-brand">{initials(p.name)}</Text>
-          </View>
-          <View className="flex-1">
-            <Text className="text-[15px] font-semibold text-ink">{p.name}</Text>
-            {when(p.lastSessionAt) && <Text className="mt-0.5 text-[12.5px] text-muted">{tr.last} · {when(p.lastSessionAt)}</Text>}
-          </View>
-          <ChevronRight size={16} color="#CCC" />
-        </TouchableOpacity>
-      ))}
+          {shown.map((p) => (
+            <EdCard key={p.id} onPress={() => router.navigate(`/(practitioner)/patient/${p.id}` as never)} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 10 }}>
+              <View style={{ height: 42, width: 42, borderRadius: 21, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 14, fontWeight: '800', color: EDA.green }}>{initials(p.name)}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15.5, fontWeight: '700', color: EDA.ink }}>{p.name}</Text>
+                {when(p.lastSessionAt) && <Text style={{ fontSize: 12.5, color: EDA.faint, marginTop: 2 }}>{tr.last} · {when(p.lastSessionAt)}</Text>}
+              </View>
+              <ChevronRight size={16} color={EDA.line} />
+            </EdCard>
+          ))}
+        </FadeIn>
+      </ScrollView>
 
       <PractitionerTabBar active="people" />
-    </Screen>
+    </View>
   );
 }
 

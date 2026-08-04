@@ -1,57 +1,67 @@
 import { Platform, Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LayoutGrid, Users, CalendarDays, PenLine, type LucideIcon } from 'lucide-react-native';
+import { LayoutGrid, Users, CalendarDays, Library, PenLine, type LucideIcon } from 'lucide-react-native';
+import { EDA } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 
-// The practitioner's tab bar, deliberately the SAME shape as the patient one
-// (src/ui/TabBar): floating pill, three tabs, and an action button beside it.
-// One app, one design language — and a practitioner who has seen the patient
-// side already knows how this works.
+// The practitioner's tab bar. Same object as the patient's (src/ui/TabBar):
+// floating pill, an action button beside it, identical geometry and colours —
+// one app, one navigation language. Only the destinations differ.
 //
-// The FAB is "take a note" rather than "capture a moment", which is the right
-// parallel: it is the thing you do in the five minutes after a session, and the
-// reason to reach for a phone instead of a laptop.
-export type PractitionerTabId = 'dashboard' | 'people' | 'bookings';
+// The action button takes a note, which is the practitioner's equivalent of the
+// patient capturing a moment: the thing you do in the five minutes after a
+// session, and the reason to reach for a phone instead of a laptop.
+export type PractitionerTabId = 'dashboard' | 'people' | 'bookings' | 'resources';
 
-const TABS: Record<PractitionerTabId, { id: PractitionerTabId; Icon: LucideIcon; href: string; label: { en: string; fr: string } }> = {
-  dashboard: { id: 'dashboard', Icon: LayoutGrid, href: '/(practitioner)/home', label: { en: 'Today', fr: 'Aujourd’hui' } },
-  people: { id: 'people', Icon: Users, href: '/(practitioner)/people', label: { en: 'People', fr: 'Patients' } },
-  bookings: { id: 'bookings', Icon: CalendarDays, href: '/(practitioner)/bookings', label: { en: 'Bookings', fr: 'Agenda' } },
+const TABS: Record<PractitionerTabId, { Icon: LucideIcon; href: string; en: string; fr: string }> = {
+  dashboard: { Icon: LayoutGrid, href: '/(practitioner)/home', en: 'Today', fr: 'Aujourd’hui' },
+  people: { Icon: Users, href: '/(practitioner)/people', en: 'People', fr: 'Patients' },
+  bookings: { Icon: CalendarDays, href: '/(practitioner)/bookings', en: 'Agenda', fr: 'Agenda' },
+  resources: { Icon: Library, href: '/(practitioner)/resources', en: 'Library', fr: 'Ressources' },
 };
 
-const ORDER: PractitionerTabId[] = ['dashboard', 'people', 'bookings'];
+const ORDER: PractitionerTabId[] = ['dashboard', 'people', 'bookings', 'resources'];
 
 export function PractitionerTabBar({ active }: { active: PractitionerTabId }) {
   const router = useRouter();
   const { locale } = useI18n();
+  const fr = locale === 'fr';
 
   return (
-    <View className="absolute inset-x-6 bottom-8 flex-row items-center gap-3">
+    <View style={{ position: 'absolute', left: 22, right: 22, bottom: 30, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
       <View
-        className="flex-1 flex-row justify-around rounded-[40px] px-4 py-3"
-        style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EAE8E2', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}
+        style={{
+          flex: 1, flexDirection: 'row', justifyContent: 'space-around', borderRadius: 40, paddingHorizontal: 10, paddingVertical: 12,
+          backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line,
+          shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, shadowOffset: { width: 0, height: 6 }, elevation: 8,
+        }}
       >
-        {ORDER.map((id) => TABS[id]).map((tab) => {
-          const on = tab.id === active;
+        {ORDER.map((id) => {
+          const tab = TABS[id];
+          const on = id === active;
           return (
-            <Pressable key={tab.id} className="items-center" disabled={on} onPress={() => router.navigate(tab.href as never)}>
+            <Pressable key={id} style={{ alignItems: 'center' }} disabled={on} onPress={() => router.navigate(tab.href as never)}>
               <View
-                className="h-[46px] w-[46px] items-center justify-center rounded-full"
-                style={on ? { backgroundColor: '#128069' } : { borderWidth: 1, borderColor: '#EAE8E2', backgroundColor: '#F6F5F2' }}
+                style={{
+                  height: 42, width: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center',
+                  ...(on ? { backgroundColor: EDA.green } : { borderWidth: 1, borderColor: EDA.line, backgroundColor: EDA.canvas }),
+                }}
               >
-                <tab.Icon size={20} color={on ? '#fff' : '#9A9A90'} strokeWidth={on ? 2 : 1.6} />
+                <tab.Icon size={19} color={on ? '#fff' : EDA.faint} strokeWidth={on ? 2 : 1.6} />
               </View>
-              <Text className="mt-1 text-[11px]" style={{ fontWeight: on ? '700' : '400', color: on ? '#128069' : '#9A9A90' }}>
-                {tab.label[locale === 'fr' ? 'fr' : 'en']}
+              <Text style={{ marginTop: 4, fontSize: 10.5, fontWeight: on ? '700' : '400', color: on ? EDA.green : EDA.faint }}>
+                {fr ? tab.fr : tab.en}
               </Text>
             </Pressable>
           );
         })}
       </View>
       <Pressable
-        accessibilityLabel={locale === 'fr' ? 'Prendre une note' : 'Take a note'}
-        className="h-[54px] w-[54px] items-center justify-center rounded-[27px]"
-        style={{ backgroundColor: '#141414', shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}
+        accessibilityLabel={fr ? 'Prendre une note' : 'Take a note'}
+        style={{
+          height: 54, width: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: EDA.slot,
+          shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 6,
+        }}
         onPress={() => router.navigate('/(practitioner)/note' as never)}
       >
         <PenLine size={22} color="#fff" strokeWidth={2.2} />
@@ -60,5 +70,5 @@ export function PractitionerTabBar({ active }: { active: PractitionerTabId }) {
   );
 }
 
-// Matches the patient app: the floating bar must never cover content.
-export const PRACTITIONER_TAB_SPACER = Platform.OS === 'web' ? 'pb-36' : 'pb-32';
+// The floating bar must never cover content — same rule as the patient app.
+export const PRACTITIONER_TAB_PAD = Platform.OS === 'web' ? 150 : 130;

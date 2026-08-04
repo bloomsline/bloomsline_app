@@ -1,26 +1,25 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Check, Search } from 'lucide-react-native';
-import { Screen } from '@/src/ui/Screen';
+import { Search } from 'lucide-react-native';
+import { EDA, EdHeader, EdCard, EdPill, EdSection, FadeIn } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 import { fetchPatients, createNote, type PatientListItem } from '@/src/api/practitioner';
 
-// Take a note. Reached from the tab bar's action button with nobody chosen, or
-// from a patient with them already chosen — the same screen either way, because
-// the only difference is whether the first question is already answered.
+// Take a note. Reached from the tab bar with nobody chosen, or from a patient
+// with them already chosen — the same screen either way, because the only
+// difference is whether the first question is already answered.
 const T = {
   en: {
-    title: 'Take a note', who: 'Who is this about?', search: 'Search by name',
+    kicker: 'NOTE', title: 'Take a note', who: 'WHO IS THIS ABOUT?', search: 'Search by name',
     placeholder: 'What happened, what you noticed, what to pick up next time…',
-    save: 'Save note', saved: 'Saved', empty: 'No patients yet.',
-    titlePlaceholder: 'Title (optional)',
+    save: 'Save note', empty: 'No patients yet.', titlePlaceholder: 'Title (optional)', change: 'Change',
   },
   fr: {
-    title: 'Prendre une note', who: 'À propos de qui ?', search: 'Rechercher par nom',
+    kicker: 'NOTE', title: 'Prendre une note', who: 'À PROPOS DE QUI ?', search: 'Rechercher par nom',
     placeholder: 'Ce qui s’est passé, ce que vous avez remarqué, à reprendre la prochaine fois…',
-    save: 'Enregistrer', saved: 'Enregistré', empty: 'Aucun patient.',
-    titlePlaceholder: 'Titre (facultatif)',
+    save: 'Enregistrer', empty: 'Aucun patient.', titlePlaceholder: 'Titre (facultatif)', change: 'Changer',
   },
 } as const;
 
@@ -49,80 +48,71 @@ export default function TakeNote() {
   const needle = q.trim().toLowerCase();
   const shown = needle ? patients.filter((p) => p.name.toLowerCase().includes(needle)) : patients;
   const pickedName = patients.find((p) => p.id === picked)?.name;
+  const back = () => (router.canGoBack() ? router.back() : router.navigate('/(practitioner)/home' as never));
 
   const save = async () => {
     if (!picked || !content.trim()) return;
-    setError('');
-    setSaving(true);
+    setError(''); setSaving(true);
     const res = await createNote(picked, content.trim(), title.trim() || undefined);
     setSaving(false);
     if (!res.ok) { setError(res.error ?? ''); return; }
-    // Back to wherever they came from, with the note already in that patient's
-    // list — the screen behind reloads on focus.
-    router.back();
+    // The screen behind reloads on focus, so the note is already in their list.
+    back();
   };
 
   return (
-    <Screen bg="bg-surface-soft" scroll className="px-6">
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={10} className="mt-2 h-9 w-9 items-center justify-center rounded-full bg-white">
-          <ArrowLeft size={18} color="#1A1A1A" />
-        </TouchableOpacity>
+    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+      <StatusBar style="dark" />
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <EdHeader kicker={tr.kicker} title={tr.title} onBack={back} />
 
-        <Text className="mt-4 text-[26px] font-bold tracking-[-0.6px] text-ink">{tr.title}</Text>
+          <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
+            {!picked ? (
+              <>
+                <EdSection label={tr.who} />
+                <EdCard style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, marginBottom: 14 }}>
+                  <Search size={16} color={EDA.faint} />
+                  <TextInput value={q} onChangeText={setQ} placeholder={tr.search} placeholderTextColor={EDA.faint} style={{ flex: 1, fontSize: 15, color: EDA.ink }} autoCorrect={false} />
+                </EdCard>
+                {shown.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.empty}</Text>}
+                {shown.map((p) => (
+                  <EdCard key={p.id} onPress={() => setPicked(p.id)} style={{ marginBottom: 10 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: EDA.ink }}>{p.name}</Text>
+                  </EdCard>
+                ))}
+              </>
+            ) : (
+              <>
+                <Pressable onPress={() => setPicked(null)} style={{ alignSelf: 'flex-start', borderRadius: 20, backgroundColor: EDA.greenTint, paddingHorizontal: 14, paddingVertical: 8, marginBottom: 16 }}>
+                  <Text style={{ fontSize: 13.5, fontWeight: '700', color: EDA.greenDeep }}>{pickedName ?? tr.change}</Text>
+                </Pressable>
 
-        {!picked ? (
-          <>
-            <Text className="mt-6 text-[12px] font-extrabold uppercase tracking-[0.6px] text-muted">{tr.who}</Text>
-            <View className="mt-3 flex-row items-center gap-2 rounded-2xl bg-white px-4 py-3">
-              <Search size={16} color="#9A9A9A" />
-              <TextInput value={q} onChangeText={setQ} placeholder={tr.search} placeholderTextColor="#BBB" className="flex-1 text-[15px] text-ink" autoCorrect={false} />
-            </View>
-            {shown.length === 0 && <Text className="mt-6 text-[14px] text-muted">{tr.empty}</Text>}
-            {shown.map((p) => (
-              <TouchableOpacity key={p.id} onPress={() => setPicked(p.id)} activeOpacity={0.85} className="mt-3 rounded-2xl bg-white p-4">
-                <Text className="text-[15px] font-semibold text-ink">{p.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </>
-        ) : (
-          <>
-            <TouchableOpacity onPress={() => setPicked(null)} className="mt-4 self-start rounded-full bg-brand-tint px-3 py-1.5">
-              <Text className="text-[13px] font-bold text-brand">{pickedName ?? tr.who}</Text>
-            </TouchableOpacity>
+                <EdCard style={{ paddingVertical: 14, marginBottom: 10 }}>
+                  <TextInput value={title} onChangeText={setTitle} placeholder={tr.titlePlaceholder} placeholderTextColor={EDA.faint} style={{ fontSize: 15.5, fontWeight: '700', color: EDA.ink }} />
+                </EdCard>
 
-            <View className="mt-4 rounded-2xl bg-white px-4 py-3">
-              <TextInput value={title} onChangeText={setTitle} placeholder={tr.titlePlaceholder} placeholderTextColor="#BBB" className="text-[15px] font-semibold text-ink" />
-            </View>
+                <EdCard style={{ paddingVertical: 14 }}>
+                  <TextInput
+                    value={content}
+                    onChangeText={setContent}
+                    placeholder={tr.placeholder}
+                    placeholderTextColor={EDA.faint}
+                    multiline
+                    textAlignVertical="top"
+                    style={{ minHeight: 190, fontSize: 15.5, lineHeight: 24, color: EDA.ink }}
+                    autoFocus
+                  />
+                </EdCard>
 
-            <View className="mt-3 rounded-2xl bg-white px-4 py-3">
-              <TextInput
-                value={content}
-                onChangeText={setContent}
-                placeholder={tr.placeholder}
-                placeholderTextColor="#BBB"
-                multiline
-                textAlignVertical="top"
-                className="min-h-[180px] text-[15.5px] leading-[24px] text-ink"
-                autoFocus
-              />
-            </View>
-
-            <TouchableOpacity
-              onPress={save}
-              disabled={saving || !content.trim()}
-              activeOpacity={0.85}
-              className="mt-5 flex-row items-center justify-center gap-2 rounded-full bg-ink py-3.5"
-              style={{ opacity: saving || !content.trim() ? 0.4 : 1 }}
-            >
-              {saving ? <ActivityIndicator color="#fff" size="small" /> : <Check size={16} color="#fff" strokeWidth={2.5} />}
-              <Text className="text-[15px] font-bold text-white">{tr.save}</Text>
-            </TouchableOpacity>
-            {error ? <Text className="mt-2 text-[13px] text-[#C0392B]">{error}</Text> : null}
-          </>
-        )}
-        <View className="h-16" />
+                <EdPill label={saving ? '…' : tr.save} onPress={save} disabled={saving || !content.trim()} style={{ marginTop: 18 }} />
+                {saving && <ActivityIndicator style={{ marginTop: 12 }} />}
+                {error ? <Text style={{ fontSize: 13.5, color: '#C0392B', marginTop: 12 }}>{error}</Text> : null}
+              </>
+            )}
+          </FadeIn>
+        </ScrollView>
       </KeyboardAvoidingView>
-    </Screen>
+    </View>
   );
 }
