@@ -3,8 +3,9 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { EDA, EdHeader, EdCard, EdSection, FadeIn } from '@/src/ui/editorial';
+import { MonthCalendar } from '@/src/ui/MonthCalendar';
 import { useI18n } from '@/src/i18n';
-import { fetchPatients, fetchBookingOptions, type PatientListItem, type SessionTypeOption } from '@/src/api/practitioner';
+import { fetchPatients, fetchBookingOptions, type PatientListItem, type SessionTypeOption, type NextAvailableDay } from '@/src/api/practitioner';
 
 // Book a session: who, what kind, which day, which slot.
 //
@@ -12,19 +13,18 @@ import { fetchPatients, fetchBookingOptions, type PatientListItem, type SessionT
 // uses — schedule, overrides, existing appointments — so a slot offered on the
 // phone is a slot that genuinely exists. Booking goes through the same action
 // too, which snapshots the price, mirrors to Google and emails the patient.
-const DAYS_AHEAD = 14;
 
 const T = {
   en: {
     kicker: 'BOOK', title: 'Book a session',
     who: 'WHO IS IT WITH?', kind: 'WHAT KIND?', day: 'WHICH DAY?', slot: 'WHICH TIME?',
-    noSlots: 'No free slots that day.', book: 'Book it', booked: 'Booked',
+    noSlots: 'No free slots that day.', nextFree: 'NEXT FREE', slotOne: 'slot', slotMany: 'slots',
     noPatients: 'No patients yet.', change: 'Change',
   },
   fr: {
     kicker: 'RÉSERVER', title: 'Réserver une séance',
     who: 'AVEC QUI ?', kind: 'QUEL TYPE ?', day: 'QUEL JOUR ?', slot: 'QUELLE HEURE ?',
-    noSlots: 'Aucun créneau libre ce jour-là.', book: 'Réserver', booked: 'Réservé',
+    noSlots: 'Aucun créneau libre ce jour-là.', nextFree: 'PROCHAINES DISPOS', slotOne: 'créneau', slotMany: 'créneaux',
     noPatients: 'Aucun patient.', change: 'Changer',
   },
 } as const;
@@ -41,6 +41,7 @@ export default function Book() {
   const [date, setDate] = useState<string | null>(null);
   const [slots, setSlots] = useState<string[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  const [nextFree, setNextFree] = useState<NextAvailableDay[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -49,6 +50,7 @@ export default function Book() {
         if (!alive) return;
         setPatients(pats ?? []);
         setTypes(opts?.sessionTypes ?? []);
+        setNextFree(opts?.nextAvailable ?? []);
         // Keep a type the practitioner already picked; only default when none.
         if (opts?.sessionTypes?.length) setType((cur) => cur ?? opts.sessionTypes[0]);
       });
@@ -70,12 +72,18 @@ export default function Book() {
     return () => { alive = false; };
   }, [date, type]);
 
-  const days = Array.from({ length: DAYS_AHEAD }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() + i);
-    return d;
-  });
-  const key = (d: Date) => d.toLocaleDateString('en-CA');
+  // Without a date the server answers with the days that actually have room, so
+  // "next available" is a real answer rather than a guess the user has to hunt
+  // for by tapping days one at a time.
+  useEffect(() => {
+    if (!type) return;
+    let alive = true;
+    void fetchBookingOptions({ duration: type.durationMinutes, format: type.defaultFormat }).then((res) => {
+      if (alive) setNextFree(res?.nextAvailable ?? []);
+    });
+    return () => { alive = false; };
+  }, [type]);
+
   const time = (iso: string) => new Date(iso).toLocaleTimeString(locale === 'fr' ? 'fr-FR' : 'en-GB', { hour: '2-digit', minute: '2-digit' });
 
   // Picking a time does NOT book it. It goes to a confirmation, the same shape
@@ -142,26 +150,37 @@ export default function Book() {
           {patient && type && (
             <>
               <EdSection label={tr.day} />
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 22 }}>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  {days.map((d) => {
-                    const k = key(d);
-                    const on = k === date;
-                    return (
-                      <Pressable
-                        key={k}
-                        onPress={() => setDate(k)}
-                        style={{ width: 58, alignItems: 'center', paddingVertical: 12, borderRadius: 16, backgroundColor: on ? EDA.green : EDA.card, borderWidth: 1, borderColor: on ? EDA.green : EDA.line }}
-                      >
-                        <Text style={{ fontSize: 11, fontWeight: '700', color: on ? '#fff' : EDA.faint }}>
-                          {d.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { weekday: 'short' })}
-                        </Text>
-                        <Text style={{ fontSize: 17, fontWeight: '800', color: on ? '#fff' : EDA.ink, marginTop: 2 }}>{d.getDate()}</Text>
-                      </Pressable>
-                    );
-                  })}
+              <MonthCalendar
+                selected={date}
+                onSelect={setDate}
+                locale={locale}
+                markedDays={new Set(nextFree.map((d) => d.date))}
+              />
+
+              {nextFree.length > 0 && (
+                <View style={{ marginTop: 16 }}>
+                  <EdSection label={tr.nextFree} />
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {nextFree.map((d) => (
+                        <Pressable
+                          key={d.date}
+                          onPress={() => setDate(d.date)}
+                          style={{ borderRadius: 16, paddingHorizontal: 13, paddingVertical: 10, backgroundColor: EDA.card, borderWidth: 1.5, borderColor: d.date === date ? EDA.green : EDA.line }}
+                        >
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: EDA.ink }}>
+                            {new Date(`${d.date}T00:00:00`).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+                          </Text>
+                          <Text style={{ fontSize: 11.5, color: EDA.green, marginTop: 1 }}>
+                            {d.slots.length} {d.slots.length === 1 ? tr.slotOne : tr.slotMany}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </ScrollView>
                 </View>
-              </ScrollView>
+              )}
+              <View style={{ height: 22 }} />
             </>
           )}
 
