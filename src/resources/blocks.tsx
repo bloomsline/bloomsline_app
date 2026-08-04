@@ -5,7 +5,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { Check, ExternalLink, Paperclip, Play, Plus, Upload, X } from 'lucide-react-native';
+import * as WebBrowser from 'expo-web-browser';
+import { Check, ExternalLink, FileText, Paperclip, Play, Plus, Upload, X } from 'lucide-react-native';
 import { CARE } from '@/src/care/theme';
 import { EDA } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
@@ -251,6 +252,15 @@ function MediaBlock({ kind, url, name }: { kind?: string; url?: string; name?: s
     );
   }
 
+  if (kind === 'pdf') {
+    // openBrowserAsync is an in-app sheet the patient dismisses back onto this
+    // screen, rather than a jump to the browser that loses the exercise they
+    // were halfway through. No PDF component is needed, and it reopens on tap.
+    return (
+      <MediaCard icon="pdf" name={name || 'PDF'} action="Open PDF" onPress={() => { void WebBrowser.openBrowserAsync(url); }} />
+    );
+  }
+
   if (!kind || kind === 'image') {
     return (
       <View style={{ marginBottom: 16, borderRadius: 14, overflow: 'hidden', backgroundColor: '#F1F1EF' }}>
@@ -260,17 +270,35 @@ function MediaBlock({ kind, url, name }: { kind?: string; url?: string; name?: s
   }
 
   return (
+    <MediaCard
+      icon="play"
+      name={name || (kind === 'audio' ? 'Audio' : 'Video')}
+      action={kind === 'audio' ? 'Play audio' : 'Play video'}
+      onPress={() => { void WebBrowser.openBrowserAsync(url); }}
+    />
+  );
+}
+
+// One row for anything that opens rather than renders inline. The file's own
+// name is the title only when the practitioner gave it one — a storage filename
+// like "69dd9f6420bec4.884_Guide_….pdf" is not a thing to show a patient.
+function MediaCard({ icon, name, action, onPress }: { icon: 'pdf' | 'play'; name: string; action: string; onPress: () => void }) {
+  const looksLikeStorageName = /^[0-9a-f]{8,}|\d{6,}/i.test(name);
+  return (
     <TouchableOpacity
-      onPress={() => { void Linking.openURL(url); }}
+      onPress={onPress}
       activeOpacity={0.85}
       style={{ flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: CARE.border, borderRadius: 14, backgroundColor: '#fff', padding: 14, marginBottom: 16 }}
     >
-      <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: CARE.mint, alignItems: 'center', justifyContent: 'center' }}>
-        <Play size={16} color={CARE.teal} />
+      <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: icon === 'pdf' ? '#FDECEC' : CARE.mint, alignItems: 'center', justifyContent: 'center' }}>
+        {icon === 'pdf' ? <FileText size={16} color="#C0392B" /> : <Play size={16} color={CARE.teal} />}
       </View>
-      <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: CARE.ink }}>
-        {name || (kind === 'audio' ? 'Audio' : 'Video')}
-      </Text>
+      <View style={{ flex: 1 }}>
+        {!looksLikeStorageName && <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '600', color: CARE.ink }}>{name}</Text>}
+        <Text style={{ fontSize: looksLikeStorageName ? 15 : 12.5, fontWeight: looksLikeStorageName ? '600' : '400', color: looksLikeStorageName ? CARE.ink : '#9A9A9A' }}>
+          {action}
+        </Text>
+      </View>
       <ExternalLink size={16} color="#9A9A9A" />
     </TouchableOpacity>
   );
