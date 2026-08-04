@@ -1,222 +1,168 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Linking, Text, TouchableOpacity, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
-import { CalendarDays, Video, MapPin, Phone, Check, X } from 'lucide-react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { CalendarPlus, Clock, PenLine, Share2, UserPlus, Video, MapPin, Phone, type LucideIcon } from 'lucide-react-native';
 import { Screen } from '@/src/ui/Screen';
 import { Button } from '@/src/ui/Button';
+import { PractitionerTabBar, PRACTITIONER_TAB_SPACER } from '@/src/ui/PractitionerTabBar';
 import { useAuth } from '@/src/auth/auth-context';
 import { useConfirm } from '@/src/ui/confirm';
 import { useI18n } from '@/src/i18n';
-import {
-  fetchDay, fetchRequests, decideRequest,
-  type PractitionerSession, type BookingRequest,
-} from '@/src/api/practitioner';
+import { fetchDay, fetchRequests, type PractitionerSession } from '@/src/api/practitioner';
 
-// The practitioner's phone. Two things only: what today looks like, and what is
-// waiting on a decision.
+// The practitioner's dashboard: a few things to start, then what is actually
+// happening today.
 //
-// Not the practice. Patient records — notes, journals, documents — stay in the
-// care app, because a phone is lost, borrowed and read over shoulders far more
-// often than a laptop, and none of that is what you need between sessions. What
-// you need is where to be next, and whether somebody is holding a slot waiting
-// on you.
+// v1's version had ten tiles, several of which were the same thing twice —
+// "view calendar" beside a schedule, three different doors onto a session. Ten
+// tiles is a menu, not a dashboard. These are the ones that earn a tap on a
+// phone; everything else is desk work and stays in the care app.
 const T = {
   en: {
-    title: 'Your day',
-    today: 'Today',
-    tomorrow: 'Tomorrow',
-    nothingToday: 'Nothing scheduled today.',
-    requests: 'Waiting on you',
-    approve: 'Approve',
-    decline: 'Decline',
-    declineTitle: 'Decline this request?',
-    declineBody: 'They will be told the time was not confirmed.',
-    cancel: 'Cancel',
-    join: 'Join',
-    signOut: 'Sign out',
-    signOutTitle: 'Sign out?',
-    offline: 'Could not load your day. Open the screen again to retry.',
-    guest: 'Guest booking',
+    greeting: 'Your practice',
+    book: 'Book a session', bookSub: 'With a patient',
+    requests: 'Requests', requestsSub: 'To review',
+    note: 'Take a note', noteSub: 'After a session',
+    share: 'Share', shareSub: 'A resource',
+    addPatient: 'Add a patient', addPatientSub: 'New',
+    upNext: 'Up next', nothing: 'Nothing scheduled today.',
+    soon: 'Coming in the next build.',
+    signOut: 'Sign out', signOutTitle: 'Sign out?', cancel: 'Cancel',
   },
   fr: {
-    title: 'Votre journée',
-    today: 'Aujourd’hui',
-    tomorrow: 'Demain',
-    nothingToday: 'Rien de prévu aujourd’hui.',
-    requests: 'En attente de vous',
-    approve: 'Accepter',
-    decline: 'Refuser',
-    declineTitle: 'Refuser cette demande ?',
-    declineBody: 'La personne sera informée que le créneau n’a pas été confirmé.',
-    cancel: 'Annuler',
-    join: 'Rejoindre',
-    signOut: 'Se déconnecter',
-    signOutTitle: 'Se déconnecter ?',
-    offline: 'Chargement impossible. Rouvrez l’écran pour réessayer.',
-    guest: 'Réservation invitée',
+    greeting: 'Votre cabinet',
+    book: 'Réserver une séance', bookSub: 'Avec un patient',
+    requests: 'Demandes', requestsSub: 'À traiter',
+    note: 'Prendre une note', noteSub: 'Après une séance',
+    share: 'Partager', shareSub: 'Une ressource',
+    addPatient: 'Ajouter un patient', addPatientSub: 'Nouveau',
+    upNext: 'À venir', nothing: 'Rien de prévu aujourd’hui.',
+    soon: 'Bientôt disponible.',
+    signOut: 'Se déconnecter', signOutTitle: 'Se déconnecter ?', cancel: 'Annuler',
   },
 } as const;
 
 const FORMAT_ICON = { video: Video, in_person: MapPin, phone: Phone } as const;
 
-export default function PractitionerHome() {
+export default function Dashboard() {
+  const router = useRouter();
   const { signOut } = useAuth();
   const confirm = useConfirm();
   const { locale } = useI18n();
   const tr = T[locale] ?? T.en;
 
   const [sessions, setSessions] = useState<PractitionerSession[]>([]);
-  const [requests, setRequests] = useState<BookingRequest[]>([]);
+  const [requestCount, setRequestCount] = useState(0);
   const [tz, setTz] = useState<string | undefined>();
   const [loaded, setLoaded] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [error, setError] = useState('');
 
-  const load = useCallback(() => {
-    let alive = true;
-    void Promise.all([fetchDay(), fetchRequests()]).then(([day, reqs]) => {
-      if (!alive) return;
-      setFailed(!day && !reqs);
-      if (day) { setSessions(day.items); setTz(day.timezone); }
-      if (reqs) setRequests(reqs.items);
-      setLoaded(true);
-    });
-    return () => { alive = false; };
-  }, []);
-  useFocusEffect(load);
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      void Promise.all([fetchDay(), fetchRequests()]).then(([day, reqs]) => {
+        if (!alive) return;
+        if (day) { setSessions(day.items); setTz(day.timezone); }
+        if (reqs) setRequestCount(reqs.items.length);
+        setLoaded(true);
+      });
+      return () => { alive = false; };
+    }, []),
+  );
 
-  // The practitioner's own timezone decides what "today" is, not the phone's —
-  // someone travelling should still see their practice's schedule.
   const zone = tz ? { timeZone: tz } : {};
-  const dayKey = (iso: string) => new Date(iso).toLocaleDateString('en-CA', zone);
   const todayKey = new Date().toLocaleDateString('en-CA', zone);
+  const today = sessions.filter((s) => new Date(s.scheduledAt).toLocaleDateString('en-CA', zone) === todayKey);
   const time = (iso: string) =>
     new Date(iso).toLocaleTimeString(locale === 'fr' ? 'fr-FR' : 'en-GB', { hour: '2-digit', minute: '2-digit', ...zone });
-  const dayLabel = (iso: string) =>
-    new Date(iso).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long', ...zone });
+  const heading = new Date().toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long', ...zone });
 
-  const today = sessions.filter((s) => dayKey(s.scheduledAt) === todayKey);
-  const later = sessions.filter((s) => dayKey(s.scheduledAt) !== todayKey);
-
-  const decide = async (r: BookingRequest, action: 'approve' | 'decline') => {
-    if (action === 'decline') {
-      const ok = await confirm({ title: tr.declineTitle, message: tr.declineBody, confirmLabel: tr.decline, cancelLabel: tr.cancel, destructive: true });
-      if (!ok) return;
-    }
-    setError('');
-    setBusyId(r.id);
-    const res = await decideRequest(r.id, action);
-    setBusyId(null);
-    // A refused decision means somebody got there first, so the list on screen
-    // is stale — reload rather than leave a request that no longer exists.
-    if (!res.ok) setError(res.error ?? '');
-    load();
-  };
-
+  const notYet = () => confirm({ title: tr.soon, confirmLabel: 'OK', cancelLabel: tr.cancel });
   const confirmSignOut = async () => {
     if (await confirm({ title: tr.signOutTitle, confirmLabel: tr.signOut, cancelLabel: tr.cancel, destructive: true })) signOut();
   };
 
   return (
-    <Screen bg="bg-surface-soft" scroll className="px-6">
-      <Text className="mt-2 text-[26px] font-bold tracking-[-0.6px] text-ink">{tr.title}</Text>
-      <Text className="mt-1 text-[14px] text-muted">{dayLabel(new Date().toISOString())}</Text>
+    <Screen bg="bg-surface-soft" scroll className={`px-6 ${PRACTITIONER_TAB_SPACER}`}>
+      <Text className="mt-2 text-[26px] font-bold tracking-[-0.6px] text-ink">{tr.greeting}</Text>
+      <Text className="mt-1 text-[14px] capitalize text-muted">{heading}</Text>
 
-      {!loaded && <ActivityIndicator className="mt-10" />}
-      {loaded && failed && <Text className="mt-8 text-[14px] text-muted">{tr.offline}</Text>}
+      <View className="mt-6 flex-row flex-wrap gap-3">
+        <Tile Icon={PenLine} label={tr.note} sub={tr.noteSub} tint="#FCEEEE" ink="#C0392B" onPress={() => router.navigate('/(practitioner)/note' as never)} />
+        <Tile Icon={Clock} label={tr.requests} sub={tr.requestsSub} tint="#FFF7E6" ink="#B45309" badge={requestCount} onPress={() => router.navigate('/(practitioner)/bookings' as never)} />
+        {/* Phase 2 — the tiles exist so the shape is right, and say so rather
+            than failing silently when tapped. */}
+        <Tile Icon={CalendarPlus} label={tr.book} sub={tr.bookSub} tint="#E7F0EC" ink="#128069" onPress={notYet} />
+        <Tile Icon={Share2} label={tr.share} sub={tr.shareSub} tint="#EEF0FF" ink="#4F46E5" onPress={notYet} />
+        <Tile Icon={UserPlus} label={tr.addPatient} sub={tr.addPatientSub} tint="#EAF4F1" ink="#2F6E5F" onPress={notYet} />
+      </View>
 
-      {loaded && !failed && (
-        <>
-          {requests.length > 0 && (
-            <View className="mt-7">
-              <Text className="text-[12px] font-extrabold uppercase tracking-[0.6px] text-brand">{tr.requests}</Text>
-              {requests.map((r) => (
-                <View key={r.id} className="mt-3 rounded-2xl border border-line bg-white p-4">
-                  <Text className="text-[15.5px] font-bold text-ink">{r.who}</Text>
-                  <Text className="mt-0.5 text-[13px] text-muted">
-                    {dayLabel(r.scheduledAt)} · {time(r.scheduledAt)} · {r.durationMinutes} min
-                    {r.isGuest ? ` · ${tr.guest}` : ''}
-                  </Text>
-                  <View className="mt-3 flex-row gap-2">
-                    <TouchableOpacity
-                      onPress={() => decide(r, 'approve')}
-                      disabled={busyId === r.id}
-                      className="flex-1 flex-row items-center justify-center gap-1.5 rounded-full bg-ink py-2.5"
-                    >
-                      {busyId === r.id ? <ActivityIndicator color="#fff" size="small" /> : <Check size={15} color="#fff" strokeWidth={3} />}
-                      <Text className="text-[14px] font-bold text-white">{tr.approve}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => decide(r, 'decline')}
-                      disabled={busyId === r.id}
-                      className="flex-1 flex-row items-center justify-center gap-1.5 rounded-full border border-line py-2.5"
-                    >
-                      <X size={15} color="#6A6A6A" strokeWidth={2.5} />
-                      <Text className="text-[14px] font-semibold text-muted">{tr.decline}</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))}
-              {error ? <Text className="mt-2 text-[13px] text-[#C0392B]">{error}</Text> : null}
-            </View>
-          )}
-
-          <Section label={tr.today} sessions={today} empty={tr.nothingToday} time={time} join={tr.join} />
-          {later.length > 0 && <Section label={tr.tomorrow} sessions={later} time={time} join={tr.join} />}
-        </>
+      <Text className="mt-8 text-[12px] font-extrabold uppercase tracking-[0.6px] text-muted">{tr.upNext}</Text>
+      {!loaded && <ActivityIndicator className="mt-6" />}
+      {loaded && today.length === 0 && (
+        <View className="mt-3 rounded-2xl bg-white p-4">
+          <Text className="text-[14px] text-muted">{tr.nothing}</Text>
+        </View>
       )}
+      {today.map((s) => {
+        const Icon = FORMAT_ICON[s.sessionFormat as keyof typeof FORMAT_ICON] ?? MapPin;
+        return (
+          <View key={s.id} className="mt-3 flex-row items-center gap-3 rounded-2xl bg-white p-4">
+            <View className="w-[52px]">
+              <Text className="text-[15px] font-bold text-ink">{time(s.scheduledAt)}</Text>
+              <Text className="text-[11.5px] text-muted">{s.durationMinutes} min</Text>
+            </View>
+            <View className="h-8 w-px bg-line" />
+            <View className="flex-1">
+              <Text className="text-[15px] font-semibold text-ink">{s.who}</Text>
+              <View className="mt-0.5 flex-row items-center gap-1.5">
+                <Icon size={12} color="#9A9A9A" />
+                <Text className="text-[12.5px] text-muted">{s.location || s.sessionFormat.replace('_', ' ')}</Text>
+              </View>
+            </View>
+            {s.meetLink ? (
+              <TouchableOpacity onPress={() => { void Linking.openURL(s.meetLink as string); }} className="rounded-full bg-brand-tint px-3 py-1.5">
+                <Text className="text-[13px] font-bold text-brand">Join</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        );
+      })}
 
-      <View className="py-8">
+      <View className="mt-8">
         <Button label={tr.signOut} variant="secondary" onPress={confirmSignOut} />
       </View>
+
+      <PractitionerTabBar active="dashboard" />
     </Screen>
   );
 }
 
-function Section({
-  label, sessions, empty, time, join,
+function Tile({
+  Icon, label, sub, tint, ink, badge, onPress,
 }: {
-  label: string;
-  sessions: PractitionerSession[];
-  empty?: string;
-  time: (iso: string) => string;
-  join: string;
+  Icon: LucideIcon; label: string; sub: string; tint: string; ink: string; badge?: number; onPress: () => void;
 }) {
   return (
-    <View className="mt-7">
-      <Text className="text-[12px] font-extrabold uppercase tracking-[0.6px] text-muted">{label}</Text>
-      {sessions.length === 0 && empty ? (
-        <View className="mt-3 flex-row items-center gap-2 rounded-2xl bg-white p-4">
-          <CalendarDays size={16} color="#9A9A9A" />
-          <Text className="text-[14px] text-muted">{empty}</Text>
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.85}
+      className="min-h-[124px] flex-1 basis-[45%] justify-between rounded-2xl p-4"
+      style={{ backgroundColor: tint }}
+    >
+      <View className="flex-row items-start justify-between">
+        <View className="h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: '#FFFFFFCC' }}>
+          <Icon size={18} color={ink} strokeWidth={2} />
         </View>
-      ) : (
-        sessions.map((s) => {
-          const Icon = FORMAT_ICON[s.sessionFormat as keyof typeof FORMAT_ICON] ?? MapPin;
-          return (
-            <View key={s.id} className="mt-3 flex-row items-center gap-3 rounded-2xl bg-white p-4">
-              <View className="w-[52px]">
-                <Text className="text-[15px] font-bold text-ink">{time(s.scheduledAt)}</Text>
-                <Text className="text-[11.5px] text-muted">{s.durationMinutes} min</Text>
-              </View>
-              <View className="h-8 w-px bg-line" />
-              <View className="flex-1">
-                <Text className="text-[15px] font-semibold text-ink">{s.who}</Text>
-                <View className="mt-0.5 flex-row items-center gap-1.5">
-                  <Icon size={12} color="#9A9A9A" />
-                  <Text className="text-[12.5px] text-muted">{s.location || s.sessionFormat.replace('_', ' ')}</Text>
-                </View>
-              </View>
-              {s.meetLink ? (
-                <TouchableOpacity onPress={() => { void Linking.openURL(s.meetLink as string); }} className="rounded-full bg-brand-tint px-3 py-1.5">
-                  <Text className="text-[13px] font-bold text-brand">{join}</Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          );
-        })
-      )}
-    </View>
+        {badge ? (
+          <View className="h-5 min-w-[20px] items-center justify-center rounded-full px-1.5" style={{ backgroundColor: ink }}>
+            <Text className="text-[11px] font-extrabold text-white">{badge}</Text>
+          </View>
+        ) : null}
+      </View>
+      <View>
+        <Text className="text-[15px] font-bold text-ink">{label}</Text>
+        <Text className="mt-0.5 text-[12px] text-muted">{sub}</Text>
+      </View>
+    </TouchableOpacity>
   );
 }

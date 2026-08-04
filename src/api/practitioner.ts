@@ -60,3 +60,60 @@ export async function decideRequest(id: string, action: 'approve' | 'decline'): 
     return { ok: false, error: 'Could not reach the server.' };
   }
 }
+
+export interface PatientListItem {
+  id: string;
+  name: string;
+  lastSessionAt: string | null;
+}
+
+export interface PatientNote {
+  id: string;
+  title: string | null;
+  content: string;
+  noteType: string;
+  createdAt: string;
+}
+
+export interface PatientDetail {
+  patient: PatientListItem;
+  notes: PatientNote[];
+  totalNotes: number;
+}
+
+export async function fetchPatients(search?: string): Promise<PatientListItem[] | null> {
+  try {
+    const qs = search?.trim() ? `?q=${encodeURIComponent(search.trim())}` : '';
+    const res = await apiFetch(`/api/mobile/practitioner/patients${qs}`);
+    if (!res.ok) return null;
+    return (await res.json()).items as PatientListItem[];
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchPatient(id: string): Promise<PatientDetail | null> {
+  try {
+    const res = await apiFetch(`/api/mobile/practitioner/patients/${id}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+/** Notes are plain text on the server by design (no HTML, no stored-XSS
+ *  surface), so nothing here sends markup. */
+export async function createNote(patientId: string, content: string, title?: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await apiFetch(`/api/mobile/practitioner/patients/${patientId}/notes`, {
+      method: 'POST',
+      body: JSON.stringify({ content, title }),
+    });
+    if (res.ok) return { ok: true };
+    const body = await res.json().catch(() => null);
+    return { ok: false, error: body?.error ?? 'Could not save the note.' };
+  } catch {
+    return { ok: false, error: 'Could not reach the server.' };
+  }
+}
