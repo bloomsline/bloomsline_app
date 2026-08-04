@@ -34,13 +34,21 @@ export interface AssignmentView {
   resource: { title: string; type: string; description: string | null };
   version: { id: string; blocks: PatientBlock[] };
   scored: boolean;
+  /** Signed URLs for `media` blocks, keyed by block id. Optional: a build
+   *  talking to a server that predates them simply shows nothing. */
+  mediaUrls?: Record<string, string>;
   response: {
     id: string;
     answers: Record<string, unknown>;
     status: string;
     score: PatientScore | null;
     submittedAt?: string | null;
+    /** The practitioner's closing message, once they have written one. */
+    practitionerNote?: string | null;
   } | null;
+  /** Sent and not handed back: readable, not editable. Optional so a build
+   *  talking to an older server still works (it falls back to the status). */
+  locked?: boolean;
 }
 
 export async function fetchAssignment(id: string): Promise<AssignmentView | null> {

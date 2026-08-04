@@ -15,6 +15,9 @@ export interface LibraryResourceView {
   resource: { id: string; title: string; type: string; description: string | null };
   version: { id: string; blocks: PatientBlock[] };
   scored: boolean;
+  /** Signed URLs for `media` blocks, keyed by block id. Optional: a build
+   *  talking to a server that predates them simply shows nothing. */
+  mediaUrls?: Record<string, string>;
   runCount: number;
 }
 

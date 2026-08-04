@@ -7,8 +7,8 @@
 // zones. Nothing is dragged: a chip is a number, the legend is a list, and both
 // work with a keyboard on screen and a thumb on the glass.
 import { Fragment, useMemo, useState } from 'react';
-import { Text, TextInput, TouchableOpacity, View } from 'react-native';
-import Svg, { Circle, Ellipse, Polygon, Rect, Text as SvgText } from 'react-native-svg';
+import { Modal, Pressable, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import Svg, { Circle, Ellipse, G, Polygon, Rect, Text as SvgText } from 'react-native-svg';
 import { Plus, X } from 'lucide-react-native';
 import { CARE } from '@/src/care/theme';
 import { useI18n } from '@/src/i18n';
@@ -28,8 +28,8 @@ const ACCENTS: Record<string, { stroke: string; fill: string; chip: string; text
 const accentOf = (name?: string) => ACCENTS[name ?? ''] ?? ACCENTS.slate;
 
 const COPY = {
-  en: { add: 'Add', placeholder: 'Add something…', empty: 'Nothing yet.', move: 'Move', remove: 'Remove', noZones: 'This exercise has no zones.' },
-  fr: { add: 'Ajouter', placeholder: 'Ajouter…', empty: 'Rien pour l’instant.', move: 'Déplacer', remove: 'Supprimer', noZones: 'Cet exercice n’a pas de zones.' },
+  en: { add: 'Add', placeholder: 'Add something…', empty: 'Nothing yet.', move: 'Move', remove: 'Remove', noZones: 'This exercise has no zones.', close: 'Close', tapHint: 'Tap a number to read it.' },
+  fr: { add: 'Ajouter', placeholder: 'Ajouter…', empty: 'Rien pour l’instant.', move: 'Déplacer', remove: 'Supprimer', noZones: 'Cet exercice n’a pas de zones.', close: 'Fermer', tapHint: 'Touchez un numéro pour le lire.' },
 } as const;
 
 type CanvasAnswer = Record<string, CanvasEntry[]>;
@@ -46,16 +46,22 @@ export function ZonedCanvasField({
   canvas,
   value,
   onChange,
+  readOnly = false,
 }: {
   zones: CanvasZone[];
   canvas: { width: number; height: number } | undefined;
   value: unknown;
   onChange: (v: unknown) => void;
+  readOnly?: boolean;
 }) {
   const { locale } = useI18n();
   const t = COPY[locale] ?? COPY.en;
   const size = canvas ?? { width: 800, height: 600 };
   const answer = useMemo(() => asAnswer(value), [value]);
+  // A chip is a number, so the text has to live somewhere reachable. Tapping one
+  // (on the canvas or in the legend) opens it — the only way to read a long
+  // entry without laying it inside a shape it does not fit in.
+  const [open, setOpen] = useState<{ zone: CanvasZone; entry: CanvasEntry; n: number } | null>(null);
 
   // Numbering runs across the whole canvas so a chip's number is unique on
   // screen and the legend reads against it.
@@ -97,7 +103,7 @@ export function ZonedCanvasField({
         <Svg width="100%" height="100%" viewBox={`0 0 ${size.width} ${size.height}`} style={{ aspectRatio: size.width / size.height }}>
           {drawOrder(zones).map((z) => {
             const a = accentOf(z.accent);
-            const anchor = labelAnchor(z.shape);
+            const anchor = labelAnchor(z.shape, Boolean(z.parentZoneId));
             return (
               <Fragment key={z.id}>
                 <ZoneOutline shape={z.shape} stroke={a.stroke} fill={a.fill} />
@@ -110,17 +116,27 @@ export function ZonedCanvasField({
           {zones.map((z) => {
             const entries = answer[z.id] ?? [];
             const a = accentOf(z.accent);
-            return chipSlots(z, zones, entries.length).map((p, i) => (
-              <Fragment key={`${z.id}-${entries[i].id}`}>
-                <Circle cx={p.x} cy={p.y} r={15} fill={a.chip} />
-                <SvgText x={p.x} y={p.y + 6} textAnchor="middle" fontSize={16} fontWeight="700" fill="#fff">
-                  {String(numbering.get(`${z.id}::${entries[i].id}`))}
-                </SvgText>
-              </Fragment>
-            ));
+            return chipSlots(z, zones, entries.length).map((p, i) => {
+              const n = numbering.get(`${z.id}::${entries[i].id}`) ?? i + 1;
+              return (
+                <G key={`${z.id}-${entries[i].id}`} onPress={() => setOpen({ zone: z, entry: entries[i], n })}>
+                  {/* A transparent disc widens the target: 15 units is a small
+                      tap area once the canvas is scaled down to phone width. */}
+                  <Circle cx={p.x} cy={p.y} r={26} fill="transparent" />
+                  <Circle cx={p.x} cy={p.y} r={15} fill={a.chip} />
+                  <SvgText x={p.x} y={p.y + 6} textAnchor="middle" fontSize={16} fontWeight="700" fill="#fff">
+                    {String(n)}
+                  </SvgText>
+                </G>
+              );
+            });
           })}
         </Svg>
       </View>
+
+      {numbering.size > 0 && (
+        <Text style={{ fontSize: 12, color: '#9A9A9A', textAlign: 'center' }}>{t.tapHint}</Text>
+      )}
 
       {zones.map((z) => (
         <ZonePanel
@@ -129,10 +145,39 @@ export function ZonedCanvasField({
           zones={zones}
           entries={answer[z.id] ?? []}
           numbering={numbering}
+          readOnly={readOnly}
           onSet={(entries) => setZone(z.id, entries)}
           onMove={(entry, to) => move(z.id, entry, to)}
+          onOpen={(entry, n) => setOpen({ zone: z, entry, n })}
         />
       ))}
+
+      <Modal visible={open !== null} transparent animationType="fade" onRequestClose={() => setOpen(null)}>
+        <Pressable
+          onPress={() => setOpen(null)}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 28 }}
+        >
+          {/* Stops a tap inside the card from closing it. */}
+          <Pressable onPress={() => {}} style={{ width: '100%', maxWidth: 420, backgroundColor: '#fff', borderRadius: 20, padding: 20, gap: 14 }}>
+            {open && (
+              <>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: accentOf(open.zone.accent).chip, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff' }}>{open.n}</Text>
+                  </View>
+                  <Text style={{ flex: 1, fontSize: 13, fontWeight: '700', color: accentOf(open.zone.accent).text }}>
+                    {zoneLabel(open.zone.label, locale)}
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 17, color: CARE.ink, lineHeight: 25 }}>{open.entry.text}</Text>
+                <TouchableOpacity onPress={() => setOpen(null)} style={{ alignSelf: 'flex-end' }} hitSlop={8}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: CARE.teal }}>{t.close}</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -151,14 +196,16 @@ function ZoneOutline({ shape, stroke, fill }: { shape: ZoneShape; stroke: string
 }
 
 function ZonePanel({
-  zone, zones, entries, numbering, onSet, onMove,
+  zone, zones, entries, numbering, readOnly, onSet, onMove, onOpen,
 }: {
   zone: CanvasZone;
   zones: CanvasZone[];
   entries: CanvasEntry[];
   numbering: Map<string, number>;
+  readOnly: boolean;
   onSet: (entries: CanvasEntry[]) => void;
   onMove: (entry: CanvasEntry, to: string) => void;
+  onOpen: (entry: CanvasEntry, n: number) => void;
 }) {
   const { locale } = useI18n();
   const t = COPY[locale] ?? COPY.en;
@@ -183,30 +230,40 @@ function ZonePanel({
       {entries.length === 0 ? (
         <Text style={{ fontSize: 13, color: '#9A9A9A' }}>{t.empty}</Text>
       ) : (
-        entries.map((e) => (
-          <View key={e.id} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
-            <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: a.chip, alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: '#fff' }}>{numbering.get(`${zone.id}::${e.id}`)}</Text>
-            </View>
-            <Text style={{ flex: 1, fontSize: 15, color: CARE.ink, lineHeight: 21 }}>{e.text}</Text>
-            {others.length > 0 && (
-              // One tap cycles to the next zone. A picker for two zones is more
-              // chrome than choice, and Circle of Control has exactly two.
-              <TouchableOpacity
-                onPress={() => onMove(e, zones[(zones.findIndex((z) => z.id === zone.id) + 1) % zones.length].id)}
-                hitSlop={8}
-                accessibilityLabel={t.move}
-              >
-                <Text style={{ fontSize: 12, fontWeight: '700', color: CARE.teal }}>{t.move}</Text>
+        entries.map((e) => {
+          const n = numbering.get(`${zone.id}::${e.id}`) ?? 0;
+          return (
+            <View key={e.id} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+              {/* The row opens the same popup as its chip, so a long entry is
+                  readable in full without truncating the list. */}
+              <TouchableOpacity onPress={() => onOpen(e, n)} activeOpacity={0.7} style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+                <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: a.chip, alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#fff' }}>{n}</Text>
+                </View>
+                <Text numberOfLines={2} style={{ flex: 1, fontSize: 15, color: CARE.ink, lineHeight: 21 }}>{e.text}</Text>
               </TouchableOpacity>
-            )}
-            <TouchableOpacity onPress={() => onSet(entries.filter((x) => x.id !== e.id))} hitSlop={8} accessibilityLabel={t.remove}>
-              <X size={16} color="#9A9A9A" />
-            </TouchableOpacity>
-          </View>
-        ))
+              {!readOnly && others.length > 0 && (
+                // One tap cycles to the next zone. A picker for two zones is more
+                // chrome than choice, and Circle of Control has exactly two.
+                <TouchableOpacity
+                  onPress={() => onMove(e, zones[(zones.findIndex((z) => z.id === zone.id) + 1) % zones.length].id)}
+                  hitSlop={8}
+                  accessibilityLabel={t.move}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: CARE.teal }}>{t.move}</Text>
+                </TouchableOpacity>
+              )}
+              {!readOnly && (
+                <TouchableOpacity onPress={() => onSet(entries.filter((x) => x.id !== e.id))} hitSlop={8} accessibilityLabel={t.remove}>
+                  <X size={16} color="#9A9A9A" />
+                </TouchableOpacity>
+              )}
+            </View>
+          );
+        })
       )}
 
+      {!readOnly && (
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <View style={{ flex: 1, borderWidth: 1, borderColor: CARE.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 }}>
           <TextInput
@@ -229,6 +286,7 @@ function ZonePanel({
           <Text style={{ fontSize: 14, fontWeight: '700', color: CARE.teal }}>{t.add}</Text>
         </TouchableOpacity>
       </View>
+      )}
     </View>
   );
 }

@@ -2,10 +2,10 @@
 // (app/(app)/resource/[id]) and the self-guided Library flow (library-practice).
 // Renders content blocks + every interactive input; collects answers keyed by
 // block id (owned by the parent screen).
-import { useMemo, useState } from 'react';
-import { ActivityIndicator, Linking, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Image, Linking, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { Check, Paperclip, Plus, Upload, X } from 'lucide-react-native';
+import { Check, ExternalLink, Paperclip, Play, Plus, Upload, X } from 'lucide-react-native';
 import { CARE } from '@/src/care/theme';
 import { EDA } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
@@ -25,7 +25,10 @@ const ITEM_GAP = 7;
 // the pair is chosen per locale. Module-level to keep the reference stable.
 const QUOTES = { en: ['\u201c', '\u201d'], fr: ['\u00ab\u00a0', '\u00a0\u00bb'] } as const;
 
-export function Block({ block, value, onChange, missing }: { block: PatientBlock; value: unknown; onChange: (v: unknown) => void; missing: boolean }) {
+// `readOnly` renders a sent response: everything visible, nothing editable. It
+// is the screen half of the rule the server enforces — a submitted response
+// belongs to the practitioner until they hand it back.
+export function Block({ block, value, onChange, missing, readOnly = false, mediaUrl }: { block: PatientBlock; value: unknown; onChange: (v: unknown) => void; missing: boolean; readOnly?: boolean; mediaUrl?: string }) {
   const b = block;
   switch (b.type) {
     case 'heading':
@@ -39,29 +42,23 @@ export function Block({ block, value, onChange, missing }: { block: PatientBlock
     case 'file_upload':
       return (
         <Field label={b.label} required={b.required} missing={missing}>
-          <FileUploadField value={value as UploadedFile | undefined} onChange={onChange} />
+          <FileUploadField value={value as UploadedFile | undefined} onChange={onChange} readOnly={readOnly} />
         </Field>
       );
     case 'table':
       return (
         <Field label={b.label} required={b.required} missing={missing}>
-          <TableField columns={b.columns ?? []} value={value} onChange={onChange} />
+          <TableField columns={b.columns ?? []} value={value} onChange={onChange} readOnly={readOnly} />
         </Field>
       );
     case 'zoned_canvas':
       return (
         <Field label={b.label} required={b.required} missing={missing}>
-          <ZonedCanvasField zones={b.zones ?? []} canvas={b.canvas} value={value} onChange={onChange} />
+          <ZonedCanvasField zones={b.zones ?? []} canvas={b.canvas} value={value} onChange={onChange} readOnly={readOnly} />
         </Field>
       );
     case 'media':
-      return (
-        <Field label={b.label} required={b.required} missing={missing}>
-          <View style={{ backgroundColor: '#F6F6F4', borderRadius: 12, padding: 14 }}>
-            <Text style={{ fontSize: 13, color: '#9A9A9A' }}>Media — open this one in the web app for now.</Text>
-          </View>
-        </Field>
-      );
+      return <MediaBlock kind={b.mediaKind} url={mediaUrl} name={b.label} />;
     case 'short_text':
     case 'number':
     case 'date':
@@ -72,13 +69,14 @@ export function Block({ block, value, onChange, missing }: { block: PatientBlock
             onChangeText={onChange}
             keyboardType={b.type === 'number' ? 'numeric' : 'default'}
             placeholder={b.type === 'date' ? 'YYYY-MM-DD' : 'Your answer'}
+            readOnly={readOnly}
           />
         </Field>
       );
     case 'long_text':
       return (
         <Field label={b.label} required={b.required} missing={missing}>
-          <Input value={typeof value === 'string' ? value : ''} onChangeText={onChange} placeholder="Write here…" multiline />
+          <Input value={typeof value === 'string' ? value : ''} onChangeText={onChange} placeholder="Write here…" multiline readOnly={readOnly} />
         </Field>
       );
     case 'yes_no':
@@ -86,7 +84,7 @@ export function Block({ block, value, onChange, missing }: { block: PatientBlock
         <Field label={b.label} required={b.required} missing={missing}>
           <View style={{ flexDirection: 'row', gap: 10 }}>
             {(['yes', 'no'] as const).map((v) => (
-              <Choice key={v} label={v === 'yes' ? 'Yes' : 'No'} on={value === v} onPress={() => onChange(v)} flex />
+              <Choice key={v} label={v === 'yes' ? 'Yes' : 'No'} on={value === v} onPress={() => onChange(v)} flex readOnly={readOnly} />
             ))}
           </View>
         </Field>
@@ -95,7 +93,7 @@ export function Block({ block, value, onChange, missing }: { block: PatientBlock
       return (
         <Field label={b.label} required={b.required} missing={missing}>
           <View style={{ gap: 8 }}>
-            {(b.options ?? []).map((o) => <Choice key={o.id} label={o.label} on={value === o.id} onPress={() => onChange(o.id)} radio />)}
+            {(b.options ?? []).map((o) => <Choice key={o.id} label={o.label} on={value === o.id} onPress={() => onChange(o.id)} radio readOnly={readOnly} />)}
           </View>
         </Field>
       );
@@ -105,7 +103,7 @@ export function Block({ block, value, onChange, missing }: { block: PatientBlock
       return (
         <Field label={b.label} required={b.required} missing={missing}>
           <View style={{ gap: 8 }}>
-            {(b.options ?? []).map((o) => <Choice key={o.id} label={o.label} on={arr.includes(o.id)} onPress={() => toggle(o.id)} checkbox />)}
+            {(b.options ?? []).map((o) => <Choice key={o.id} label={o.label} on={arr.includes(o.id)} onPress={() => toggle(o.id)} checkbox readOnly={readOnly} />)}
           </View>
         </Field>
       );
@@ -120,7 +118,7 @@ export function Block({ block, value, onChange, missing }: { block: PatientBlock
         <Field label={b.label} required={b.required} missing={missing}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {vals.map((n) => (
-              <TouchableOpacity key={n} onPress={() => onChange(n)} activeOpacity={0.8} style={{ minWidth: 44, height: 44, paddingHorizontal: 10, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: value === n ? CARE.teal : '#fff', borderWidth: 1, borderColor: value === n ? CARE.teal : CARE.border }}>
+              <TouchableOpacity key={n} onPress={() => (readOnly ? undefined : onChange(n))} disabled={readOnly} activeOpacity={0.8} style={{ minWidth: 44, height: 44, paddingHorizontal: 10, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: value === n ? CARE.teal : '#fff', borderWidth: 1, borderColor: value === n ? CARE.teal : CARE.border }}>
                 <Text style={{ fontSize: 15, fontWeight: '600', color: value === n ? '#fff' : CARE.ink }}>{n}</Text>
               </TouchableOpacity>
             ))}
@@ -227,6 +225,57 @@ function decoration(s: Span): 'underline' | 'line-through' | 'underline line-thr
   return undefined;
 }
 
+// A practitioner's image, video or audio. The URL is signed server-side (the
+// app cannot sign anything itself), so no url means there is nothing to show.
+//
+// Images render inline. Video and audio open in the phone's own player: this
+// project ships no video component, and a broken inline player is worse than a
+// button that works.
+function MediaBlock({ kind, url, name }: { kind?: string; url?: string; name?: string }) {
+  const [ratio, setRatio] = useState(16 / 9);
+
+  useEffect(() => {
+    if (!url || (kind && kind !== 'image')) return;
+    let alive = true;
+    // The natural size is unknown until it loads; until then the placeholder
+    // holds 16:9 so the page does not jump when it arrives.
+    Image.getSize(url, (w, h) => { if (alive && w > 0 && h > 0) setRatio(w / h); }, () => {});
+    return () => { alive = false; };
+  }, [url, kind]);
+
+  if (!url) {
+    return (
+      <View style={{ backgroundColor: '#F6F6F4', borderRadius: 12, padding: 14, marginBottom: 16 }}>
+        <Text style={{ fontSize: 13, color: '#9A9A9A' }}>This media could not be loaded.</Text>
+      </View>
+    );
+  }
+
+  if (!kind || kind === 'image') {
+    return (
+      <View style={{ marginBottom: 16, borderRadius: 14, overflow: 'hidden', backgroundColor: '#F1F1EF' }}>
+        <Image source={{ uri: url }} style={{ width: '100%', aspectRatio: ratio }} resizeMode="cover" accessibilityLabel={name || 'Image'} />
+      </View>
+    );
+  }
+
+  return (
+    <TouchableOpacity
+      onPress={() => { void Linking.openURL(url); }}
+      activeOpacity={0.85}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: CARE.border, borderRadius: 14, backgroundColor: '#fff', padding: 14, marginBottom: 16 }}
+    >
+      <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: CARE.mint, alignItems: 'center', justifyContent: 'center' }}>
+        <Play size={16} color={CARE.teal} />
+      </View>
+      <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: CARE.ink }}>
+        {name || (kind === 'audio' ? 'Audio' : 'Video')}
+      </Text>
+      <ExternalLink size={16} color="#9A9A9A" />
+    </TouchableOpacity>
+  );
+}
+
 export function Field({ label, required, missing, children }: { label?: string; required?: boolean; missing: boolean; children: React.ReactNode }) {
   return (
     <View style={{ marginBottom: 20 }}>
@@ -260,7 +309,7 @@ async function byteSize(uri: string): Promise<number> {
 // A patient file-upload answer. Picks a photo/video from the library (works on
 // web and native), uploads straight to storage, and stores the { key, ... }
 // descriptor the server expects. Video covers the common "film yourself" case.
-function FileUploadField({ value, onChange }: { value: UploadedFile | undefined; onChange: (v: unknown) => void }) {
+function FileUploadField({ value, onChange, readOnly }: { value: UploadedFile | undefined; onChange: (v: unknown) => void; readOnly?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -303,14 +352,26 @@ function FileUploadField({ value, onChange }: { value: UploadedFile | undefined;
             <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '600', color: CARE.ink }}>{value.name}</Text>
             {value.size ? <Text style={{ fontSize: 12, color: '#9A9A9A', marginTop: 2 }}>{humanSize(value.size)}</Text> : null}
           </View>
-          <TouchableOpacity onPress={() => onChange(undefined)} hitSlop={8} accessibilityLabel="Remove file">
-            <X size={18} color="#9A9A9A" />
-          </TouchableOpacity>
+          {!readOnly && (
+            <TouchableOpacity onPress={() => onChange(undefined)} hitSlop={8} accessibilityLabel="Remove file">
+              <X size={18} color="#9A9A9A" />
+            </TouchableOpacity>
+          )}
         </View>
-        <TouchableOpacity onPress={pick} activeOpacity={0.8} style={{ marginTop: 8 }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', color: CARE.teal }}>Replace</Text>
-        </TouchableOpacity>
+        {!readOnly && (
+          <TouchableOpacity onPress={pick} activeOpacity={0.8} style={{ marginTop: 8 }}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: CARE.teal }}>Replace</Text>
+          </TouchableOpacity>
+        )}
         {error ? <Text style={{ fontSize: 12, color: CARE.danger, marginTop: 6 }}>{error}</Text> : null}
+      </View>
+    );
+  }
+
+  if (readOnly) {
+    return (
+      <View style={{ backgroundColor: '#F6F6F4', borderRadius: 12, padding: 14 }}>
+        <Text style={{ fontSize: 13, color: '#9A9A9A' }}>No file.</Text>
       </View>
     );
   }
@@ -351,7 +412,7 @@ const TABLE_COPY = {
  * so a table filled in on the phone opens correctly in the practitioner's
  * browser, and one started on the web can be finished on the phone.
  */
-function TableField({ columns, value, onChange }: { columns: TableColumn[]; value: unknown; onChange: (v: unknown) => void }) {
+function TableField({ columns, value, onChange, readOnly }: { columns: TableColumn[]; value: unknown; onChange: (v: unknown) => void; readOnly?: boolean }) {
   const { locale } = useI18n();
   const t = TABLE_COPY[locale] ?? TABLE_COPY.en;
   const rows: TableRow[] = Array.isArray(value) ? (value as TableRow[]) : [];
@@ -393,9 +454,11 @@ function TableField({ columns, value, onChange }: { columns: TableColumn[]; valu
         <View key={i} style={{ borderWidth: 1, borderColor: CARE.border, borderRadius: 14, backgroundColor: '#fff', padding: 12, gap: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text style={{ fontSize: 12, fontWeight: '700', color: '#9A9A9A' }}>{t.row} {i + 1}</Text>
-            <TouchableOpacity onPress={() => onChange(rows.filter((_, idx) => idx !== i))} hitSlop={8} accessibilityLabel={t.remove}>
-              <X size={16} color="#9A9A9A" />
-            </TouchableOpacity>
+            {!readOnly && (
+              <TouchableOpacity onPress={() => onChange(rows.filter((_, idx) => idx !== i))} hitSlop={8} accessibilityLabel={t.remove}>
+                <X size={16} color="#9A9A9A" />
+              </TouchableOpacity>
+            )}
           </View>
           {columns.map((c) => (
             <View key={c.id} style={{ gap: 6 }}>
@@ -405,13 +468,14 @@ function TableField({ columns, value, onChange }: { columns: TableColumn[]; valu
                 onChangeText={(text) => setCell(i, c, text)}
                 keyboardType={c.type === 'number' ? 'numeric' : 'default'}
                 placeholder={c.type === 'number' ? '0' : undefined}
+                readOnly={readOnly}
               />
             </View>
           ))}
         </View>
       ))}
 
-      {rows.length < MAX_TABLE_ROWS && (
+      {!readOnly && rows.length < MAX_TABLE_ROWS && (
         <TouchableOpacity
           onPress={() => onChange([...rows, {}])}
           activeOpacity={0.8}
@@ -425,7 +489,7 @@ function TableField({ columns, value, onChange }: { columns: TableColumn[]; valu
   );
 }
 
-function Input({ value, onChangeText, placeholder, multiline, keyboardType }: { value: string; onChangeText: (t: string) => void; placeholder?: string; multiline?: boolean; keyboardType?: 'default' | 'numeric' }) {
+function Input({ value, onChangeText, placeholder, multiline, keyboardType, readOnly }: { value: string; onChangeText: (t: string) => void; placeholder?: string; multiline?: boolean; keyboardType?: 'default' | 'numeric'; readOnly?: boolean }) {
   return (
     <View style={{ borderWidth: 1, borderColor: CARE.border, borderRadius: 14, backgroundColor: '#fff', paddingHorizontal: 14, paddingVertical: 12 }}>
       <TextInput
@@ -435,16 +499,18 @@ function Input({ value, onChangeText, placeholder, multiline, keyboardType }: { 
         placeholderTextColor="#BBB"
         multiline={multiline}
         keyboardType={keyboardType}
+        editable={!readOnly}
         style={[{ fontSize: 15, color: CARE.ink, lineHeight: 22, minHeight: multiline ? 96 : undefined, textAlignVertical: multiline ? 'top' : 'center' }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
       />
     </View>
   );
 }
 
-function Choice({ label, on, onPress, radio, checkbox, flex }: { label: string; on: boolean; onPress: () => void; radio?: boolean; checkbox?: boolean; flex?: boolean }) {
+function Choice({ label, on, onPress, radio, checkbox, flex, readOnly }: { label: string; on: boolean; onPress: () => void; radio?: boolean; checkbox?: boolean; flex?: boolean; readOnly?: boolean }) {
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onPress={readOnly ? undefined : onPress}
+      disabled={readOnly}
       activeOpacity={0.8}
       style={{ flex: flex ? 1 : undefined, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: on ? `${CARE.teal}0F` : '#fff', borderWidth: 1.5, borderColor: on ? CARE.teal : CARE.border, borderRadius: 14, paddingVertical: 13, paddingHorizontal: 15, justifyContent: flex ? 'center' : 'flex-start' }}
     >
