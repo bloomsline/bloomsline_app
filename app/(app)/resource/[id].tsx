@@ -5,7 +5,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { Check, CircleCheckBig } from 'lucide-react-native';
+import { Check, CircleCheckBig, MessageCircle } from 'lucide-react-native';
 import { EDA, EdHeader, EdPill, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { Block, INTERACTIVE, ResourceIntro } from '@/src/resources/blocks';
@@ -48,7 +48,7 @@ const T = {
     doneOn: (d: string) => `Done on ${d}`,
     alreadySubmitted: 'Already submitted',
     alreadyDone: 'Already marked as done',
-    fromPractitioner: 'From your practitioner',
+    fromPractitioner: 'Message from your practitioner',
     lockedNote: 'Your practitioner can reopen this if you need to change it.',
     resultTitle: 'All done',
     resultBodySuffix: ' is saved and shared with your practitioner.',
@@ -67,7 +67,7 @@ const T = {
     doneOn: (d: string) => `Terminé le ${d}`,
     alreadySubmitted: 'Déjà envoyé',
     alreadyDone: 'Déjà marqué comme terminé',
-    fromPractitioner: 'De votre praticien',
+    fromPractitioner: 'Message de votre praticien',
     lockedNote: 'Votre praticien peut le rouvrir si vous devez le modifier.',
     resultTitle: 'Terminé',
     resultBodySuffix: ' est enregistré et partagé avec votre praticien.',
@@ -166,13 +166,23 @@ export default function ResourceDetail() {
           <EdHeader source={ONBOARDING_IMAGES.card2} kicker={kicker} title={view.resource.title} onBack={back} />
 
           <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
-            <ResourceIntro text={view.resource.description} />
             {view.response?.practitionerNote ? (
-              <View style={{ backgroundColor: EDA.greenTint, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 22 }}>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: EDA.green, marginBottom: 6 }}>{tr.fromPractitioner}</Text>
-                <Text style={{ fontSize: 15, color: EDA.greenDeep, lineHeight: 23 }}>{view.response.practitionerNote}</Text>
+              // Deliberately unlike the description card above it. Both were the
+              // same green tint, so the one thing written personally to this
+              // patient read as more page furniture. A white card, a solid green
+              // spine, their practitioner named, and it sits ABOVE the exercise.
+              <View style={{ flexDirection: 'row', backgroundColor: EDA.card, borderRadius: 16, borderWidth: 1, borderColor: EDA.line, overflow: 'hidden', marginBottom: 22 }}>
+                <View style={{ width: 4, backgroundColor: EDA.green }} />
+                <View style={{ flex: 1, paddingVertical: 14, paddingHorizontal: 15 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 7 }}>
+                    <MessageCircle size={13} color={EDA.green} strokeWidth={2.5} />
+                    <Text style={{ fontSize: 12, fontWeight: '800', color: EDA.greenDeep, letterSpacing: 0.2 }}>{tr.fromPractitioner}</Text>
+                  </View>
+                  <Text style={{ fontSize: 16, color: EDA.ink, lineHeight: 25 }}>{view.response.practitionerNote}</Text>
+                </View>
               </View>
             ) : null}
+            <ResourceIntro text={view.resource.description} />
             {finished && (
               <View style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: EDA.greenTint, borderRadius: 12, paddingVertical: 5, paddingHorizontal: 10, marginBottom: 16 }}>
                 <Check size={13} color={EDA.green} strokeWidth={3} />

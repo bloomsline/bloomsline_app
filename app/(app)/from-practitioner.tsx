@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
-import { Check, ChevronRight, type LucideIcon } from 'lucide-react-native';
+import { Check, ChevronRight, MessageCircle, type LucideIcon } from 'lucide-react-native';
 import { EDA, EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
 import { useOnboarding } from '@/src/onboarding/context';
 import { FORCE_CARE_HUB } from '@/src/config';
@@ -19,6 +19,7 @@ const T = {
     subtitle: 'Do these whenever suits you, no due dates.',
     emptyTitle: 'Nothing shared yet',
     emptyBody: 'Anything {name} shares with you will appear here.',
+    reply: 'New message',
   },
   fr: {
     defaultPractitioner: 'votre praticien',
@@ -26,6 +27,7 @@ const T = {
     subtitle: 'Faites-les quand cela vous convient, sans date limite.',
     emptyTitle: 'Rien de partagé pour le moment',
     emptyBody: 'Tout ce que {name} partage avec vous apparaîtra ici.',
+    reply: 'Nouveau message',
   },
 } as const;
 
@@ -75,7 +77,7 @@ export default function FromPractitioner() {
                 const meta = resourceTypeMeta(it.type, locale);
                 const done = isDone(it.status);
                 const open = it.resourceId ? () => router.navigate(`/resource/${it.id}` as never) : undefined;
-                return <ResItem key={it.id} Icon={meta.Icon} title={it.title} tag={meta.label} status={statusLabel(it.status, locale)} statusGreen={it.status === 'in_progress'} done={done} muted={done} onPress={open} />;
+                return <ResItem key={it.id} Icon={meta.Icon} title={it.title} tag={meta.label} status={statusLabel(it.status, locale)} statusGreen={it.status === 'in_progress'} done={done} muted={done && !it.hasReply} reply={it.hasReply ? tr.reply : undefined} onPress={open} />;
               })}
             </View>
           )}
@@ -86,9 +88,9 @@ export default function FromPractitioner() {
 }
 
 function ResItem({
-  Icon, title, tag, status, statusGreen, done, muted, onPress,
+  Icon, title, tag, status, statusGreen, done, muted, reply, onPress,
 }: {
-  Icon: LucideIcon; title: string; tag: string; status: string; statusGreen?: boolean; done?: boolean; muted?: boolean; onPress?: () => void;
+  Icon: LucideIcon; title: string; tag: string; status: string; statusGreen?: boolean; done?: boolean; muted?: boolean; reply?: string; onPress?: () => void;
 }) {
   const { t } = useI18n();
   const soon = () => Platform.OS === 'web' && globalThis.alert?.(t.common.comingSoon);
@@ -96,13 +98,19 @@ function ResItem({
     <TouchableOpacity
       onPress={onPress ?? soon}
       activeOpacity={0.8}
-      style={{ backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, borderRadius: 18, padding: 15, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14, opacity: muted ? 0.7 : 1 }}
+      style={{ backgroundColor: EDA.card, borderWidth: reply ? 1.5 : 1, borderColor: reply ? EDA.green : EDA.line, borderRadius: 18, padding: 15, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14, opacity: muted ? 0.7 : 1 }}
     >
       <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center' }}>
         <Icon size={19} color={muted ? EDA.faint : EDA.green} strokeWidth={2} />
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={{ fontSize: 14.5, fontWeight: '700', color: muted ? EDA.inkSoft : EDA.ink }}>{title}</Text>
+        {reply && (
+          <View style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: EDA.greenTint, borderRadius: 8, paddingVertical: 3, paddingHorizontal: 7, marginTop: 4 }}>
+            <MessageCircle size={11} color={EDA.green} strokeWidth={2.5} />
+            <Text style={{ fontSize: 11, fontWeight: '800', color: EDA.greenDeep }}>{reply}</Text>
+          </View>
+        )}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 5 }}>
           <Text style={{ fontSize: 11, fontWeight: '700', color: EDA.faint, textTransform: 'uppercase', letterSpacing: 0.4 }}>{tag}</Text>
           <View style={{ width: 3, height: 3, borderRadius: 2, backgroundColor: EDA.line }} />
