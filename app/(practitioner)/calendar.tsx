@@ -16,8 +16,13 @@ import { fetchDay, type PractitionerSession } from '@/src/api/practitioner';
 // afternoon is gone. That is the thing the web's week grid gives at a glance and
 // a phone list cannot, so the phone gets the same grid one day wide.
 const HOUR_HEIGHT = 58;
-const START_HOUR = 7;
-const END_HOUR = 22;
+// The window the grid shows by default. It is a starting point, not a limit: a
+// session outside it stretches the grid rather than being clipped. Fixed bounds
+// meant an 06:30 session was positioned at a negative offset and a 22:30 one past
+// the end — both simply invisible, on the screen whose entire job is showing the
+// day. A practitioner would have had no way to know the session existed.
+const DEFAULT_START_HOUR = 7;
+const DEFAULT_END_HOUR = 22;
 
 const T = {
   en: { kicker: 'CALENDAR', today: 'Today', nothing: 'Nothing booked.', pending: 'Request', join: 'Join' },
@@ -53,14 +58,38 @@ export default function DayCalendar() {
   );
 
   const zone = tz ? { timeZone: tz } : {};
-  const hours = useMemo(() => Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i), []);
 
-  // Minutes from the top of the grid, in the practitioner's own timezone.
-  const minutesInto = (iso: string) => {
+  // Wall-clock hour and minute in the practitioner's own timezone.
+  const hourMinute = useCallback((iso: string): [number, number] => {
     const parts = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', ...zone }).format(new Date(iso));
     const [h, m] = parts.split(':').map(Number);
-    return (h - START_HOUR) * 60 + m;
-  };
+    return [h, m];
+  }, [tz]); // eslint-disable-line react-hooks/exhaustive-deps -- `zone` is derived from tz
+
+  // Widen the window until every session fits, then keep whole hours so the
+  // gutter still reads as a clock.
+  const [startHour, endHour] = useMemo(() => {
+    let lo = DEFAULT_START_HOUR;
+    let hi = DEFAULT_END_HOUR;
+    for (const s of items) {
+      const [h, m] = hourMinute(s.scheduledAt);
+      lo = Math.min(lo, h);
+      // The END of the session has to fit too, or a late one is half off the grid.
+      hi = Math.max(hi, Math.ceil((h * 60 + m + s.durationMinutes) / 60));
+    }
+    return [Math.max(0, lo), Math.min(24, Math.max(hi, lo + 1))];
+  }, [items, hourMinute]);
+
+  const hours = useMemo(
+    () => Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i),
+    [startHour, endHour],
+  );
+
+  // Minutes from the top of the grid.
+  const minutesInto = useCallback((iso: string) => {
+    const [h, m] = hourMinute(iso);
+    return (h - startHour) * 60 + m;
+  }, [hourMinute, startHour]);
 
   const step = (days: number) => {
     const next = new Date(date);
@@ -114,7 +143,7 @@ export default function DayCalendar() {
 
               {/* Now line, only on today — a day view without it makes you do the
                   arithmetic yourself. */}
-              {isToday && <NowLine minutesInto={minutesInto} zone={zone} />}
+              {isToday && <NowLine minutesInto={minutesInto} spanMinutes={(endHour - startHour) * 60} />}
 
               {items.map((s) => {
                 const top = (minutesInto(s.scheduledAt) / 60) * HOUR_HEIGHT;
@@ -160,10 +189,10 @@ export default function DayCalendar() {
   );
 }
 
-function NowLine({ minutesInto, zone }: { minutesInto: (iso: string) => number; zone: object }) {
+function NowLine({ minutesInto, spanMinutes }: { minutesInto: (iso: string) => number; spanMinutes: number }) {
   const mins = minutesInto(new Date().toISOString());
-  if (mins < 0) return null;
-  void zone;
+  // Outside the drawn window there is no honest place to put it, so it is not drawn.
+  if (mins < 0 || mins > spanMinutes) return null;
   return (
     <View style={{ position: 'absolute', left: 0, right: 0, top: (mins / 60) * HOUR_HEIGHT, flexDirection: 'row', alignItems: 'center' }}>
       <View style={{ height: 7, width: 7, borderRadius: 4, backgroundColor: '#C0392B' }} />
