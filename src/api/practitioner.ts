@@ -12,6 +12,7 @@ export interface PractitionerSession {
   who: string;
   location: string | null;
   meetLink: string | null;
+  status?: string;
 }
 
 export interface BookingRequest {
@@ -24,9 +25,11 @@ export interface BookingRequest {
   isGuest: boolean;
 }
 
-export async function fetchDay(): Promise<{ items: PractitionerSession[]; timezone: string } | null> {
+/** A day's sessions. With no date: today + tomorrow, for the dashboard. With
+ *  one: that single day, which is how the day calendar walks through them. */
+export async function fetchDay(date?: string): Promise<{ items: PractitionerSession[]; timezone: string } | null> {
   try {
-    const res = await apiFetch('/api/mobile/practitioner/day');
+    const res = await apiFetch(`/api/mobile/practitioner/day${date ? `?date=${date}` : ''}`);
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -203,7 +206,9 @@ export interface ShareableResource {
   description: string | null;
 }
 
-export async function fetchBookingOptions(params?: { date?: string; duration?: number; format?: string }): Promise<{ sessionTypes: SessionTypeOption[]; timezone: string; slots: string[] } | null> {
+export interface NextAvailableDay { date: string; slots: string[] }
+
+export async function fetchBookingOptions(params?: { date?: string; duration?: number; format?: string }): Promise<{ sessionTypes: SessionTypeOption[]; timezone: string; slots: string[]; nextAvailable: NextAvailableDay[] } | null> {
   try {
     const qs = new URLSearchParams();
     if (params?.date) qs.set('date', params.date);
