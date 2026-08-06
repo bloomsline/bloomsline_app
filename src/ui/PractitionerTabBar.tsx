@@ -1,16 +1,16 @@
 import { Platform, Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LayoutGrid, Users, CalendarDays, Library, PenLine, type LucideIcon } from 'lucide-react-native';
+import { LayoutGrid, Users, CalendarDays, Library, type LucideIcon } from 'lucide-react-native';
 import { EDA } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 
-// The practitioner's tab bar. Same object as the patient's (src/ui/TabBar):
-// floating pill, an action button beside it, identical geometry and colours —
-// one app, one navigation language. Only the destinations differ.
+// The practitioner's tab bar: a floating pill of four destinations.
 //
-// The action button takes a note, which is the practitioner's equivalent of the
-// patient capturing a moment: the thing you do in the five minutes after a
-// session, and the reason to reach for a phone instead of a laptop.
+// There was a note FAB beside it. It went because a note belongs to a SESSION,
+// and a button floating over every screen cannot know which one — so it opened
+// a picker, which is a worse start than tapping the session you were already
+// looking at. Taking a note is reachable from the session sheet, from Your day,
+// and from the patient's own sessions; none of those has to guess.
 export type PractitionerTabId = 'home' | 'calendar' | 'people' | 'resources';
 
 // One day, one tab. "Today" and "Agenda" were two doors onto the same
@@ -30,7 +30,7 @@ export function PractitionerTabBar({ active }: { active: PractitionerTabId }) {
   const fr = locale === 'fr';
 
   return (
-    <View style={{ position: 'absolute', left: 22, right: 22, bottom: 30, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+    <View style={{ position: 'absolute', left: 22, right: 22, bottom: 30, flexDirection: 'row', alignItems: 'center' }}>
       <View
         style={{
           flex: 1, flexDirection: 'row', justifyContent: 'space-around', borderRadius: 40, paddingHorizontal: 10, paddingVertical: 12,
@@ -58,16 +58,6 @@ export function PractitionerTabBar({ active }: { active: PractitionerTabId }) {
           );
         })}
       </View>
-      <Pressable
-        accessibilityLabel={fr ? 'Prendre une note' : 'Take a note'}
-        style={{
-          height: 54, width: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: EDA.slot,
-          shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 6,
-        }}
-        onPress={() => router.navigate('/(practitioner)/note' as never)}
-      >
-        <PenLine size={22} color="#fff" strokeWidth={2.2} />
-      </Pressable>
     </View>
   );
 }

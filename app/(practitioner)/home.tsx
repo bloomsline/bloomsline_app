@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { CalendarPlus, Check, PenLine, Share2, UserPlus, Video, MapPin, Phone, Settings as SettingsIcon, X, type LucideIcon } from 'lucide-react-native';
+import { CalendarPlus, Check, ChevronDown, ChevronUp, PenLine, Share2, UserPlus, Video, MapPin, Phone, Settings as SettingsIcon, X, type LucideIcon } from 'lucide-react-native';
 import { EDA, EdHeader, EdCard, EdSection, FadeIn } from '@/src/ui/editorial';
 import { PractitionerTabBar, PRACTITIONER_TAB_PAD } from '@/src/ui/PractitionerTabBar';
 import { useConfirm } from '@/src/ui/confirm';
@@ -23,6 +23,7 @@ const T = {
     share: 'Share', shareSub: 'A resource',
     addPatient: 'Add a patient', addPatientSub: 'New',
     upNext: 'UP NEXT', tomorrow: 'TOMORROW', nothing: 'Nothing scheduled today.', join: 'Join',
+    seeMore: 'See {n} more', seeLess: 'Show less',
     requests: 'WAITING ON YOU', approve: 'Approve', decline: 'Decline',
     declineTitle: 'Decline this request?', declineBody: 'They will be told the time was not confirmed.',
     cancel: 'Cancel', guest: 'Guest booking', actions: 'QUICK ACTIONS',
@@ -34,6 +35,7 @@ const T = {
     share: 'Partager', shareSub: 'Une ressource',
     addPatient: 'Ajouter', addPatientSub: 'Un patient',
     upNext: 'À VENIR', tomorrow: 'DEMAIN', nothing: 'Rien de prévu aujourd’hui.', join: 'Rejoindre',
+    seeMore: 'Voir {n} de plus', seeLess: 'Réduire',
     requests: 'EN ATTENTE DE VOUS', approve: 'Accepter', decline: 'Refuser',
     declineTitle: 'Refuser cette demande ?', declineBody: 'La personne sera informée que le créneau n’a pas été confirmé.',
     cancel: 'Annuler', guest: 'Réservation invitée', actions: 'ACTIONS RAPIDES',
@@ -102,12 +104,12 @@ export default function Dashboard() {
           {loaded && today.length === 0 && (
             <EdCard><Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.nothing}</Text></EdCard>
           )}
-          {today.map((s) => <SessionRow key={s.id} s={s} time={time} join={tr.join} />)}
+          <SessionList items={today} time={time} join={tr.join} more={tr.seeMore} less={tr.seeLess} />
 
           {later.length > 0 && (
             <View style={{ marginTop: 22 }}>
               <EdSection label={tr.tomorrow} />
-              {later.map((s) => <SessionRow key={s.id} s={s} time={time} join={tr.join} />)}
+              <SessionList items={later} time={time} join={tr.join} more={tr.seeMore} less={tr.seeLess} />
             </View>
           )}
 
@@ -150,6 +152,35 @@ export default function Dashboard() {
 
       <PractitionerTabBar active="home" />
     </View>
+  );
+}
+
+// Two, then a way to the rest.
+//
+// A day's worth of sessions on the screen you open to ask "what am I walking
+// into" buries the answer under the rest of the afternoon. Two is what fits
+// above the fold and what the question actually wants; the others are one tap
+// away and say how many they are, so the count is never a surprise.
+const PREVIEW = 2;
+
+function SessionList({ items, time, join, more, less }: {
+  items: PractitionerSession[]; time: (iso: string) => string; join: string; more: string; less: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const hidden = items.length - PREVIEW;
+  const shown = open ? items : items.slice(0, PREVIEW);
+  return (
+    <>
+      {shown.map((s) => <SessionRow key={s.id} s={s} time={time} join={join} />)}
+      {hidden > 0 && (
+        <Pressable onPress={() => setOpen((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11 }}>
+          <Text style={{ fontSize: 13.5, fontWeight: '700', color: EDA.green }}>
+            {open ? less : more.replace('{n}', String(hidden))}
+          </Text>
+          {open ? <ChevronUp size={15} color={EDA.green} /> : <ChevronDown size={15} color={EDA.green} />}
+        </Pressable>
+      )}
+    </>
   );
 }
 
