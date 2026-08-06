@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronDown, ChevronUp, FileSignature, Search } from 'lucide-react-native';
+import { Check, ChevronDown, ChevronUp, FileSignature, Search, SlidersHorizontal } from 'lucide-react-native';
 import { EDA, EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
 import { RichText } from '@/src/resources/blocks';
 import { useI18n } from '@/src/i18n';
@@ -37,6 +37,7 @@ const T = {
     place: 'Where', series: 'In series', origin: 'Booked via',
     sessionNote: 'SESSION NOTE', noNote: 'No note written for this session.',
     all: 'All', withQuote: 'With a quote', quote: 'Quote', session: 'Session',
+    allNotes: 'All notes', clear: 'Clear',
     outcomes: { scheduled: 'Not yet held', pending: 'Awaiting your decision', completed: 'Took place', cancelled: 'Did not take place', no_show: 'Patient did not attend' },
     payments: { paid: 'Invoiced and paid', unpaid: 'Not invoiced', free: 'Free of charge' },
     sources: { manual: 'You booked it', booking: 'Patient booked online', google: 'From Google Calendar' },
@@ -56,6 +57,7 @@ const T = {
     place: 'Lieu', series: 'Dans la série', origin: 'Réservée via',
     sessionNote: 'NOTE DE SÉANCE', noNote: 'Aucune note pour cette séance.',
     all: 'Toutes', withQuote: 'Avec citation', quote: 'Citation', session: 'Séance',
+    allNotes: 'Toutes les notes', clear: 'Effacer',
     outcomes: { scheduled: 'Pas encore eu lieu', pending: 'En attente de votre décision', completed: 'A eu lieu', cancelled: "N'a pas eu lieu", no_show: 'Patient absent' },
     payments: { paid: 'Facturée et payée', unpaid: 'Non facturée', free: 'Gratuite' },
     sources: { manual: 'Réservée par vous', booking: 'Réservée en ligne', google: 'Depuis Google Agenda' },
@@ -81,15 +83,15 @@ function Chip({ label, tone = 'grey' }: { label: string; tone?: keyof typeof TON
   );
 }
 
-/** A filter chip. Selected is filled, because a filter you cannot see is on is
- *  a list that looks wrong for no reason. */
-function FilterChip({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
+/** One line of the filter dropdown. A box rather than a switch, because several
+ *  can be on at once and a switch reads as "either/or". */
+function CheckRow({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
   return (
-    <Pressable
-      onPress={onPress}
-      style={{ borderRadius: 16, paddingHorizontal: 13, paddingVertical: 8, backgroundColor: on ? EDA.green : EDA.card, borderWidth: 1, borderColor: on ? EDA.green : EDA.line }}
-    >
-      <Text style={{ fontSize: 12.5, fontWeight: '700', color: on ? '#fff' : EDA.inkSoft }}>{label}</Text>
+    <Pressable onPress={onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 11 }}>
+      <View style={{ height: 19, width: 19, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? EDA.green : 'transparent', borderWidth: 1.5, borderColor: on ? EDA.green : EDA.line }}>
+        {on ? <Check size={12} color="#fff" strokeWidth={3} /> : null}
+      </View>
+      <Text style={{ flex: 1, fontSize: 14.5, fontWeight: on ? '700' : '500', color: EDA.ink }}>{label}</Text>
     </Pressable>
   );
 }
@@ -135,8 +137,12 @@ export default function PatientDetailScreen() {
   // and the reason to open one is to compare it with the rows around it.
   const [openSession, setOpenSession] = useState<string | null>(null);
   const [openNote, setOpenNote] = useState<string | null>(null);
-  // 'all' | 'quote' | `tag:<slug>`
-  const [filter, setFilter] = useState<string>('all');
+  // Multi-select, two axes. Tags OR together (a note matching ANY selected tag
+  // qualifies); the quote flag ANDs across, because "tagged recurrence" and
+  // "has a quote" are different questions, not competing answers.
+  const [pickedTags, setPickedTags] = useState<string[]>([]);
+  const [quoteOnly, setQuoteOnly] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -161,13 +167,13 @@ export default function PatientDetailScreen() {
   const notes = useMemo(() => {
     const needle = q.trim().toLowerCase();
     let all = data?.notes ?? [];
-    if (filter === 'quote') all = all.filter((n) => n.hasQuote);
-    else if (filter.startsWith('tag:')) { const slug = filter.slice(4); all = all.filter((n) => n.tags?.includes(slug)); }
+    if (quoteOnly) all = all.filter((n) => n.hasQuote);
+    if (pickedTags.length) all = all.filter((n) => n.tags?.some((t) => pickedTags.includes(t)));
     if (!needle) return all;
     // Search the TEXT, not the markup: '<p>' is in every note and matches nothing
     // a practitioner is looking for.
     return all.filter((n) => `${n.title ?? ''} ${plain(n.content)}`.toLowerCase().includes(needle));
-  }, [q, filter, data]);
+  }, [q, quoteOnly, pickedTags, data]);
 
   // Only tags this patient's notes actually carry. Offering the whole vocabulary
   // would mean chips that always return nothing.
@@ -176,6 +182,11 @@ export default function PatientDetailScreen() {
     return [...used].map((slug) => ({ slug, label: tagLabel(slug, data?.tags) }));
   }, [data]);
   const anyQuote = useMemo(() => (data?.notes ?? []).some((n) => n.hasQuote), [data]);
+  const activeFilters = quoteOnly || pickedTags.length > 0;
+  const filterSummary = useMemo(() => {
+    const parts = [...(quoteOnly ? [tr.withQuote] : []), ...pickedTags.map((sl) => tagLabel(sl, data?.tags))];
+    return parts.length ? parts.join(' · ') : tr.allNotes;
+  }, [quoteOnly, pickedTags, data, tr]);
 
   const count = (t: Tab) =>
     t === 'sessions' ? data?.sessions.length
@@ -325,18 +336,42 @@ export default function PatientDetailScreen() {
                   you want when you have opened a patient to remind yourself of
                   them rather than to look something up. */}
               {(tagsInUse.length > 0 || anyQuote) && (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={{ flexGrow: 0, flexShrink: 0, marginBottom: 14 }}
-                  contentContainerStyle={{ gap: 8, alignItems: 'center' }}
-                >
-                  <FilterChip label={tr.all} on={filter === 'all'} onPress={() => setFilter('all')} />
-                  {anyQuote && <FilterChip label={tr.withQuote} on={filter === 'quote'} onPress={() => setFilter('quote')} />}
-                  {tagsInUse.map((t) => (
-                    <FilterChip key={t.slug} label={t.label} on={filter === `tag:${t.slug}`} onPress={() => setFilter(`tag:${t.slug}`)} />
-                  ))}
-                </ScrollView>
+                <View style={{ marginBottom: 14 }}>
+                  <Pressable
+                    onPress={() => setFilterOpen((v) => !v)}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 16, borderWidth: 1, borderColor: activeFilters ? EDA.green : EDA.line, backgroundColor: EDA.card, paddingHorizontal: 14, paddingVertical: 11 }}
+                  >
+                    <SlidersHorizontal size={15} color={activeFilters ? EDA.green : EDA.faint} />
+                    {/* The button states what is ON, not just that filtering
+                        exists. A closed dropdown that hides its own selection is
+                        how a list ends up looking wrong for no visible reason. */}
+                    <Text style={{ flex: 1, fontSize: 13.5, fontWeight: '700', color: activeFilters ? EDA.greenDeep : EDA.inkSoft }} numberOfLines={1}>
+                      {filterSummary}
+                    </Text>
+                    {activeFilters ? (
+                      <Pressable onPress={() => { setPickedTags([]); setQuoteOnly(false); }} hitSlop={8}>
+                        <Text style={{ fontSize: 12.5, fontWeight: '700', color: EDA.green }}>{tr.clear}</Text>
+                      </Pressable>
+                    ) : null}
+                    {filterOpen ? <ChevronUp size={15} color={EDA.faint} /> : <ChevronDown size={15} color={EDA.faint} />}
+                  </Pressable>
+
+                  {filterOpen && (
+                    <EdCard style={{ marginTop: 8, paddingVertical: 4 }}>
+                      {anyQuote && (
+                        <CheckRow label={tr.withQuote} on={quoteOnly} onPress={() => setQuoteOnly((v) => !v)} />
+                      )}
+                      {tagsInUse.map((t) => (
+                        <CheckRow
+                          key={t.slug}
+                          label={t.label}
+                          on={pickedTags.includes(t.slug)}
+                          onPress={() => setPickedTags((cur) => cur.includes(t.slug) ? cur.filter((x) => x !== t.slug) : [...cur, t.slug])}
+                        />
+                      ))}
+                    </EdCard>
+                  )}
+                </View>
               )}
 
               {data.notes.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.noNotes}</Text>}
