@@ -2,8 +2,9 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { FileSignature, Search } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, FileSignature, Search } from 'lucide-react-native';
 import { EDA, EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
+import { RichText } from '@/src/resources/blocks';
 import { useI18n } from '@/src/i18n';
 import { fetchPatient, type PatientDetail } from '@/src/api/practitioner';
 
@@ -32,6 +33,12 @@ const T = {
     assign: { assigned: 'Sent', completed: 'Completed', opened: 'Opened' },
     docs: { sent: 'Sent', viewed: 'Viewed', signed: 'Signed', expired: 'Expired', draft: 'Draft' },
     unpaid: 'Unpaid',
+    outcome: 'Outcome', billing: 'Payment', reason: 'Reason', price: 'Price',
+    place: 'Where', series: 'In series', origin: 'Booked via',
+    sessionNote: 'SESSION NOTE', noNote: 'No note written for this session.',
+    outcomes: { scheduled: 'Not yet held', pending: 'Awaiting your decision', completed: 'Took place', cancelled: 'Did not take place', no_show: 'Patient did not attend' },
+    payments: { paid: 'Invoiced and paid', unpaid: 'Not invoiced', free: 'Free of charge' },
+    sources: { manual: 'You booked it', booking: 'Patient booked online', google: 'From Google Calendar' },
   },
   fr: {
     kicker: 'PATIENT', missing: 'Patient introuvable.',
@@ -44,6 +51,12 @@ const T = {
     assign: { assigned: 'Envoyée', completed: 'Terminée', opened: 'Ouverte' },
     docs: { sent: 'Envoyé', viewed: 'Vu', signed: 'Signé', expired: 'Expiré', draft: 'Brouillon' },
     unpaid: 'Impayé',
+    outcome: 'Résultat', billing: 'Paiement', reason: 'Motif', price: 'Tarif',
+    place: 'Lieu', series: 'Dans la série', origin: 'Réservée via',
+    sessionNote: 'NOTE DE SÉANCE', noNote: 'Aucune note pour cette séance.',
+    outcomes: { scheduled: 'Pas encore eu lieu', pending: 'En attente de votre décision', completed: 'A eu lieu', cancelled: "N'a pas eu lieu", no_show: 'Patient absent' },
+    payments: { paid: 'Facturée et payée', unpaid: 'Non facturée', free: 'Gratuite' },
+    sources: { manual: 'Réservée par vous', booking: 'Réservée en ligne', google: 'Depuis Google Agenda' },
   },
 } as const;
 
@@ -66,6 +79,16 @@ function Chip({ label, tone = 'grey' }: { label: string; tone?: keyof typeof TON
   );
 }
 
+/** One fact inside an expanded session: label left, value right. */
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 4 }}>
+      <Text style={{ width: 92, fontSize: 12.5, color: EDA.faint }}>{label}</Text>
+      <Text style={{ flex: 1, fontSize: 13.5, fontWeight: '600', color: EDA.ink }}>{value}</Text>
+    </View>
+  );
+}
+
 export default function PatientDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -77,6 +100,9 @@ export default function PatientDetailScreen() {
   const [loaded, setLoaded] = useState(false);
   const [tab, setTab] = useState<Tab>('overview');
   const [q, setQ] = useState('');
+  // One at a time. Several sessions open at once turns a history into a wall,
+  // and the reason to open one is to compare it with the rows around it.
+  const [openSession, setOpenSession] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -89,6 +115,10 @@ export default function PatientDetailScreen() {
   const loc = locale === 'fr' ? 'fr-FR' : 'en-GB';
   const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(loc, { day: 'numeric', month: 'short', year: 'numeric' }) : '');
   const dayTime = (iso: string) => new Date(iso).toLocaleString(loc, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const price = (cents: number, currency = 'EUR') => {
+    try { return new Intl.NumberFormat(loc, { style: 'currency', currency, maximumFractionDigits: 2 }).format(cents / 100); }
+    catch { return `${(cents / 100).toFixed(2)} ${currency}`; }
+  };
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/(practitioner)/people' as never));
 
   // Searching happens on device: the list is one patient's notes, already in
@@ -178,21 +208,57 @@ export default function PatientDetailScreen() {
           {data && tab === 'sessions' && (
             <>
               {data.sessions.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.noSessions}</Text>}
-              {data.sessions.map((s) => (
-                <EdCard key={s.id} style={{ marginBottom: 10 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7 }}>
-                    <Text style={{ fontSize: 14.5, fontWeight: '700', color: EDA.ink }}>{dayTime(s.scheduledAt)}</Text>
-                    <Chip
-                      label={tr.statuses[s.status as keyof typeof tr.statuses] ?? s.status}
-                      tone={s.status === 'completed' ? 'green' : s.status === 'pending' ? 'amber' : s.status === 'cancelled' ? 'rose' : 'grey'}
-                    />
-                  </View>
-                  <Text style={{ fontSize: 12.5, color: EDA.faint, marginTop: 4 }}>
-                    {s.sessionType} · {s.sessionFormat.replace('_', ' ')} · {s.durationMinutes}m
-                    {s.paymentStatus === 'unpaid' ? ` · ${tr.unpaid}` : ''}
-                  </Text>
-                </EdCard>
-              ))}
+              {data.sessions.map((s) => {
+                const open = openSession === s.id;
+                return (
+                  <EdCard key={s.id} onPress={() => setOpenSession(open ? null : s.id)} style={{ marginBottom: 10 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                      <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '700', color: EDA.ink }}>{dayTime(s.scheduledAt)}</Text>
+                      <Chip
+                        label={tr.statuses[s.status as keyof typeof tr.statuses] ?? s.status}
+                        tone={s.status === 'completed' ? 'green' : s.status === 'pending' ? 'amber' : s.status === 'cancelled' ? 'rose' : 'grey'}
+                      />
+                      {/* Two icons rather than one rotated. A `transform:
+                          rotate` on a lucide SVG does not apply under
+                          react-native-web — the chevron simply disappeared when
+                          expanded, losing the only affordance saying so. */}
+                      {open ? <ChevronUp size={15} color={EDA.faint} /> : <ChevronDown size={15} color={EDA.faint} />}
+                    </View>
+                    <Text style={{ fontSize: 12.5, color: EDA.faint, marginTop: 4 }}>
+                      {s.sessionTypeLabel ?? s.sessionType} · {s.sessionFormat.replace('_', ' ')} · {s.durationMinutes}m
+                      {s.paymentStatus === 'unpaid' ? ` · ${tr.unpaid}` : ''}
+                    </Text>
+
+                    {open && (
+                      <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: EDA.line, paddingTop: 13 }}>
+                        {/* What was DECIDED, in the order it gets asked: did it
+                            happen, was it paid, and if not, why not. */}
+                        <Row label={tr.outcome} value={tr.outcomes[s.status as keyof typeof tr.outcomes] ?? s.status} />
+                        <Row label={tr.billing} value={tr.payments[s.paymentStatus as keyof typeof tr.payments] ?? s.paymentStatus} />
+                        {s.cancellationReason ? <Row label={tr.reason} value={s.cancellationReason} /> : null}
+                        {s.priceCents != null ? <Row label={tr.price} value={price(s.priceCents, data.currency)} /> : null}
+                        {s.location ? <Row label={tr.place} value={s.location} /> : null}
+                        {s.seriesTotal ? <Row label={tr.series} value={`${s.seriesPosition}/${s.seriesTotal}`} /> : null}
+                        {s.source && tr.sources[s.source as keyof typeof tr.sources]
+                          ? <Row label={tr.origin} value={tr.sources[s.source as keyof typeof tr.sources]} /> : null}
+
+                        <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: EDA.faint, marginTop: 15, marginBottom: 7 }}>
+                          {tr.sessionNote}
+                        </Text>
+                        {s.note ? (
+                          <View style={{ borderRadius: 14, backgroundColor: EDA.canvas, padding: 13 }}>
+                            <RichText html={s.note} />
+                          </View>
+                        ) : (
+                          // Said plainly. "No note" is a real answer when scanning a
+                          // history — it is how you spot the one you never wrote up.
+                          <Text style={{ fontSize: 14, color: EDA.faint }}>{tr.noNote}</Text>
+                        )}
+                      </View>
+                    )}
+                  </EdCard>
+                );
+              })}
             </>
           )}
 

@@ -107,8 +107,20 @@ export interface PatientSessionRow {
   durationMinutes: number;
   status: string;
   sessionType: string;
+  /** Resolved server-side. `sessionType` is an id and shows as "follow_up" raw. */
+  sessionTypeLabel?: string;
   sessionFormat: string;
   paymentStatus: string;
+  priceCents?: number | null;
+  location?: string | null;
+  meetLink?: string | null;
+  source?: string;
+  seriesPosition?: number | null;
+  seriesTotal?: number | null;
+  /** Already a human sentence — the server resolves the stored slug. */
+  cancellationReason?: string | null;
+  /** The session's write-up (sanitized HTML), or null when it has none. */
+  note?: string | null;
 }
 
 export interface PatientResourceRow {
@@ -134,6 +146,7 @@ export interface PatientDocumentRow {
 
 export interface PatientDetail {
   patient: PatientListItem & { email?: string | null; status?: string };
+  currency?: string;
   overview: PatientOverviewSection[];
   sessions: PatientSessionRow[];
   /** Every note, not a recent slice: a truncated list cannot be searched. */
