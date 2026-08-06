@@ -248,80 +248,83 @@ export default function DayCalendar() {
   );
 }
 
+// A block is a solid colour and two lines of text. No border, no rail, no
+// badge: the fill IS the state, the way a calendar block has been for twenty
+// years, and every extra edge on a surface made of stacked rectangles is
+// another line competing with the hour rules behind it.
+//
+// Three fills, because there are three things a session can be. Deep enough for
+// white text in each case — a pale tint with white on it is the one way this
+// gets unreadable.
+// A deep amber takes white text but reads as rust, and a request should catch
+// the eye without shouting. This one is light enough for dark ink, which keeps
+// it warm rather than heavy while still being the loudest thing on the day.
+const FILL = {
+  booked: EDA.green,
+  pending: '#F0B45F',
+  off: '#E7E5DF',
+} as const;
+
 /**
  * One session on the grid.
  *
- * A block is read at a glance, between other things, so it earns its space by
- * answering "who, when, how" in that order — the time RANGE included, because
- * position on the grid gives the start and nothing about the end, and "is this
- * the hour one or the half hour one" is exactly what you squint at.
+ * Read at a glance, between other things, so it answers "who, when, how" in
+ * that order. The time RANGE is on it because position gives the start and
+ * nothing about the end, and "is this the one at half past" is exactly what you
+ * squint at.
  *
- * White with a coloured rail rather than a wash of colour: on a day with five
- * sessions, five tinted rectangles compete with each other and with the grid.
- * The rail carries the state, so the text stays black on white and legible.
- *
- * What it shows degrades with its height, which is set by the session's real
- * duration. A 30-minute block cannot hold three lines, so it holds the one that
- * matters.
+ * What it shows degrades with its height, which is the session's real duration.
+ * A 30-minute block cannot hold two lines, so it holds the one that matters.
  */
 function SessionBlock({ session: s, top, timeLabel, pendingLabel, onPress }: {
   session: PractitionerSession; top: number; timeLabel: string; pendingLabel: string; onPress: () => void;
 }) {
-  const height = Math.max(28, (s.durationMinutes / 60) * HOUR_HEIGHT - 4);
+  const height = Math.max(24, (s.durationMinutes / 60) * HOUR_HEIGHT - 3);
   const pending = s.status === 'pending';
   const off = OFF.has(s.status ?? '');
   const Icon = FORMAT_ICON[s.sessionFormat as keyof typeof FORMAT_ICON] ?? MapPin;
-  const rail = pending ? '#D97706' : off ? '#C9C7BF' : EDA.green;
-  // 36px is where the second line stops being cramped. A 45-minute session
-  // lands at ~40px and a 30-minute one at ~25, which is the split we want:
-  // three quarters of an hour still says when it is, half an hour does not.
-  const roomy = height >= 36;
-  const meta = s.location || s.sessionFormat.replace('_', ' ');
+
+  const fill = pending ? FILL.pending : off ? FILL.off : FILL.booked;
+  // White on the deep green; dark ink on the two light fills. Picked per fill
+  // rather than per state, because contrast is a property of the background.
+  const ink = off ? '#6E6C64' : pending ? '#4A3208' : '#FFFFFF';
+  const dim = off ? '#8C8A82' : pending ? 'rgba(74,50,8,0.72)' : 'rgba(255,255,255,0.82)';
+  // 34px is where a second line stops being cramped: a 45-minute session lands
+  // just above it, a 30-minute one just below.
+  const roomy = height >= 34;
+  // A cancelled session says so in words rather than by being a different
+  // shape, since the shape is doing enough work already.
+  const meta = pending ? `${pendingLabel} · ${s.sessionFormat.replace('_', ' ')}` : (s.location || s.sessionFormat.replace('_', ' '));
 
   return (
     <Pressable
       onPress={onPress}
       style={{
         position: 'absolute', left: 4, right: 0, top, height,
-        flexDirection: 'row', overflow: 'hidden',
-        borderRadius: 9,
-        backgroundColor: off ? '#F3F2EE' : EDA.card,
-        borderWidth: 1, borderColor: off ? '#E6E4DE' : EDA.line,
+        borderRadius: 7, overflow: 'hidden', backgroundColor: fill,
+        paddingHorizontal: 9, paddingVertical: roomy ? 5 : 0,
+        justifyContent: roomy ? 'flex-start' : 'center',
       }}
     >
-      {/* The rail carries the state, so the card itself can stay white. */}
-      <View style={{ width: 3, backgroundColor: rail }} />
+      <Text
+        numberOfLines={1}
+        style={{
+          fontSize: 12.5, fontWeight: '700', letterSpacing: -0.1, color: ink,
+          // A cancelled session reads as a booked one at a glance otherwise,
+          // and the glance is the whole point of a day grid.
+          textDecorationLine: off ? 'line-through' : 'none',
+        }}
+      >
+        {s.who}
+      </Text>
 
-      <View style={{ flex: 1, minWidth: 0, paddingHorizontal: 8, paddingVertical: roomy ? 5 : 3, justifyContent: roomy ? 'flex-start' : 'center' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text
-            numberOfLines={1}
-            style={{
-              flexShrink: 1, fontSize: 13, fontWeight: '700', letterSpacing: -0.1,
-              color: off ? EDA.faint : EDA.ink,
-              // A cancelled session reads as a booked one at a glance otherwise,
-              // and the glance is the whole point of a day grid.
-              textDecorationLine: off ? 'line-through' : 'none',
-            }}
-          >
-            {s.who}
-          </Text>
-          {pending && (
-            <View style={{ borderRadius: 8, backgroundColor: '#FEF3C7', paddingHorizontal: 6, paddingVertical: 1 }}>
-              <Text style={{ fontSize: 9.5, fontWeight: '800', letterSpacing: 0.3, color: '#B45309' }}>{pendingLabel.toUpperCase()}</Text>
-            </View>
-          )}
+      {roomy && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
+          <Text style={{ fontSize: 11, color: dim, fontVariant: ['tabular-nums'] }}>{timeLabel}</Text>
+          <Icon size={10} color={dim} />
+          <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 11, color: dim }}>{meta}</Text>
         </View>
-
-        {roomy && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 }}>
-            <Text style={{ fontSize: 11, fontWeight: '600', color: EDA.inkSoft, fontVariant: ['tabular-nums'] }}>{timeLabel}</Text>
-            <View style={{ height: 2.5, width: 2.5, borderRadius: 2, backgroundColor: EDA.faint }} />
-            <Icon size={10.5} color={EDA.faint} />
-            <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 11, color: EDA.faint }}>{meta}</Text>
-          </View>
-        )}
-      </View>
+      )}
     </Pressable>
   );
 }
