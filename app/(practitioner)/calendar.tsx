@@ -121,6 +121,14 @@ export default function DayCalendar() {
     return (h - startHour) * 60 + m;
   }, [hourMinute, startHour]);
 
+  // Wall-clock HH:MM in the practitioner's timezone, for the block's time range.
+  const hhmm = useCallback((iso: string) => {
+    const [h, m] = hourMinute(iso);
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  }, [hourMinute]);
+  const endOf = (s: PractitionerSession) =>
+    new Date(new Date(s.scheduledAt).getTime() + s.durationMinutes * 60_000).toISOString();
+
   const step = (days: number) => {
     const next = new Date(date);
     next.setDate(next.getDate() + days);
@@ -210,49 +218,16 @@ export default function DayCalendar() {
                   arithmetic yourself. */}
               {isToday && <NowLine minutesInto={minutesInto} spanMinutes={(endHour - startHour) * 60} />}
 
-              {items.map((s) => {
-                const top = (minutesInto(s.scheduledAt) / 60) * HOUR_HEIGHT;
-                const height = Math.max(30, (s.durationMinutes / 60) * HOUR_HEIGHT - 4);
-                const pending = s.status === 'pending';
-                const off = OFF.has(s.status ?? '');
-                const Icon = FORMAT_ICON[s.sessionFormat as keyof typeof FORMAT_ICON] ?? MapPin;
-                const accent = pending ? '#B45309' : off ? EDA.faint : EDA.green;
-                return (
-                  <Pressable
-                    key={s.id}
-                    onPress={() => setOpen(s)}
-                    style={{
-                      position: 'absolute', left: 6, right: 0, top, height,
-                      borderRadius: 10, paddingHorizontal: 9, paddingVertical: 6,
-                      backgroundColor: pending ? '#FFF7E6' : off ? EDA.canvas : EDA.greenTint,
-                      borderLeftWidth: 3, borderLeftColor: accent,
-                      opacity: off ? 0.7 : 1,
-                    }}
-                  >
-                    <Text
-                      numberOfLines={1}
-                      style={{
-                        fontSize: 13, fontWeight: '800',
-                        color: pending ? '#B45309' : off ? EDA.faint : EDA.greenDeep,
-                        // Struck through, because a cancelled session reads as a
-                        // booked one at a glance otherwise — and the glance is
-                        // the whole point of a day grid.
-                        textDecorationLine: off ? 'line-through' : 'none',
-                      }}
-                    >
-                      {s.who}{pending ? ` · ${tr.pending}` : ''}
-                    </Text>
-                    {height > 40 && (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
-                        <Icon size={11} color={EDA.inkSoft} />
-                        <Text numberOfLines={1} style={{ flex: 1, fontSize: 11.5, color: EDA.inkSoft }}>
-                          {s.location || s.sessionFormat.replace('_', ' ')}
-                        </Text>
-                      </View>
-                    )}
-                  </Pressable>
-                );
-              })}
+              {items.map((s) => (
+                <SessionBlock
+                  key={s.id}
+                  session={s}
+                  top={(minutesInto(s.scheduledAt) / 60) * HOUR_HEIGHT}
+                  timeLabel={`${hhmm(s.scheduledAt)}–${hhmm(endOf(s))}`}
+                  pendingLabel={tr.pending}
+                  onPress={() => setOpen(s)}
+                />
+              ))}
             </View>
           </View>
         </FadeIn>
@@ -270,6 +245,84 @@ export default function DayCalendar() {
 
       <PractitionerTabBar active="calendar" />
     </View>
+  );
+}
+
+/**
+ * One session on the grid.
+ *
+ * A block is read at a glance, between other things, so it earns its space by
+ * answering "who, when, how" in that order — the time RANGE included, because
+ * position on the grid gives the start and nothing about the end, and "is this
+ * the hour one or the half hour one" is exactly what you squint at.
+ *
+ * White with a coloured rail rather than a wash of colour: on a day with five
+ * sessions, five tinted rectangles compete with each other and with the grid.
+ * The rail carries the state, so the text stays black on white and legible.
+ *
+ * What it shows degrades with its height, which is set by the session's real
+ * duration. A 30-minute block cannot hold three lines, so it holds the one that
+ * matters.
+ */
+function SessionBlock({ session: s, top, timeLabel, pendingLabel, onPress }: {
+  session: PractitionerSession; top: number; timeLabel: string; pendingLabel: string; onPress: () => void;
+}) {
+  const height = Math.max(28, (s.durationMinutes / 60) * HOUR_HEIGHT - 4);
+  const pending = s.status === 'pending';
+  const off = OFF.has(s.status ?? '');
+  const Icon = FORMAT_ICON[s.sessionFormat as keyof typeof FORMAT_ICON] ?? MapPin;
+  const rail = pending ? '#D97706' : off ? '#C9C7BF' : EDA.green;
+  // 36px is where the second line stops being cramped. A 45-minute session
+  // lands at ~40px and a 30-minute one at ~25, which is the split we want:
+  // three quarters of an hour still says when it is, half an hour does not.
+  const roomy = height >= 36;
+  const meta = s.location || s.sessionFormat.replace('_', ' ');
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        position: 'absolute', left: 4, right: 0, top, height,
+        flexDirection: 'row', overflow: 'hidden',
+        borderRadius: 9,
+        backgroundColor: off ? '#F3F2EE' : EDA.card,
+        borderWidth: 1, borderColor: off ? '#E6E4DE' : EDA.line,
+      }}
+    >
+      {/* The rail carries the state, so the card itself can stay white. */}
+      <View style={{ width: 3, backgroundColor: rail }} />
+
+      <View style={{ flex: 1, minWidth: 0, paddingHorizontal: 8, paddingVertical: roomy ? 5 : 3, justifyContent: roomy ? 'flex-start' : 'center' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text
+            numberOfLines={1}
+            style={{
+              flexShrink: 1, fontSize: 13, fontWeight: '700', letterSpacing: -0.1,
+              color: off ? EDA.faint : EDA.ink,
+              // A cancelled session reads as a booked one at a glance otherwise,
+              // and the glance is the whole point of a day grid.
+              textDecorationLine: off ? 'line-through' : 'none',
+            }}
+          >
+            {s.who}
+          </Text>
+          {pending && (
+            <View style={{ borderRadius: 8, backgroundColor: '#FEF3C7', paddingHorizontal: 6, paddingVertical: 1 }}>
+              <Text style={{ fontSize: 9.5, fontWeight: '800', letterSpacing: 0.3, color: '#B45309' }}>{pendingLabel.toUpperCase()}</Text>
+            </View>
+          )}
+        </View>
+
+        {roomy && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 }}>
+            <Text style={{ fontSize: 11, fontWeight: '600', color: EDA.inkSoft, fontVariant: ['tabular-nums'] }}>{timeLabel}</Text>
+            <View style={{ height: 2.5, width: 2.5, borderRadius: 2, backgroundColor: EDA.faint }} />
+            <Icon size={10.5} color={EDA.faint} />
+            <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 11, color: EDA.faint }}>{meta}</Text>
+          </View>
+        )}
+      </View>
+    </Pressable>
   );
 }
 

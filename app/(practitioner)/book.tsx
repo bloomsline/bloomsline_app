@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { EDA, EdHeader, EdCard, EdSection, FadeIn } from '@/src/ui/editorial';
+import { EDA, EdHeader, EdCard, EdPill, EdSection, FadeIn } from '@/src/ui/editorial';
 import { MonthCalendar } from '@/src/ui/MonthCalendar';
 import { notify } from '@/src/ui/alert';
 import { useI18n } from '@/src/i18n';
@@ -22,6 +22,8 @@ const T = {
     noSlots: 'No free slots that day.', nextFree: 'NEXT FREE', slotOne: 'slot', slotMany: 'slots',
     noPatients: 'No patients yet.', change: 'Change',
     moveKicker: 'MOVE', moveTitle: 'Move this session', moving: 'Moving…', moved: 'Session moved.',
+    continueWith: 'Continue with {time}',
+    nearestNote: 'Nothing free at {asked}. The closest is {got} — or pick another below.',
   },
   fr: {
     kicker: 'RÉSERVER', title: 'Réserver une séance',
@@ -29,8 +31,12 @@ const T = {
     noSlots: 'Aucun créneau libre ce jour-là.', nextFree: 'PROCHAINES DISPOS', slotOne: 'créneau', slotMany: 'créneaux',
     noPatients: 'Aucun patient.', change: 'Changer',
     moveKicker: 'DÉPLACER', moveTitle: 'Déplacer cette séance', moving: 'Déplacement…', moved: 'Séance déplacée.',
+    continueWith: 'Continuer à {time}',
+    nearestNote: 'Rien de libre à {asked}. Le plus proche est {got} — ou choisissez ci-dessous.',
   },
 } as const;
+
+const fill = (s: string, vars: Record<string, string>) => s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
 
 export default function Book() {
   const router = useRouter();
@@ -62,6 +68,9 @@ export default function Book() {
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [nextFree, setNextFree] = useState<NextAvailableDay[]>([]);
   const [moving, setMoving] = useState(false);
+  // Only set once the practitioner picks a different time from the one they
+  // tapped; until then the tapped one stands.
+  const [picked, setPicked] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -90,6 +99,8 @@ export default function Book() {
     if (!duration || !format) return;
     let alive = true;
     setSlotsLoading(true);
+    // A time chosen on one day means nothing on another.
+    setPicked(null);
     void fetchBookingOptions({ date, duration, format }).then((res) => {
       if (!alive) return;
       setSlots(res?.slots ?? []);
@@ -141,9 +152,13 @@ export default function Book() {
     });
   };
 
-  // The slot nearest the time that was tapped on the day grid. It is marked, not
-  // auto-selected: the tap said "around here", and the free slots may not line
-  // up with it at all.
+  // The slot nearest the time tapped on the day grid.
+  //
+  // Arriving from a tap, this becomes the SELECTED slot rather than a hint:
+  // the tap already answered "when", and asking again — with the answer sitting
+  // right there, ringed, waiting to be tapped a second time — is the app not
+  // listening. It stays changeable, because "around 16:00" is what a tap can
+  // honestly mean, and the exact free slots may sit either side of it.
   const nearest = (() => {
     if (typeof params.initialTime !== 'string' || slots.length === 0) return null;
     const [h, m] = params.initialTime.split(':').map(Number);
@@ -157,6 +172,23 @@ export default function Book() {
       if (gap < bestGap) { bestGap = gap; best = s; }
     }
     return best;
+  })();
+
+  // Booking straight from the + button asks for a time in the usual way, and a
+  // tap on a slot goes on to the confirmation. Only the tapped-a-gap route
+  // arrives with an answer already, and only it gets the Continue button.
+  // Only while they are still on the day they tapped. Stepping to another day
+  // makes the tapped time meaningless, and preselecting a time on a day nobody
+  // chose would be worse than asking.
+  const fromTap = typeof params.initialTime === 'string' && !moveId && date === params.initialDate;
+  const chosen = fromTap ? (picked ?? nearest) : picked;
+  // Whether the tap landed on a real free slot or merely near one — worth
+  // saying, because "you asked for 16:00, the nearest free time is 16:30" is
+  // information, and silently moving them is not.
+  const exact = (() => {
+    if (!fromTap || !chosen || typeof params.initialTime !== 'string') return true;
+    const d = new Date(chosen);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` === params.initialTime;
   })();
 
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/(practitioner)/home' as never));
@@ -261,23 +293,42 @@ export default function Book() {
               <EdSection label={tr.slot} />
               {(slotsLoading || moving) && <ActivityIndicator />}
               {!slotsLoading && slots.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.noSlots}</Text>}
+              {/* Say so when the tapped time was not itself free, rather than
+                  quietly substituting the nearest one. */}
+              {fromTap && chosen && !exact && !slotsLoading && (
+                <Text style={{ fontSize: 13, color: EDA.inkSoft, marginBottom: 10, lineHeight: 19 }}>
+                  {fill(tr.nearestNote, { asked: params.initialTime as string, got: time(chosen) })}
+                </Text>
+              )}
+
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
                 {slots.map((s) => {
-                  // The slot closest to where the practitioner tapped on the day
-                  // grid, ringed so their eye lands back where they started.
-                  const near = s === nearest;
+                  const on = s === chosen;
                   return (
                     <Pressable
                       key={s}
-                      onPress={() => (moveId ? move(s) : review(s))}
+                      // Coming from a tap, a slot only CHANGES the selection —
+                      // Continue is what commits. Booking from scratch keeps the
+                      // straight-through tap, which is the flow that already
+                      // worked and the one people know.
+                      onPress={() => (moveId ? move(s) : fromTap ? setPicked(s) : review(s))}
                       disabled={moving}
-                      style={{ borderRadius: 18, paddingHorizontal: 16, paddingVertical: 11, backgroundColor: near ? EDA.greenTint : EDA.card, borderWidth: 1.5, borderColor: near ? EDA.green : EDA.line, opacity: moving ? 0.5 : 1 }}
+                      style={{ borderRadius: 18, paddingHorizontal: 16, paddingVertical: 11, backgroundColor: on ? EDA.green : EDA.card, borderWidth: 1.5, borderColor: on ? EDA.green : EDA.line, opacity: moving ? 0.5 : 1 }}
                     >
-                      <Text style={{ fontSize: 14.5, fontWeight: '700', color: near ? EDA.greenDeep : EDA.ink }}>{time(s)}</Text>
+                      <Text style={{ fontSize: 14.5, fontWeight: '700', color: on ? '#fff' : EDA.ink }}>{time(s)}</Text>
                     </Pressable>
                   );
                 })}
               </View>
+
+              {fromTap && chosen && (
+                <EdPill
+                  label={fill(tr.continueWith, { time: time(chosen) })}
+                  variant="green"
+                  onPress={() => review(chosen)}
+                  style={{ marginTop: 22 }}
+                />
+              )}
             </>
           )}
 
