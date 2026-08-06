@@ -16,6 +16,9 @@ export interface PractitionerSession {
   isGuest?: boolean;
   email?: string | null;
   location: string | null;
+  /** Opens the place on a map. The practitioner's own link when they set one,
+   *  else a search on the address — resolved server-side. */
+  mapsUrl?: string | null;
   meetLink: string | null;
   status?: string;
   paymentStatus?: string; // paid | unpaid | free

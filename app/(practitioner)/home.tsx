@@ -268,16 +268,14 @@ function SessionRow({ s, time, join, onPrep, onNote }: {
 /**
  * A maps URL for an in-person session that has an address.
  *
- * Derived from the address rather than stored: `?q=` is the documented
- * cross-platform form, iOS hands it to Apple Maps and Android to Google Maps,
- * and neither needs a link anyone had to remember to paste. A practitioner who
- * wants a precise pin (a side entrance, a building in a complex) would need a
- * real link field — see the analysis; this covers the ordinary case without a
- * schema change.
+ * The server decides WHICH link: the practitioner's own Google Maps link when
+ * they have set one (the case a search cannot serve — a side entrance, one
+ * building in a complex), else a search on the address. The fallback here is
+ * for a build talking to a server that predates `mapsUrl`.
  */
 function mapsFor(s: PractitionerSession): string | null {
   if (s.sessionFormat !== 'in_person' || !s.location) return null;
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.location)}`;
+  return s.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.location)}`;
 }
 
 function RowAction({ Icon, onPress }: { Icon: LucideIcon; onPress: () => void }) {
