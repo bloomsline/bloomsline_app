@@ -135,6 +135,20 @@ export interface PatientResourceRow {
   status: string;
   assignedAt: string | null;
   completedAt: string | null;
+  /** The latest SUBMITTED response, or null when nothing has come back. */
+  responseId?: string | null;
+}
+
+/** A file uploaded against the patient. A different table from the
+ *  documents-for-signature below, and shown in a separate panel on the web. */
+export interface PatientFileRow {
+  id: string;
+  name: string;
+  contentType: string | null;
+  sizeBytes: number | null;
+  uploadedBy: string | null;
+  folder: string | null;
+  createdAt: string;
 }
 
 /** Metadata only. The signed PDF stays on the server — a download is a copy
@@ -159,6 +173,7 @@ export interface PatientDetail {
   /** Every note, not a recent slice: a truncated list cannot be searched. */
   notes: PatientNote[];
   resources: PatientResourceRow[];
+  files?: PatientFileRow[];
   documents: PatientDocumentRow[];
 }
 

@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { Check, ChevronDown, ChevronUp, FileSignature, Search, SlidersHorizontal } from 'lucide-react-native';
+import { Check, ChevronDown, ChevronRight, ChevronUp, FileSignature, Paperclip, Search, SlidersHorizontal } from 'lucide-react-native';
 import { EDA, EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
 import { RichText } from '@/src/resources/blocks';
 import { useI18n } from '@/src/i18n';
@@ -38,6 +38,7 @@ const T = {
     sessionNote: 'SESSION NOTE', noNote: 'No note written for this session.',
     all: 'All', withQuote: 'With a quote', quote: 'Quote', session: 'Session',
     allNotes: 'All notes', clear: 'Clear',
+    viewResponse: 'View response', uploaded: 'UPLOADED', forSignature: 'FOR SIGNATURE',
     outcomes: { scheduled: 'Not yet held', pending: 'Awaiting your decision', completed: 'Took place', cancelled: 'Did not take place', no_show: 'Patient did not attend' },
     payments: { paid: 'Invoiced and paid', unpaid: 'Not invoiced', free: 'Free of charge' },
     sources: { manual: 'You booked it', booking: 'Patient booked online', google: 'From Google Calendar' },
@@ -58,6 +59,7 @@ const T = {
     sessionNote: 'NOTE DE SÉANCE', noNote: 'Aucune note pour cette séance.',
     all: 'Toutes', withQuote: 'Avec citation', quote: 'Citation', session: 'Séance',
     allNotes: 'Toutes les notes', clear: 'Effacer',
+    viewResponse: 'Voir la réponse', uploaded: 'FICHIERS', forSignature: 'À SIGNER',
     outcomes: { scheduled: 'Pas encore eu lieu', pending: 'En attente de votre décision', completed: 'A eu lieu', cancelled: "N'a pas eu lieu", no_show: 'Patient absent' },
     payments: { paid: 'Facturée et payée', unpaid: 'Non facturée', free: 'Gratuite' },
     sources: { manual: 'Réservée par vous', booking: 'Réservée en ligne', google: 'Depuis Google Agenda' },
@@ -105,6 +107,13 @@ function plain(html: string): string {
     .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/** Bytes as something a person reads. */
+function fileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 /** The practitioner's own label for a tag, falling back to a de-slugged form. */
@@ -421,15 +430,27 @@ export default function PatientDetailScreen() {
             <>
               {data.resources.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.noResources}</Text>}
               {data.resources.map((r) => (
-                <EdCard key={r.id} style={{ marginBottom: 10 }}>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink }}>{r.title ?? '—'}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 6 }}>
-                    <Chip
-                      label={tr.assign[r.status as keyof typeof tr.assign] ?? r.status}
-                      tone={r.status === 'completed' ? 'green' : 'grey'}
-                    />
-                    <Text style={{ fontSize: 12.5, color: EDA.faint }}>{day(r.completedAt ?? r.assignedAt)}</Text>
+                <EdCard
+                  key={r.id}
+                  // Openable only when something actually came back. A row that
+                  // looks tappable and answers nothing is worse than a flat one.
+                  onPress={r.responseId ? () => router.navigate({ pathname: '/(practitioner)/submission', params: { id: r.responseId } } as never) : undefined}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 }}
+                >
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink }}>{r.title ?? '—'}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 6 }}>
+                      <Chip
+                        label={tr.assign[r.status as keyof typeof tr.assign] ?? r.status}
+                        tone={r.status === 'completed' ? 'green' : 'grey'}
+                      />
+                      <Text style={{ fontSize: 12.5, color: EDA.faint }}>{day(r.completedAt ?? r.assignedAt)}</Text>
+                    </View>
+                    {r.responseId ? (
+                      <Text style={{ fontSize: 12.5, fontWeight: '700', color: EDA.green, marginTop: 6 }}>{tr.viewResponse}</Text>
+                    ) : null}
                   </View>
+                  {r.responseId ? <ChevronRight size={17} color={EDA.faint} /> : null}
                 </EdCard>
               ))}
             </>
@@ -437,7 +458,31 @@ export default function PatientDetailScreen() {
 
           {data && tab === 'documents' && (
             <>
-              {data.documents.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.noDocuments}</Text>}
+              {data.documents.length === 0 && (data.files ?? []).length === 0 && (
+                <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.noDocuments}</Text>
+              )}
+
+              {/* Uploaded files. A different table from the signature documents
+                  below, and the reason this tab looked empty for a patient who
+                  plainly had one. */}
+              {(data.files ?? []).length > 0 && (
+                <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: EDA.faint, marginBottom: 8 }}>{tr.uploaded}</Text>
+              )}
+              {(data.files ?? []).map((f) => (
+                <EdCard key={f.id} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 11, marginBottom: 10 }}>
+                  <Paperclip size={16} color={EDA.faint} style={{ marginTop: 2 }} />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink }}>{f.name}</Text>
+                    <Text style={{ fontSize: 12.5, color: EDA.faint, marginTop: 4 }}>
+                      {day(f.createdAt)}{f.sizeBytes ? ` · ${fileSize(f.sizeBytes)}` : ''}{f.folder ? ` · ${f.folder}` : ''}
+                    </Text>
+                  </View>
+                </EdCard>
+              ))}
+
+              {data.documents.length > 0 && (
+                <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: EDA.faint, marginTop: (data.files ?? []).length ? 14 : 0, marginBottom: 8 }}>{tr.forSignature}</Text>
+              )}
               {data.documents.map((d) => (
                 <EdCard key={d.id} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 11, marginBottom: 10 }}>
                   <FileSignature size={16} color={EDA.faint} style={{ marginTop: 2 }} />
