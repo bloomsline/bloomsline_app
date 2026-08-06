@@ -16,6 +16,9 @@ export interface PractitionerSession {
   isGuest?: boolean;
   email?: string | null;
   location: string | null;
+  /** Opens the place on a map. The practitioner's own link when they set one,
+   *  else a search on the address — resolved server-side. */
+  mapsUrl?: string | null;
   meetLink: string | null;
   status?: string;
   paymentStatus?: string; // paid | unpaid | free
@@ -90,6 +93,11 @@ export interface PatientNote {
   createdAt: string;
   isPrivate?: boolean;
   appointmentId?: string | null;
+  /** When the session this note is about was — not when it was typed. */
+  sessionAt?: string | null;
+  /** Tag slugs found inside the note's markup, resolved server-side. */
+  tags?: string[];
+  hasQuote?: boolean;
 }
 
 /** A section of the practitioner's own overview template, with this patient's
@@ -107,8 +115,20 @@ export interface PatientSessionRow {
   durationMinutes: number;
   status: string;
   sessionType: string;
+  /** Resolved server-side. `sessionType` is an id and shows as "follow_up" raw. */
+  sessionTypeLabel?: string;
   sessionFormat: string;
   paymentStatus: string;
+  priceCents?: number | null;
+  location?: string | null;
+  meetLink?: string | null;
+  source?: string;
+  seriesPosition?: number | null;
+  seriesTotal?: number | null;
+  /** Already a human sentence — the server resolves the stored slug. */
+  cancellationReason?: string | null;
+  /** The session's write-up (sanitized HTML), or null when it has none. */
+  note?: string | null;
 }
 
 export interface PatientResourceRow {
@@ -118,6 +138,20 @@ export interface PatientResourceRow {
   status: string;
   assignedAt: string | null;
   completedAt: string | null;
+  /** The latest SUBMITTED response, or null when nothing has come back. */
+  responseId?: string | null;
+}
+
+/** A file uploaded against the patient. A different table from the
+ *  documents-for-signature below, and shown in a separate panel on the web. */
+export interface PatientFileRow {
+  id: string;
+  name: string;
+  contentType: string | null;
+  sizeBytes: number | null;
+  uploadedBy: string | null;
+  folder: string | null;
+  createdAt: string;
 }
 
 /** Metadata only. The signed PDF stays on the server — a download is a copy
@@ -134,11 +168,15 @@ export interface PatientDocumentRow {
 
 export interface PatientDetail {
   patient: PatientListItem & { email?: string | null; status?: string };
+  currency?: string;
+  /** The practitioner's tag vocabulary, for labelling the filter chips. */
+  tags?: { slug: string; label: string }[];
   overview: PatientOverviewSection[];
   sessions: PatientSessionRow[];
   /** Every note, not a recent slice: a truncated list cannot be searched. */
   notes: PatientNote[];
   resources: PatientResourceRow[];
+  files?: PatientFileRow[];
   documents: PatientDocumentRow[];
 }
 
@@ -357,6 +395,58 @@ export function resendSessionDetails(id: string): Promise<{ ok: boolean; error?:
 /** Nudge an unpaid session. Only offered when the session type has a pay link. */
 export function sendPaymentReminder(id: string): Promise<{ ok: boolean; error?: string }> {
   return sessionAction(`${id}/payment-reminder`, { method: 'POST' }, 'Could not send the reminder.');
+}
+
+// ---------------------------------------------------------------------------
+// Bloom Pulse — the session brief, for the minute before walking in.
+// ---------------------------------------------------------------------------
+
+export interface PulseContent {
+  sentiment: string;
+  pulseLine: string;
+  trend?: { direction?: string; points?: number[] } | null;
+  signals: { text: string; kind: string }[];
+  nextSteps: string[];
+  themes: { label: string; tone: string }[];
+}
+
+export interface Pulse {
+  content: PulseContent;
+  generatedAt: string;
+  model: string;
+  noteCount: number;
+  sessionCount: number;
+}
+
+export interface PulseView {
+  pulse: Pulse | null;
+  /** AI egress opt-in. Off means the brief cannot be generated at all. */
+  consented: boolean;
+  /** How much has happened since the stored brief was built. */
+  freshness: { newNotes: number; newSessions: number; versionStale: boolean } | null;
+}
+
+export async function fetchPulse(memberId: string): Promise<PulseView | null> {
+  try {
+    const res = await apiFetch(`/api/mobile/practitioner/patients/${memberId}/pulse`);
+    if (!res.ok) return null;
+    return (await res.json()) as PulseView;
+  } catch {
+    return null;
+  }
+}
+
+/** Regenerate. The server enforces consent, ownership and rate limit before any
+ *  patient material reaches a model — a 409 means consent is off. */
+export async function generatePulse(memberId: string): Promise<{ ok: boolean; pulse?: Pulse; error?: string }> {
+  try {
+    const res = await apiFetch(`/api/mobile/practitioner/patients/${memberId}/pulse`, { method: 'POST' });
+    const body = await res.json().catch(() => null);
+    if (res.ok) return { ok: true, pulse: body?.pulse };
+    return { ok: false, error: body?.error ?? 'failed' };
+  } catch {
+    return { ok: false, error: 'unreachable' };
+  }
 }
 
 export async function addPatient(input: { firstName: string; lastName: string; email?: string }): Promise<{ ok: boolean; error?: string }> {
