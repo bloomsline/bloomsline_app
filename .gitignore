@@ -1,5 +1,8 @@
 # dependencies
-node_modules/
+# No trailing slash. `node_modules/` matches a directory only, so a SYMLINK
+# named node_modules is not ignored by it and can be committed (this happened
+# in #37). Without the slash, both forms are ignored.
+node_modules
 
 # expo
 .expo/
