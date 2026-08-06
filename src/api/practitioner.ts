@@ -5,14 +5,25 @@ import { apiFetch } from '../auth/api';
 
 export interface PractitionerSession {
   id: string;
+  memberId?: string | null;
   scheduledAt: string; // ISO
   durationMinutes: number;
   sessionFormat: string; // in_person | video | phone
   sessionType: string;
   who: string;
+  /** A guest booking has no member row, so the member-scoped actions can't run. */
+  isGuest?: boolean;
+  email?: string | null;
   location: string | null;
   meetLink: string | null;
   status?: string;
+  paymentStatus?: string; // paid | unpaid | free
+  priceCents?: number | null;
+  source?: string; // manual | google | booking
+  cancellationReason?: string | null;
+  seriesId?: string | null;
+  seriesPosition?: number | null;
+  seriesTotal?: number | null;
 }
 
 export interface BookingRequest {
@@ -27,7 +38,7 @@ export interface BookingRequest {
 
 /** A day's sessions. With no date: today + tomorrow, for the dashboard. With
  *  one: that single day, which is how the day calendar walks through them. */
-export async function fetchDay(date?: string): Promise<{ items: PractitionerSession[]; timezone: string } | null> {
+export async function fetchDay(date?: string): Promise<{ items: PractitionerSession[]; timezone: string; currency?: string } | null> {
   try {
     const res = await apiFetch(`/api/mobile/practitioner/day${date ? `?date=${date}` : ''}`);
     if (!res.ok) return null;
@@ -197,7 +208,14 @@ export interface SessionTypeOption {
   label: string;
   durationMinutes: number;
   defaultFormat: string;
+  /** Whether a payment reminder has a link to send. Without one there is no
+   *  reminder, so the sheet hides the option instead of failing on tap. */
+  hasPaymentLink?: boolean;
 }
+
+/** No-show reasons, grouped and localised by the server. The reason decides the
+ *  recorded status (no-show vs cancelled), so the list is never hardcoded here. */
+export interface CloseReasonGroup { label: string; options: [string, string][] }
 
 export interface ShareableResource {
   id: string;
@@ -208,7 +226,7 @@ export interface ShareableResource {
 
 export interface NextAvailableDay { date: string; slots: string[] }
 
-export async function fetchBookingOptions(params?: { date?: string; duration?: number; format?: string }): Promise<{ sessionTypes: SessionTypeOption[]; timezone: string; slots: string[]; nextAvailable: NextAvailableDay[] } | null> {
+export async function fetchBookingOptions(params?: { date?: string; duration?: number; format?: string }): Promise<{ sessionTypes: SessionTypeOption[]; timezone: string; slots: string[]; nextAvailable: NextAvailableDay[]; closeReasons?: CloseReasonGroup[] } | null> {
   try {
     const qs = new URLSearchParams();
     if (params?.date) qs.set('date', params.date);
@@ -233,6 +251,62 @@ export async function bookSession(input: {
   } catch {
     return { ok: false, error: 'Could not reach the server.' };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Acting on a session, from the day calendar.
+//
+// Each of these is one call to a mobile route that wraps the SAME server action
+// the care app's booking popover uses. None of the lifecycle rules live here:
+// the phone decides what to OFFER, the server decides what is allowed. That
+// split is why a session cancelled on the web and one cancelled on the phone
+// end up identical — same state machine, same Google mirror, same emails.
+// ---------------------------------------------------------------------------
+
+/** Shared shape: 409 carries the reason a practitioner can act on ("that time is taken"). */
+async function sessionAction(path: string, init: RequestInit, fallback: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await apiFetch(`/api/mobile/practitioner/sessions/${path}`, init);
+    if (res.ok) return { ok: true };
+    const body = await res.json().catch(() => null);
+    return { ok: false, error: body?.error ?? fallback };
+  } catch {
+    return { ok: false, error: 'Could not reach the server.' };
+  }
+}
+
+/** Record how the session went. A no-show needs a reason: it decides the status. */
+export function closeSession(id: string, input: {
+  outcome: 'completed' | 'no_show'; paymentStatus: string; summary?: string; reason?: string; sendPaymentLink?: boolean;
+}): Promise<{ ok: boolean; error?: string }> {
+  return sessionAction(`${id}/close`, { method: 'POST', body: JSON.stringify(input) }, 'Could not close the session.');
+}
+
+/** Move it. The server re-checks the slot, so a taken time comes back as an error. */
+export function rescheduleSession(id: string, input: {
+  scheduledAt: string; durationMinutes?: number; sessionFormat?: string; location?: string | null; sessionType?: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  return sessionAction(`${id}/reschedule`, { method: 'POST', body: JSON.stringify(input) }, 'Could not move the session.');
+}
+
+/** Cancel this one, this and later, or the whole series. */
+export function cancelSession(id: string, input?: { scope?: 'this' | 'following' | 'all'; reason?: string }): Promise<{ ok: boolean; error?: string }> {
+  return sessionAction(`${id}/cancel`, { method: 'POST', body: JSON.stringify(input ?? {}) }, 'Could not cancel the session.');
+}
+
+/** Remove it entirely — for the booking that should never have existed. */
+export function deleteSession(id: string): Promise<{ ok: boolean; error?: string }> {
+  return sessionAction(`${id}`, { method: 'DELETE' }, 'Could not delete the session.');
+}
+
+/** Send the patient their date, time and joining details again. */
+export function resendSessionDetails(id: string): Promise<{ ok: boolean; error?: string }> {
+  return sessionAction(`${id}/resend`, { method: 'POST' }, 'Could not send the details.');
+}
+
+/** Nudge an unpaid session. Only offered when the session type has a pay link. */
+export function sendPaymentReminder(id: string): Promise<{ ok: boolean; error?: string }> {
+  return sessionAction(`${id}/payment-reminder`, { method: 'POST' }, 'Could not send the reminder.');
 }
 
 export async function addPatient(input: { firstName: string; lastName: string; email?: string }): Promise<{ ok: boolean; error?: string }> {

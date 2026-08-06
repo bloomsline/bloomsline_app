@@ -1,13 +1,14 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { CalendarPlus, ChevronLeft, ChevronRight, MapPin, Phone, Video } from 'lucide-react-native';
 import { EDA, EdHeader, FadeIn } from '@/src/ui/editorial';
 import { PractitionerTabBar, PRACTITIONER_TAB_PAD } from '@/src/ui/PractitionerTabBar';
 import { ymd } from '@/src/ui/MonthCalendar';
+import { SessionSheet } from '@/src/practitioner/SessionSheet';
 import { useI18n } from '@/src/i18n';
-import { fetchDay, type PractitionerSession } from '@/src/api/practitioner';
+import { fetchDay, fetchBookingOptions, type CloseReasonGroup, type PractitionerSession, type SessionTypeOption } from '@/src/api/practitioner';
 
 // The day, as a timeline rather than a list.
 //
@@ -24,12 +25,21 @@ const HOUR_HEIGHT = 58;
 const DEFAULT_START_HOUR = 7;
 const DEFAULT_END_HOUR = 22;
 
+// Tapping an empty stretch books there. Rounding to the quarter hour is the
+// difference between "book at 10:15" and "book at 10:13" — a tap is a coarse
+// instrument and nobody means 10:13.
+const SNAP_MINUTES = 15;
+
 const T = {
-  en: { kicker: 'CALENDAR', today: 'Today', nothing: 'Nothing booked.', pending: 'Request', join: 'Join' },
-  fr: { kicker: 'AGENDA', today: 'Aujourd’hui', nothing: 'Rien de prévu.', pending: 'Demande', join: 'Rejoindre' },
+  en: { kicker: 'CALENDAR', today: 'Today', nothing: 'Nothing booked.', pending: 'Request' },
+  fr: { kicker: 'AGENDA', today: 'Aujourd’hui', nothing: 'Rien de prévu.', pending: 'Demande' },
 } as const;
 
 const FORMAT_ICON = { video: Video, in_person: MapPin, phone: Phone } as const;
+
+// A session that is no longer going to happen still belongs on the day it was
+// on — but it should not compete with the ones that are.
+const OFF = new Set(['cancelled', 'no_show']);
 
 export default function DayCalendar() {
   const router = useRouter();
@@ -39,22 +49,42 @@ export default function DayCalendar() {
   const [date, setDate] = useState(() => new Date());
   const [items, setItems] = useState<PractitionerSession[]>([]);
   const [tz, setTz] = useState<string | undefined>();
+  const [currency, setCurrency] = useState('EUR');
   const [loaded, setLoaded] = useState(false);
+  const [open, setOpen] = useState<PractitionerSession | null>(null);
+  // The sheet needs two things the day itself does not carry: the no-show
+  // reasons, and which session types have a pay link. Both belong to the
+  // practice rather than the day, so they are fetched once and reused.
+  const [types, setTypes] = useState<SessionTypeOption[]>([]);
+  const [closeReasons, setCloseReasons] = useState<CloseReasonGroup[]>([]);
 
   const key = ymd(date);
+
+  const load = useCallback(() => {
+    let alive = true;
+    setLoaded(false);
+    void fetchDay(key).then((d) => {
+      if (!alive) return;
+      setItems(d?.items ?? []);
+      setTz(d?.timezone);
+      if (d?.currency) setCurrency(d.currency);
+      setLoaded(true);
+    });
+    return () => { alive = false; };
+  }, [key]);
+
+  useFocusEffect(load);
 
   useFocusEffect(
     useCallback(() => {
       let alive = true;
-      setLoaded(false);
-      void fetchDay(key).then((d) => {
-        if (!alive) return;
-        setItems(d?.items ?? []);
-        setTz(d?.timezone);
-        setLoaded(true);
+      void fetchBookingOptions().then((o) => {
+        if (!alive || !o) return;
+        setTypes(o.sessionTypes ?? []);
+        setCloseReasons(o.closeReasons ?? []);
       });
       return () => { alive = false; };
-    }, [key]),
+    }, []),
   );
 
   const zone = tz ? { timeZone: tz } : {};
@@ -97,6 +127,27 @@ export default function DayCalendar() {
     setDate(next);
   };
 
+  // Tap a gap in the day → book there. The tap gives a DAY and a TIME, never an
+  // instant: the free slots still come from the server, so a tap can only ever
+  // preselect a starting point, not conjure availability that isn't there.
+  //
+  // The time comes from WHICH band was tapped rather than from the tap's y
+  // coordinate. Coordinates looked simpler and were wrong: react-native-web
+  // does not populate `locationY` on a press, so every tap on the web build
+  // produced NaN and booked "NaN:NaN". Bands also give each half hour a real
+  // touch target, which a screen reader can reach and a coordinate cannot.
+  const bookAt = (h: number, m: number) => {
+    if (h >= 24) return;
+    router.navigate({
+      pathname: '/(practitioner)/book',
+      params: { initialDate: key, initialTime: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}` },
+    } as never);
+  };
+
+  // Which of THIS session's type has a pay link — the sheet needs it to decide
+  // whether "remind for payment" has anything to send.
+  const hasPaymentLink = Boolean(open && types.find((t) => t.id === open.sessionType)?.hasPaymentLink);
+
   const heading = date.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long', ...zone });
   const isToday = key === ymd(new Date());
 
@@ -136,9 +187,23 @@ export default function DayCalendar() {
               ))}
             </View>
 
+            {/* The grid itself is the "book here" target. Each half hour is its
+                own band, and the bands sit UNDER the session blocks — so a tap
+                on a session opens that session and a tap on a gap starts a
+                booking. No mode to switch, no long-press to discover. */}
             <View style={{ flex: 1, position: 'relative' }}>
               {hours.map((h) => (
-                <View key={h} style={{ height: HOUR_HEIGHT, borderTopWidth: 1, borderTopColor: EDA.line }} />
+                <View key={h} style={{ height: HOUR_HEIGHT, borderTopWidth: 1, borderTopColor: EDA.line }}>
+                  {[0, SNAP_MINUTES * 2].map((m) => (
+                    <Pressable
+                      key={m}
+                      onPress={() => bookAt(h, m)}
+                      style={{ height: HOUR_HEIGHT / 2 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Book at ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`}
+                    />
+                  ))}
+                </View>
               ))}
 
               {/* Now line, only on today — a day view without it makes you do the
@@ -149,18 +214,32 @@ export default function DayCalendar() {
                 const top = (minutesInto(s.scheduledAt) / 60) * HOUR_HEIGHT;
                 const height = Math.max(30, (s.durationMinutes / 60) * HOUR_HEIGHT - 4);
                 const pending = s.status === 'pending';
+                const off = OFF.has(s.status ?? '');
                 const Icon = FORMAT_ICON[s.sessionFormat as keyof typeof FORMAT_ICON] ?? MapPin;
+                const accent = pending ? '#B45309' : off ? EDA.faint : EDA.green;
                 return (
-                  <View
+                  <Pressable
                     key={s.id}
+                    onPress={() => setOpen(s)}
                     style={{
                       position: 'absolute', left: 6, right: 0, top, height,
                       borderRadius: 10, paddingHorizontal: 9, paddingVertical: 6,
-                      backgroundColor: pending ? '#FFF7E6' : EDA.greenTint,
-                      borderLeftWidth: 3, borderLeftColor: pending ? '#B45309' : EDA.green,
+                      backgroundColor: pending ? '#FFF7E6' : off ? EDA.canvas : EDA.greenTint,
+                      borderLeftWidth: 3, borderLeftColor: accent,
+                      opacity: off ? 0.7 : 1,
                     }}
                   >
-                    <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '800', color: pending ? '#B45309' : EDA.greenDeep }}>
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        fontSize: 13, fontWeight: '800',
+                        color: pending ? '#B45309' : off ? EDA.faint : EDA.greenDeep,
+                        // Struck through, because a cancelled session reads as a
+                        // booked one at a glance otherwise — and the glance is
+                        // the whole point of a day grid.
+                        textDecorationLine: off ? 'line-through' : 'none',
+                      }}
+                    >
                       {s.who}{pending ? ` · ${tr.pending}` : ''}
                     </Text>
                     {height > 40 && (
@@ -169,20 +248,25 @@ export default function DayCalendar() {
                         <Text numberOfLines={1} style={{ flex: 1, fontSize: 11.5, color: EDA.inkSoft }}>
                           {s.location || s.sessionFormat.replace('_', ' ')}
                         </Text>
-                        {s.meetLink ? (
-                          <Pressable onPress={() => { void Linking.openURL(s.meetLink as string); }} hitSlop={6}>
-                            <Text style={{ fontSize: 11.5, fontWeight: '800', color: EDA.green }}>{tr.join}</Text>
-                          </Pressable>
-                        ) : null}
                       </View>
                     )}
-                  </View>
+                  </Pressable>
                 );
               })}
             </View>
           </View>
         </FadeIn>
       </ScrollView>
+
+      <SessionSheet
+        session={open}
+        timezone={tz}
+        currency={currency}
+        closeReasons={closeReasons}
+        hasPaymentLink={hasPaymentLink}
+        onClose={() => setOpen(null)}
+        onChanged={load}
+      />
 
       <PractitionerTabBar active="calendar" />
     </View>
