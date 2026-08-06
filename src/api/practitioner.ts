@@ -394,6 +394,58 @@ export function sendPaymentReminder(id: string): Promise<{ ok: boolean; error?: 
   return sessionAction(`${id}/payment-reminder`, { method: 'POST' }, 'Could not send the reminder.');
 }
 
+// ---------------------------------------------------------------------------
+// Bloom Pulse — the session brief, for the minute before walking in.
+// ---------------------------------------------------------------------------
+
+export interface PulseContent {
+  sentiment: string;
+  pulseLine: string;
+  trend?: { direction?: string; points?: number[] } | null;
+  signals: { text: string; kind: string }[];
+  nextSteps: string[];
+  themes: { label: string; tone: string }[];
+}
+
+export interface Pulse {
+  content: PulseContent;
+  generatedAt: string;
+  model: string;
+  noteCount: number;
+  sessionCount: number;
+}
+
+export interface PulseView {
+  pulse: Pulse | null;
+  /** AI egress opt-in. Off means the brief cannot be generated at all. */
+  consented: boolean;
+  /** How much has happened since the stored brief was built. */
+  freshness: { newNotes: number; newSessions: number; versionStale: boolean } | null;
+}
+
+export async function fetchPulse(memberId: string): Promise<PulseView | null> {
+  try {
+    const res = await apiFetch(`/api/mobile/practitioner/patients/${memberId}/pulse`);
+    if (!res.ok) return null;
+    return (await res.json()) as PulseView;
+  } catch {
+    return null;
+  }
+}
+
+/** Regenerate. The server enforces consent, ownership and rate limit before any
+ *  patient material reaches a model — a 409 means consent is off. */
+export async function generatePulse(memberId: string): Promise<{ ok: boolean; pulse?: Pulse; error?: string }> {
+  try {
+    const res = await apiFetch(`/api/mobile/practitioner/patients/${memberId}/pulse`, { method: 'POST' });
+    const body = await res.json().catch(() => null);
+    if (res.ok) return { ok: true, pulse: body?.pulse };
+    return { ok: false, error: body?.error ?? 'failed' };
+  } catch {
+    return { ok: false, error: 'unreachable' };
+  }
+}
+
 export async function addPatient(input: { firstName: string; lastName: string; email?: string }): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await apiFetch('/api/mobile/practitioner/patients', { method: 'POST', body: JSON.stringify(input) });

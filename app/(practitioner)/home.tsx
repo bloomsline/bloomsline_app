@@ -2,11 +2,13 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { CalendarPlus, Check, ChevronDown, ChevronUp, PenLine, Share2, UserPlus, Video, MapPin, Phone, Settings as SettingsIcon, X, type LucideIcon } from 'lucide-react-native';
+import { CalendarPlus, Check, ChevronDown, ChevronUp, NotebookPen, PenLine, Share2, Sparkles, UserPlus, Video, MapPin, Phone, Settings as SettingsIcon, X, type LucideIcon } from 'lucide-react-native';
 import { EDA, EdHeader, EdCard, EdSection, FadeIn } from '@/src/ui/editorial';
 import { PractitionerTabBar, PRACTITIONER_TAB_PAD } from '@/src/ui/PractitionerTabBar';
 import { useConfirm } from '@/src/ui/confirm';
 import { useI18n } from '@/src/i18n';
+import { useNoteDraft } from '@/src/notes/draft';
+import { PulseSheet } from '@/src/practitioner/PulseSheet';
 import { fetchDay, fetchRequests, decideRequest, type PractitionerSession, type BookingRequest } from '@/src/api/practitioner';
 
 // The practitioner's dashboard, in the same editorial language as the patient
@@ -82,6 +84,22 @@ export default function Dashboard() {
     load();
   };
 
+  const [prep, setPrep] = useState<PractitionerSession | null>(null);
+  const { open: openNote } = useNoteDraft();
+
+  // Opens the editor already bound to THIS session, which is the whole point of
+  // the button being on the row: a note belongs to a session, and picking one
+  // from a list you have just navigated away from is the step worth removing.
+  const openNoteFor = (s: PractitionerSession) => {
+    if (!s.memberId) return;
+    openNote({
+      appointmentId: s.id, memberId: s.memberId, who: s.who,
+      when: new Date(s.scheduledAt).toLocaleString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+      title: '', text: '', ranges: [], noteType: 'session',
+    });
+    router.navigate('/(practitioner)/note' as never);
+  };
+
   const zone = tz ? { timeZone: tz } : {};
   const todayKey = new Date().toLocaleDateString('en-CA', zone);
   const today = sessions.filter((s) => new Date(s.scheduledAt).toLocaleDateString('en-CA', zone) === todayKey);
@@ -104,12 +122,12 @@ export default function Dashboard() {
           {loaded && today.length === 0 && (
             <EdCard><Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.nothing}</Text></EdCard>
           )}
-          <SessionList items={today} time={time} join={tr.join} more={tr.seeMore} less={tr.seeLess} />
+          <SessionList items={today} time={time} join={tr.join} more={tr.seeMore} less={tr.seeLess} onPrep={setPrep} onNote={openNoteFor} />
 
           {later.length > 0 && (
             <View style={{ marginTop: 22 }}>
               <EdSection label={tr.tomorrow} />
-              <SessionList items={later} time={time} join={tr.join} more={tr.seeMore} less={tr.seeLess} />
+              <SessionList items={later} time={time} join={tr.join} more={tr.seeMore} less={tr.seeLess} onPrep={setPrep} onNote={openNoteFor} />
             </View>
           )}
 
@@ -150,6 +168,8 @@ export default function Dashboard() {
         </FadeIn>
       </ScrollView>
 
+      {prep && <PulseSheet memberId={prep.memberId ?? null} who={prep.who} onClose={() => setPrep(null)} />}
+
       <PractitionerTabBar active="home" />
     </View>
   );
@@ -163,15 +183,16 @@ export default function Dashboard() {
 // away and say how many they are, so the count is never a surprise.
 const PREVIEW = 2;
 
-function SessionList({ items, time, join, more, less }: {
+function SessionList({ items, time, join, more, less, onPrep, onNote }: {
   items: PractitionerSession[]; time: (iso: string) => string; join: string; more: string; less: string;
+  onPrep: (s: PractitionerSession) => void; onNote: (s: PractitionerSession) => void;
 }) {
   const [open, setOpen] = useState(false);
   const hidden = items.length - PREVIEW;
   const shown = open ? items : items.slice(0, PREVIEW);
   return (
     <>
-      {shown.map((s) => <SessionRow key={s.id} s={s} time={time} join={join} />)}
+      {shown.map((s) => <SessionRow key={s.id} s={s} time={time} join={join} onPrep={onPrep} onNote={onNote} />)}
       {hidden > 0 && (
         <Pressable onPress={() => setOpen((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11 }}>
           <Text style={{ fontSize: 13.5, fontWeight: '700', color: EDA.green }}>
@@ -184,28 +205,58 @@ function SessionList({ items, time, join, more, less }: {
   );
 }
 
-function SessionRow({ s, time, join }: { s: PractitionerSession; time: (iso: string) => string; join: string }) {
+function SessionRow({ s, time, join, onPrep, onNote }: {
+  s: PractitionerSession; time: (iso: string) => string; join: string;
+  onPrep: (s: PractitionerSession) => void; onNote: (s: PractitionerSession) => void;
+}) {
   const Icon = FORMAT_ICON[s.sessionFormat as keyof typeof FORMAT_ICON] ?? MapPin;
+  // Both actions write to, or read from, a MEMBER. A guest booking that was
+  // never linked has neither a history to brief from nor a file to write to —
+  // the same limit the care app's day list has.
+  const canAct = Boolean(s.memberId) && !s.isGuest;
   return (
-    <EdCard style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 10 }}>
-      <View style={{ width: 54 }}>
-        <Text style={{ fontSize: 15, fontWeight: '800', color: EDA.ink }}>{time(s.scheduledAt)}</Text>
-        <Text style={{ fontSize: 11.5, color: EDA.faint }}>{s.durationMinutes} min</Text>
-      </View>
-      <View style={{ width: 1, height: 30, backgroundColor: EDA.line }} />
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink }}>{s.who}</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-          <Icon size={12} color={EDA.faint} />
-          <Text style={{ fontSize: 12.5, color: EDA.inkSoft }}>{s.location || s.sessionFormat.replace('_', ' ')}</Text>
+    <EdCard style={{ marginBottom: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+        <View style={{ width: 54 }}>
+          <Text style={{ fontSize: 15, fontWeight: '800', color: EDA.ink }}>{time(s.scheduledAt)}</Text>
+          <Text style={{ fontSize: 11.5, color: EDA.faint }}>{s.durationMinutes} min</Text>
         </View>
+        <View style={{ width: 1, height: 30, backgroundColor: EDA.line }} />
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink }}>{s.who}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+            <Icon size={12} color={EDA.faint} />
+            <Text style={{ fontSize: 12.5, color: EDA.inkSoft }}>{s.location || s.sessionFormat.replace('_', ' ')}</Text>
+          </View>
+        </View>
+        {s.meetLink ? (
+          <Pressable onPress={() => { void Linking.openURL(s.meetLink as string); }} style={{ borderRadius: 20, backgroundColor: EDA.greenTint, paddingHorizontal: 12, paddingVertical: 6 }}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: EDA.green }}>{join}</Text>
+          </Pressable>
+        ) : null}
       </View>
-      {s.meetLink ? (
-        <Pressable onPress={() => { void Linking.openURL(s.meetLink as string); }} style={{ borderRadius: 20, backgroundColor: EDA.greenTint, paddingHorizontal: 12, paddingVertical: 6 }}>
-          <Text style={{ fontSize: 13, fontWeight: '700', color: EDA.green }}>{join}</Text>
-        </Pressable>
-      ) : null}
+
+      {/* A brief before, a note after — in the order the day runs, which is the
+          order the care app's day list puts them in too. */}
+      {canAct && (
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, paddingTop: 11, borderTopWidth: 1, borderTopColor: EDA.line }}>
+          <RowAction Icon={Sparkles} onPress={() => onPrep(s)} />
+          <RowAction Icon={NotebookPen} onPress={() => onNote(s)} />
+        </View>
+      )}
     </EdCard>
+  );
+}
+
+function RowAction({ Icon, onPress }: { Icon: LucideIcon; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={6}
+      style={{ height: 34, width: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: EDA.line, backgroundColor: EDA.canvas }}
+    >
+      <Icon size={15} color={EDA.inkSoft} />
+    </Pressable>
   );
 }
 
