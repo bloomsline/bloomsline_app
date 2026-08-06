@@ -36,6 +36,7 @@ const T = {
     outcome: 'Outcome', billing: 'Payment', reason: 'Reason', price: 'Price',
     place: 'Where', series: 'In series', origin: 'Booked via',
     sessionNote: 'SESSION NOTE', noNote: 'No note written for this session.',
+    all: 'All', withQuote: 'With a quote', quote: 'Quote', session: 'Session',
     outcomes: { scheduled: 'Not yet held', pending: 'Awaiting your decision', completed: 'Took place', cancelled: 'Did not take place', no_show: 'Patient did not attend' },
     payments: { paid: 'Invoiced and paid', unpaid: 'Not invoiced', free: 'Free of charge' },
     sources: { manual: 'You booked it', booking: 'Patient booked online', google: 'From Google Calendar' },
@@ -54,6 +55,7 @@ const T = {
     outcome: 'Résultat', billing: 'Paiement', reason: 'Motif', price: 'Tarif',
     place: 'Lieu', series: 'Dans la série', origin: 'Réservée via',
     sessionNote: 'NOTE DE SÉANCE', noNote: 'Aucune note pour cette séance.',
+    all: 'Toutes', withQuote: 'Avec citation', quote: 'Citation', session: 'Séance',
     outcomes: { scheduled: 'Pas encore eu lieu', pending: 'En attente de votre décision', completed: 'A eu lieu', cancelled: "N'a pas eu lieu", no_show: 'Patient absent' },
     payments: { paid: 'Facturée et payée', unpaid: 'Non facturée', free: 'Gratuite' },
     sources: { manual: 'Réservée par vous', booking: 'Réservée en ligne', google: 'Depuis Google Agenda' },
@@ -77,6 +79,35 @@ function Chip({ label, tone = 'grey' }: { label: string; tone?: keyof typeof TON
       <Text style={{ fontSize: 10.5, fontWeight: '800', color: c.fg }}>{label}</Text>
     </View>
   );
+}
+
+/** A filter chip. Selected is filled, because a filter you cannot see is on is
+ *  a list that looks wrong for no reason. */
+function FilterChip({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{ borderRadius: 16, paddingHorizontal: 13, paddingVertical: 8, backgroundColor: on ? EDA.green : EDA.card, borderWidth: 1, borderColor: on ? EDA.green : EDA.line }}
+    >
+      <Text style={{ fontSize: 12.5, fontWeight: '700', color: on ? '#fff' : EDA.inkSoft }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** Note bodies are the web editor's sanitized HTML. A preview wants text. */
+function plain(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<\/(p|div|li|blockquote|h[1-6])>/gi, ' ')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** The practitioner's own label for a tag, falling back to a de-slugged form. */
+function tagLabel(slug: string, vocab?: { slug: string; label: string }[]): string {
+  return vocab?.find((t) => t.slug === slug)?.label ?? slug.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /** One fact inside an expanded session: label left, value right. */
@@ -103,6 +134,9 @@ export default function PatientDetailScreen() {
   // One at a time. Several sessions open at once turns a history into a wall,
   // and the reason to open one is to compare it with the rows around it.
   const [openSession, setOpenSession] = useState<string | null>(null);
+  const [openNote, setOpenNote] = useState<string | null>(null);
+  // 'all' | 'quote' | `tag:<slug>`
+  const [filter, setFilter] = useState<string>('all');
 
   useFocusEffect(
     useCallback(() => {
@@ -126,10 +160,22 @@ export default function PatientDetailScreen() {
   // Title and body both, because half of what you remember is in the body.
   const notes = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    const all = data?.notes ?? [];
+    let all = data?.notes ?? [];
+    if (filter === 'quote') all = all.filter((n) => n.hasQuote);
+    else if (filter.startsWith('tag:')) { const slug = filter.slice(4); all = all.filter((n) => n.tags?.includes(slug)); }
     if (!needle) return all;
-    return all.filter((n) => `${n.title ?? ''} ${n.content}`.toLowerCase().includes(needle));
-  }, [q, data]);
+    // Search the TEXT, not the markup: '<p>' is in every note and matches nothing
+    // a practitioner is looking for.
+    return all.filter((n) => `${n.title ?? ''} ${plain(n.content)}`.toLowerCase().includes(needle));
+  }, [q, filter, data]);
+
+  // Only tags this patient's notes actually carry. Offering the whole vocabulary
+  // would mean chips that always return nothing.
+  const tagsInUse = useMemo(() => {
+    const used = new Set((data?.notes ?? []).flatMap((n) => n.tags ?? []));
+    return [...used].map((slug) => ({ slug, label: tagLabel(slug, data?.tags) }));
+  }, [data]);
+  const anyQuote = useMemo(() => (data?.notes ?? []).some((n) => n.hasQuote), [data]);
 
   const count = (t: Tab) =>
     t === 'sessions' ? data?.sessions.length
@@ -275,18 +321,64 @@ export default function PatientDetailScreen() {
                   autoCorrect={false}
                 />
               </EdCard>
+              {/* Filters. Nothing selected means everything, which is the state
+                  you want when you have opened a patient to remind yourself of
+                  them rather than to look something up. */}
+              {(tagsInUse.length > 0 || anyQuote) && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={{ flexGrow: 0, flexShrink: 0, marginBottom: 14 }}
+                  contentContainerStyle={{ gap: 8, alignItems: 'center' }}
+                >
+                  <FilterChip label={tr.all} on={filter === 'all'} onPress={() => setFilter('all')} />
+                  {anyQuote && <FilterChip label={tr.withQuote} on={filter === 'quote'} onPress={() => setFilter('quote')} />}
+                  {tagsInUse.map((t) => (
+                    <FilterChip key={t.slug} label={t.label} on={filter === `tag:${t.slug}`} onPress={() => setFilter(`tag:${t.slug}`)} />
+                  ))}
+                </ScrollView>
+              )}
+
               {data.notes.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.noNotes}</Text>}
               {data.notes.length > 0 && notes.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.noMatch}</Text>}
-              {notes.map((n) => (
-                <EdCard key={n.id} style={{ marginBottom: 10 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-                    <Text style={{ flex: 1, fontSize: 12, color: EDA.faint }}>{day(n.createdAt)}</Text>
-                    {n.isPrivate ? <Chip label={tr.private} /> : null}
-                  </View>
-                  {n.title ? <Text style={{ fontSize: 15.5, fontWeight: '700', color: EDA.ink, marginTop: 4 }}>{n.title}</Text> : null}
-                  <Text style={{ fontSize: 14.5, lineHeight: 22, color: EDA.ink, marginTop: 4 }}>{n.content}</Text>
-                </EdCard>
-              ))}
+              {notes.map((n) => {
+                const open = openNote === n.id;
+                return (
+                  <EdCard key={n.id} onPress={() => setOpenNote(open ? null : n.id)} style={{ marginBottom: 10 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                      {/* The SESSION's date when there is one. A note is about a
+                          session, not about the evening it got typed up. */}
+                      <Text style={{ flex: 1, fontSize: 12, color: EDA.faint }}>
+                        {n.sessionAt ? `${tr.session} · ${day(n.sessionAt)}` : day(n.createdAt)}
+                      </Text>
+                      {n.isPrivate ? <Chip label={tr.private} /> : null}
+                      {open ? <ChevronUp size={15} color={EDA.faint} /> : <ChevronDown size={15} color={EDA.faint} />}
+                    </View>
+
+                    {n.title ? <Text style={{ fontSize: 15.5, fontWeight: '700', color: EDA.ink, marginTop: 4 }}>{n.title}</Text> : null}
+
+                    {open ? (
+                      // Rich only once opened. The content is the web editor's
+                      // sanitized HTML — rendering it as plain text put literal
+                      // <p> tags on screen, which is what the list used to do.
+                      <View style={{ marginTop: 8 }}><RichText html={n.content} /></View>
+                    ) : (
+                      <Text numberOfLines={3} style={{ fontSize: 14.5, lineHeight: 22, color: EDA.inkSoft, marginTop: 4 }}>
+                        {plain(n.content)}
+                      </Text>
+                    )}
+
+                    {(n.tags?.length || n.hasQuote) ? (
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 9 }}>
+                        {n.hasQuote ? <Chip label={tr.quote} tone="grey" /> : null}
+                        {(n.tags ?? []).map((slug) => (
+                          <Chip key={slug} label={tagLabel(slug, data.tags)} tone="green" />
+                        ))}
+                      </View>
+                    ) : null}
+                  </EdCard>
+                );
+              })}
             </>
           )}
 

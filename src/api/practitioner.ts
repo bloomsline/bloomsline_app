@@ -90,6 +90,11 @@ export interface PatientNote {
   createdAt: string;
   isPrivate?: boolean;
   appointmentId?: string | null;
+  /** When the session this note is about was — not when it was typed. */
+  sessionAt?: string | null;
+  /** Tag slugs found inside the note's markup, resolved server-side. */
+  tags?: string[];
+  hasQuote?: boolean;
 }
 
 /** A section of the practitioner's own overview template, with this patient's
@@ -147,6 +152,8 @@ export interface PatientDocumentRow {
 export interface PatientDetail {
   patient: PatientListItem & { email?: string | null; status?: string };
   currency?: string;
+  /** The practitioner's tag vocabulary, for labelling the filter chips. */
+  tags?: { slug: string; label: string }[];
   overview: PatientOverviewSection[];
   sessions: PatientSessionRow[];
   /** Every note, not a recent slice: a truncated list cannot be searched. */
