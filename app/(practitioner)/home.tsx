@@ -236,16 +236,48 @@ function SessionRow({ s, time, join, onPrep, onNote }: {
         ) : null}
       </View>
 
-      {/* A brief before, a note after — in the order the day runs, which is the
-          order the care app's day list puts them in too. */}
-      {canAct && (
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, paddingTop: 11, borderTopWidth: 1, borderTopColor: EDA.line }}>
-          <RowAction Icon={Sparkles} onPress={() => onPrep(s)} />
-          <RowAction Icon={NotebookPen} onPress={() => onNote(s)} />
+      {/* Where to go, and the two things you do about the session.
+          
+          The address only appears for in-person, and only when there is one:
+          "in person" with no street is the state this row used to be stuck in.
+          Tapping hands the address to whatever maps app the phone has. */}
+      {(canAct || mapsFor(s)) && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, paddingTop: 11, borderTopWidth: 1, borderTopColor: EDA.line }}>
+          {mapsFor(s) ? (
+            <Pressable
+              onPress={() => { void Linking.openURL(mapsFor(s) as string); }}
+              style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 7, minWidth: 0 }}
+            >
+              <MapPin size={13} color={EDA.green} />
+              <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 12.5, fontWeight: '700', color: EDA.green }}>{s.location}</Text>
+            </Pressable>
+          ) : <View style={{ flex: 1 }} />}
+
+          {canAct && (
+            <>
+              <RowAction Icon={Sparkles} onPress={() => onPrep(s)} />
+              <RowAction Icon={NotebookPen} onPress={() => onNote(s)} />
+            </>
+          )}
         </View>
       )}
     </EdCard>
   );
+}
+
+/**
+ * A maps URL for an in-person session that has an address.
+ *
+ * Derived from the address rather than stored: `?q=` is the documented
+ * cross-platform form, iOS hands it to Apple Maps and Android to Google Maps,
+ * and neither needs a link anyone had to remember to paste. A practitioner who
+ * wants a precise pin (a side entrance, a building in a complex) would need a
+ * real link field — see the analysis; this covers the ordinary case without a
+ * schema change.
+ */
+function mapsFor(s: PractitionerSession): string | null {
+  if (s.sessionFormat !== 'in_person' || !s.location) return null;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.location)}`;
 }
 
 function RowAction({ Icon, onPress }: { Icon: LucideIcon; onPress: () => void }) {
