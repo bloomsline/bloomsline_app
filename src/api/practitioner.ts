@@ -88,12 +88,58 @@ export interface PatientNote {
   content: string;
   noteType: string;
   createdAt: string;
+  isPrivate?: boolean;
+  appointmentId?: string | null;
+}
+
+/** A section of the practitioner's own overview template, with this patient's
+ *  answer. Empty sections never arrive — the server drops them. */
+export interface PatientOverviewSection {
+  id: string;
+  title: string;
+  type: 'paragraph' | 'list';
+  value: string | string[] | null;
+}
+
+export interface PatientSessionRow {
+  id: string;
+  scheduledAt: string;
+  durationMinutes: number;
+  status: string;
+  sessionType: string;
+  sessionFormat: string;
+  paymentStatus: string;
+}
+
+export interface PatientResourceRow {
+  id: string;
+  resourceId: string;
+  title: string | null;
+  status: string;
+  assignedAt: string | null;
+  completedAt: string | null;
+}
+
+/** Metadata only. The signed PDF stays on the server — a download is a copy
+ *  left on the device, which is what a lost phone actually leaks. */
+export interface PatientDocumentRow {
+  id: string;
+  title: string;
+  status: string;
+  sentAt: string | null;
+  viewedAt: string | null;
+  signedAt: string | null;
+  signerName: string | null;
 }
 
 export interface PatientDetail {
-  patient: PatientListItem;
+  patient: PatientListItem & { email?: string | null; status?: string };
+  overview: PatientOverviewSection[];
+  sessions: PatientSessionRow[];
+  /** Every note, not a recent slice: a truncated list cannot be searched. */
   notes: PatientNote[];
-  totalNotes: number;
+  resources: PatientResourceRow[];
+  documents: PatientDocumentRow[];
 }
 
 export async function fetchPatients(search?: string): Promise<PatientListItem[] | null> {

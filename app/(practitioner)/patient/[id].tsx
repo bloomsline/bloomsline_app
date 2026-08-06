@@ -1,17 +1,70 @@
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { EDA, EdHeader, EdCard, EdPill, EdSection, FadeIn } from '@/src/ui/editorial';
+import { FileSignature, Search } from 'lucide-react-native';
+import { EDA, EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 import { fetchPatient, type PatientDetail } from '@/src/api/practitioner';
 
-// One patient: who they are and their last few notes, so a new note has
-// context. Not the record — no journals, documents or submissions.
+// One patient, to READ.
+//
+// This screen used to open on two buttons — Take a note, Book a session — above
+// five notes. Both were wrong. The buttons are reachable from where the work
+// actually starts (a session, or the + button), and putting them here made a
+// page for remembering into a page for doing. And five notes with no sessions,
+// no exercises and no documents cannot answer the question a practitioner opens
+// a patient to ask, which is "where did we get to". They went to the laptop
+// anyway.
+//
+// So: the panels the care app's member page has, minus progress, journals and
+// moments. Tabs rather than one long scroll, because five sections stacked on a
+// phone is a lot of thumb between the top and the thing you wanted.
 const T = {
-  en: { kicker: 'PATIENT', notes: 'RECENT NOTES', none: 'No notes yet.', take: 'Take a note', book: 'Book a session', more: 'more in the care app', missing: 'Patient not found.' },
-  fr: { kicker: 'PATIENT', notes: 'NOTES RÉCENTES', none: 'Aucune note.', take: 'Prendre une note', book: 'Réserver une séance', more: 'de plus dans l’app', missing: 'Patient introuvable.' },
+  en: {
+    kicker: 'PATIENT', missing: 'Patient not found.',
+    tabs: { overview: 'Overview', sessions: 'Sessions', notes: 'Notes', resources: 'Resources', documents: 'Documents' },
+    searchNotes: 'Search notes',
+    noOverview: 'Nothing recorded yet.', noSessions: 'No sessions yet.', noNotes: 'No notes yet.',
+    noMatch: 'No notes match that.', noResources: 'Nothing shared yet.', noDocuments: 'No documents yet.',
+    private: 'Private',
+    statuses: { scheduled: 'Scheduled', pending: 'Pending', completed: 'Completed', cancelled: 'Cancelled', no_show: 'No-show' },
+    assign: { assigned: 'Sent', completed: 'Completed', opened: 'Opened' },
+    docs: { sent: 'Sent', viewed: 'Viewed', signed: 'Signed', expired: 'Expired', draft: 'Draft' },
+    unpaid: 'Unpaid',
+  },
+  fr: {
+    kicker: 'PATIENT', missing: 'Patient introuvable.',
+    tabs: { overview: 'Aperçu', sessions: 'Séances', notes: 'Notes', resources: 'Ressources', documents: 'Documents' },
+    searchNotes: 'Rechercher dans les notes',
+    noOverview: 'Rien de noté.', noSessions: 'Aucune séance.', noNotes: 'Aucune note.',
+    noMatch: 'Aucune note ne correspond.', noResources: 'Rien de partagé.', noDocuments: 'Aucun document.',
+    private: 'Privée',
+    statuses: { scheduled: 'Planifiée', pending: 'En attente', completed: 'Terminée', cancelled: 'Annulée', no_show: 'Absence' },
+    assign: { assigned: 'Envoyée', completed: 'Terminée', opened: 'Ouverte' },
+    docs: { sent: 'Envoyé', viewed: 'Vu', signed: 'Signé', expired: 'Expiré', draft: 'Brouillon' },
+    unpaid: 'Impayé',
+  },
 } as const;
+
+type Tab = 'overview' | 'sessions' | 'notes' | 'resources' | 'documents';
+const TABS: Tab[] = ['overview', 'sessions', 'notes', 'resources', 'documents'];
+
+const TONE = {
+  green: { bg: EDA.greenTint, fg: EDA.greenDeep },
+  amber: { bg: '#FEF3C7', fg: '#B45309' },
+  grey: { bg: '#F1F0EC', fg: '#6B6B63' },
+  rose: { bg: '#FFE4E6', fg: '#BE123C' },
+} as const;
+
+function Chip({ label, tone = 'grey' }: { label: string; tone?: keyof typeof TONE }) {
+  const c = TONE[tone];
+  return (
+    <View style={{ borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2, backgroundColor: c.bg }}>
+      <Text style={{ fontSize: 10.5, fontWeight: '800', color: c.fg }}>{label}</Text>
+    </View>
+  );
+}
 
 export default function PatientDetailScreen() {
   const router = useRouter();
@@ -19,8 +72,11 @@ export default function PatientDetailScreen() {
   const patientId = typeof id === 'string' ? id : '';
   const { locale } = useI18n();
   const tr = T[locale] ?? T.en;
+
   const [data, setData] = useState<PatientDetail | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [tab, setTab] = useState<Tab>('overview');
+  const [q, setQ] = useState('');
 
   useFocusEffect(
     useCallback(() => {
@@ -30,40 +86,183 @@ export default function PatientDetailScreen() {
     }, [patientId]),
   );
 
-  const date = (iso: string) => new Date(iso).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const loc = locale === 'fr' ? 'fr-FR' : 'en-GB';
+  const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(loc, { day: 'numeric', month: 'short', year: 'numeric' }) : '');
+  const dayTime = (iso: string) => new Date(iso).toLocaleString(loc, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/(practitioner)/people' as never));
+
+  // Searching happens on device: the list is one patient's notes, already in
+  // hand, and a round trip per keystroke would be slower and offline-fragile.
+  // Title and body both, because half of what you remember is in the body.
+  const notes = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    const all = data?.notes ?? [];
+    if (!needle) return all;
+    return all.filter((n) => `${n.title ?? ''} ${n.content}`.toLowerCase().includes(needle));
+  }, [q, data]);
+
+  const count = (t: Tab) =>
+    t === 'sessions' ? data?.sessions.length
+      : t === 'notes' ? data?.notes.length
+        : t === 'resources' ? data?.resources.length
+          : t === 'documents' ? data?.documents.length
+            : undefined;
 
   return (
     <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
       <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-        <EdHeader kicker={tr.kicker} title={data?.patient.name ?? '…'} onBack={back} />
+      <EdHeader kicker={tr.kicker} title={data?.patient.name ?? '…'} onBack={back} />
 
-        <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
+      {/* Tabs scroll horizontally: five labels do not fit a phone, and shrinking
+          them to fit would make every one of them harder to hit. */}
+      {data && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          // A horizontal ScrollView inside a column stretches to fill unless it
+          // is told not to, which turns a row of tabs into a wall of them.
+          style={{ flexGrow: 0, flexShrink: 0 }}
+          contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 14, gap: 8, alignItems: 'center' }}
+        >
+          {TABS.map((t) => {
+            const on = t === tab;
+            const n = count(t);
+            return (
+              <Pressable
+                key={t}
+                onPress={() => setTab(t)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: on ? EDA.green : EDA.card, borderWidth: 1, borderColor: on ? EDA.green : EDA.line }}
+              >
+                <Text style={{ fontSize: 13.5, fontWeight: '700', color: on ? '#fff' : EDA.inkSoft }}>{tr.tabs[t]}</Text>
+                {n ? <Text style={{ fontSize: 11.5, fontWeight: '700', color: on ? 'rgba(255,255,255,0.75)' : EDA.faint }}>{n}</Text> : null}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      )}
+
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 18, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+        <FadeIn>
           {!loaded && <ActivityIndicator />}
           {loaded && !data && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.missing}</Text>}
 
-          {data && (
+          {data && tab === 'overview' && (
             <>
-              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 26 }}>
-                <EdPill label={tr.take} onPress={() => router.navigate(`/(practitioner)/note?patientId=${data.patient.id}` as never)} style={{ flex: 1 }} />
-                <EdPill label={tr.book} variant="outline" onPress={() => router.navigate('/(practitioner)/book' as never)} style={{ flex: 1 }} />
-              </View>
+              {data.patient.email ? (
+                <EdCard style={{ marginBottom: 12 }}>
+                  <Text style={{ fontSize: 14.5, color: EDA.ink }}>{data.patient.email}</Text>
+                  {data.patient.lastSessionAt ? (
+                    <Text style={{ fontSize: 12.5, color: EDA.faint, marginTop: 3 }}>{day(data.patient.lastSessionAt)}</Text>
+                  ) : null}
+                </EdCard>
+              ) : null}
+              {data.overview.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.noOverview}</Text>}
+              {data.overview.map((s) => (
+                <EdCard key={s.id} style={{ marginBottom: 10 }}>
+                  <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: EDA.faint, marginBottom: 6 }}>{s.title.toUpperCase()}</Text>
+                  {Array.isArray(s.value) ? (
+                    s.value.map((v, i) => (
+                      <View key={i} style={{ flexDirection: 'row', gap: 8, marginTop: i ? 5 : 0 }}>
+                        <Text style={{ fontSize: 14.5, color: EDA.faint }}>·</Text>
+                        <Text style={{ flex: 1, fontSize: 14.5, lineHeight: 21, color: EDA.ink }}>{v}</Text>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={{ fontSize: 14.5, lineHeight: 21, color: EDA.ink }}>{s.value}</Text>
+                  )}
+                </EdCard>
+              ))}
+            </>
+          )}
 
-              <EdSection label={tr.notes} />
-              {data.notes.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.none}</Text>}
-              {data.notes.map((n) => (
+          {data && tab === 'sessions' && (
+            <>
+              {data.sessions.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.noSessions}</Text>}
+              {data.sessions.map((s) => (
+                <EdCard key={s.id} style={{ marginBottom: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7 }}>
+                    <Text style={{ fontSize: 14.5, fontWeight: '700', color: EDA.ink }}>{dayTime(s.scheduledAt)}</Text>
+                    <Chip
+                      label={tr.statuses[s.status as keyof typeof tr.statuses] ?? s.status}
+                      tone={s.status === 'completed' ? 'green' : s.status === 'pending' ? 'amber' : s.status === 'cancelled' ? 'rose' : 'grey'}
+                    />
+                  </View>
+                  <Text style={{ fontSize: 12.5, color: EDA.faint, marginTop: 4 }}>
+                    {s.sessionType} · {s.sessionFormat.replace('_', ' ')} · {s.durationMinutes}m
+                    {s.paymentStatus === 'unpaid' ? ` · ${tr.unpaid}` : ''}
+                  </Text>
+                </EdCard>
+              ))}
+            </>
+          )}
+
+          {data && tab === 'notes' && (
+            <>
+              <EdCard style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, marginBottom: 14 }}>
+                <Search size={16} color={EDA.faint} />
+                <TextInput
+                  value={q}
+                  onChangeText={setQ}
+                  placeholder={tr.searchNotes}
+                  placeholderTextColor={EDA.faint}
+                  style={{ flex: 1, fontSize: 15, color: EDA.ink }}
+                  autoCorrect={false}
+                />
+              </EdCard>
+              {data.notes.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.noNotes}</Text>}
+              {data.notes.length > 0 && notes.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.noMatch}</Text>}
+              {notes.map((n) => (
                 <EdCard key={n.id} style={{ marginBottom: 10 }}>
-                  <Text style={{ fontSize: 12, color: EDA.faint }}>{date(n.createdAt)}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                    <Text style={{ flex: 1, fontSize: 12, color: EDA.faint }}>{day(n.createdAt)}</Text>
+                    {n.isPrivate ? <Chip label={tr.private} /> : null}
+                  </View>
                   {n.title ? <Text style={{ fontSize: 15.5, fontWeight: '700', color: EDA.ink, marginTop: 4 }}>{n.title}</Text> : null}
                   <Text style={{ fontSize: 14.5, lineHeight: 22, color: EDA.ink, marginTop: 4 }}>{n.content}</Text>
                 </EdCard>
               ))}
-              {data.totalNotes > data.notes.length && (
-                <Text style={{ fontSize: 12.5, color: EDA.faint, marginTop: 6 }}>
-                  +{data.totalNotes - data.notes.length} {tr.more}
-                </Text>
-              )}
+            </>
+          )}
+
+          {data && tab === 'resources' && (
+            <>
+              {data.resources.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.noResources}</Text>}
+              {data.resources.map((r) => (
+                <EdCard key={r.id} style={{ marginBottom: 10 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink }}>{r.title ?? '—'}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 6 }}>
+                    <Chip
+                      label={tr.assign[r.status as keyof typeof tr.assign] ?? r.status}
+                      tone={r.status === 'completed' ? 'green' : 'grey'}
+                    />
+                    <Text style={{ fontSize: 12.5, color: EDA.faint }}>{day(r.completedAt ?? r.assignedAt)}</Text>
+                  </View>
+                </EdCard>
+              ))}
+            </>
+          )}
+
+          {data && tab === 'documents' && (
+            <>
+              {data.documents.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.noDocuments}</Text>}
+              {data.documents.map((d) => (
+                <EdCard key={d.id} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 11, marginBottom: 10 }}>
+                  <FileSignature size={16} color={EDA.faint} style={{ marginTop: 2 }} />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink }}>{d.title}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 6 }}>
+                      <Chip
+                        label={tr.docs[d.status as keyof typeof tr.docs] ?? d.status}
+                        tone={d.status === 'signed' ? 'green' : d.status === 'expired' ? 'rose' : 'grey'}
+                      />
+                      <Text style={{ fontSize: 12.5, color: EDA.faint }}>{day(d.signedAt ?? d.viewedAt ?? d.sentAt)}</Text>
+                    </View>
+                    {d.signedAt && d.signerName ? (
+                      <Text style={{ fontSize: 12.5, color: EDA.faint, marginTop: 4 }}>{d.signerName}</Text>
+                    ) : null}
+                  </View>
+                </EdCard>
+              ))}
             </>
           )}
         </FadeIn>
