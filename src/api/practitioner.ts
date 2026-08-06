@@ -2,6 +2,7 @@
 // requests waiting on a decision, not the practice. Patient records stay in the
 // care app — a lost phone should not be a lost record.
 import { apiFetch } from '../auth/api';
+import type { PatientBlock } from './resources';
 
 export interface PractitionerSession {
   id: string;
@@ -222,6 +223,9 @@ export interface ShareableResource {
   title: string;
   type: string;
   description: string | null;
+  /** How many patients have sent this one back. Optional so a build talking to
+   *  a server that predates the count simply shows none. */
+  submissionCount?: number;
 }
 
 export interface NextAvailableDay { date: string; slots: string[] }
@@ -325,6 +329,86 @@ export async function fetchShareableResources(): Promise<ShareableResource[] | n
     const res = await apiFetch('/api/mobile/practitioner/resources');
     if (!res.ok) return null;
     return (await res.json()).items as ShareableResource[];
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Previewing a resource, and reading what came back.
+// ---------------------------------------------------------------------------
+
+/** A resource as the patient would receive it: the CURRENT published version. */
+export interface ResourcePreview {
+  resource: { id: string; title: string; type: string; description: string | null };
+  version: { id: string; blocks: PatientBlock[] };
+  mediaUrls?: Record<string, string>;
+}
+
+export async function fetchResourcePreview(id: string): Promise<ResourcePreview | null> {
+  try {
+    const res = await apiFetch(`/api/mobile/practitioner/resources/${id}`);
+    if (!res.ok) return null;
+    return (await res.json()) as ResourcePreview;
+  } catch {
+    return null;
+  }
+}
+
+export interface SubmissionSummary {
+  id: string;
+  resourceId: string;
+  resourceTitle: string;
+  memberId: string | null;
+  who: string;
+  source: string; // web | app | link
+  submittedAt: string | null;
+  score: { total: number; maxScore: number; label: string | null } | null;
+}
+
+/** The two groupings, each with counts. By resource is what the app opens on. */
+export interface SubmissionGroups {
+  byResource: { id: string; title: string; type: string; count: number }[];
+  byPatient: { id: string; name: string; count: number }[];
+}
+
+export async function fetchSubmissionGroups(): Promise<SubmissionGroups | null> {
+  try {
+    const res = await apiFetch('/api/mobile/practitioner/submissions');
+    if (!res.ok) return null;
+    return (await res.json()) as SubmissionGroups;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchSubmissions(by: { resourceId?: string; memberId?: string }): Promise<SubmissionSummary[] | null> {
+  try {
+    const qs = new URLSearchParams();
+    if (by.resourceId) qs.set('resourceId', by.resourceId);
+    if (by.memberId) qs.set('memberId', by.memberId);
+    const res = await apiFetch(`/api/mobile/practitioner/submissions?${qs}`);
+    if (!res.ok) return null;
+    return (await res.json()).items as SubmissionSummary[];
+  } catch {
+    return null;
+  }
+}
+
+/** One submission, with the blocks of the version it was ANSWERED ON — never
+ *  the current one, or old answers would be drawn against new questions. */
+export interface SubmissionDetail extends SubmissionSummary {
+  version: { id: string; blocks: PatientBlock[] };
+  answers: Record<string, unknown>;
+  mediaUrls?: Record<string, string>;
+  practitionerNote: string | null;
+}
+
+export async function fetchSubmission(id: string): Promise<SubmissionDetail | null> {
+  try {
+    const res = await apiFetch(`/api/mobile/practitioner/submissions/${id}`);
+    if (!res.ok) return null;
+    return (await res.json()) as SubmissionDetail;
   } catch {
     return null;
   }
