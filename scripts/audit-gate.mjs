@@ -10,9 +10,28 @@
 import { execSync } from 'node:child_process';
 
 // GHSA IDs we knowingly accept, with justification. Keep this list SHORT and
-// re-review whenever `npm audit` changes. (Empty today — the app ships only the
-// Expo/React Native runtime, no server SDKs.)
-const ALLOWLIST = {};
+// re-review whenever `npm audit` changes.
+const ALLOWLIST = {
+  // js-yaml quadratic CPU on `!!omap` parsing (CVE-2026-59870).
+  //
+  // Reaches us only through BUILD tooling, twice:
+  //   expo → @expo/cli → @expo/xcpretty (js-yaml ^4.1.0)  — iOS build log formatting
+  //   react-native → babel-jest → babel-plugin-istanbul
+  //     → @istanbuljs/load-nyc-config (js-yaml ^3.13.1)   — coverage config
+  // npm counts both as "shipped" because expo and react-native are runtime
+  // dependencies, but neither tool is in the bundle: grepping the deployed
+  // web bundle for js-yaml / xcpretty / istanbul returns zero. The app parses
+  // no YAML at runtime, so there is no untrusted document to be quadratic over.
+  //
+  // Not fixable in place: the advisory is clear only at js-yaml 5.x, and both
+  // consumers pin ^4 and ^3 respectively — an override would be a major bump to
+  // build tools we cannot exercise here (xcpretty only runs during an EAS iOS
+  // build), traded for a DoS that cannot reach us.
+  //
+  // Revisit: when Expo and React Native bump their transitive js-yaml, drop this
+  // and let the gate fail again if anything is left.
+  'GHSA-5p4m-2wfm-xmqj': 'js-yaml quadratic !!omap parse — build tooling only, absent from the bundle; consumers pin js-yaml ^3/^4',
+};
 
 const BLOCKING = new Set(['high', 'critical']);
 const ghsaOf = (url) => (url && url.match(/GHSA-[\w-]+/)?.[0]) || null;
