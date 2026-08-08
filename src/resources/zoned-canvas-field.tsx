@@ -1,34 +1,44 @@
 // The zoned_canvas exercise on a phone: Circle of Control, the Iceberg, the
 // Body Map. The patient files short entries into labelled regions.
 //
-// Same two halves as the care app. The CANVAS draws the zones and a numbered
-// chip per entry, positioned by the shared geometry (./canvas). The LEGEND below
-// carries the text and is where the writing happens — add, remove, move between
-// zones. Nothing is dragged: a chip is a number, the legend is a list, and both
-// work with a keyboard on screen and a thumb on the glass.
+// Same two halves as the care app. The CANVAS draws the zones and each entry AS
+// ITS OWN WORDS, positioned by the shared geometry (./canvas). The LEGEND below
+// is where the writing happens — add, remove, move between zones. Nothing is
+// dragged, and both halves work with a keyboard on screen and a thumb on glass.
+//
+// The canvas used to show numbers, with the words only in the legend. A
+// practitioner named the cost: the exercise works by seeing everything at once,
+// and hiding each item behind a tap ships the mechanics and loses the mechanism.
+// A phone renders the canvas at roughly 0.42x, so it needs a bigger font in
+// canvas units than the care app and settles on a shorter text budget for the
+// same answer — which is fine, because an answer stores no coordinates.
 import { Fragment, useMemo, useState } from 'react';
 import { Modal, Pressable, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, Ellipse, G, Polygon, Rect, Text as SvgText } from 'react-native-svg';
 import { Plus, X } from 'lucide-react-native';
 import { CARE } from '@/src/care/theme';
 import { useI18n } from '@/src/i18n';
-import { chipSlots, labelAnchor, shapeBox, wrapLabel, zoneLabel, type CanvasEntry, type CanvasZone, type ZoneShape } from '@/src/resources/canvas';
+import { labelSlots, labelAnchor, shapeBox, wrapLabel, zoneLabel, type CanvasEntry, type CanvasZone, type ZoneShape } from '@/src/resources/canvas';
 
 // v1's accent names, matched to the care app's palette so one exercise looks
 // like itself on both surfaces.
-const ACCENTS: Record<string, { stroke: string; fill: string; chip: string; text: string }> = {
-  teal: { stroke: '#0d9488', fill: 'rgba(13,148,136,0.08)', chip: '#0d9488', text: '#0f766e' },
-  slate: { stroke: '#94a3b8', fill: 'rgba(148,163,184,0.06)', chip: '#64748b', text: '#475569' },
-  violet: { stroke: '#8b5cf6', fill: 'rgba(139,92,246,0.08)', chip: '#8b5cf6', text: '#6d28d9' },
-  amber: { stroke: '#f59e0b', fill: 'rgba(245,158,11,0.08)', chip: '#f59e0b', text: '#b45309' },
-  rose: { stroke: '#f43f5e', fill: 'rgba(244,63,94,0.08)', chip: '#f43f5e', text: '#be123c' },
-  sky: { stroke: '#0ea5e9', fill: 'rgba(14,165,233,0.08)', chip: '#0ea5e9', text: '#0369a1' },
-  emerald: { stroke: '#10b981', fill: 'rgba(16,185,129,0.08)', chip: '#10b981', text: '#047857' },
+// `tag`/`tagLine`/`tagInk` are the entry label — soft fill, hairline ring,
+// accent-dark text. Matched to the care app so one exercise looks like itself
+// on both surfaces.
+type Accent = { stroke: string; fill: string; chip: string; text: string; tag: string; tagLine: string; tagInk: string };
+const ACCENTS: Record<string, Accent> = {
+  teal: { stroke: '#0d9488', fill: 'rgba(13,148,136,0.08)', chip: '#0d9488', text: '#0f766e', tag: '#EAF6F4', tagLine: 'rgba(13,148,136,0.45)', tagInk: '#0f5f57' },
+  slate: { stroke: '#94a3b8', fill: 'rgba(148,163,184,0.06)', chip: '#64748b', text: '#475569', tag: '#F1F3F5', tagLine: 'rgba(100,116,139,0.40)', tagInk: '#3F4A5A' },
+  violet: { stroke: '#8b5cf6', fill: 'rgba(139,92,246,0.08)', chip: '#8b5cf6', text: '#6d28d9', tag: '#F3EEFE', tagLine: 'rgba(139,92,246,0.45)', tagInk: '#5B21B6' },
+  amber: { stroke: '#f59e0b', fill: 'rgba(245,158,11,0.08)', chip: '#f59e0b', text: '#b45309', tag: '#FEF5E7', tagLine: 'rgba(245,158,11,0.45)', tagInk: '#92400E' },
+  rose: { stroke: '#f43f5e', fill: 'rgba(244,63,94,0.08)', chip: '#f43f5e', text: '#be123c', tag: '#FEEDF0', tagLine: 'rgba(244,63,94,0.45)', tagInk: '#9F1239' },
+  sky: { stroke: '#0ea5e9', fill: 'rgba(14,165,233,0.08)', chip: '#0ea5e9', text: '#0369a1', tag: '#E8F5FD', tagLine: 'rgba(14,165,233,0.45)', tagInk: '#075985' },
+  emerald: { stroke: '#10b981', fill: 'rgba(16,185,129,0.08)', chip: '#10b981', text: '#047857', tag: '#E9F7F1', tagLine: 'rgba(16,185,129,0.45)', tagInk: '#065F46' },
 };
 const accentOf = (name?: string) => ACCENTS[name ?? ''] ?? ACCENTS.slate;
 
 const COPY = {
-  en: { add: 'Add', placeholder: 'Add something…', empty: 'Nothing yet.', move: 'Move', remove: 'Remove', noZones: 'This exercise has no zones.', close: 'Close', tapHint: 'Tap a number to read it.' },
+  en: { add: 'Add', placeholder: 'Add something…', empty: 'Nothing yet.', move: 'Move', remove: 'Remove', noZones: 'This exercise has no zones.', close: 'Close', tapHint: 'Tap an entry to read it in full.' },
   fr: { add: 'Ajouter', placeholder: 'Ajouter…', empty: 'Rien pour l’instant.', move: 'Déplacer', remove: 'Supprimer', noZones: 'Cet exercice n’a pas de zones.', close: 'Fermer', tapHint: 'Touchez un numéro pour le lire.' },
 } as const;
 
@@ -62,6 +72,16 @@ export function ZonedCanvasField({
   // (on the canvas or in the legend) opens it — the only way to read a long
   // entry without laying it inside a shape it does not fit in.
   const [open, setOpen] = useState<{ zone: CanvasZone; entry: CanvasEntry; n: number } | null>(null);
+
+  // Laid out once per answer. 26 canvas units clears the ~11px floor at the
+  // ~0.42x a phone renders this at; below that the words are decoration.
+  const layout = useMemo(
+    () => zones.map((z) => {
+      const entries = answer[z.id] ?? [];
+      return { zone: z, entries, laid: labelSlots(z, zones, entries.map((e) => e.text), { minFontSize: 26 }) };
+    }),
+    [zones, answer],
+  );
 
   // Numbering runs across the whole canvas so a chip's number is unique on
   // screen and the legend reads against it.
@@ -117,20 +137,28 @@ export function ZonedCanvasField({
               </Fragment>
             );
           })}
-          {zones.map((z) => {
-            const entries = answer[z.id] ?? [];
+          {layout.map(({ zone: z, entries, laid }) => {
             const a = accentOf(z.accent);
-            return chipSlots(z, zones, entries.length).map((p, i) => {
-              const n = numbering.get(`${z.id}::${entries[i].id}`) ?? i + 1;
+            return laid.labels.map((L, i) => {
+              if (!L) return null;
+              const e = entries[i];
+              const n = numbering.get(`${z.id}::${e.id}`) ?? i + 1;
               return (
-                <G key={`${z.id}-${entries[i].id}`} onPress={() => setOpen({ zone: z, entry: entries[i], n })}>
-                  {/* A transparent disc widens the target: 15 units is a small
-                      tap area once the canvas is scaled down to phone width. */}
-                  <Circle cx={p.x} cy={p.y} r={26} fill="transparent" />
-                  <Circle cx={p.x} cy={p.y} r={15} fill={a.chip} />
-                  <SvgText x={p.x} y={p.y + 6} textAnchor="middle" fontSize={16} fontWeight="700" fill="#fff">
-                    {String(n)}
-                  </SvgText>
+                <G key={`${z.id}-${e.id}`} onPress={() => setOpen({ zone: z, entry: e, n })}>
+                  <Rect x={L.box.x} y={L.box.y} width={L.box.w} height={L.box.h} rx={8} fill={a.tag} stroke={a.tagLine} strokeWidth={1.5} />
+                  {L.lines.map((line, li) => (
+                    <SvgText
+                      key={li}
+                      x={L.box.x + L.box.w / 2}
+                      y={L.box.y + 8 + laid.fontSize * 1.18 * li + laid.fontSize * 0.82}
+                      textAnchor="middle"
+                      fontSize={laid.fontSize}
+                      fontWeight="600"
+                      fill={a.tagInk}
+                    >
+                      {line}
+                    </SvgText>
+                  ))}
                 </G>
               );
             });

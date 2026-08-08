@@ -163,68 +163,213 @@ export function childZonesOf(zones: CanvasZone[], zoneId: string): CanvasZone[] 
   return zones.filter((z) => z.parentZoneId === zoneId);
 }
 
-// A chip is a numbered dot; this is its radius in canvas units, used to keep
-// chips off the zone outline rather than straddling it.
-const CHIP_RADIUS = 14;
-// Grid densities tried in order. A sparse grid spreads chips out; if the zone is
-// mostly occupied by children (or is a thin polygon) the denser passes find the
-// slots the first one could not.
-const DENSITY_STEPS = [1, 1.6, 2.4, 3.6];
+// A label sits in a box, so the packer works in boxes. Padding and the gap kept
+// between neighbours, both in canvas units.
+const LABEL_PAD = 8;
+const LABEL_GAP = 6;
+// Character budgets tried in order, longest first: the packer takes the most
+// text the zone can hold, and only shortens when it must.
+const BUDGET_STEPS = [30, 26, 22, 18, 15, 12, 10, 8, 6];
+const MAX_ENTRY_LINES = 2;
+const MAX_FONT_SIZE = 34;
 
-/**
- * Positions for `count` chips inside a zone, avoiding its child zones and its
- * own outline. Deterministic: the same answer lays out the same way every time,
- * on every surface — a patient who reopens their exercise sees what they left.
- *
- * Returns fewer points than asked for only when the zone genuinely cannot hold
- * them; callers show the overflow in the legend, which lists every entry anyway.
- */
-export function chipSlots(zone: CanvasZone, zones: CanvasZone[], count: number): Point[] {
-  if (count <= 0) return [];
-  const box = shapeBox(zone.shape);
-  if (box.w <= 0 || box.h <= 0) return [];
-  const children = childZonesOf(zones, zone.id);
+/** Average glyph width at a given font size, in canvas units. */
+const charWidth = (fontSize: number) => CHAR_WIDTH * (fontSize / 17);
 
-  // A short zone (the Body Map's head) would have no room left if the label
-  // band were reserved, so it is only kept clear where there is height to spare.
-  const lines = wrapLabel(zoneLabel(zone.label), box.w - 24).length || 1;
-  const wanted = LABEL_BAND + (lines - 1) * 20 + (zone.parentZoneId ? 8 : 0);
-  const band = box.h > wanted * 2 ? wanted : 0;
+/** Corners, edge midpoints and centre — the sample set used to test a box
+ *  against a shape the way `ringPoints` does for a disc. Exact for convex
+ *  shapes, which every canvas we ship uses. */
+function boxPoints(b: Box): Point[] {
+  const { x, y, w, h } = b;
+  return [
+    { x, y }, { x: x + w, y }, { x, y: y + h }, { x: x + w, y: y + h },
+    { x: x + w / 2, y }, { x: x + w / 2, y: y + h },
+    { x, y: y + h / 2 }, { x: x + w, y: y + h / 2 },
+    { x: x + w / 2, y: y + h / 2 },
+  ];
+}
 
-  const fits = (p: Point): boolean => {
-    if (p.y - CHIP_RADIUS < box.y + band) return false;
-    // The chip is a disc, not a point: it has to sit WHOLLY inside the zone and
-    // wholly clear of any nested one. Sampling a few offsets is not enough —
-    // on a circle, a chip on the diagonal passes a north/south/east/west check
-    // while still hanging over the edge — so each shape is tested analytically.
-    if (!discInside(zone.shape, p, CHIP_RADIUS)) return false;
-    for (const c of children) if (!discClear(c.shape, p, CHIP_RADIUS)) return false;
-    return true;
+/** Is the box entirely INSIDE the shape? */
+export function rectInside(shape: ZoneShape, b: Box): boolean {
+  if (shape.kind === 'rect') {
+    return b.x >= shape.x && b.y >= shape.y &&
+           b.x + b.w <= shape.x + shape.w && b.y + b.h <= shape.y + shape.h;
+  }
+  return boxPoints(b).every((p) => pointInShape(shape, p));
+}
+
+/** Is the box entirely OUTSIDE the shape? Both directions are checked: a small
+ *  child zone can sit wholly within the box without any box corner falling
+ *  inside it. */
+export function rectClear(shape: ZoneShape, b: Box): boolean {
+  switch (shape.kind) {
+    case 'circle': {
+      // Exact: nearest point on an axis-aligned box to the circle's centre.
+      const nx = Math.max(b.x, Math.min(shape.cx, b.x + b.w));
+      const ny = Math.max(b.y, Math.min(shape.cy, b.y + b.h));
+      return Math.hypot(nx - shape.cx, ny - shape.cy) >= shape.r;
+    }
+    case 'rect':
+      return b.x + b.w <= shape.x || b.x >= shape.x + shape.w ||
+             b.y + b.h <= shape.y || b.y >= shape.y + shape.h;
+    default: {
+      if (boxPoints(b).some((p) => pointInShape(shape, p))) return false;
+      const ob = shapeBox(shape);
+      return !boxPoints(ob).some((p) =>
+        p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h);
+    }
+  }
+}
+
+/** Cut to `budget`, marking the cut so the caller can offer the full text. */
+function shortenTo(text: string, budget: number): { text: string; truncated: boolean } {
+  const clean = (text ?? '').trim().replace(/\s+/g, ' ');
+  if (clean.length <= budget) return { text: clean, truncated: false };
+  return { text: `${clean.slice(0, Math.max(3, budget - 1)).replace(/\s+$/, '')}\u2026`, truncated: true };
+}
+
+function measureEntry(text: string, budget: number, fontSize: number) {
+  const cut = shortenTo(text, budget);
+  const perLine = Math.max(6, Math.ceil(budget / MAX_ENTRY_LINES) + 2);
+  const lines: string[] = [];
+  let line = '';
+  for (const word of cut.text.split(' ')) {
+    const cand = line ? `${line} ${word}` : word;
+    if (cand.length <= perLine || !line) { line = cand; continue; }
+    lines.push(line);
+    line = word;
+    if (lines.length === MAX_ENTRY_LINES) break;
+  }
+  if (line && lines.length < MAX_ENTRY_LINES) lines.push(line);
+  const shown = lines.slice(0, MAX_ENTRY_LINES);
+  const widest = shown.reduce((m, l) => Math.max(m, l.length), 0);
+  return {
+    lines: shown,
+    truncated: cut.truncated,
+    w: widest * charWidth(fontSize) + LABEL_PAD * 2,
+    h: shown.length * (fontSize * 1.18) + LABEL_PAD * 2,
   };
+}
 
-  let best: Point[] = [];
-  for (const density of DENSITY_STEPS) {
-    // Aim for a grid whose cells are roughly square and numerous enough to hold
-    // `count` even after the invalid cells are dropped.
-    const target = Math.max(1, Math.ceil(count * density));
-    const ratio = box.w / box.h;
-    const rows = Math.max(1, Math.round(Math.sqrt(target / Math.max(ratio, 0.0001))));
-    const cols = Math.max(1, Math.ceil(target / rows));
+export interface CanvasLabel { box: Box; lines: string[]; truncated: boolean }
+export interface LabelLayout {
+  /** Index-aligned with the texts given. `null` means the zone had no room for
+   *  it even at the smallest legible size — the caller must still surface it. */
+  labels: (CanvasLabel | null)[];
+  fontSize: number;
+  budget: number;
+  /** True when something could not be placed at all. */
+  overflowed: boolean;
+}
 
-    const found: Point[] = [];
-    for (let r = 0; r < rows && found.length < count; r++) {
-      for (let c = 0; c < cols && found.length < count; c++) {
-        const p = {
-          x: box.x + (box.w * (c + 0.5)) / cols,
-          y: box.y + (box.h * (r + 0.5)) / rows,
-        };
-        if (fits(p)) found.push(p);
+/** One attempt: place every text at this budget and size, or fail fast. */
+function packAll(
+  zone: CanvasZone, children: CanvasZone[], box: Box, band: number,
+  texts: string[], budget: number, fontSize: number,
+): CanvasLabel[] | null {
+  const used: Box[] = [];
+  const out: CanvasLabel[] = [];
+  for (const text of texts) {
+    const m = measureEntry(text, budget, fontSize);
+    // Step with the label, not a fixed grid: a fine sweep costs thousands of
+    // probes per entry and finds nothing a half-label step misses.
+    const step = Math.max(10, Math.round(Math.min(m.w, m.h) / 2));
+    let spot: Box | null = null;
+    for (let y = box.y + band + 3; y + m.h <= box.y + box.h - 3 && !spot; y += step) {
+      for (let x = box.x + 3; x + m.w <= box.x + box.w - 3 && !spot; x += step) {
+        const cand: Box = { x, y, w: m.w, h: m.h };
+        if (!rectInside(zone.shape, cand)) continue;
+        if (children.some((c) => !rectClear(c.shape, cand))) continue;
+        const clash = used.some((u) =>
+          cand.x < u.x + u.w + LABEL_GAP && cand.x + cand.w + LABEL_GAP > u.x &&
+          cand.y < u.y + u.h + LABEL_GAP && cand.y + cand.h + LABEL_GAP > u.y);
+        if (!clash) spot = cand;
       }
     }
-    if (found.length > best.length) best = found;
-    if (best.length >= count) break;
+    if (!spot) return null; // this configuration cannot hold them all
+    used.push(spot);
+    out.push({ box: spot, lines: m.lines, truncated: m.truncated });
   }
-  return best.slice(0, count);
+  return out;
+}
+
+/**
+ * Lay every entry out as READABLE TEXT inside its zone.
+ *
+ * This replaces the numbered chips. A number told the patient nothing: the
+ * exercise works by seeing everything at once — yourself in the middle, what
+ * you control inside, what you do not outside — and an interface that hides each
+ * item behind a tap ships the mechanics and loses the mechanism.
+ *
+ * Nothing is ever dropped to make room. As a zone fills, the TEXT BUDGET
+ * shrinks; entries keep their place and the shortened ones are flagged so the
+ * surface can offer the full wording. The previous `chipSlots` silently returned
+ * fewer slots than asked for, so a busy zone left entries with no mark at all.
+ *
+ * `minFontSize` is the caller's legibility floor in canvas units — a phone
+ * renders the canvas at roughly 0.42x, a wide screen at 0.8x, so the two
+ * surfaces are entitled to different budgets for the same answer. Answers store
+ * no coordinates, which is exactly what makes that safe.
+ *
+ * Searched cheaply on purpose: each budget is tried once at the floor (likeliest
+ * to fit, cheapest to reject) and the type is only grown after one succeeds.
+ * Sweeping every pair took ~100M operations per render and froze the page.
+ */
+export function labelSlots(
+  zone: CanvasZone,
+  zones: CanvasZone[],
+  texts: string[],
+  opts: { minFontSize: number },
+): LabelLayout {
+  const minFontSize = Math.max(8, Math.round(opts.minFontSize));
+  if (!texts.length) return { labels: [], fontSize: minFontSize, budget: BUDGET_STEPS[0], overflowed: false };
+
+  const box = shapeBox(zone.shape);
+  if (box.w <= 0 || box.h <= 0) {
+    return { labels: texts.map(() => null), fontSize: minFontSize, budget: BUDGET_STEPS[0], overflowed: true };
+  }
+  const children = childZonesOf(zones, zone.id);
+  const labelLines = wrapLabel(zoneLabel(zone.label), box.w - 24).length || 1;
+  const wanted = LABEL_BAND + (labelLines - 1) * 20 + (zone.parentZoneId ? 8 : 0);
+  const band = box.h > wanted * 2 ? wanted : 0;
+
+  for (const budget of BUDGET_STEPS) {
+    const atFloor = packAll(zone, children, box, band, texts, budget, minFontSize);
+    if (!atFloor) continue;
+    let best = atFloor;
+    let bestFont = minFontSize;
+    for (let fs = minFontSize + 2; fs <= MAX_FONT_SIZE; fs += 2) {
+      const bigger = packAll(zone, children, box, band, texts, budget, fs);
+      if (!bigger) break;
+      best = bigger;
+      bestFont = fs;
+    }
+    return { labels: best, fontSize: bestFont, budget, overflowed: false };
+  }
+
+  // Genuinely too full. Place what fits at the tightest budget and report the
+  // rest as null rather than pretending they are on the canvas.
+  const smallest = BUDGET_STEPS[BUDGET_STEPS.length - 1];
+  const used: Box[] = [];
+  const labels: (CanvasLabel | null)[] = texts.map((text) => {
+    const m = measureEntry(text, smallest, minFontSize);
+    const step = Math.max(10, Math.round(Math.min(m.w, m.h) / 2));
+    for (let y = box.y + band + 3; y + m.h <= box.y + box.h - 3; y += step) {
+      for (let x = box.x + 3; x + m.w <= box.x + box.w - 3; x += step) {
+        const cand: Box = { x, y, w: m.w, h: m.h };
+        if (!rectInside(zone.shape, cand)) continue;
+        if (children.some((c) => !rectClear(c.shape, cand))) continue;
+        const clash = used.some((u) =>
+          cand.x < u.x + u.w + LABEL_GAP && cand.x + cand.w + LABEL_GAP > u.x &&
+          cand.y < u.y + u.h + LABEL_GAP && cand.y + cand.h + LABEL_GAP > u.y);
+        if (clash) continue;
+        used.push(cand);
+        return { box: cand, lines: m.lines, truncated: m.truncated };
+      }
+    }
+    return null;
+  });
+  return { labels, fontSize: minFontSize, budget: smallest, overflowed: labels.some((l) => l === null) };
 }
 
 
