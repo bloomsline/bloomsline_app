@@ -31,6 +31,28 @@ const ALLOWLIST = {
   // Revisit: when Expo and React Native bump their transitive js-yaml, drop this
   // and let the gate fail again if anything is left.
   'GHSA-5p4m-2wfm-xmqj': 'js-yaml quadratic !!omap parse — build tooling only, absent from the bundle; consumers pin js-yaml ^3/^4',
+
+  // image-size infinite loops on malformed ICNS / JXL / HEIF headers.
+  //
+  // Reaches us only as a dependency of METRO, three times over — @expo/metro,
+  // @react-native/metro-config and @react-native/community-cli-plugin all pull
+  // it. Metro is the bundler: it runs on a developer machine or an EAS builder,
+  // and the images it measures are the ones committed to this repo. There is no
+  // path by which a stranger hands it a crafted .icns.
+  //
+  // Confirmed absent from what ships: `image-size`, `readICNS`, `ICNS`, `JXL`
+  // and `heif` each return zero occurrences in the exported web bundle
+  // (dist/_expo/static/js/web/entry-*.js).
+  //
+  // Nothing to upgrade to. The advisory range is `*` — every published version
+  // is affected — and npm's suggested "fix" is react-native 0.72.17, a downgrade
+  // of six minor versions from the 0.83.2 this app is built on. Taking that to
+  // close a build-time DoS would break the app.
+  //
+  // Revisit: when image-size ships a patched release, or when Metro drops it.
+  // Two IDs, one library, one argument.
+  'GHSA-w3rx-r6r6-pgpr': 'image-size ICNS infinite loop — Metro bundler only, absent from the bundle; every version affected, no upgrade exists',
+  'GHSA-5p2g-fcmc-qvqq': 'image-size JXL/HEIF infinite loop — Metro bundler only, absent from the bundle; every version affected, no upgrade exists',
 };
 
 const BLOCKING = new Set(['high', 'critical']);
