@@ -288,6 +288,49 @@ export async function createNote(input: {
   }
 }
 
+/**
+ * The unfinished note for a session.
+ *
+ * Backed by the SAME table and the same server action the care app uses, so a
+ * note started on a laptop and picked up on a phone is one piece of writing
+ * rather than two that quietly fork. `draftAt` is set when what came back is an
+ * unsaved draft rather than the stored note; the server resolves which is newer.
+ */
+export async function fetchNoteDraft(appointmentId: string): Promise<{ content: string; draftAt: string | null } | null> {
+  try {
+    const res = await apiFetch(`/api/mobile/practitioner/sessions/${appointmentId}/draft`);
+    if (!res.ok) return null;
+    return (await res.json()) as { content: string; draftAt: string | null };
+  } catch {
+    return null;
+  }
+}
+
+/** Keep the unfinished note. Debounced by the caller. */
+export async function saveNoteDraft(appointmentId: string, content: string): Promise<{ ok: boolean; savedAt?: string | null }> {
+  try {
+    const res = await apiFetch(`/api/mobile/practitioner/sessions/${appointmentId}/draft`, {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    });
+    if (!res.ok) return { ok: false };
+    const body = (await res.json().catch(() => null)) as { savedAt?: string | null } | null;
+    return { ok: true, savedAt: body?.savedAt ?? null };
+  } catch {
+    return { ok: false };
+  }
+}
+
+/** Throw the unfinished note away. */
+export async function discardNoteDraft(appointmentId: string): Promise<{ ok: boolean }> {
+  try {
+    const res = await apiFetch(`/api/mobile/practitioner/sessions/${appointmentId}/draft`, { method: 'DELETE' });
+    return { ok: res.ok };
+  } catch {
+    return { ok: false };
+  }
+}
+
 export interface SessionTypeOption {
   id: string;
   label: string;
