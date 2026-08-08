@@ -7,7 +7,8 @@ import { EDA, EdHeader, EdCard, EdSection, FadeIn } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 import { useNoteDraft } from '@/src/notes/draft';
 import { NoteEditor } from '@/src/notes/NoteEditor';
-import { fetchNoteWorkspace, createNote, type NoteWorkspace, type UpcomingSession } from '@/src/api/practitioner';
+import { fetchNoteWorkspace, createNote, fetchNoteDraft, type NoteWorkspace, type UpcomingSession } from '@/src/api/practitioner';
+import { useConfirm } from '@/src/ui/confirm';
 
 // Take a note. Opens on the sessions still to happen — a note is about a session
 // you are heading into or have just had — with a toggle to browse by patient
@@ -18,12 +19,20 @@ const T = {
     upcoming: 'Upcoming', byPatient: 'By patient',
     none: 'No upcoming sessions. Book one and the note goes with it.',
     pick: 'PICK A SESSION', sessionNote: 'Session note',
+    kept: 'Draft kept ·', keeping: 'Keeping…', notKeptYet: 'Not kept yet',
+    notKept: 'Not kept — check your connection',
+    discardTitle: 'Discard this draft?', discardBody: 'What you have written here will be deleted. This cannot be undone.',
+    discardYes: 'Discard', discardNo: 'Keep it',
   },
   fr: {
     kicker: 'NOTE', title: 'Prendre une note',
     upcoming: 'À venir', byPatient: 'Par patient',
     none: 'Aucune séance à venir. Réservez-en une et la note suivra.',
     pick: 'CHOISIR UNE SÉANCE', sessionNote: 'Note de séance',
+    kept: 'Brouillon conservé ·', keeping: 'Conservation…', notKeptYet: 'Pas encore conservé',
+    notKept: 'Non conservé — vérifiez votre connexion',
+    discardTitle: 'Supprimer ce brouillon ?', discardBody: 'Ce que vous avez écrit ici sera supprimé. Cette action est irréversible.',
+    discardYes: 'Supprimer', discardNo: 'Le conserver',
   },
 } as const;
 
@@ -31,7 +40,8 @@ export default function TakeNote() {
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale] ?? T.en;
-  const { draft, open, update, minimize, discard } = useNoteDraft();
+  const { draft, open, update, minimize, flush, settle, discard, status, savedAt } = useNoteDraft();
+  const confirm = useConfirm();
 
   const [ws, setWs] = useState<NoteWorkspace | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -51,12 +61,15 @@ export default function TakeNote() {
   const when = (iso: string) =>
     new Date(iso).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', ...zone });
 
-  const start = (s: UpcomingSession) => {
+  const start = async (s: UpcomingSession) => {
+    setError('');
+    // Pick up anything unfinished for this session — including a draft started
+    // on the laptop, since both surfaces write the same row.
+    const existing = await fetchNoteDraft(s.id);
     open({
       appointmentId: s.id, memberId: s.memberId, who: s.who, when: when(s.scheduledAt),
-      title: '', text: '', ranges: [], noteType: ws?.noteTypes[0] ?? 'general',
+      title: '', text: existing?.content ?? '', ranges: [], noteType: ws?.noteTypes[0] ?? 'general',
     });
-    setError('');
   };
 
   const save = async () => {
@@ -69,8 +82,33 @@ export default function TakeNote() {
     });
     setSaving(false);
     if (!res.ok) { setError(res.error ?? ''); return; }
-    discard();
+    // The note is written and the server dropped the draft with it; settle so a
+    // late autosave cannot put it back.
+    settle();
     router.navigate('/(practitioner)/home' as never);
+  };
+
+  /**
+   * Leaving keeps the writing. Anything pending is written FIRST rather than
+   * waiting out the debounce, so there is nothing to confirm — and if that write
+   * fails we stay put and say so, because that is the one case where leaving
+   * would actually cost the note.
+   */
+  const leaveKeeping = async () => {
+    const ok = await flush();
+    if (!ok) { setError(tr.notKept); return; }
+    router.back();
+  };
+
+  /** The only destructive path, and so the only one that asks. */
+  const throwAway = async () => {
+    const yes = await confirm({
+      title: tr.discardTitle, message: tr.discardBody,
+      confirmLabel: tr.discardYes, cancelLabel: tr.discardNo, destructive: true,
+    });
+    if (!yes) return;
+    await discard();
+    router.back();
   };
 
   // Grouped by patient for the other half of the toggle — same data, so
@@ -102,9 +140,17 @@ export default function TakeNote() {
               onText={(text) => update({ text })}
               onRanges={(ranges) => update({ ranges })}
               onNoteType={(noteType) => update({ noteType })}
+              statusLine={
+                status === 'error' ? tr.notKept
+                : status === 'saving' ? tr.keeping
+                : status === 'dirty' ? tr.notKeptYet
+                : savedAt ? `${tr.kept} ${new Date(savedAt).toLocaleTimeString(locale === 'fr' ? 'fr-FR' : 'en-GB', { hour: '2-digit', minute: '2-digit' })}`
+                : undefined
+              }
               onSave={save}
               onMinimize={() => { minimize(); router.back(); }}
-              onCancel={() => { discard(); router.back(); }}
+              onCancel={leaveKeeping}
+              onDiscard={savedAt || draft.text.trim() ? throwAway : undefined}
             />
           </ScrollView>
         </KeyboardAvoidingView>
@@ -128,7 +174,7 @@ export default function TakeNote() {
           {loaded && (ws?.sessions.length ?? 0) === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.none}</Text>}
 
           {mode === 'upcoming' && (ws?.sessions ?? []).map((s) => (
-            <EdCard key={s.id} onPress={() => start(s)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+            <EdCard key={s.id} onPress={() => { void start(s); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 }}>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 15.5, fontWeight: '700', color: EDA.ink }}>{s.who}</Text>
                 <Text style={{ fontSize: 12.5, color: EDA.inkSoft, marginTop: 2 }}>{when(s.scheduledAt)} · {s.durationMinutes} min</Text>
@@ -141,7 +187,7 @@ export default function TakeNote() {
             <View key={id} style={{ marginBottom: 18 }}>
               <EdSection label={group.who} />
               {group.items.map((s) => (
-                <EdCard key={s.id} onPress={() => start(s)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                <EdCard key={s.id} onPress={() => { void start(s); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 }}>
                   <Text style={{ flex: 1, fontSize: 14.5, color: EDA.ink }}>{when(s.scheduledAt)}</Text>
                   <ChevronRight size={16} color={EDA.line} />
                 </EdCard>

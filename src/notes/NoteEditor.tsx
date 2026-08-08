@@ -20,7 +20,7 @@ export interface EditorTag { slug: string; label: string }
 
 export function NoteEditor({
   title, text, ranges, noteType, noteTypes, tags, templates, saving, error,
-  onTitle, onText, onRanges, onNoteType, onSave, onMinimize, onCancel, header,
+  onTitle, onText, onRanges, onNoteType, onSave, onMinimize, onCancel, onDiscard, statusLine, header,
 }: {
   title: string;
   text: string;
@@ -37,7 +37,12 @@ export function NoteEditor({
   onNoteType: (v: string) => void;
   onSave: () => void;
   onMinimize: () => void;
+  /** Leaves the editor and KEEPS the writing. Not destructive. */
   onCancel: () => void;
+  /** Throws the writing away. Destructive, so the caller confirms. */
+  onDiscard?: () => void;
+  /** Whether the unfinished note is safe, shown under the header. */
+  statusLine?: string;
   header: string;
 }) {
   const [sel, setSel] = useState({ start: 0, end: 0 });
@@ -90,9 +95,14 @@ export function NoteEditor({
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Title bar — minimise and close, like the care modal's − and ×. */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingBottom: 14 }}>
-        <Text style={{ flex: 1, fontSize: 18, fontWeight: '800', color: EDA.ink }}>{header}</Text>
+      {/* Title bar — minimise and close, like the care modal's − and ×. Closing
+          KEEPS the writing, which is why there is no confirmation on it and why
+          the status line below says so rather than a dialog asserting it. */}
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingBottom: 14 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 18, fontWeight: '800', color: EDA.ink }}>{header}</Text>
+          {statusLine ? <Text style={{ fontSize: 11.5, color: EDA.faint, marginTop: 2 }}>{statusLine}</Text> : null}
+        </View>
         <Pressable onPress={onMinimize} hitSlop={10} accessibilityLabel="Minimize">
           <Minus size={20} color={EDA.inkSoft} />
         </Pressable>
@@ -100,6 +110,14 @@ export function NoteEditor({
           <X size={20} color={EDA.inkSoft} />
         </Pressable>
       </View>
+
+      {/* The one destructive path, so the only one that asks. Kept away from the
+          Close control on purpose. */}
+      {onDiscard ? (
+        <Pressable onPress={onDiscard} hitSlop={8} style={{ alignSelf: 'flex-start', paddingBottom: 10 }}>
+          <Text style={{ fontSize: 12.5, fontWeight: '600', color: EDA.faint }}>Discard draft</Text>
+        </Pressable>
+      ) : null}
 
       {/* Toolbar. Formatting acts on the SELECTION, so it is disabled without
           one rather than silently doing nothing. */}
@@ -208,7 +226,7 @@ export function NoteEditor({
 
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 22 }}>
         <Pressable onPress={onCancel} style={{ flex: 1, height: 50, borderRadius: 25, borderWidth: 1.5, borderColor: EDA.line, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 15, fontWeight: '600', color: EDA.inkSoft }}>Cancel</Text>
+          <Text style={{ fontSize: 15, fontWeight: '600', color: EDA.inkSoft }}>Close</Text>
         </Pressable>
         <Pressable
           onPress={onSave}
