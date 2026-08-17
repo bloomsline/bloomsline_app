@@ -7,32 +7,12 @@ import { EditorialBg, Scrim, RiseIn, MonoKicker, Pill, LangToggle } from '@/src/
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useI18n } from '@/src/i18n';
 
-const T = {
-  en: {
-    kicker: 'bloomsline',
-    headlinePre: 'However you’re\narriving, you’re ',
-    headlineAccent: 'welcome.',
-    tagline: 'A private space for your wellbeing, one small moment at a time.',
-    private: 'Private by default. Yours alone.',
-    createProfile: 'Create my profile',
-    haveAccount: 'I already have an account',
-  },
-  fr: {
-    kicker: 'bloomsline',
-    headlinePre: 'Peu importe comment\nvous arrivez, vous êtes ',
-    headlineAccent: 'le bienvenu.',
-    tagline: 'Un espace privé pour votre bien-être, un petit moment à la fois.',
-    private: 'Privé par défaut. Rien qu’à vous.',
-    createProfile: 'Créer mon profil',
-    haveAccount: 'J’ai déjà un compte',
-  },
-} as const;
-
-// Welcome. Warm, inclusive entry; role (patient vs practitioner) is decided
-// after sign-in. Full-bleed editorial hero matching the onboarding world.
+// Welcome — the entry for anyone arriving without an invitation. Role (patient
+// vs practitioner) is decided after sign-in. Full-bleed editorial hero matching
+// the onboarding world.
 export default function Welcome() {
-  const { locale, setLocale } = useI18n();
-  const tr = T[locale];
+  const { t, locale, setLocale } = useI18n();
+  const tr = t.welcome;
   return (
     <View style={{ flex: 1 }}>
       <StatusBar style="light" />

@@ -59,7 +59,7 @@ export default function InviteLanding() {
               <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'flex-start', marginBottom: 18 }}>
                 <LangToggle value={locale} onChange={(v) => setLocale(v as typeof locale)} />
               </View>
-              <MonoKicker>{t.invite.bloomsline}</MonoKicker>
+              <MonoKicker>{t.invite.kicker}</MonoKicker>
 
               {loading ? (
                 <View style={{ marginTop: 22, alignItems: 'flex-start' }}>

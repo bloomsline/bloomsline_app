@@ -15,43 +15,16 @@ import { saveProfile } from '@/src/api/me';
 // promises as hairline-divided rows, an explicit consent checkbox above the pill.
 export default function Privacy() {
   const { update } = useOnboarding();
-  const { locale } = useI18n();
+  const { t } = useI18n();
   const [agreed, setAgreed] = useState(false);
 
-  const T = {
-    en: {
-      kicker: 'The trust bit',
-      title: 'Your stuff stays\nyour stuff.',
-      subtitle: 'No jargon, no 40-page policy. Just the promises that matter.',
-      rows: [
-        { icon: 'lock' as PromiseIcon, title: 'Private by default', body: "What you write is yours. We're not reading over your shoulder." },
-        { icon: 'ban' as PromiseIcon, title: 'Never sold. Full stop.', body: 'No ads, no data brokers, no "surprise" third parties.' },
-        { icon: 'shield' as PromiseIcon, title: 'Locked up tight', body: "Encrypted end to end. Even we can't peek, that's the point." },
-        { icon: 'wave' as PromiseIcon, title: 'Leave anytime, take it all', body: 'Export or delete everything in one tap. No hard feelings.' },
-      ],
-      consentPre: "I've read and agree to the ",
-      consentA: 'privacy promise',
-      consentMid: ' and ',
-      consentB: 'terms',
-      cta: 'Love it, continue',
-    },
-    fr: {
-      kicker: 'Le pacte de confiance',
-      title: 'Vos données restent\nles vôtres.',
-      subtitle: 'Pas de jargon, pas de politique de 40 pages. Juste les promesses qui comptent.',
-      rows: [
-        { icon: 'lock' as PromiseIcon, title: 'Privé par défaut', body: 'Ce que vous écrivez vous appartient. Nous ne lisons pas par-dessus votre épaule.' },
-        { icon: 'ban' as PromiseIcon, title: 'Jamais vendu. Point.', body: 'Pas de pub, pas de courtiers en données, pas de tiers « surprise ».' },
-        { icon: 'shield' as PromiseIcon, title: 'Bien protégé', body: 'Chiffré de bout en bout. Même nous ne pouvons pas regarder, c’est le principe.' },
-        { icon: 'wave' as PromiseIcon, title: 'Partez quand vous voulez, avec tout', body: 'Exportez ou supprimez tout en un geste. Sans rancune.' },
-      ],
-      consentPre: 'J’ai lu et j’accepte la ',
-      consentA: 'promesse de confidentialité',
-      consentMid: ' et les ',
-      consentB: 'conditions',
-      cta: 'J’adore, continuer',
-    },
-  }[locale];
+  const T = t.onboarding.privacy;
+  const rows: { icon: PromiseIcon; title: string; body: string }[] = [
+    { icon: 'lock', title: T.p1Title, body: T.p1Body },
+    { icon: 'ban', title: T.p2Title, body: T.p2Body },
+    { icon: 'shield', title: T.p3Title, body: T.p3Body },
+    { icon: 'wave', title: T.p4Title, body: T.p4Body },
+  ];
 
   const next = () => {
     if (!agreed) return;
@@ -67,24 +40,20 @@ export default function Privacy() {
         <Scrim colors={['rgba(16,18,16,0.72)', 'rgba(16,18,16,0.88)', 'rgba(16,18,16,0.96)']} locations={[0, 0.42, 1]} />
         <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
           <View style={{ flex: 1, paddingHorizontal: 24 }}>
-            {/* Header: back + 2-seg progress + counter */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingTop: 8 }}>
+            {/* Back only. v2 dropped the 02/02 progress bar along with the rest
+                of the step counter, so nothing here implies a numbered flow. */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 8 }}>
               <Pressable onPress={() => router.back()} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' }}>
                 <ChevronLeft size={18} color="#fff" strokeWidth={2} />
               </Pressable>
-              <View style={{ flex: 1, flexDirection: 'row', gap: 6 }}>
-                <View style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: '#fff' }} />
-                <View style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: '#fff' }} />
-              </View>
-              <MonoKicker size={10} color="rgba(255,255,255,0.55)">02/02</MonoKicker>
             </View>
 
-            <MonoKicker size={10} color="rgba(255,255,255,0.55)" style={{ marginTop: 26, marginBottom: 12 }}>{T.kicker}</MonoKicker>
+            <MonoKicker size={10} color="rgba(255,255,255,0.55)" style={{ marginTop: 26, marginBottom: 12 }}>{T.badge}</MonoKicker>
             <Text style={{ fontSize: 30, fontWeight: '800', color: '#fff', letterSpacing: -1.1, lineHeight: 32 }}>{T.title}</Text>
-            <Text style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.7)', lineHeight: 20, marginTop: 10 }}>{T.subtitle}</Text>
+            <Text style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.7)', lineHeight: 20, marginTop: 10 }}>{T.intro}</Text>
 
             <View style={{ marginTop: 20 }}>
-              {T.rows.map((r, i) => (
+              {rows.map((r, i) => (
                 <View key={r.title} style={{ flexDirection: 'row', gap: 13, alignItems: 'flex-start', paddingVertical: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.12)' }}>
                   <View style={{ width: 22, alignItems: 'center', marginTop: 1 }}>
                     <AnimatedPromiseIcon type={r.icon} delay={i * 130} color="#fff" size={19} />

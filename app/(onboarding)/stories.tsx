@@ -1,122 +1,102 @@
 import { useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PanResponder, Platform, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { EditorialBg, Scrim, MonoKicker, HaloArrow, Dashes, RiseIn } from '@/src/onboarding/editorial/kit';
+import { EditorialBg, Scrim, MonoKicker, Dashes, RiseIn, Pill } from '@/src/onboarding/editorial/kit';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
-import { useOnboarding } from '@/src/onboarding/context';
 import { useI18n } from '@/src/i18n';
 
-// e2–e3b — the swipeable value carousel. Top-anchored (card near the top, a peek
-// of the next card, controls directly under it), weighted deceleration, a mono
-// NN / 04 counter, the halo arrow, and a Continue pill that stays dimmed until
-// every card has been seen.
+// c2–c4 — the three value screens, one per tab the patient is about to meet:
+// My Care, Moments, For You.
+//
+// v2 replaced the four-card swipe deck with three FULL-SCREEN pages. The deck
+// asked people to read a stack of cards before it would let them continue;
+// these ask for one thought at a time, and each page carries its own button, so
+// the way forward is never dimmed out waiting for you to swipe far enough.
+//
+// Rendered one page at a time rather than as a horizontal pager, with swipe
+// supplied by PanResponder. A paging ScrollView is the obvious shape, but on
+// react-native-web `pagingEnabled` compiles to `scroll-snap-type: x mandatory`
+// while animated `scrollTo` steps `scrollLeft` frame by frame — the snap drags
+// each step back and the view creeps a few pixels instead of turning the page.
 export default function Stories() {
-  const { width, height } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
-  const { practitionerName } = useOnboarding();
-  const { locale } = useI18n();
-  const prac = (practitionerName ?? (locale === 'fr' ? 'Votre praticien' : 'Your practitioner')).replace(/^dr\.?\s*/i, '').split(/\s+/)[0];
+  const { t } = useI18n();
+  const T = t.onboarding.stories;
 
-  const PAD = 24;
-  const GAP = 12;
-  const CARD_W = Math.min(320, width - 64);
-  const SNAP = CARD_W + GAP;
-  const TOP_GAP = 14;
-  const HEADER = 116;
-  const CONTROLS = 112;
-  const CARD_H = Math.max(340, height - insets.top - insets.bottom - TOP_GAP - HEADER - CONTROLS);
+  const pages = [
+    { title: T.s1Title, body: T.s1Body, img: ONBOARDING_IMAGES.card3 },
+    { title: T.s2Title, body: T.s2Body, img: ONBOARDING_IMAGES.card2 },
+    { title: T.s3Title, body: T.s3Body, img: ONBOARDING_IMAGES.card4 },
+  ];
 
-  const intro = {
-    en: { kicker: 'Welcome', title: 'A few things\nto know.' },
-    fr: { kicker: 'Bienvenue', title: 'Quelques mots\npour commencer.' },
-  }[locale];
-
-  const cards = {
-    en: [
-      { title: "A space that's\njust yours", body: 'No pressure. Come as you are, whenever you like.', img: ONBOARDING_IMAGES.card1 },
-      { title: 'Private, unless\nyou say so', body: `You choose what ${prac} sees. Change your mind anytime.`, img: ONBOARDING_IMAGES.card2 },
-      { title: `${prac} is\nright beside you`, body: 'Your sessions and shared notes, all in one place.', img: ONBOARDING_IMAGES.card3 },
-      { title: 'Something for\nthe harder days', body: 'Gentle tools for when it feels heavy.', img: ONBOARDING_IMAGES.card4 },
-    ],
-    fr: [
-      { title: 'Un espace\nrien qu’à vous', body: 'Pas de pression. Venez comme vous êtes, quand vous voulez.', img: ONBOARDING_IMAGES.card1 },
-      { title: 'Privé, sauf si\nvous décidez', body: `Vous choisissez ce que ${prac} voit. Changez d’avis à tout moment.`, img: ONBOARDING_IMAGES.card2 },
-      { title: `${prac} est\nà vos côtés`, body: 'Vos séances et les notes partagées, au même endroit.', img: ONBOARDING_IMAGES.card3 },
-      { title: 'Pour les jours\nplus difficiles', body: 'Des outils doux pour quand c’est lourd.', img: ONBOARDING_IMAGES.card4 },
-    ],
-  }[locale];
-
-  const scroller = useRef<ScrollView>(null);
   const [index, setIndex] = useState(0);
-  const [maxSeen, setMaxSeen] = useState(0);
-  const seenAll = maxSeen >= cards.length - 1;
-  const cta = locale === 'fr' ? 'Continuer' : 'Get started';
+  const page = pages[index];
+  const last = index === pages.length - 1;
 
-  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const i = Math.round(e.nativeEvent.contentOffset.x / SNAP);
-    if (i !== index) setIndex(i);
-    if (i > maxSeen) setMaxSeen(i);
-  };
-  const goNext = (i: number) => scroller.current?.scrollTo({ x: (i + 1) * SNAP, animated: true });
+  const advance = () => (last ? router.push('/(onboarding)/privacy') : setIndex((i) => i + 1));
+
+  // Swipe left/right between the three screens. Deliberately release-only: the
+  // page does not follow the finger, it turns when you let go.
+  //
+  // Claiming the responder on MOVE rather than on START is what keeps the button
+  // working — a tap never becomes a gesture, so the Pill still receives it. The
+  // horizontal test (|dx| > |dy|) stops a vertical scroll flick from paging.
+  //
+  // Swiping stays INSIDE the carousel: it will not carry you on to the privacy
+  // screen from the last page. Leaving onboarding is a commitment, and a stray
+  // flick should not make it — that is what "Get started" is for.
+  const index_ = useRef(index);
+  index_.current = index;
+  const pan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 12 && Math.abs(g.dx) > Math.abs(g.dy),
+      onPanResponderRelease: (_, g) => {
+        const i = index_.current;
+        if (g.dx < -50 && i < pages.length - 1) setIndex(i + 1);
+        else if (g.dx > 50 && i > 0) setIndex(i - 1);
+      },
+    }),
+  ).current;
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#0E1512', paddingTop: insets.top + TOP_GAP, paddingBottom: insets.bottom + 10 }}>
+    // The web-only `userSelect` stops a swipe from dragging a text selection
+    // across the headline and leaving it highlighted. Cast because it is not in
+    // this React Native version's ViewStyle; same shape as the `outlineStyle`
+    // escape hatch in about-you.
+    <View
+      style={[
+        { flex: 1, backgroundColor: '#0E1512' },
+        Platform.OS === 'web' ? ({ userSelect: 'none' } as never) : null,
+      ]}
+      {...pan.panHandlers}
+    >
       <StatusBar style="light" />
+      <EditorialBg key={index} source={page.img} zoom>
+        <Scrim
+          colors={['rgba(16,18,16,0.34)', 'rgba(16,18,16,0.12)', 'rgba(16,18,16,0.93)']}
+          locations={[0, 0.38, 1]}
+        />
+        <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
+          <View style={{ flex: 1, justifyContent: 'flex-end', paddingHorizontal: 28, paddingBottom: 26 }}>
+            {/* Keyed so the copy re-runs its entrance on every page turn. */}
+            <RiseIn key={index}>
+              <MonoKicker size={11} color="rgba(255,255,255,0.62)">{`0${index + 1} / 0${pages.length}`}</MonoKicker>
+              <Text style={{ marginTop: 14, fontSize: 34, fontWeight: '800', color: '#fff', letterSpacing: -1.3, lineHeight: 37 }}>
+                {page.title}
+              </Text>
+              <Text style={{ marginTop: 12, fontSize: 14.5, color: 'rgba(255,255,255,0.82)', lineHeight: 21, maxWidth: 300 }}>
+                {page.body}
+              </Text>
+            </RiseIn>
 
-      <RiseIn style={{ paddingHorizontal: 24, height: HEADER, justifyContent: 'flex-start', paddingTop: 4, paddingBottom: 24 }}>
-        <MonoKicker size={11} color="rgba(255,255,255,0.6)" style={{ marginBottom: 8 }}>{intro.kicker}</MonoKicker>
-        <Text style={{ fontSize: 27, fontWeight: '800', color: '#fff', letterSpacing: -0.9, lineHeight: 30 }}>{intro.title}</Text>
-      </RiseIn>
-
-      <ScrollView
-        ref={scroller}
-        horizontal
-        style={{ height: CARD_H, flexGrow: 0 }}
-        showsHorizontalScrollIndicator={false}
-        snapToInterval={SNAP}
-        decelerationRate={0.86}
-        disableIntervalMomentum
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-        contentContainerStyle={{ paddingLeft: PAD, paddingRight: PAD }}
-      >
-        {cards.map((c, i) => {
-          const last = i === cards.length - 1;
-          return (
-            <View key={i} style={{ width: CARD_W, height: CARD_H, marginRight: GAP, borderRadius: 22, overflow: 'hidden', opacity: i === index ? 1 : 0.5 }}>
-              <EditorialBg source={c.img} />
-              <Scrim colors={['rgba(16,18,16,0.28)', 'transparent', 'rgba(16,18,16,0.86)']} locations={[0, 0.4, 1]} />
-              <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 22 }}>
-                <Text style={{ fontSize: 25, fontWeight: '800', color: '#fff', letterSpacing: -0.8, lineHeight: 28 }}>{c.title}</Text>
-                <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 21, marginTop: 10 }}>{c.body}</Text>
-                <MonoKicker size={11} color="rgba(255,255,255,0.65)" style={{ marginTop: 18 }}>{`0${i + 1} / 0${cards.length}`}</MonoKicker>
-              </View>
-              {!last && (
-                <Pressable onPress={() => goNext(i)} style={{ position: 'absolute', right: 16, bottom: 18 }}>
-                  <HaloArrow />
-                </Pressable>
-              )}
+            <View style={{ alignItems: 'flex-start', marginTop: 22, marginBottom: 18 }}>
+              <Dashes total={pages.length} index={index} />
             </View>
-          );
-        })}
-      </ScrollView>
-
-      <View style={{ paddingHorizontal: 24, paddingTop: 20 }}>
-        <View style={{ marginBottom: 16 }}>
-          <Dashes total={cards.length} index={index} />
-        </View>
-        {seenAll ? (
-          <Pressable onPress={() => router.push('/(onboarding)/about-you')} style={{ height: 54, borderRadius: 27, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: '#141414' }}>{cta}</Text>
-          </Pressable>
-        ) : (
-          <View style={{ height: 54, borderRadius: 27, backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.24)', alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: 'rgba(255,255,255,0.42)' }}>{cta}</Text>
+            <Pill label={last ? T.getStarted : T.next} variant="white" onPress={advance} />
           </View>
-        )}
-      </View>
+        </SafeAreaView>
+      </EditorialBg>
     </View>
   );
 }
