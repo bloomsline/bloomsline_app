@@ -15,40 +15,6 @@ import { useI18n, fmt } from '@/src/i18n';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const T = {
-  en: {
-    kicker: 'Sign in',
-    signInTitle: 'Sign in',
-    continueGoogle: 'Continue with Google',
-    continueOutlook: 'Continue with Outlook',
-    couldNotSend: 'Could not send the link. Check your connection and try again.',
-    googleNotConfigured: 'Google sign-in isn’t configured yet.',
-    outlookNotConfigured: 'Outlook sign-in isn’t configured yet.',
-    heading: 'Welcome.\nLet’s begin.',
-    subheading: 'No password to invent. We’ll email you a link.',
-    orUseEmail: 'or use your email',
-    invitedPre: 'You were invited as ',
-    invitedPost: '. Use this address so your practitioner can find you.',
-    emailPlaceholder: 'you@email.com',
-    legal: 'By continuing you agree to our terms. We’ll never share your email.',
-  },
-  fr: {
-    kicker: 'Connexion',
-    signInTitle: 'Connexion',
-    continueGoogle: 'Continuer avec Google',
-    continueOutlook: 'Continuer avec Outlook',
-    couldNotSend: 'Impossible d’envoyer le lien. Vérifiez votre connexion et réessayez.',
-    googleNotConfigured: 'La connexion avec Google n’est pas encore configurée.',
-    outlookNotConfigured: 'La connexion avec Outlook n’est pas encore configurée.',
-    heading: 'Bienvenue.\nCommençons.',
-    subheading: 'Aucun mot de passe à inventer. Nous vous envoyons un lien.',
-    orUseEmail: 'ou utilisez votre email',
-    invitedPre: 'Vous avez été invité en tant que ',
-    invitedPost: '. Utilisez cette adresse pour que votre praticien puisse vous retrouver.',
-    emailPlaceholder: 'vous@email.com',
-    legal: 'En continuant, vous acceptez nos conditions. Nous ne partagerons jamais votre email.',
-  },
-} as const;
 
 // A tiny Google "G" mark.
 function GoogleMark() {
@@ -88,29 +54,32 @@ function EdAuthButton({ label, leading, onPress, tone }: { label: string; leadin
 // The Google auth hook (expo-auth-session) throws on web when no client id is
 // set, so it's isolated in a component that's only mounted when configured.
 function GoogleAuthButton() {
-  const { locale } = useI18n();
-  const tr = T[locale];
-  const google = useGoogleSignIn((m) => notify(tr.signInTitle, m));
+  const tr = useI18n().t.signUp;
+  const google = useGoogleSignIn((m) => notify(tr.kickerSignIn, m));
   return <EdAuthButton tone="dark" label={tr.continueGoogle} leading={<GoogleMark />} onPress={() => google.signIn()} />;
 }
 function MicrosoftAuthButton() {
-  const { locale } = useI18n();
-  const tr = T[locale];
-  const ms = useMicrosoftSignIn((m) => notify(tr.signInTitle, m));
+  const tr = useI18n().t.signUp;
+  const ms = useMicrosoftSignIn((m) => notify(tr.kickerSignIn, m));
   return <EdAuthButton tone="light" label={tr.continueOutlook} leading={<OutlookMark />} onPress={() => ms.signIn()} />;
 }
 
 export default function SignUp() {
   const insets = useSafeAreaInsets();
   const { t, locale } = useI18n();
-  const tr = T[locale];
+  const tr = t.signUp;
   const sent = t.signUpSent;
   const { startEmailSignIn, devSignIn } = useAuth();
   // An invited patient arrives with the address their practitioner used. Seed
   // the field with it: signing up under a different address creates an account
   // that never links to their practitioner, and they would have no way to know.
-  const { email: invitedEmail } = useLocalSearchParams<{ email?: string }>();
+  //
+  // `mode=signin` arrives from "I already have an account". Same screen, but it
+  // says "Welcome back." and calls itself sign-in: telling someone who already
+  // has an account to create one is a small lie that makes people hesitate.
+  const { email: invitedEmail, mode } = useLocalSearchParams<{ email?: string; mode?: string }>();
   const invited = typeof invitedEmail === 'string' && invitedEmail ? invitedEmail : null;
+  const returning = mode === 'signin';
   const [email, setEmail] = useState(invited ?? '');
   const [focus, setFocus] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -135,7 +104,7 @@ export default function SignUp() {
         router.replace(`/auth${q}` as never);
       }
     } catch {
-      notify(tr.signInTitle, tr.couldNotSend);
+      notify(tr.kickerSignIn, tr.couldNotSend);
     } finally {
       setBusy(false);
     }
@@ -150,7 +119,7 @@ export default function SignUp() {
       await startEmailSignIn(sentTo, locale);
       notify(sent.kicker, sent.resent);
     } catch {
-      notify(tr.signInTitle, tr.couldNotSend);
+      notify(tr.kickerSignIn, tr.couldNotSend);
     } finally {
       setBusy(false);
     }
@@ -188,9 +157,25 @@ export default function SignUp() {
             ) : (
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
               <RiseIn y={40} duration={700} style={{ backgroundColor: ED.sheet, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 26, paddingTop: 26, paddingBottom: insets.bottom + 22 }}>
-                <MonoKicker size={10.5} color={ED.green} style={{ marginBottom: 10 }}>{tr.kicker}</MonoKicker>
-                <Text style={{ fontSize: 28, fontWeight: '800', color: '#141414', letterSpacing: -0.9, lineHeight: 31 }}>{tr.heading}</Text>
-                <Text style={{ marginTop: 8, fontSize: 14.5, color: '#8A8A83', lineHeight: 21 }}>{tr.subheading}</Text>
+                <MonoKicker size={10.5} color={ED.green} style={{ marginBottom: 10 }}>
+                  {returning ? tr.kickerSignIn : tr.kickerCreate}
+                </MonoKicker>
+                <Text style={{ fontSize: 28, fontWeight: '800', color: '#141414', letterSpacing: -0.9, lineHeight: 31 }}>
+                  {returning ? tr.headingSignIn : tr.headingCreate}
+                </Text>
+                {/* The invited address belongs directly under the headline: it is
+                    the single most important thing on this screen for a patient
+                    who has three addresses and must pick the one their
+                    practitioner used. */}
+                {invited && (
+                  <>
+                    <Text style={{ marginTop: 10, fontSize: 14.5, color: '#6E6E66', lineHeight: 21 }}>
+                      {tr.invitedPre}
+                      <Text style={{ fontWeight: '700', color: '#141414' }}>{invited}</Text>
+                    </Text>
+                    <Text style={{ marginTop: 6, fontSize: 12.5, color: '#8A8A83', lineHeight: 18 }}>{tr.invitedNote}</Text>
+                  </>
+                )}
 
                 <View style={{ marginTop: 22, gap: 10 }}>
                   {googleConfigured ? (
@@ -209,12 +194,6 @@ export default function SignUp() {
                     <Text style={{ fontSize: 12.5, color: '#B5B5AD' }}>{tr.orUseEmail}</Text>
                     <View style={{ height: 1, flex: 1, backgroundColor: '#E7E6DF' }} />
                   </View>
-
-                  {invited && (
-                    <Text style={{ fontSize: 12.5, lineHeight: 18, color: '#6E6E66', paddingHorizontal: 2 }}>
-                      {tr.invitedPre}<Text style={{ fontWeight: '700', color: '#141414' }}>{invited}</Text>{tr.invitedPost}
-                    </Text>
-                  )}
 
                   <View style={{ height: 54, flexDirection: 'row', alignItems: 'center', borderRadius: 27, backgroundColor: '#fff', borderWidth: focus ? 2 : 1.5, borderColor: focus ? ED.green : '#E7E6DF', paddingLeft: 18, paddingRight: 7 }}>
                     <TextInput

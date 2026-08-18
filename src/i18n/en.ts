@@ -49,6 +49,24 @@ export const en = {
     blockedTitle: 'Not just yet.',
     back: 'Back',
   },
+  // One screen, three states. "Create your account" and "Sign in" are different
+  // promises, and a returning patient should not be told to begin again.
+  signUp: {
+    kickerCreate: 'Create your account',
+    kickerSignIn: 'Sign in',
+    headingCreate: 'Let’s begin.',
+    headingSignIn: 'Welcome back.',
+    invitedPre: 'Your invitation was sent to ',
+    invitedNote: 'Use this address whichever way you sign in, so your practitioner can find you.',
+    continueGoogle: 'Continue with Google',
+    continueOutlook: 'Continue with Outlook',
+    orUseEmail: 'or use your email',
+    emailPlaceholder: 'you@email.com',
+    legal: 'By continuing you agree to our terms. We’ll never share your email.',
+    couldNotSend: 'Could not send the link. Check your connection and try again.',
+    googleNotConfigured: 'Google sign-in isn’t configured yet.',
+    outlookNotConfigured: 'Outlook sign-in isn’t configured yet.',
+  },
   signUpSent: {
     kicker: 'Check your email',
     title: 'The link is\non its way.',

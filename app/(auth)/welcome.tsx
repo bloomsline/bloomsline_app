@@ -42,7 +42,12 @@ export default function Welcome() {
 
               <Pill label={tr.createProfile} onPress={() => router.push('/(auth)/sign-up')} />
 
-              <Pressable onPress={() => router.push('/(auth)/sign-up')} style={{ alignItems: 'center', paddingVertical: 16 }}>
+              {/* Same screen, but it introduces itself as sign-in rather than
+                  telling someone who already has an account to create one. */}
+              <Pressable
+                onPress={() => router.push({ pathname: '/(auth)/sign-up', params: { mode: 'signin' } })}
+                style={{ alignItems: 'center', paddingVertical: 16 }}
+              >
                 <Text style={{ fontSize: 15, fontWeight: '600', color: 'rgba(255,255,255,0.9)' }}>{tr.haveAccount}</Text>
               </Pressable>
             </RiseIn>
