@@ -38,7 +38,18 @@ export default function AuthLink() {
     setState('working');
     if (!raw) return setState('failed');
     const r = await signInWithLink(raw);
-    if (r.ok) return; // status flips and the gates take over — no navigation here
+    if (r.ok) {
+      // Go to the index gate, which routes by session status (practitioner home,
+      // onboarding, or the patient's chosen tab).
+      //
+      // This MUST be explicit. `/auth` is a ROOT route: the (auth) and
+      // (onboarding) layouts only guard their own groups, so nothing here
+      // redirects on a status change. An earlier version relied on "the gates
+      // take over" and left every successful sign-in spinning forever — the
+      // failure paths all worked, which is exactly why it went unnoticed.
+      router.replace('/');
+      return;
+    }
     setReason(r.message ?? null);
     setState('failed');
   }, [raw, signInWithLink]);
