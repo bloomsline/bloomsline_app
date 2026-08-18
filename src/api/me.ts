@@ -1,11 +1,10 @@
 // Patient profile seam. Drives the Flow A (has a practitioner) vs Flow B (solo)
 // branch, and persists the name/consent collected during onboarding.
 //
-// NOTE: these hit backend endpoints that are NOT built yet
-// (`/api/mobile/me`) — until they exist, fetchMe() returns null (→ solo/Flow B
-// default) and saveProfile() reports false, and onboarding proceeds regardless.
-// TODO(backend, care repo): GET/PATCH /api/mobile/me returning
-// { firstName, lastName, hasPractitioner, practitionerName, onboardedAt }.
+// GET/PATCH `/api/mobile/me` exist and work (care repo, `src/app/api/mobile/me`).
+// Both calls still fail SOFT by design: fetchMe() returns null on any error
+// (→ solo/Flow B default) and saveProfile() reports false, so onboarding carries
+// on rather than dead-ending someone on a network blip.
 import { apiFetch } from '../auth/api';
 
 export interface MeProfile {

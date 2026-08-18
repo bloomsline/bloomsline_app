@@ -11,44 +11,10 @@ import { useGoogleSignIn } from '@/src/auth/google';
 import { useMicrosoftSignIn } from '@/src/auth/microsoft';
 import { googleConfigured, microsoftConfigured, MOCK_AUTH } from '@/src/config';
 import { notify } from '@/src/ui/alert';
-import { useI18n } from '@/src/i18n';
+import { useI18n, fmt } from '@/src/i18n';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const T = {
-  en: {
-    kicker: 'Sign in',
-    signInTitle: 'Sign in',
-    continueGoogle: 'Continue with Google',
-    continueOutlook: 'Continue with Outlook',
-    couldNotSend: 'Could not send the code. Check your connection and try again.',
-    googleNotConfigured: 'Google sign-in isn’t configured yet.',
-    outlookNotConfigured: 'Outlook sign-in isn’t configured yet.',
-    heading: 'Welcome.\nLet’s begin.',
-    subheading: 'No password to invent. We’ll send a code.',
-    orUseEmail: 'or use your email',
-    invitedPre: 'You were invited as ',
-    invitedPost: '. Use this address so your practitioner can find you.',
-    emailPlaceholder: 'you@email.com',
-    legal: 'By continuing you agree to our terms. We’ll never share your email.',
-  },
-  fr: {
-    kicker: 'Connexion',
-    signInTitle: 'Connexion',
-    continueGoogle: 'Continuer avec Google',
-    continueOutlook: 'Continuer avec Outlook',
-    couldNotSend: 'Impossible d’envoyer le code. Vérifiez votre connexion et réessayez.',
-    googleNotConfigured: 'La connexion avec Google n’est pas encore configurée.',
-    outlookNotConfigured: 'La connexion avec Outlook n’est pas encore configurée.',
-    heading: 'Bienvenue.\nCommençons.',
-    subheading: 'Aucun mot de passe à inventer. Nous envoyons un code.',
-    orUseEmail: 'ou utilisez votre email',
-    invitedPre: 'Vous avez été invité en tant que ',
-    invitedPost: '. Utilisez cette adresse pour que votre praticien puisse vous retrouver.',
-    emailPlaceholder: 'vous@email.com',
-    legal: 'En continuant, vous acceptez nos conditions. Nous ne partagerons jamais votre email.',
-  },
-} as const;
 
 // A tiny Google "G" mark.
 function GoogleMark() {
@@ -88,42 +54,72 @@ function EdAuthButton({ label, leading, onPress, tone }: { label: string; leadin
 // The Google auth hook (expo-auth-session) throws on web when no client id is
 // set, so it's isolated in a component that's only mounted when configured.
 function GoogleAuthButton() {
-  const { locale } = useI18n();
-  const tr = T[locale];
-  const google = useGoogleSignIn((m) => notify(tr.signInTitle, m));
+  const tr = useI18n().t.signUp;
+  const google = useGoogleSignIn((m) => notify(tr.kickerSignIn, m));
   return <EdAuthButton tone="dark" label={tr.continueGoogle} leading={<GoogleMark />} onPress={() => google.signIn()} />;
 }
 function MicrosoftAuthButton() {
-  const { locale } = useI18n();
-  const tr = T[locale];
-  const ms = useMicrosoftSignIn((m) => notify(tr.signInTitle, m));
+  const tr = useI18n().t.signUp;
+  const ms = useMicrosoftSignIn((m) => notify(tr.kickerSignIn, m));
   return <EdAuthButton tone="light" label={tr.continueOutlook} leading={<OutlookMark />} onPress={() => ms.signIn()} />;
 }
 
 export default function SignUp() {
   const insets = useSafeAreaInsets();
-  const { locale } = useI18n();
-  const tr = T[locale];
+  const { t, locale } = useI18n();
+  const tr = t.signUp;
+  const sent = t.signUpSent;
   const { startEmailSignIn, devSignIn } = useAuth();
   // An invited patient arrives with the address their practitioner used. Seed
   // the field with it: signing up under a different address creates an account
   // that never links to their practitioner, and they would have no way to know.
-  const { email: invitedEmail } = useLocalSearchParams<{ email?: string }>();
+  //
+  // `mode=signin` arrives from "I already have an account". Same screen, but it
+  // says "Welcome back." and calls itself sign-in: telling someone who already
+  // has an account to create one is a small lie that makes people hesitate.
+  const { email: invitedEmail, mode } = useLocalSearchParams<{ email?: string; mode?: string }>();
   const invited = typeof invitedEmail === 'string' && invitedEmail ? invitedEmail : null;
+  const returning = mode === 'signin';
   const [email, setEmail] = useState(invited ?? '');
   const [focus, setFocus] = useState(false);
   const [busy, setBusy] = useState(false);
   const valid = EMAIL_RE.test(email.trim());
 
-  const sendCode = async () => {
+  // v2 emails a LINK, so there is no code screen to push to. Sending swaps this
+  // screen into a "check your email" state and the journey continues in the
+  // inbox — app/auth.tsx is where the link lands.
+  const [sentTo, setSentTo] = useState<string | null>(null);
+
+  const sendLink = async () => {
     if (!valid || busy) return;
     const addr = email.trim().toLowerCase();
     setBusy(true);
     try {
-      const devCode = await startEmailSignIn(addr);
-      router.push({ pathname: '/(auth)/verify', params: { email: addr, ...(devCode ? { devCode } : {}) } });
+      const devUrl = await startEmailSignIn(addr, locale);
+      setSentTo(addr);
+      // DEV_AUTH only: the backend hands the link straight back so a local
+      // sign-in needs no mail server. Never populated in a real deployment.
+      if (devUrl) {
+        const q = devUrl.slice(devUrl.indexOf('?'));
+        router.replace(`/auth${q}` as never);
+      }
     } catch {
-      notify(tr.signInTitle, tr.couldNotSend);
+      notify(tr.kickerSignIn, tr.couldNotSend);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Resending is the same call again — the backend retires the previous link, so
+  // only the newest one ever works.
+  const resend = async () => {
+    if (!sentTo || busy) return;
+    setBusy(true);
+    try {
+      await startEmailSignIn(sentTo, locale);
+      notify(sent.kicker, sent.resent);
+    } catch {
+      notify(tr.kickerSignIn, tr.couldNotSend);
     } finally {
       setBusy(false);
     }
@@ -144,11 +140,42 @@ export default function SignUp() {
 
             <View style={{ flex: 1 }} />
 
+            {sentTo ? (
+              <RiseIn y={40} duration={700} style={{ backgroundColor: ED.sheet, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 26, paddingTop: 26, paddingBottom: insets.bottom + 22 }}>
+                <MonoKicker size={10.5} color={ED.green} style={{ marginBottom: 10 }}>{sent.kicker}</MonoKicker>
+                <Text style={{ fontSize: 28, fontWeight: '800', color: '#141414', letterSpacing: -0.9, lineHeight: 31 }}>{sent.title}</Text>
+                <Text style={{ marginTop: 10, fontSize: 14.5, color: '#6E6E66', lineHeight: 21 }}>{fmt(sent.body, { email: sentTo })}</Text>
+                <Text style={{ marginTop: 12, fontSize: 12.5, color: '#AEAEA6', lineHeight: 18 }}>{sent.spam}</Text>
+
+                <Pressable onPress={resend} disabled={busy} style={{ marginTop: 20, height: 54, borderRadius: 27, backgroundColor: ED.ink, alignItems: 'center', justifyContent: 'center', opacity: busy ? 0.5 : 1 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>{sent.resend}</Text>
+                </Pressable>
+                <Pressable onPress={() => setSentTo(null)} style={{ alignItems: 'center', paddingVertical: 16 }}>
+                  <Text style={{ fontSize: 14.5, fontWeight: '600', color: '#6E6E66' }}>{sent.changeEmail}</Text>
+                </Pressable>
+              </RiseIn>
+            ) : (
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
               <RiseIn y={40} duration={700} style={{ backgroundColor: ED.sheet, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 26, paddingTop: 26, paddingBottom: insets.bottom + 22 }}>
-                <MonoKicker size={10.5} color={ED.green} style={{ marginBottom: 10 }}>{tr.kicker}</MonoKicker>
-                <Text style={{ fontSize: 28, fontWeight: '800', color: '#141414', letterSpacing: -0.9, lineHeight: 31 }}>{tr.heading}</Text>
-                <Text style={{ marginTop: 8, fontSize: 14.5, color: '#8A8A83', lineHeight: 21 }}>{tr.subheading}</Text>
+                <MonoKicker size={10.5} color={ED.green} style={{ marginBottom: 10 }}>
+                  {returning ? tr.kickerSignIn : tr.kickerCreate}
+                </MonoKicker>
+                <Text style={{ fontSize: 28, fontWeight: '800', color: '#141414', letterSpacing: -0.9, lineHeight: 31 }}>
+                  {returning ? tr.headingSignIn : tr.headingCreate}
+                </Text>
+                {/* The invited address belongs directly under the headline: it is
+                    the single most important thing on this screen for a patient
+                    who has three addresses and must pick the one their
+                    practitioner used. */}
+                {invited && (
+                  <>
+                    <Text style={{ marginTop: 10, fontSize: 14.5, color: '#6E6E66', lineHeight: 21 }}>
+                      {tr.invitedPre}
+                      <Text style={{ fontWeight: '700', color: '#141414' }}>{invited}</Text>
+                    </Text>
+                    <Text style={{ marginTop: 6, fontSize: 12.5, color: '#8A8A83', lineHeight: 18 }}>{tr.invitedNote}</Text>
+                  </>
+                )}
 
                 <View style={{ marginTop: 22, gap: 10 }}>
                   {googleConfigured ? (
@@ -168,12 +195,6 @@ export default function SignUp() {
                     <View style={{ height: 1, flex: 1, backgroundColor: '#E7E6DF' }} />
                   </View>
 
-                  {invited && (
-                    <Text style={{ fontSize: 12.5, lineHeight: 18, color: '#6E6E66', paddingHorizontal: 2 }}>
-                      {tr.invitedPre}<Text style={{ fontWeight: '700', color: '#141414' }}>{invited}</Text>{tr.invitedPost}
-                    </Text>
-                  )}
-
                   <View style={{ height: 54, flexDirection: 'row', alignItems: 'center', borderRadius: 27, backgroundColor: '#fff', borderWidth: focus ? 2 : 1.5, borderColor: focus ? ED.green : '#E7E6DF', paddingLeft: 18, paddingRight: 7 }}>
                     <TextInput
                       value={email}
@@ -188,11 +209,11 @@ export default function SignUp() {
                       keyboardType="email-address"
                       inputMode="email"
                       returnKeyType="go"
-                      onSubmitEditing={sendCode}
+                      onSubmitEditing={sendLink}
                       style={[{ flex: 1, height: '100%', fontSize: 16, fontWeight: '600', color: '#141414' }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
                     />
                     <Pressable
-                      onPress={sendCode}
+                      onPress={sendLink}
                       disabled={!valid || busy}
                       style={{ width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 21, backgroundColor: ED.green, opacity: !valid || busy ? 0.4 : 1 }}
                     >
@@ -204,6 +225,7 @@ export default function SignUp() {
                 <Text style={{ marginTop: 18, textAlign: 'center', fontSize: 12, lineHeight: 18, color: '#AEAEA6' }}>{tr.legal}</Text>
               </RiseIn>
             </KeyboardAvoidingView>
+            )}
           </View>
         </SafeAreaView>
       </EditorialBg>

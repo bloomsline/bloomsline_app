@@ -18,9 +18,14 @@ const ONBOARDED_KEY = 'bl_onboarded';
 
 interface AuthValue {
   status: Status;
-  /** Request an email code. Returns the code in dev (DEV_AUTH) so it can be shown; null otherwise. */
+  /** Email a sign-in link. Returns the link in dev (DEV_AUTH) so it can be opened; null otherwise. */
   startEmailSignIn: (email: string, locale?: 'en' | 'fr') => Promise<string | null>;
-  verifyEmailCode: (email: string, code: string) => Promise<boolean>;
+  /**
+   * Exchange a token from an emailed sign-in link for a session. On failure the
+   * server's own message comes back, because "expired link" and "you're on the
+   * waitlist" are different things to be told and only the server knows which.
+   */
+  signInWithLink: (token: string) => Promise<{ ok: true } | { ok: false; message?: string }>;
   signInWithGoogleIdToken: (idToken: string) => Promise<boolean>;
   signInWithMicrosoftIdToken: (idToken: string) => Promise<boolean>;
   /** Dev-only mock sign-in (EXPO_PUBLIC_MOCK_AUTH) → enters onboarding, no backend. */
@@ -82,10 +87,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [resolveSession]);
 
   const startEmailSignIn = useCallback(async (email: string, locale: 'en' | 'fr' = 'en') => {
-    if (MOCK_AUTH) return null; // pretend the code was sent
+    if (MOCK_AUTH) return null; // pretend the link was sent
     const res = await postJson('/api/mobile/auth/magic-link/start', { email, locale });
     const data = await res.json().catch(() => ({}));
-    return typeof data?.devCode === 'string' ? data.devCode : null; // dev-only
+    return typeof data?.devUrl === 'string' ? data.devUrl : null; // dev-only
   }, []);
 
   const devSignIn = useCallback(async () => {
@@ -93,13 +98,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await afterSignIn();
   }, [afterSignIn]);
 
-  const verifyEmailCode = useCallback(async (email: string, code: string) => {
-    if (MOCK_AUTH) { await saveTokens(mockPair()); await afterSignIn(); return true; } // any code
-    const res = await postJson('/api/mobile/auth/magic-link/verify', { email, code });
-    if (!res.ok) return false;
+  const signInWithLink = useCallback(async (token: string): Promise<{ ok: true } | { ok: false; message?: string }> => {
+    if (MOCK_AUTH) { await saveTokens(mockPair()); await afterSignIn(); return { ok: true }; } // any token
+    const res = await postJson('/api/mobile/auth/magic-link/verify', { token });
+    if (!res.ok) {
+      // 403 carries the waitlist / suspended explanation. Swallowing it and
+      // saying "expired" would send someone off to request link after link for
+      // an account that is not waiting on a link at all.
+      const data = await res.json().catch(() => ({}));
+      return { ok: false, message: typeof data?.error === 'string' ? data.error : undefined };
+    }
     await saveTokens(await res.json());
     await afterSignIn();
-    return true;
+    return { ok: true };
   }, [afterSignIn]);
 
   const exchangeIdToken = useCallback(async (path: string, idToken: string) => {
@@ -121,8 +132,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<AuthValue>(
-    () => ({ status, startEmailSignIn, verifyEmailCode, signInWithGoogleIdToken, signInWithMicrosoftIdToken, devSignIn, completeOnboarding, signOut }),
-    [status, startEmailSignIn, verifyEmailCode, signInWithGoogleIdToken, signInWithMicrosoftIdToken, devSignIn, completeOnboarding, signOut],
+    () => ({ status, startEmailSignIn, signInWithLink, signInWithGoogleIdToken, signInWithMicrosoftIdToken, devSignIn, completeOnboarding, signOut }),
+    [status, startEmailSignIn, signInWithLink, signInWithGoogleIdToken, signInWithMicrosoftIdToken, devSignIn, completeOnboarding, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

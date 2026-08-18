@@ -43,10 +43,13 @@ export default function InviteLanding() {
   }, [token, setLocale]);
 
   // Carry the address into sign-up so the field is filled and locked there too.
-  const start = () =>
-    router.push(
-      invite ? { pathname: '/(auth)/sign-up', params: { email: invite.email } } : '/(auth)/sign-up',
-    );
+  // `mode` picks the headline: someone who says they already have an account is
+  // signing in, even though they arrived on an invitation.
+  const start = (mode?: 'signin') =>
+    router.push({
+      pathname: '/(auth)/sign-up',
+      params: { ...(invite ? { email: invite.email } : {}), ...(mode ? { mode } : {}) },
+    });
 
   return (
     <View style={{ flex: 1 }}>
@@ -59,7 +62,7 @@ export default function InviteLanding() {
               <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'flex-start', marginBottom: 18 }}>
                 <LangToggle value={locale} onChange={(v) => setLocale(v as typeof locale)} />
               </View>
-              <MonoKicker>{t.invite.bloomsline}</MonoKicker>
+              <MonoKicker>{t.invite.kicker}</MonoKicker>
 
               {loading ? (
                 <View style={{ marginTop: 22, alignItems: 'flex-start' }}>
@@ -102,9 +105,9 @@ export default function InviteLanding() {
                 <Text style={{ fontSize: 12.5, fontWeight: '500', color: 'rgba(255,255,255,0.7)' }}>{t.invite.private}</Text>
               </View>
 
-              <Pill label={t.invite.createProfile} onPress={start} />
+              <Pill label={t.invite.createProfile} onPress={() => start()} />
 
-              <Pressable onPress={start} style={{ alignItems: 'center', paddingVertical: 16 }}>
+              <Pressable onPress={() => start('signin')} style={{ alignItems: 'center', paddingVertical: 16 }}>
                 <Text style={{ fontSize: 15, fontWeight: '600', color: 'rgba(255,255,255,0.9)' }}>{t.invite.haveAccount}</Text>
               </Pressable>
             </RiseIn>

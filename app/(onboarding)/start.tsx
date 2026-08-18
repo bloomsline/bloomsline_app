@@ -2,8 +2,11 @@ import { Redirect } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 import { useOnboarding } from '@/src/onboarding/context';
 
-// Waits for the profile to resolve, then enters the 5-step flow at the welcome
-// screen (both the invited and solo variants start there).
+// Waits for the profile to resolve, then enters the flow at "about you".
+//
+// v2 dropped the splash screen. An invited patient already learned who invited
+// them on the pre-auth invite screen, so repeating it after sign-in was a beat
+// that earned nothing. `splash.tsx` stays in the tree but nothing routes to it.
 export default function OnboardingStart() {
   const { resolved } = useOnboarding();
   if (!resolved) {
@@ -13,5 +16,5 @@ export default function OnboardingStart() {
       </View>
     );
   }
-  return <Redirect href="/(onboarding)/splash" />;
+  return <Redirect href="/(onboarding)/about-you" />;
 }
