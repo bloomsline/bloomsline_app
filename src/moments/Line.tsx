@@ -8,10 +8,10 @@
 // The horizontal position is DERIVED from the feelings a patient picked — the
 // mean of their MOOD_SCORES — which is why capture never had to ask for it or
 // store it. A moment with no feelings sits on the centre line.
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { Quote } from 'lucide-react-native';
+import { Quote, ImageOff, AudioLines, Video, Play } from 'lucide-react-native';
 import { EDD } from '@/src/ui/editorial';
 import { MOOD_SCORES, moodColor } from '@/src/moments/moods';
 import type { MomentDTO } from '@/src/api/moments';
@@ -23,11 +23,36 @@ export function valenceOf(m: { moods: string[] }): number {
   return Math.max(0, Math.min(100, scores.reduce((a, b) => a + b, 0) / scores.length)) / 100;
 }
 
+/**
+ * What the circle shows. Driven by the FIRST media item a patient attached, not
+ * by whether a picture happens to be findable: an earlier version searched for
+ * an image and fell through to the quote glyph for everything else, so a video
+ * or a voice note looked identical to a written note, and a moment with words
+ * AND a photo showed the words.
+ *
+ * A poster is preferred where one exists, but its absence never changes the
+ * KIND — a video with no poster is still a video.
+ */
+function faceOf(m: MomentDTO): LineNode['face'] {
+  const first = m.media[0];
+  if (!first) return null; // no media at all → this is a written moment
+  const kind = first.kind === 'video' ? 'video' : first.kind === 'audio' ? 'audio' : 'image';
+  // Only an IMAGE's own url is a usable image source. A video's url is the video
+  // file and an audio's is the recording — falling back to either renders an
+  // <Image> pointed at a non-image, which fails and reads as a broken file
+  // rather than as a video or a voice note.
+  const uri = first.thumbnailUrl ?? (kind === 'image' ? first.url : null);
+  return { kind, uri };
+}
+
 export interface LineNode {
   moment: MomentDTO;
   x: number; // px, centre of the node
   y: number;
-  thumb: string | null;
+  /** The FIRST media item decides the face — a photo shows the photo, a video
+   *  its poster, a voice note its own mark. Null only when there is no media at
+   *  all, which is the one case that shows the words. */
+  face: { kind: 'image' | 'video' | 'audio'; uri: string | null } | null;
   color: string;
   dayLabel: string | null; // only on the first node of a day
 }
@@ -57,7 +82,7 @@ export function layout(moments: MomentDTO[], width: number, locale: 'en' | 'fr')
       moment: m,
       x: SIDE_PAD + valenceOf(m) * usable,
       y: TOP_PAD + i * ROW + NODE / 2,
-      thumb: m.media.find((x) => x.thumbnailUrl)?.thumbnailUrl ?? m.media.find((x) => x.kind === 'image')?.url ?? null,
+      face: faceOf(m),
       color: m.moods.length > 0 ? moodColor(m.moods[0]) : 'rgba(255,255,255,0.35)',
       dayLabel: isNewDay ? d.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'short' }) : null,
     };
@@ -78,6 +103,49 @@ function stemPath(nodes: LineNode[], todayY: number, todayX: number): string {
     d += ` C ${a.x} ${midY}, ${b.x} ${midY}, ${b.x} ${b.y}`;
   }
   return d;
+}
+
+/**
+ * The circle itself. A picture when there is one, a quote glyph when the moment
+ * is words, and a struck-through image when the picture cannot be loaded.
+ *
+ * That last state matters: some older moments hold media rows whose objects are
+ * no longer in the bucket, and an empty circle reads as a bug in the timeline
+ * rather than as a missing file. Saying so is kinder and truer than a blank.
+ */
+function NodeFace({ node, onPress }: { node: LineNode; onPress: () => void }) {
+  const [broken, setBroken] = useState(false);
+  const face = node.face;
+  const showPhoto = !!face?.uri && !broken;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{ position: 'absolute', left: node.x - NODE / 2, top: node.y - NODE / 2, width: NODE, height: NODE, borderRadius: NODE / 2, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.07)' }}
+    >
+      {showPhoto ? (
+        <Image source={{ uri: face!.uri! }} style={{ width: NODE, height: NODE }} onError={() => setBroken(true)} />
+      ) : face?.kind === 'audio' ? (
+        <AudioLines size={19} color="rgba(255,255,255,0.72)" strokeWidth={2} />
+      ) : face && broken ? (
+        // The kind is still known even when the file will not load, so say which
+        // kind is missing rather than falling back to "this is a written note".
+        <ImageOff size={17} color="rgba(255,255,255,0.38)" strokeWidth={2} />
+      ) : face?.kind === 'video' ? (
+        <Video size={18} color="rgba(255,255,255,0.72)" strokeWidth={2} />
+      ) : (
+        <Quote size={18} color="rgba(255,255,255,0.55)" strokeWidth={2} />
+      )}
+
+      {/* A video keeps its play mark even over a poster — the poster is a still,
+          and nothing else would say it moves. */}
+      {face?.kind === 'video' && showPhoto ? (
+        <View style={{ position: 'absolute', width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
+          <Play size={11} color="#fff" strokeWidth={2.5} fill="#fff" />
+        </View>
+      ) : null}
+    </Pressable>
+  );
 }
 
 export function Line({
@@ -116,16 +184,7 @@ export function Line({
             <Text style={{ position: 'absolute', left: 14, top: n.y - 8, fontSize: 12, color: 'rgba(255,255,255,0.42)' }}>{n.dayLabel}</Text>
           ) : null}
 
-          <Pressable
-            onPress={() => onOpen(n.moment)}
-            style={{ position: 'absolute', left: n.x - NODE / 2, top: n.y - NODE / 2, width: NODE, height: NODE, borderRadius: NODE / 2, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.07)' }}
-          >
-            {n.thumb ? (
-              <Image source={{ uri: n.thumb }} style={{ width: NODE, height: NODE }} />
-            ) : (
-              <Quote size={18} color="rgba(255,255,255,0.55)" strokeWidth={2} />
-            )}
-          </Pressable>
+          <NodeFace node={n} onPress={() => onOpen(n.moment)} />
 
           {/* The feeling, as a single dot. The whole node cannot be tinted without
               fighting the photograph underneath it. */}
@@ -133,7 +192,7 @@ export function Line({
 
           {/* A moment with words and no picture says them here — the line would
               otherwise be a row of identical glyphs. */}
-          {!n.thumb && n.moment.textContent ? (
+          {!n.face && n.moment.textContent ? (
             <Pressable
               onPress={() => onOpen(n.moment)}
               style={{ position: 'absolute', top: n.y - 22, left: n.x < width / 2 ? n.x + NODE / 2 + 16 : undefined, right: n.x < width / 2 ? undefined : width - (n.x - NODE / 2) + 16, maxWidth: width * 0.42 }}
