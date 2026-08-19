@@ -14,15 +14,48 @@ const TABS: Record<TabId, { id: TabId; Icon: LucideIcon; href: string }> = {
   foryou: { id: 'foryou', Icon: HandHeart, href: '/for-you' },
 };
 
-// Floating pill tab bar + capture FAB (v1 style). Shared across the app tabs.
-// The FAB opens the capture flow; "For You" is not built yet (kept inert).
-// The landing (home) tab is shown first, so toggling it in Settings reorders
-// the bar too; "For You" always trails.
-export function TabBar({ active }: { active: TabId }) {
+// Tab bar + capture FAB. Shared across the app tabs. The FAB opens the capture
+// flow; "For You" is not built yet (kept inert). The landing (home) tab is shown
+// first, so toggling it in Settings reorders the bar too; "For You" always trails.
+//
+// Two tones. `light` is the v1 floating white pill, still used by the tabs that
+// have not been rebuilt. `dark` is what the v2 board draws on the dark tabs:
+// plain labels straight on the ground, no pill and no icons, so the navigation
+// stops competing with the content. Until every tab is rebuilt the chrome
+// therefore changes shape between tabs — deliberate and temporary.
+export function TabBar({ active, tone = 'light' }: { active: TabId; tone?: 'light' | 'dark' }) {
   const router = useRouter();
   const { landing } = useLanding();
   const { t } = useI18n();
   const order: TabId[] = landing === 'moments' ? ['moments', 'care', 'foryou'] : ['care', 'moments', 'foryou'];
+
+  if (tone === 'dark') {
+    return (
+      <View className="absolute inset-x-6 bottom-8 flex-row items-center">
+        <View className="flex-1 flex-row items-center gap-6">
+          {order.map((id) => TABS[id]).map((tab) => {
+            const on = tab.id === active;
+            return (
+              <Pressable key={tab.id} disabled={on} onPress={() => router.navigate(tab.href as never)}>
+                <Text style={{ fontSize: 13.5, fontWeight: on ? '700' : '500', color: on ? '#FFFFFF' : 'rgba(255,255,255,0.45)' }}>
+                  {t.tabs[TAB_LABEL[tab.id]]}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Pressable
+          accessibilityLabel="Capture a moment"
+          className="h-[46px] w-[46px] items-center justify-center rounded-[23px]"
+          style={{ backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' }}
+          onPress={() => router.navigate('/capture' as never)}
+        >
+          <Plus size={22} color="#fff" strokeWidth={2.2} />
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <View className="absolute inset-x-6 bottom-8 flex-row items-center gap-3">
       <View

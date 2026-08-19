@@ -29,6 +29,10 @@ export interface CarePractitioner {
   city: string | null;
   country: string | null;
   photoUrl: string | null;
+  /** Where an in-person session happens. Both optional and independent: a
+   *  practitioner may have given a Maps link, an address, both, or neither. */
+  address: string | null;
+  mapsUrl: string | null;
 }
 
 /** What the practitioner lets this patient do to their own sessions. The server
