@@ -8,7 +8,7 @@ export interface JournalEntry {
   body: string; // flattened plain-text preview (list uses this)
   blocks?: JournalBlock[]; // full block content (GET /:id only)
   wordCount: number;
-  sharedWithPractitioner?: boolean; // GET /:id only
+  sharedWithPractitioner?: boolean; // list AND GET /:id — the list marks sent pages
   createdAt: string; // ISO
   updatedAt: string; // ISO
 }

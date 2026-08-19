@@ -205,6 +205,31 @@ export const fr: Dict = {
     signOut: 'Se déconnecter',
     signOutConfirm: 'Se déconnecter ?',
   },
+  journal: {
+    kicker: 'Privé',
+    title: 'Journal',
+    // Aligned with the English promise. The board's French offered sharing here
+    // ("ou partagez-le avec Marie"), which contradicts the one screen whose
+    // whole design says private before the word does. Sharing is offered on the
+    // page itself, where it is actually done.
+    subtitle: 'Un endroit calme pour écrire librement. Vous seul pouvez le lire.',
+    find: 'Trouver une page',
+    today: 'Aujourd’hui',
+    yesterday: 'Hier',
+    untitled: 'Sans titre',
+    shared: 'Partagé',
+    newPage: 'Nouvelle page',
+    noMatch: 'Aucune page ne correspond.',
+    startHere: 'Commencez ici',
+    orGuide: 'Ou laissez-vous guider.',
+    prompts: {
+      session: 'Ce que j’aimerais aborder en séance',
+      good: 'Quelque chose qui m’a fait du bien',
+      mind: 'Ce que j’ai en tête en ce moment',
+    },
+    failedTitle: 'Impossible d’ouvrir votre journal.',
+    failedBody: 'Vérifiez votre connexion et réessayez. Rien de ce que vous avez écrit n’est perdu.',
+  },
   line: {
     kicker: 'Votre ligne',
     heavier: 'plus lourd',

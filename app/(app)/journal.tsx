@@ -1,102 +1,247 @@
-// e1 — Journal home. Private long-form writing, wired to /api/mobile/journal.
-// Hybrid editorial re-skin.
+// Journal — v2. The list, and the empty state.
+//
+// THE ONE SCREEN WITH NO PHOTOGRAPH. Every other v2 surface is a picture; this
+// one is a plain dark head over light paper. That is the argument, not a saving:
+// this is the place nobody else looks, and a closed, imageless surface says so
+// before the word "Private" does.
+//
+// The paper below is deliberately the lighter world — writing happens on paper,
+// and the contrast is what makes the page feel like a page.
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Lock, PenLine } from 'lucide-react-native';
-import { EDA, EdHeader, EdCard, EdPill, FadeIn, MonoLabel } from '@/src/ui/editorial';
-import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
-import { listJournal, type JournalEntry } from '@/src/api/journal';
-import { useI18n, type Locale } from '@/src/i18n';
+import { ChevronLeft, Lock, Search, PenLine, Plus, ChevronRight, MessageCircle, Sparkles, CalendarDays, type LucideIcon } from 'lucide-react-native';
+import { EDA, EDD, MonoLabel } from '@/src/ui/editorial';
+import { useOnboarding } from '@/src/onboarding/context';
+import { useI18n } from '@/src/i18n';
+import { listJournal, createJournal, type JournalEntry } from '@/src/api/journal';
 
-const T = {
-  en: {
-    title: 'Journal',
-    private: 'Private',
-    subtitle: 'A quiet place to write freely. Only you can read this.',
-    emptyTitle: 'Nothing written yet',
-    emptyBody: 'Tap New entry to start. It stays private to you.',
-    newEntry: 'New entry',
-    untitled: 'Untitled',
-    today: 'Today',
-    yesterday: 'Yesterday',
-  },
-  fr: {
-    title: 'Journal',
-    private: 'Privé',
-    subtitle: 'Un endroit calme pour écrire librement. Vous seul pouvez le lire.',
-    emptyTitle: 'Rien écrit pour l’instant',
-    emptyBody: 'Touchez Nouvelle entrée pour commencer. Elle reste privée.',
-    newEntry: 'Nouvelle entrée',
-    untitled: 'Sans titre',
-    today: 'Aujourd’hui',
-    yesterday: 'Hier',
-  },
-} as const;
+/** The three openings offered when there is nothing yet. Each creates a page
+ *  titled with the prompt, so the blank screen is never the first thing. */
+const PROMPTS: { key: 'session' | 'good' | 'mind'; Icon: LucideIcon }[] = [
+  { key: 'session', Icon: CalendarDays },
+  { key: 'good', Icon: Sparkles },
+  { key: 'mind', Icon: MessageCircle },
+];
 
 export default function Journal() {
   const router = useRouter();
-  const { locale } = useI18n();
-  const tr = T[locale];
-  const [entries, setEntries] = useState<JournalEntry[] | null>(null);
-  const back = () => (router.canGoBack() ? router.back() : router.navigate('/for-you' as never));
+  const { t, locale } = useI18n();
+  const { practitionerName } = useOnboarding();
+  const tr = t.journal;
 
-  useFocusEffect(
-    useCallback(() => {
-      let alive = true;
-      listJournal().then((e) => { if (alive) setEntries(e ?? []); });
-      return () => { alive = false; };
-    }, []),
+  const [entries, setEntries] = useState<JournalEntry[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [q, setQ] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const list = await listJournal();
+      if (list) { setEntries(list); setFailed(false); } else setFailed(true);
+    } catch {
+      setFailed(true);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
+  useFocusEffect(useCallback(() => { void load(); }, [load]));
+
+  const open = (id: string) => router.navigate({ pathname: '/journal-entry', params: { id } } as never);
+
+  const startPage = async (title: string | null) => {
+    if (creating) return;
+    setCreating(true);
+    try {
+      const made = await createJournal({ title, blocks: [] });
+      if (made) open(made.id);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  // Search is client-side over the flattened preview the API already returns —
+  // the same text the list shows, so what you read is what you search.
+  const needle = q.trim().toLowerCase();
+  const shown = (entries ?? []).filter(
+    (e) => !needle || (e.title ?? '').toLowerCase().includes(needle) || e.body.toLowerCase().includes(needle),
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
-      <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={{ paddingBottom: 180 }} showsVerticalScrollIndicator={false}>
-        <EdHeader kicker="JOURNAL" title={tr.title} subtitle={tr.subtitle} source={ONBOARDING_IMAGES.card1} onBack={back} rightIcon={Lock} onRight={back} />
-        <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
-          {/* Private note + compose */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 }}>
-            <Lock size={12} color={EDA.faint} strokeWidth={2} />
-            <MonoLabel color={EDA.faint}>{tr.private}</MonoLabel>
-          </View>
-
-          <EdPill label={tr.newEntry} variant="dark" onPress={() => router.navigate('/journal-entry' as never)} style={{ marginBottom: 22 }} />
-
-          {entries === null ? (
-            <View style={{ paddingTop: 24, alignItems: 'center' }}><ActivityIndicator color={EDA.green} /></View>
-          ) : entries.length === 0 ? (
-            <EdCard style={{ padding: 26, alignItems: 'center' }}>
-              <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-                <PenLine size={21} color={EDA.green} strokeWidth={2} />
-              </View>
-              <Text style={{ fontSize: 15, fontWeight: '800', color: EDA.ink }}>{tr.emptyTitle}</Text>
-              <Text style={{ fontSize: 13, color: EDA.inkSoft, marginTop: 6, textAlign: 'center', lineHeight: 19 }}>{tr.emptyBody}</Text>
-            </EdCard>
-          ) : (
-            <View style={{ gap: 12 }}>
-              {entries.map((e) => (
-                <EdCard key={e.id} onPress={() => router.navigate(`/journal-entry?id=${e.id}` as never)} style={{ padding: 18 }}>
-                  <MonoLabel color={EDA.faint} size={9.5} style={{ marginBottom: 7 }}>{when(e.updatedAt, locale, tr)}</MonoLabel>
-                  <Text style={{ fontSize: 16, fontWeight: '800', color: EDA.ink, letterSpacing: -0.2, marginBottom: e.body ? 6 : 0 }}>{e.title || tr.untitled}</Text>
-                  {e.body ? <Text style={{ fontSize: 13.5, color: EDA.inkSoft, lineHeight: 21 }} numberOfLines={2}>{e.body}</Text> : null}
-                </EdCard>
-              ))}
+    <View style={{ flex: 1, backgroundColor: EDD.ground }}>
+      <StatusBar style="light" />
+      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+        {/* The head: dark, and pointedly without an image. */}
+        <View style={{ paddingHorizontal: 22, paddingTop: 6, paddingBottom: 20 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 18 }}>
+            <TouchableOpacity
+              onPress={() => (router.canGoBack() ? router.back() : router.navigate('/for-you' as never))}
+              style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <ChevronLeft size={18} color="#fff" strokeWidth={2} />
+            </TouchableOpacity>
+            <View style={{ flex: 1 }} />
+            <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }}>
+              <Lock size={16} color={EDD.textSoft} strokeWidth={2} />
             </View>
+          </View>
+          <MonoLabel color={EDD.faint} size={10.5} style={{ marginBottom: 8 }}>{tr.kicker}</MonoLabel>
+          <Text style={{ fontSize: 30, fontWeight: '800', color: EDD.text, letterSpacing: -1 }}>{tr.title}</Text>
+          <Text style={{ marginTop: 8, fontSize: 13.5, color: EDD.textSoft, lineHeight: 20, maxWidth: 300 }}>{tr.subtitle}</Text>
+        </View>
+
+        {/* The paper. */}
+        <View style={{ flex: 1, backgroundColor: EDA.canvas, borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden' }}>
+          {entries === null && !failed ? (
+            <View style={{ paddingTop: 60, alignItems: 'center' }}>
+              <ActivityIndicator color={EDA.faint} />
+            </View>
+          ) : failed ? (
+            <View style={{ paddingHorizontal: 34, paddingTop: 56, alignItems: 'center' }}>
+              <Text style={{ fontSize: 17, fontWeight: '700', color: EDA.ink, textAlign: 'center' }}>{tr.failedTitle}</Text>
+              <Text style={{ marginTop: 6, fontSize: 13.5, color: EDA.inkSoft, textAlign: 'center', lineHeight: 20 }}>{tr.failedBody}</Text>
+              <TouchableOpacity
+                onPress={() => { setFailed(false); setEntries(null); void load(); }}
+                style={{ marginTop: 18, height: 44, paddingHorizontal: 26, borderRadius: 22, borderWidth: 1, borderColor: EDA.line, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '700', color: EDA.ink }}>{t.common.retry}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (entries ?? []).length === 0 ? (
+            <EmptyState tr={tr} onBlank={() => startPage(null)} onPrompt={(k) => startPage(tr.prompts[k])} busy={creating} />
+          ) : (
+            <>
+              <ScrollView
+                contentContainerStyle={{ padding: 18, paddingBottom: 120 }}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: '#fff', borderWidth: 1, borderColor: EDA.line, borderRadius: 14, paddingHorizontal: 14, height: 44, marginBottom: 14 }}>
+                  <Search size={16} color={EDA.faint} strokeWidth={2} />
+                  <TextInput
+                    value={q}
+                    onChangeText={setQ}
+                    placeholder={tr.find}
+                    placeholderTextColor={EDA.faint}
+                    style={[{ flex: 1, fontSize: 14.5, color: EDA.ink }, { outlineStyle: 'none' } as never]}
+                  />
+                </View>
+
+                {shown.length === 0 ? (
+                  <Text style={{ paddingTop: 26, textAlign: 'center', fontSize: 13.5, color: EDA.inkSoft }}>{tr.noMatch}</Text>
+                ) : (
+                  <View style={{ gap: 10 }}>
+                    {shown.map((e) => (
+                      <EntryCard key={e.id} entry={e} locale={locale} tr={tr} pracName={practitionerName} onPress={() => open(e.id)} />
+                    ))}
+                  </View>
+                )}
+              </ScrollView>
+
+              <TouchableOpacity
+                onPress={() => startPage(null)}
+                disabled={creating}
+                activeOpacity={0.9}
+                style={{ position: 'absolute', right: 18, bottom: 26, flexDirection: 'row', alignItems: 'center', gap: 8, height: 48, paddingHorizontal: 20, borderRadius: 24, backgroundColor: EDA.green, opacity: creating ? 0.6 : 1 }}
+              >
+                <PenLine size={16} color="#fff" strokeWidth={2.2} />
+                <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#fff' }}>{tr.newPage}</Text>
+              </TouchableOpacity>
+            </>
           )}
-        </FadeIn>
-      </ScrollView>
+        </View>
+      </SafeAreaView>
     </View>
   );
 }
 
-function when(iso: string, locale: Locale, tr: { today: string; yesterday: string }): string {
+function EntryCard({
+  entry, locale, tr, pracName, onPress,
+}: {
+  entry: JournalEntry;
+  locale: 'en' | 'fr';
+  tr: Jr;
+  pracName: string | null;
+  onPress: () => void;
+}) {
+  const initial = (pracName ?? '').replace(/^dr\.?\s*/i, '').trim().charAt(0).toUpperCase() || 'M';
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.85}
+      style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: EDA.line, borderRadius: 16, padding: 16 }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+        <Text style={{ flex: 1, fontSize: 11.5, color: EDA.faint }}>{whenLabel(entry.updatedAt, locale, tr)}</Text>
+        {/* A page that has been sent carries the face of who can read it — the
+            one place this screen admits anyone else exists. */}
+        {entry.sharedWithPractitioner ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 4, paddingRight: 10, height: 24, borderRadius: 12, backgroundColor: EDA.greenTint }}>
+            <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: EDA.green, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 9.5, fontWeight: '800', color: '#fff' }}>{initial}</Text>
+            </View>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: EDA.greenDeep }}>{tr.shared}</Text>
+          </View>
+        ) : null}
+      </View>
+      <Text style={{ fontSize: 16.5, fontWeight: '800', color: EDA.ink, letterSpacing: -0.3 }}>{entry.title?.trim() || tr.untitled}</Text>
+      {entry.body.trim() ? (
+        <Text numberOfLines={2} style={{ marginTop: 5, fontSize: 13, color: EDA.inkSoft, lineHeight: 19 }}>{entry.body.trim()}</Text>
+      ) : null}
+    </TouchableOpacity>
+  );
+}
+
+function EmptyState({
+  tr, onBlank, onPrompt, busy,
+}: {
+  tr: Jr;
+  onBlank: () => void;
+  onPrompt: (k: 'session' | 'good' | 'mind') => void;
+  busy: boolean;
+}) {
+  return (
+    <ScrollView contentContainerStyle={{ padding: 22, paddingTop: 40 }} showsVerticalScrollIndicator={false}>
+      <TouchableOpacity onPress={onBlank} disabled={busy} activeOpacity={0.8} style={{ alignSelf: 'center', width: 62, height: 62, borderRadius: 20, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center' }}>
+        <Plus size={26} color={EDA.green} strokeWidth={2.2} />
+      </TouchableOpacity>
+      <Text style={{ marginTop: 16, textAlign: 'center', fontSize: 19, fontWeight: '800', color: EDA.ink, letterSpacing: -0.3 }}>{tr.startHere}</Text>
+      <Text style={{ marginTop: 4, textAlign: 'center', fontSize: 13.5, color: EDA.inkSoft }}>{tr.orGuide}</Text>
+
+      <View style={{ marginTop: 22, gap: 10 }}>
+        {PROMPTS.map(({ key, Icon }) => (
+          <TouchableOpacity
+            key={key}
+            onPress={() => onPrompt(key)}
+            disabled={busy}
+            activeOpacity={0.85}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 13, backgroundColor: '#fff', borderWidth: 1, borderColor: EDA.line, borderRadius: 14, paddingHorizontal: 14, height: 54 }}
+          >
+            <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon size={15} color={EDA.green} strokeWidth={2} />
+            </View>
+            <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: EDA.ink }}>{tr.prompts[key]}</Text>
+            <ChevronRight size={17} color={EDA.faint} strokeWidth={2} />
+          </TouchableOpacity>
+        ))}
+      </View>
+    </ScrollView>
+  );
+}
+
+/** "Today" / "Yesterday" / a short date — the list is read by recency. */
+function whenLabel(iso: string, locale: 'en' | 'fr', tr: Jr): string {
   const d = new Date(iso);
-  const now = new Date();
-  const sod = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
-  const days = Math.round((sod(now) - sod(d)) / 86400000);
+  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((startOf(new Date()) - startOf(d)) / 86400000);
   if (days <= 0) return tr.today;
   if (days === 1) return tr.yesterday;
-  return d.toLocaleDateString(locale === 'fr' ? 'fr-FR' : undefined, { month: 'short', day: 'numeric' });
+  return d.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short' });
 }
+
+type Jr = ReturnType<typeof useI18n>['t']['journal'];
