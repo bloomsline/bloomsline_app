@@ -235,6 +235,7 @@ export const en = {
     noSession: 'No session booked yet',
     noSessionSub: "Book a time below whenever you're ready.",
     join: 'Join session',
+    openInMaps: 'Open in Maps',
     bookSession: 'Book a session',
     bookNote: 'Your practitioner arranges your sessions. Reach out to them to book.',
     paid: 'Paid',

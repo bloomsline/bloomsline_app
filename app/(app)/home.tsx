@@ -11,7 +11,7 @@ import { Linking, Platform, ScrollView, Text, TouchableOpacity, View, useWindowD
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { ChevronRight, Plus, Ellipsis, RotateCcw, FileText, Settings, type LucideIcon } from 'lucide-react-native';
+import { ChevronRight, Plus, Ellipsis, RotateCcw, FileText, MapPin, Settings, type LucideIcon } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
 import { TabIntro } from '@/src/ui/TabIntro';
 import { EDA, EDD, EdCard, FadeIn, MonoLabel } from '@/src/ui/editorial';
@@ -127,12 +127,16 @@ export default function MyCare() {
       params: { id: s.id, scheduledAt: s.scheduledAt, durationMinutes: String(s.durationMinutes), sessionFormat: s.sessionFormat, sessionType: s.sessionType, meetLink: s.meetLink ?? '', demo: real ? '' : '1', canCancel: perms.canCancel ? '1' : '', canReschedule: perms.canReschedule ? '1' : '', noticeHours: String(perms.noticeHours) },
     } as never);
 
-  const joinSession = (s: CareSession) => {
-    if (s.meetLink) {
-      if (Platform.OS === 'web') globalThis.open?.(s.meetLink, '_blank');
-      else Linking.openURL(s.meetLink).catch(() => {});
-    } else soon();
+  const openUrl = (url: string) => {
+    if (Platform.OS === 'web') globalThis.open?.(url, '_blank');
+    else Linking.openURL(url).catch(() => {});
   };
+  const joinSession = (s: CareSession) => (s.meetLink ? openUrl(s.meetLink) : soon());
+
+  // Where an in-person session happens. Both come from the practitioner's own
+  // profile, and either may be missing.
+  const address = real?.practitioner?.address ?? (preview ? '12 rue des Lilas, 75011 Paris, France' : null);
+  const mapsUrl = real?.practitioner?.mapsUrl ?? (preview ? 'https://maps.app.goo.gl/i6t7e2RgonE7LdZT8' : null);
 
   return (
     <View style={{ flex: 1, backgroundColor: EDD.ground }}>
@@ -167,8 +171,11 @@ export default function MyCare() {
                   sessions={sessions}
                   locale={locale}
                   t={t}
+                  address={address}
+                  mapsUrl={mapsUrl}
                   onOpen={openSession}
                   onJoin={joinSession}
+                  onMaps={() => mapsUrl && openUrl(mapsUrl)}
                 />
               ) : (
                 <View style={{ marginHorizontal: 22, backgroundColor: EDD.card, borderWidth: 1, borderColor: EDD.cardLine, borderRadius: 20, padding: 20 }}>
@@ -228,13 +235,16 @@ export default function MyCare() {
  * strip you can push, not a page that happens to be cut off.
  */
 function SessionCarousel({
-  sessions, locale, t, onOpen, onJoin,
+  sessions, locale, t, address, mapsUrl, onOpen, onJoin, onMaps,
 }: {
   sessions: CareSession[];
   locale: string;
   t: ReturnType<typeof useI18n>['t'];
+  address: string | null;
+  mapsUrl: string | null;
   onOpen: (s: CareSession) => void;
   onJoin: (s: CareSession) => void;
+  onMaps: () => void;
 }) {
   const { width } = useWindowDimensions();
   const [index, setIndex] = useState(0);
@@ -268,8 +278,11 @@ function SessionCarousel({
             first={i === 0}
             locale={locale}
             t={t}
+            address={address}
+            mapsUrl={mapsUrl}
             onOpen={() => onOpen(s)}
             onJoin={() => onJoin(s)}
+            onMaps={onMaps}
           />
         ))}
       </ScrollView>
@@ -288,15 +301,18 @@ function SessionCarousel({
 }
 
 function SessionCard({
-  session, width, first, locale, t, onOpen, onJoin,
+  session, width, first, locale, t, address, mapsUrl, onOpen, onJoin, onMaps,
 }: {
   session: CareSession;
   width: number;
   first: boolean;
   locale: string;
   t: ReturnType<typeof useI18n>['t'];
+  address: string | null;
+  mapsUrl: string | null;
   onOpen: () => void;
   onJoin: () => void;
+  onMaps: () => void;
 }) {
   const inPerson = session.sessionFormat === 'in_person';
   const pay = session.paymentStatus;
@@ -324,13 +340,28 @@ function SessionCard({
         </View>
       ) : null}
 
-      {/* Only the imminent session offers the way in. An in-person one has nowhere
-          to join — the board shows "Open in Maps" here, which needs an address the
-          care API does not yet return, so it is left to the next slice. */}
+      {/* Only the imminent session offers a way to get there, and what that is
+          depends on the format:
+            video / phone → Join session
+            in person     → Open in Maps, when the practitioner saved a Maps link
+                          → else the address as plain text, which can still be
+                            read out to a driver or copied
+                          → else nothing. A button that opens nothing is worse
+                            than no button. */}
       {first && !inPerson ? (
         <TouchableOpacity onPress={onJoin} activeOpacity={0.85} style={{ height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginTop: 16 }}>
           <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#141414' }}>{t.care.join}</Text>
         </TouchableOpacity>
+      ) : first && inPerson && mapsUrl ? (
+        <TouchableOpacity onPress={onMaps} activeOpacity={0.85} style={{ height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginTop: 16, flexDirection: 'row', gap: 7 }}>
+          <MapPin size={16} color="#141414" strokeWidth={2.2} />
+          <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#141414' }}>{t.care.openInMaps}</Text>
+        </TouchableOpacity>
+      ) : first && inPerson && address ? (
+        <View style={{ flexDirection: 'row', gap: 7, marginTop: 14, alignItems: 'flex-start' }}>
+          <MapPin size={15} color={EDD.faint} strokeWidth={2} style={{ marginTop: 1 }} />
+          <Text style={{ flex: 1, fontSize: 13, color: EDD.textSoft, lineHeight: 19 }}>{address}</Text>
+        </View>
       ) : (
         <View style={{ height: first ? 16 : 4 }} />
       )}

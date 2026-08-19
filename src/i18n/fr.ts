@@ -230,6 +230,7 @@ export const fr: Dict = {
     noSession: 'Aucune séance réservée',
     noSessionSub: 'Réservez un créneau ci-dessous quand vous êtes prêt·e.',
     join: 'Rejoindre la séance',
+    openInMaps: 'Ouvrir dans Maps',
     bookSession: 'Réserver une séance',
     bookNote: 'Votre praticien organise vos séances. Contactez-le pour réserver.',
     paid: 'Payé',
