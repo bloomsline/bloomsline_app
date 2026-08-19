@@ -2,6 +2,7 @@
 // on web AND native); voice is recorded on-device (native). Everything is
 // compressed/thumbnailed on-device where possible, then uploaded straight to
 // object storage via presigned PUTs — the app server never touches the bytes.
+import { Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as VideoThumbnails from 'expo-video-thumbnails';
@@ -26,11 +27,8 @@ async function jpegThumb(uri: string): Promise<{ uri: string; size: number }> {
   return { uri: t.uri, size: await byteSize(t.uri) };
 }
 
-/** Pick a photo OR video from the library; prepare it (compress/poster). null if cancelled. */
-export async function pickMedia(): Promise<PreparedMedia | null> {
-  const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], quality: 1, allowsMultipleSelection: false });
-  if (res.canceled || !res.assets?.[0]) return null;
-  const a = res.assets[0];
+/** Prepare a picked/captured asset: compress an image, poster a video. */
+async function prepare(a: ImagePicker.ImagePickerAsset): Promise<PreparedMedia> {
 
   if (a.type === 'video') {
     const mime = a.mimeType && VIDEO_MIMES.has(a.mimeType) ? a.mimeType : 'video/mp4';
@@ -54,6 +52,35 @@ export async function pickMedia(): Promise<PreparedMedia | null> {
   const thumb = await jpegThumb(a.uri);
   return { kind: 'image', uri: main.uri, thumbUri: thumb.uri, width: main.width, height: main.height, size: await byteSize(main.uri), thumbSize: thumb.size };
 }
+
+/** Choose a photo or video from the library. null if cancelled. */
+export async function pickMedia(): Promise<PreparedMedia | null> {
+  const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], quality: 1, allowsMultipleSelection: false });
+  if (res.canceled || !res.assets?.[0]) return null;
+  return prepare(res.assets[0]);
+}
+
+/**
+ * Take a photo, or record a video, with the camera.
+ *
+ * Returns null both when the person cancels AND when permission is refused —
+ * the caller treats those the same way, because they are the same thing from
+ * where the patient is standing: no media, no error shouted at them. The OS has
+ * already explained why if it denied.
+ */
+export async function captureMedia(mode: 'photo' | 'video'): Promise<PreparedMedia | null> {
+  const perm = await ImagePicker.requestCameraPermissionsAsync();
+  if (!perm.granted) return null;
+  const res = await ImagePicker.launchCameraAsync({
+    mediaTypes: mode === 'video' ? ['videos'] : ['images'],
+    quality: 1,
+  });
+  if (res.canceled || !res.assets?.[0]) return null;
+  return prepare(res.assets[0]);
+}
+
+/** True when the device can offer a camera at all — web browsers cannot here. */
+export const cameraAvailable = Platform.OS !== 'web';
 
 async function putOne(uri: string, contentType: string, sizeBytes: number, thumbnail: boolean): Promise<string> {
   const { key, url, headers } = await presignMedia({ contentType, sizeBytes, thumbnail });
