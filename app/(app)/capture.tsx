@@ -1,162 +1,105 @@
-// Capture — mood + note + one media item (photo/video from the library, or a
-// voice note recorded on-device). Media is compressed/thumbnailed on-device and
-// uploaded straight to object storage. Mood/note still work with no media.
+// Capture — v2. Three steps in one screen, matching the design board.
+//
+// The v1 flow asked for a FEELING first and only then let you write. That put a
+// taxonomy in front of the thing a person actually came to do, so v2 inverts it:
+//
+//   1. write   the words open the screen, one plain question, keyboard already
+//              up. Photo / video / voice sit under a rule at the foot, and the
+//              feeling is a required ROW rather than a screen of its own.
+//   2. feel    a sheet rises over the writing, which dims but stays visible, so
+//              the question is asked about something you can still see. Choosing
+//              "was this more…" GROWS the sheet rather than replacing it, so
+//              changing your mind costs nothing.
+//   3. preview the moment drawn the way it will look on the line, not a summary
+//              of the form. Sharing sits above the buttons, naming the
+//              practitioner rather than the word "private" — the question a
+//              person has here is who sees this.
+//
+// "Good / Hard / Mixed" is NOT stored. It filters which feelings are offered,
+// and the timeline's valence is derived from the feelings actually picked (see
+// MOOD_SCORES). That is why this needed no migration.
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Image, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useAudioRecorder, useAudioRecorderState, requestRecordingPermissionsAsync, RecordingPresets } from 'expo-audio';
+import { ActivityIndicator, Animated, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { X, ImagePlus, Mic, Play, Square, Sun, CloudRain } from 'lucide-react-native';
-import { useAudioRecorder, useAudioRecorderState, requestRecordingPermissionsAsync, RecordingPresets } from 'expo-audio';
-import { EDA, EdPill } from '@/src/ui/editorial';
-import { MOODS } from '@/src/moments/moods';
-import { createMoment } from '@/src/api/moments';
-import { pickMedia, uploadMedia, type PreparedMedia } from '@/src/moments/media-upload';
-import { useI18n } from '@/src/i18n';
+import { X, ChevronLeft, ImagePlus, Mic, Lock, Eye, Camera, Video, Images, Square, Circle } from 'lucide-react-native';
+import { EDD } from '@/src/ui/editorial';
+import { MOODS, moodLabel } from '@/src/moments/moods';
+import { createMoment, shareMoment } from '@/src/api/moments';
+import { pickMedia, captureMedia, cameraAvailable, uploadMedia, type PreparedMedia } from '@/src/moments/media-upload';
+import { useOnboarding } from '@/src/onboarding/context';
+import { useI18n, fmt } from '@/src/i18n';
+import { notify } from '@/src/ui/alert';
 
-const MAX_MOODS = 8;
-const REC = '#C0392B';
-// Feelings split into two gentle buckets by valence, so the picker shows a
-// scannable ~8-9 at a time instead of all 17 at once. The gap between the two
-// groups is wide (42 vs 72), so 55 is a clean divider.
+const MAX_MOODS = 3; // the board asks for "up to 3 feelings"
+
+// The valence divider the v1 picker already used: the gap between the heavier
+// and lighter clusters is wide (42 vs 72), so 55 sits cleanly between them.
 const LIGHTER_MIN = 55;
 const isLighter = (key: string) => (MOODS.find((m) => m.key === key)?.valence ?? 0) >= LIGHTER_MIN;
-const fmtDur = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-const T = {
-  en: {
-    errAddMedia: 'Could not add that. Please try another file.',
-    errMicNeeded: 'Microphone access is needed to record a voice note.',
-    errStartRec: 'Could not start recording.',
-    errSaveRec: 'Could not save the recording.',
-    errSave: 'Could not save. Please try again.',
-    newMoment: 'New moment',
-    moodTitle: 'How are you\nfeeling right now?',
-    moodSubtitle: 'Pick what fits. You can choose a few.',
-    howLanding: 'Start with how it’s landing.',
-    lighter: 'Lighter',
-    heavier: 'Heavier',
-    all: 'All',
-    seeAll: 'Feeling a mix? See all feelings',
-    noteTitle: 'A few words, if you’d like',
-    notePlaceholder: 'What’s here for you right now?',
-    mediaTitle: 'Add a photo, video or voice note',
-    recording: 'Recording',
-    stop: 'Stop',
-    photoVideo: 'Photo / video',
-    voiceNote: 'Voice note',
-    uploading: 'Uploading…',
-    saving: 'Saving…',
-    saveMoment: 'Save this moment',
-    video: 'Video',
-    moods: {
-      peaceful: 'Peaceful', calm: 'Calm', grateful: 'Grateful', hopeful: 'Hopeful',
-      loved: 'Loved', proud: 'Proud', inspired: 'Inspired', funny: 'Funny',
-      playful: 'Playful', tired: 'Tired', anxious: 'Anxious', sad: 'Sad',
-      lonely: 'Lonely', overwhelmed: 'Overwhelmed', heavy: 'Heavy', angry: 'Angry',
-      fear: 'Fearful',
-    } as Record<string, string>,
-  },
-  fr: {
-    errAddMedia: 'Impossible d’ajouter ce fichier. Essayez-en un autre.',
-    errMicNeeded: 'L’accès au micro est nécessaire pour enregistrer une note vocale.',
-    errStartRec: 'Impossible de démarrer l’enregistrement.',
-    errSaveRec: 'Impossible d’enregistrer la note vocale.',
-    errSave: 'Enregistrement impossible. Veuillez réessayer.',
-    newMoment: 'Nouveau moment',
-    moodTitle: 'Comment vous\nsentez-vous en ce moment ?',
-    moodSubtitle: 'Choisissez ce qui vous correspond. Vous pouvez en sélectionner plusieurs.',
-    howLanding: 'Commencez par ce que vous ressentez.',
-    lighter: 'Plus léger',
-    heavier: 'Plus lourd',
-    all: 'Tout',
-    seeAll: 'Un mélange ? Voir tout',
-    noteTitle: 'Quelques mots, si vous le souhaitez',
-    notePlaceholder: 'Qu’est-ce qui vous habite en ce moment ?',
-    mediaTitle: 'Ajoutez une photo, une vidéo ou une note vocale',
-    recording: 'Enregistrement',
-    stop: 'Arrêter',
-    photoVideo: 'Photo / vidéo',
-    voiceNote: 'Note vocale',
-    uploading: 'Envoi…',
-    saving: 'Enregistrement…',
-    saveMoment: 'Enregistrer ce moment',
-    video: 'Vidéo',
-    moods: {
-      peaceful: 'Paisible', calm: 'Calme', grateful: 'Reconnaissant(e)', hopeful: 'Plein(e) d’espoir',
-      loved: 'Aimé(e)', proud: 'Fier(ère)', inspired: 'Inspiré(e)', funny: 'Amusé(e)',
-      playful: 'Joueur(se)', tired: 'Fatigué(e)', anxious: 'Anxieux(se)', sad: 'Triste',
-      lonely: 'Seul(e)', overwhelmed: 'Dépassé(e)', heavy: 'Oppressé(e)', angry: 'En colère',
-      fear: 'Effrayé(e)',
-    } as Record<string, string>,
-  },
-} as const;
+type Tone = 'good' | 'hard' | 'mixed';
+type Step = 'write' | 'feel' | 'preview';
+
+const moodsForTone = (tone: Tone) =>
+  tone === 'mixed' ? MOODS : MOODS.filter((m) => isLighter(m.key) === (tone === 'good'));
 
 export default function Capture() {
   const router = useRouter();
-  const { locale } = useI18n();
-  const tr = T[locale];
-  // An `emotion` param (from the Moments empty-state arrival shortcut) pre-selects
-  // that feeling and opens straight into its bucket, ready to add more or write.
-  const { emotion, bucket } = useLocalSearchParams<{ emotion?: string; bucket?: string }>();
-  const initialEmotion = typeof emotion === 'string' && MOODS.some((m) => m.key === emotion) ? emotion : null;
-  const [selected, setSelected] = useState<string[]>(initialEmotion ? [initialEmotion] : []);
-  // Emotion picker view: the two-bucket chooser first, then the filtered grid. A
-  // pre-selected emotion opens straight into its bucket; a `bucket` param (from
-  // the Moments card's Lighter/Heavier shortcut) opens that cluster directly.
-  const [view, setView] = useState<'pick' | 'lighter' | 'heavier' | 'all'>(
-    initialEmotion
-      ? isLighter(initialEmotion) ? 'lighter' : 'heavier'
-      : bucket === 'lighter' || bucket === 'heavier' ? bucket : 'pick',
-  );
-  const shownMoods = view === 'all' ? MOODS : view === 'pick' ? [] : MOODS.filter((m) => isLighter(m.key) === (view === 'lighter'));
-  const [note, setNote] = useState('');
-  const [noteFocused, setNoteFocused] = useState(false);
-  const [media, setMedia] = useState<PreparedMedia | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { t, locale } = useI18n();
+  const tr = t.capture;
+  const { practitionerName, hasPractitioner } = useOnboarding();
+  const pracFirst = (practitionerName ?? '').replace(/^dr\.?\s*/i, '').trim().split(/\s+/)[0] || '';
 
-  // Soft reveal for the note + media once a feeling is picked. `showExtras` keeps
-  // them mounted through the exit fade; `reveal` drives opacity + a gentle rise.
-  const hasSelection = selected.length > 0;
-  const reveal = useRef(new Animated.Value(0)).current;
-  const [showExtras, setShowExtras] = useState(hasSelection);
-  const scrollRef = useRef<ScrollView>(null);
-  const noteY = useRef(0);
-  useEffect(() => {
-    if (hasSelection) {
-      setShowExtras(true);
-      Animated.timing(reveal, { toValue: 1, duration: 440, easing: Easing.bezier(0.16, 0.84, 0.24, 1), useNativeDriver: true }).start();
-      // Softly bring the note into focus as the natural next step.
-      const id = setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(noteY.current - 96, 0), animated: true }), 130);
-      return () => clearTimeout(id);
-    }
-    Animated.timing(reveal, { toValue: 0, duration: 240, easing: Easing.in(Easing.ease), useNativeDriver: true }).start(({ finished }) => {
-      if (finished) setShowExtras(false);
-    });
-  }, [hasSelection, reveal]);
+  // A pre-selected feeling from the Moments empty-state shortcut still works: it
+  // opens the sheet on the matching tone with that feeling already chosen.
+  const { emotion } = useLocalSearchParams<{ emotion?: string }>();
+  const initial = typeof emotion === 'string' && MOODS.some((m) => m.key === emotion) ? emotion : null;
+
+  const [step, setStep] = useState<Step>('write');
+  const [note, setNote] = useState('');
+  const [media, setMedia] = useState<PreparedMedia | null>(null);
+  const [tone, setTone] = useState<Tone | null>(initial ? (isLighter(initial) ? 'good' : 'hard') : null);
+  const [moods, setMoods] = useState<string[]>(initial ? [initial] : []);
+  const [share, setShare] = useState(false);
+  const [busy, setBusy] = useState(false);
+  // Which picker sheet is open, if any. One control per KIND of thing a patient
+  // is choosing — "a moment to keep", not a file format.
+  const [picker, setPicker] = useState<null | 'visual' | 'voice'>(null);
+  // Recoverable problems (no mic, a file that would not load) are shown INLINE,
+  // not through notify(): on web that is a blocking window.alert, which for
+  // something the patient can simply try again is far too heavy a hand. The
+  // screen this replaces did the same.
+  const [error, setError] = useState<string | null>(null);
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recState = useAudioRecorderState(recorder);
   const recording = recState.isRecording;
 
-  const toggle = (key: string) =>
-    setSelected((prev) => (prev.includes(key) ? prev.filter((x) => x !== key) : prev.length >= MAX_MOODS ? prev : [...prev, key]));
+  const capturedAt = useRef(new Date()).current;
+  const when = `${capturedAt.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'long' })}, ${capturedAt.toLocaleTimeString(locale === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}`;
 
-  const canSave = (selected.length > 0 || note.trim().length > 0 || media !== null) && !recording;
-  const close = () => (router.canGoBack() ? router.back() : router.navigate('/moments' as never));
+  const hasSomething = (note.trim().length > 0 || media !== null) && !recording;
+  const photoUri = media?.kind === 'image' ? media.uri : media?.kind === 'video' ? media.thumbUri ?? null : null;
 
-  const addMedia = async () => {
+  const toggleMood = (key: string) =>
+    setMoods((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : cur.length >= MAX_MOODS ? cur : [...cur, key]));
+
+  const take = async (fn: () => Promise<PreparedMedia | null>) => {
+    setPicker(null);
     setError(null);
     try {
-      const p = await pickMedia();
-      if (p) setMedia(p);
+      const picked = await fn();
+      if (picked) setMedia(picked);
     } catch {
       setError(tr.errAddMedia);
     }
   };
 
   const startRec = async () => {
+    setPicker(null);
     setError(null);
     try {
       const { granted } = await requestRecordingPermissionsAsync();
@@ -182,184 +125,487 @@ export default function Capture() {
     }
   };
 
-  const save = async () => {
-    if (!canSave || saving) return;
-    setSaving(true);
-    setError(null);
+  const commit = async () => {
+    if (busy) return;
+    setBusy(true);
     try {
-      const m = media ? [await uploadMedia(media)] : [];
-      await createMoment({ moods: selected, textContent: note.trim() || null, capturedAt: new Date().toISOString(), media: m });
-      close();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : tr.errSave);
-      setSaving(false);
+      const uploaded = media ? [await uploadMedia(media)] : [];
+      const created = await createMoment({
+        textContent: note.trim() || null,
+        moods,
+        capturedAt: capturedAt.toISOString(),
+        media: uploaded,
+      });
+      // Sharing is a second call on purpose: the moment exists either way, so a
+      // failure here costs the share, never the moment.
+      if (share) {
+        try {
+          await shareMoment(created.id, true);
+        } catch {
+          notify(tr.newMoment, tr.errShare);
+        }
+      }
+      router.replace('/moments' as never);
+    } catch {
+      notify(tr.newMoment, tr.errSave);
+      setBusy(false);
     }
   };
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: EDA.canvas }}>
-      <StatusBar style="dark" />
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        {/* Slim editorial top bar */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 22, paddingTop: 8, paddingBottom: 4 }}>
-          <TouchableOpacity onPress={close} activeOpacity={0.7} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, justifyContent: 'center', alignItems: 'center' }}>
-            <X size={19} color={EDA.ink} strokeWidth={2} />
-          </TouchableOpacity>
-          <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink }}>{tr.newMoment}</Text>
-          <View style={{ width: 38 }} />
-        </View>
+    <View style={{ flex: 1, backgroundColor: EDD.ground }}>
+      <StatusBar style="light" />
 
-        <ScrollView ref={scrollRef} contentContainerStyle={{ paddingHorizontal: 22, paddingBottom: 24 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          <Text style={{ fontSize: 26, fontWeight: '800', color: EDA.ink, letterSpacing: -0.5, lineHeight: 32, marginTop: 12 }}>{tr.moodTitle}</Text>
-          <Text style={{ fontSize: 14, color: EDA.inkSoft, marginTop: 6 }}>{view === 'pick' ? tr.howLanding : tr.moodSubtitle}</Text>
+      {/* The photograph, when there is one, is the ground for every step — it is
+          the moment, not an attachment to it. */}
+      {photoUri ? (
+        <>
+          <Image source={{ uri: photoUri }} style={{ position: 'absolute', inset: 0 }} resizeMode="cover" />
+          <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(14,21,18,0.55)' }} />
+        </>
+      ) : null}
 
-          {view === 'pick' ? (
-            /* Two gentle buckets first — one decision, not seventeen. */
-            <View style={{ marginTop: 20 }}>
-              <View style={{ flexDirection: 'row', gap: 12 }}>
-                <TouchableOpacity onPress={() => setView('lighter')} activeOpacity={0.85}
-                  style={{ flex: 1, height: 104, borderRadius: 18, borderWidth: 1.5, borderColor: EDA.line, backgroundColor: EDA.card, alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-                  <Sun size={26} color={EDA.green} strokeWidth={2} />
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: EDA.ink }}>{tr.lighter}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setView('heavier')} activeOpacity={0.85}
-                  style={{ flex: 1, height: 104, borderRadius: 18, borderWidth: 1.5, borderColor: EDA.line, backgroundColor: EDA.card, alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-                  <CloudRain size={26} color={EDA.inkSoft} strokeWidth={2} />
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: EDA.ink }}>{tr.heavier}</Text>
-                </TouchableOpacity>
-              </View>
-              <TouchableOpacity onPress={() => setView('all')} activeOpacity={0.7} style={{ alignSelf: 'center', marginTop: 16 }}>
-                <Text style={{ fontSize: 13.5, fontWeight: '700', color: EDA.green }}>{tr.seeAll}</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <>
-              {/* Bucket switch — change your mind without going back. */}
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 18 }}>
-                {(['lighter', 'heavier', 'all'] as const).map((seg) => {
-                  const on = view === seg;
-                  return (
-                    <TouchableOpacity key={seg} onPress={() => setView(seg)} activeOpacity={0.8}
-                      style={{ flex: 1, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, backgroundColor: on ? EDA.green : EDA.card, borderColor: on ? EDA.green : EDA.line }}>
-                      <Text style={{ fontSize: 13.5, fontWeight: '700', color: on ? '#fff' : EDA.inkSoft }}>{seg === 'lighter' ? tr.lighter : seg === 'heavier' ? tr.heavier : tr.all}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+      <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
+        <Header
+          step={step}
+          tr={tr}
+          onClose={() => router.back()}
+          onBack={() => setStep(step === 'preview' ? 'feel' : 'write')}
+        />
 
-              {/* Divider: the tone buckets (category) above, the moods (sub-category) below. */}
-              <View style={{ height: 1, backgroundColor: EDA.line, marginTop: 20 }} />
+        {step === 'preview' ? (
+          <Preview
+            when={when}
+            note={note}
+            moods={moods}
+            locale={locale}
+            tr={tr}
+            share={share}
+            canShare={hasPractitioner && !!pracFirst}
+            pracFirst={pracFirst}
+            busy={busy}
+            onToggleShare={() => setShare((v) => !v)}
+            onEdit={() => setStep('write')}
+            onCommit={commit}
+          />
+        ) : (
+          <>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+              <ScrollView contentContainerStyle={{ paddingHorizontal: 26, paddingTop: 6, flexGrow: 1 }} keyboardShouldPersistTaps="handled">
+                <Text style={{ fontSize: 12.5, color: EDD.faint, marginBottom: 12 }}>{when}</Text>
+                <TextInput
+                  value={note}
+                  onChangeText={setNote}
+                  placeholder={tr.what}
+                  placeholderTextColor="rgba(255,255,255,0.42)"
+                  multiline
+                  autoFocus={step === 'write'}
+                  editable={step === 'write'}
+                  selectionColor={EDD.green}
+                  style={[
+                    { fontSize: 21, fontWeight: '600', color: EDD.text, lineHeight: 29, minHeight: 90, textAlignVertical: 'top' },
+                    Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null,
+                  ]}
+                />
+              </ScrollView>
 
-              {/* Filtered mood grid */}
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 18 }}>
-                {shownMoods.map((m) => {
-                  const on = selected.includes(m.key);
-                  return (
-                    <TouchableOpacity key={m.key} onPress={() => toggle(m.key)} activeOpacity={0.8}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 7, paddingLeft: 12, paddingRight: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 1.5, backgroundColor: on ? EDA.greenTint : EDA.card, borderColor: on ? EDA.green : EDA.line }}>
-                      <m.Icon size={16} color={on ? EDA.green : EDA.faint} strokeWidth={2} />
-                      <Text style={{ fontSize: 14, fontWeight: '600', color: on ? EDA.green : EDA.inkSoft }}>{tr.moods[m.key] ?? m.label}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </>
-          )}
+              {step === 'write' ? (
+                <View style={{ paddingHorizontal: 26, paddingBottom: 8 }}>
+                  {error ? (
+                    <Text style={{ fontSize: 12.5, color: '#E5837B', marginBottom: 12, lineHeight: 18 }}>{error}</Text>
+                  ) : null}
+                  {recording ? (
+                    <RecordingBar seconds={Math.round((recState.durationMillis ?? 0) / 1000)} onStop={stopRec} tr={tr} />
+                  ) : media ? (
+                    <MediaBadge media={media} onClear={() => setMedia(null)} tr={tr} />
+                  ) : null}
+                  <View style={{ height: 1, backgroundColor: EDD.cardLine, marginBottom: 14 }} />
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <Chip Icon={ImagePlus} label={tr.photoOrVideo} onPress={() => setPicker('visual')} />
+                    <Chip Icon={Mic} label={tr.voice} onPress={() => setPicker('voice')} />
+                  </View>
 
-          {/* Note + media appear only after a feeling is chosen — one step at a time,
-              with a soft fade + rise (and an exit fade before they unmount). */}
-          {showExtras && (
-          <Animated.View
-            onLayout={(e) => { noteY.current = e.nativeEvent.layout.y; }}
-            style={{ opacity: reveal, transform: [{ translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }] }}
-          >
-          {/* Note */}
-          <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink, marginTop: 28 }}>{tr.noteTitle}</Text>
-          <View style={{ marginTop: 10, borderRadius: 16, borderWidth: 1.5, borderColor: noteFocused ? EDA.green : EDA.line, backgroundColor: EDA.card, paddingHorizontal: 16, paddingVertical: 12 }}>
-            <TextInput value={note} onChangeText={setNote} onFocus={() => setNoteFocused(true)} onBlur={() => setNoteFocused(false)} placeholder={tr.notePlaceholder} placeholderTextColor={EDA.faint} multiline maxLength={5000}
-              style={[{ minHeight: 96, fontSize: 15, lineHeight: 22, color: EDA.ink, textAlignVertical: 'top' }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]} />
-          </View>
+                  {/* The feeling is a row that says it is required, not a screen
+                      you have to get past before you can write anything. */}
+                  <Pressable
+                    onPress={() => hasSomething && setStep('feel')}
+                    style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', paddingVertical: 14, opacity: hasSomething ? 1 : 0.45 }}
+                  >
+                    <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: EDD.text }}>{tr.addFeeling}</Text>
+                    <Text style={{ fontSize: 10.5, letterSpacing: 1, color: EDD.faint }}>{tr.required.toUpperCase()}</Text>
+                  </Pressable>
 
-          {/* Media */}
-          <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink, marginTop: 28 }}>{tr.mediaTitle}</Text>
-          {recording ? (
-            <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, borderWidth: 1.5, borderColor: REC, backgroundColor: '#FBEEEC', paddingHorizontal: 16, paddingVertical: 14 }}>
-              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: REC }} />
-              <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: REC }}>{tr.recording} · {fmtDur(Math.round((recState.durationMillis ?? 0) / 1000))}</Text>
-              <TouchableOpacity onPress={stopRec} activeOpacity={0.8} style={{ height: 38, paddingHorizontal: 16, borderRadius: 19, backgroundColor: REC, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Square size={13} color="#fff" fill="#fff" />
-                <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>{tr.stop}</Text>
-              </TouchableOpacity>
-            </View>
-          ) : media ? (
-            <MediaPreview media={media} onRemove={() => setMedia(null)} tr={tr} />
-          ) : (
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-              <TouchableOpacity onPress={addMedia} activeOpacity={0.8} style={{ flex: 1, height: 88, borderRadius: 16, borderWidth: 1.5, borderColor: EDA.line, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                <ImagePlus size={20} color={EDA.faint} strokeWidth={2} />
-                <Text style={{ fontSize: 13, fontWeight: '600', color: EDA.inkSoft }}>{tr.photoVideo}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={startRec} activeOpacity={0.8} style={{ flex: 1, height: 88, borderRadius: 16, borderWidth: 1.5, borderColor: EDA.line, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                <Mic size={20} color={EDA.faint} strokeWidth={2} />
-                <Text style={{ fontSize: 13, fontWeight: '600', color: EDA.inkSoft }}>{tr.voiceNote}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+                  <Pressable
+                    onPress={() => hasSomething && setStep('feel')}
+                    disabled={!hasSomething}
+                    style={{ height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: hasSomething ? '#fff' : 'rgba(255,255,255,0.12)' }}
+                  >
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: hasSomething ? '#141414' : 'rgba(255,255,255,0.4)' }}>{tr.next}</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+            </KeyboardAvoidingView>
 
-          {error && <Text style={{ marginTop: 12, fontSize: 13, fontWeight: '500', color: REC }}>{error}</Text>}
-          </Animated.View>
-          )}
-        </ScrollView>
+            {picker ? (
+              <PickerSheet
+                which={picker}
+                tr={tr}
+                onClose={() => setPicker(null)}
+                onPhoto={() => take(() => captureMedia('photo'))}
+                onVideo={() => take(() => captureMedia('video'))}
+                onLibrary={() => take(pickMedia)}
+                onRecord={startRec}
+              />
+            ) : null}
 
-        {/* CTA — fades in with the note/media once there's a feeling to save. */}
-        {showExtras && (
-        <Animated.View style={{ opacity: reveal }}>
-          <View style={{ paddingHorizontal: 22, paddingTop: 12, paddingBottom: 8, borderTopWidth: 1, borderTopColor: EDA.line }}>
-            <EdPill label={saving ? (media ? tr.uploading : tr.saving) : tr.saveMoment} variant="dark" disabled={!canSave || saving} onPress={save} />
-          </View>
-        </Animated.View>
+            {step === 'feel' ? (
+              <FeelSheet
+                tr={tr}
+                locale={locale}
+                tone={tone}
+                moods={moods}
+                onTone={setTone}
+                onToggle={toggleMood}
+                onDone={() => setStep('preview')}
+              />
+            ) : null}
+          </>
         )}
-      </KeyboardAvoidingView>
-    </SafeAreaView>
-  );
-}
-
-function MediaPreview({ media, onRemove, tr }: { media: PreparedMedia; onRemove: () => void; tr: (typeof T)[keyof typeof T] }) {
-  const remove = (
-    <TouchableOpacity onPress={onRemove} activeOpacity={0.8} style={{ position: 'absolute', top: -8, right: -8, width: 28, height: 28, borderRadius: 14, backgroundColor: EDA.ink, alignItems: 'center', justifyContent: 'center' }}>
-      <X size={15} color="#fff" strokeWidth={2.5} />
-    </TouchableOpacity>
-  );
-
-  if (media.kind === 'audio') {
-    return (
-      <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, borderWidth: 1, borderColor: EDA.line, backgroundColor: EDA.card, paddingHorizontal: 16, paddingVertical: 14, alignSelf: 'stretch' }}>
-        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: EDA.green, alignItems: 'center', justifyContent: 'center' }}>
-          <Mic size={18} color="#fff" strokeWidth={2} />
-        </View>
-        <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: EDA.ink }}>{tr.voiceNote} · {fmtDur(media.durationSeconds)}</Text>
-        <TouchableOpacity onPress={onRemove} hitSlop={8}><X size={18} color={EDA.faint} strokeWidth={2} /></TouchableOpacity>
-      </View>
-    );
-  }
-
-  // image or video → thumbnail
-  const thumb = media.kind === 'image' ? media.thumbUri : media.thumbUri;
-  return (
-    <View style={{ marginTop: 10, alignSelf: 'flex-start' }}>
-      {thumb ? (
-        <Image source={{ uri: thumb }} style={{ width: 120, height: 120, borderRadius: 16, backgroundColor: EDA.line }} resizeMode="cover" />
-      ) : (
-        <View style={{ width: 120, height: 120, borderRadius: 16, backgroundColor: EDA.slot, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 12, color: '#fff' }}>{tr.video}</Text>
-        </View>
-      )}
-      {media.kind === 'video' && (
-        <View style={{ position: 'absolute', top: 44, left: 44, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
-          <Play size={16} color="#fff" fill="#fff" />
-        </View>
-      )}
-      {remove}
+      </SafeAreaView>
     </View>
   );
 }
+
+function Header({ step, tr, onClose, onBack }: { step: Step; tr: Cap; onClose: () => void; onBack: () => void }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, paddingTop: 8, paddingBottom: 16 }}>
+      <Pressable
+        onPress={step === 'write' ? onClose : onBack}
+        style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }}
+      >
+        {step === 'write' ? <X size={17} color="#fff" strokeWidth={2} /> : <ChevronLeft size={18} color="#fff" strokeWidth={2} />}
+      </Pressable>
+      <Text style={{ flex: 1, textAlign: 'center', fontSize: 10.5, letterSpacing: 1.6, color: EDD.faint }}>
+        {(step === 'preview' ? tr.preview : tr.newMoment).toUpperCase()}
+      </Text>
+      <View style={{ width: 34, alignItems: 'flex-end' }}>
+        {step === 'write' ? <Text style={{ fontSize: 11, color: EDD.faint }}>1/2</Text> : null}
+      </View>
+    </View>
+  );
+}
+
+/**
+ * Step two. One sheet that GROWS: picking a tone reveals the feelings beneath
+ * the pills rather than replacing the question, so going back costs nothing.
+ */
+function FeelSheet({
+  tr, locale, tone, moods, onTone, onToggle, onDone,
+}: {
+  tr: Cap;
+  locale: 'en' | 'fr';
+  tone: Tone | null;
+  moods: string[];
+  onTone: (t: Tone) => void;
+  onToggle: (k: string) => void;
+  onDone: () => void;
+}) {
+  const rise = useRef(new Animated.Value(0)).current;
+  // In an effect, not during render: the sheet's entrance is a side effect, and
+  // starting it inline fires on every re-render (each feeling tap) as well.
+  useEffect(() => {
+    Animated.timing(rise, { toValue: 1, duration: 320, useNativeDriver: true }).start();
+  }, [rise]);
+
+  return (
+    <Animated.View
+      style={{
+        position: 'absolute', left: 0, right: 0, bottom: 0,
+        opacity: rise,
+        transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }],
+        backgroundColor: 'rgba(20,26,23,0.96)',
+        borderTopLeftRadius: 26, borderTopRightRadius: 26,
+        borderTopWidth: 1, borderColor: EDD.cardLine,
+        paddingHorizontal: 22, paddingTop: 12, paddingBottom: 26,
+      }}
+    >
+      <View style={{ alignSelf: 'center', width: 38, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.22)', marginBottom: 14 }} />
+      <Text style={{ fontSize: 10.5, letterSpacing: 1.4, color: EDD.faint, marginBottom: 14 }}>{tr.step2.toUpperCase()}</Text>
+
+      {/* The question sits ABOVE the pills, and is replaced by the second one
+          below them once a choice is made — the sheet grows rather than swapping
+          screens, so the pills never move and changing your mind costs nothing. */}
+      {tone === null ? (
+        <Text style={{ fontSize: 17, fontWeight: '700', color: EDD.text, marginBottom: 14 }}>{tr.wasMore}</Text>
+      ) : null}
+
+      <View style={{ flexDirection: 'row', gap: 9 }}>
+        {(['good', 'hard', 'mixed'] as Tone[]).map((k) => {
+          const on = tone === k;
+          return (
+            <Pressable
+              key={k}
+              onPress={() => onTone(k)}
+              style={{ flex: 1, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? 'rgba(255,255,255,0.14)' : 'transparent', borderWidth: 1, borderColor: on ? 'rgba(255,255,255,0.30)' : EDD.cardLine }}
+            >
+              <Text style={{ fontSize: 13.5, fontWeight: on ? '700' : '500', color: on ? EDD.text : EDD.textSoft }}>{tr.tone[k]}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {tone !== null ? (
+        <>
+          <Text style={{ marginTop: 18, fontSize: 17, fontWeight: '700', color: EDD.text }}>{tr.howFeel}</Text>
+          <Text style={{ marginTop: 3, fontSize: 12.5, color: EDD.faint }}>{fmt(tr.pickUpTo, { n: String(MAX_MOODS) })}</Text>
+
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
+            {moodsForTone(tone).map((m) => {
+              const on = moods.includes(m.key);
+              return (
+                <Pressable
+                  key={m.key}
+                  onPress={() => onToggle(m.key)}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, height: 34, borderRadius: 17, backgroundColor: on ? `${m.color}2E` : 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: on ? m.color : EDD.cardLine }}
+                >
+                  <m.Icon size={13} color={on ? m.color : EDD.textSoft} strokeWidth={2} />
+                  <Text style={{ fontSize: 13, fontWeight: on ? '700' : '500', color: on ? EDD.text : EDD.textSoft }}>{moodLabel(m.key, locale)}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Pressable
+            onPress={onDone}
+            disabled={moods.length === 0}
+            style={{ marginTop: 20, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: moods.length > 0 ? '#fff' : 'rgba(255,255,255,0.12)' }}
+          >
+            <Text style={{ fontSize: 15, fontWeight: '700', color: moods.length > 0 ? '#141414' : 'rgba(255,255,255,0.4)' }}>{tr.seeMyMoment}</Text>
+          </Pressable>
+        </>
+      ) : null}
+    </Animated.View>
+  );
+}
+
+/** Step three. The moment as it will look on the line, not a summary of a form. */
+function Preview({
+  when, note, moods, locale, tr, share, canShare, pracFirst, busy, onToggleShare, onEdit, onCommit,
+}: {
+  when: string;
+  note: string;
+  moods: string[];
+  locale: 'en' | 'fr';
+  tr: Cap;
+  share: boolean;
+  canShare: boolean;
+  pracFirst: string;
+  busy: boolean;
+  onToggleShare: () => void;
+  onEdit: () => void;
+  onCommit: () => void;
+}) {
+  return (
+    <View style={{ flex: 1, paddingHorizontal: 26 }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
+        <Text style={{ fontSize: 12.5, color: EDD.faint, marginBottom: 12 }}>{when}</Text>
+        {note.trim() ? (
+          <Text style={{ fontSize: 21, fontWeight: '600', color: EDD.text, lineHeight: 29 }}>{note.trim()}</Text>
+        ) : null}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
+          {moods.map((k) => {
+            const m = MOODS.find((x) => x.key === k);
+            if (!m) return null;
+            return (
+              <View key={k} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, height: 32, borderRadius: 16, backgroundColor: `${m.color}2E`, borderWidth: 1, borderColor: m.color }}>
+                <m.Icon size={13} color={m.color} strokeWidth={2} />
+                <Text style={{ fontSize: 12.5, fontWeight: '700', color: EDD.text }}>{moodLabel(k, locale)}</Text>
+              </View>
+            );
+          })}
+        </View>
+      </ScrollView>
+
+      {/* Who sees this. Named, not labelled "private": the question a person has
+          here is who, and the reassurance about undoing it appears only once it
+          is something they have actually done. */}
+      {canShare ? (
+        <Pressable
+          onPress={onToggleShare}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: EDD.card, borderWidth: 1, borderColor: share ? 'rgba(127,217,192,0.45)' : EDD.cardLine, borderRadius: 18, padding: 14, marginBottom: 14 }}
+        >
+          {share ? <Eye size={17} color={EDD.green} strokeWidth={2} /> : <Lock size={17} color={EDD.faint} strokeWidth={2} />}
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: share ? EDD.green : EDD.text }}>
+              {share ? fmt(tr.showPrac, { prac: pracFirst }) : tr.keepPrivate}
+            </Text>
+            <Text style={{ fontSize: 11.5, color: EDD.faint, marginTop: 2 }}>
+              {share ? tr.canChangeLater : fmt(tr.pracCannotSee, { prac: pracFirst })}
+            </Text>
+          </View>
+          <View style={{ width: 42, height: 25, borderRadius: 13, padding: 3, backgroundColor: share ? EDD.green : 'rgba(255,255,255,0.16)', alignItems: share ? 'flex-end' : 'flex-start' }}>
+            <View style={{ width: 19, height: 19, borderRadius: 10, backgroundColor: '#fff' }} />
+          </View>
+        </Pressable>
+      ) : null}
+
+      <View style={{ flexDirection: 'row', gap: 10, paddingBottom: 8 }}>
+        <Pressable
+          onPress={onEdit}
+          disabled={busy}
+          style={{ width: 96, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: EDD.cardLine }}
+        >
+          <Text style={{ fontSize: 14.5, fontWeight: '700', color: EDD.text }}>{tr.edit}</Text>
+        </Pressable>
+        <Pressable
+          onPress={onCommit}
+          disabled={busy}
+          style={{ flex: 1, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', opacity: busy ? 0.6 : 1 }}
+        >
+          {busy ? <ActivityIndicator color="#141414" /> : <Text style={{ fontSize: 15, fontWeight: '700', color: '#141414' }}>{tr.createMoment}</Text>}
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * The media picker. One sheet per KIND of thing being chosen — photo and video
+ * are a single control because a patient is choosing a moment to keep, not a
+ * file format, and voice offers the same two ways in: record now, or bring one.
+ *
+ * Drawn as glass over whatever is behind it, so the moment stays visible while
+ * they choose how to add to it.
+ */
+function PickerSheet({
+  which, tr, onClose, onPhoto, onVideo, onLibrary, onRecord,
+}: {
+  which: 'visual' | 'voice';
+  tr: Cap;
+  onClose: () => void;
+  onPhoto: () => void;
+  onVideo: () => void;
+  onLibrary: () => void;
+  onRecord: () => void;
+}) {
+  const rise = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(rise, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+  }, [rise]);
+
+  // On web the camera routes do not exist, so offering them would be a button
+  // that cannot work. The library still can.
+  const rows =
+    which === 'visual'
+      ? [
+          ...(cameraAvailable
+            ? [
+                { Icon: Camera, label: tr.takePhoto, onPress: onPhoto },
+                { Icon: Video, label: tr.recordVideo, onPress: onVideo },
+              ]
+            : []),
+          { Icon: Images, label: tr.chooseLibrary, onPress: onLibrary },
+        ]
+      : [
+          { Icon: Circle, label: tr.recordNow, onPress: onRecord },
+          { Icon: Images, label: tr.chooseFile, onPress: onLibrary },
+        ];
+
+  return (
+    <>
+      <Pressable onPress={onClose} style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.45)' }} />
+      <Animated.View
+        style={{
+          position: 'absolute', left: 0, right: 0, bottom: 0,
+          opacity: rise,
+          transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) }],
+          backgroundColor: 'rgba(20,26,23,0.97)',
+          borderTopLeftRadius: 26, borderTopRightRadius: 26,
+          borderTopWidth: 1, borderColor: EDD.cardLine,
+          paddingHorizontal: 18, paddingTop: 12, paddingBottom: 22,
+        }}
+      >
+        <View style={{ alignSelf: 'center', width: 38, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.22)', marginBottom: 14 }} />
+        <Text style={{ fontSize: 10.5, letterSpacing: 1.4, color: EDD.faint, marginBottom: 8, paddingHorizontal: 4 }}>
+          {(which === 'visual' ? tr.photoOrVideo : tr.voice).toUpperCase()}
+        </Text>
+        {rows.map((r) => (
+          <Pressable
+            key={r.label}
+            onPress={r.onPress}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, paddingHorizontal: 4 }}
+          >
+            <r.Icon size={19} color={EDD.text} strokeWidth={2} />
+            <Text style={{ fontSize: 15.5, fontWeight: '600', color: EDD.text }}>{r.label}</Text>
+          </Pressable>
+        ))}
+        <Pressable onPress={onClose} style={{ marginTop: 8, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)' }}>
+          <Text style={{ fontSize: 14.5, fontWeight: '700', color: EDD.text }}>{tr.cancel}</Text>
+        </Pressable>
+      </Animated.View>
+    </>
+  );
+}
+
+/** While a voice note is being recorded: the elapsed time and the way to stop. */
+function RecordingBar({ seconds, onStop, tr }: { seconds: number; onStop: () => void; tr: Cap }) {
+  const pulse = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 0.35, duration: 700, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 700, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+      <Animated.View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: '#E5534B', opacity: pulse }} />
+      <Text style={{ flex: 1, fontSize: 13, color: EDD.text, fontWeight: '600' }}>
+        {tr.recording}  {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}
+      </Text>
+      <Pressable onPress={onStop} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.12)' }}>
+        <Square size={12} color={EDD.text} strokeWidth={2.5} fill={EDD.text} />
+        <Text style={{ fontSize: 13, fontWeight: '700', color: EDD.text }}>{tr.stop}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function Chip({ Icon, label, onPress }: { Icon: typeof ImagePlus; label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 14, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: EDD.cardLine }}
+    >
+      <Icon size={15} color={EDD.text} strokeWidth={2} />
+      <Text style={{ fontSize: 13, fontWeight: '600', color: EDD.text }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function MediaBadge({ media, onClear, tr }: { media: PreparedMedia; onClear: () => void; tr: Cap }) {
+  const thumb = media.kind === 'image' ? media.uri : media.kind === 'video' ? media.thumbUri ?? null : null;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+      {thumb ? (
+        <Image source={{ uri: thumb }} style={{ width: 40, height: 40, borderRadius: 10 }} />
+      ) : (
+        <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' }}>
+          <Mic size={17} color={EDD.text} strokeWidth={2} />
+        </View>
+      )}
+      <Text style={{ flex: 1, fontSize: 12.5, color: EDD.textSoft }}>
+        {media.kind === 'image' ? tr.photoAdded : media.kind === 'video' ? tr.videoAdded : tr.voiceAdded}
+      </Text>
+      <Pressable onPress={onClear} style={{ width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.10)' }}>
+        <X size={14} color={EDD.text} strokeWidth={2} />
+      </Pressable>
+    </View>
+  );
+}
+
+type Cap = ReturnType<typeof useI18n>['t']['capture'];
