@@ -15,10 +15,11 @@ import { useAudioRecorder, useAudioRecorderState, requestRecordingPermissionsAsy
 import {
   ChevronLeft, Check, Trash2, Type, Heading as HeadingIcon, List as ListIcon, Quote as QuoteIcon,
   Megaphone, Link2, Image as ImageIcon, Video as VideoIcon, Mic, Play, ChevronUp, ChevronDown, X,
-  Pencil,
+  Pencil, MoreHorizontal, RotateCw,
 } from 'lucide-react-native';
 import { EDA, EDD, MonoLabel } from '@/src/ui/editorial';
 import { ShareChip } from '@/src/journal/ShareChip';
+import { AnchoredMenu, useAnchoredMenu } from '@/src/ui/AnchoredMenu';
 import { usePractitionerFace } from '@/src/care/practitioner-face';
 import { createJournal, deleteJournal, getJournal, shareJournal, updateJournal } from '@/src/api/journal';
 import { newBlock, serializeForSave, entryIsEmpty, isMedia, type BlockType, type JournalBlock } from '@/src/journal/blocks';
@@ -30,7 +31,8 @@ type Status = 'idle' | 'saving' | 'saved';
 
 const T = {
   en: {
-    saving: 'Saving…', saved: 'Saved', titlePlaceholder: 'Title', words: 'words',
+    saving: 'Saving…', saved: 'Saved {time}', titlePlaceholder: 'Title', words: 'words',
+    moveUp: 'Move up', moveDown: 'Move down', retry: 'Try again',
     confirmWeb: 'Delete this entry?', deleteTitle: 'Delete entry', deleteMessage: 'This can’t be undone.', cancel: 'Cancel', delete: 'Delete',
     text: 'Text', heading: 'Heading', list: 'List', quote: 'Quote', callout: 'Callout', video: 'Video', link: 'Link', image: 'Image', voice: 'Voice',
     writePlaceholder: 'Start writing…', headingPlaceholder: 'Heading', quotePlaceholder: 'Quote', calloutPlaceholder: 'Callout', itemPlaceholder: 'List item',
@@ -40,7 +42,8 @@ const T = {
     onlyYou: 'Only you can read this.', stopSharing: 'Stop sharing', shareWith: 'Share with {name}',
   },
   fr: {
-    saving: 'Enregistrement…', saved: 'Enregistré', titlePlaceholder: 'Titre', words: 'mots',
+    saving: 'Enregistrement…', saved: 'Enregistré à {time}', titlePlaceholder: 'Titre', words: 'mots',
+    moveUp: 'Monter', moveDown: 'Descendre', retry: 'Réessayer',
     confirmWeb: 'Supprimer cette entrée ?', deleteTitle: 'Supprimer l’entrée', deleteMessage: 'Cette action est irréversible.', cancel: 'Annuler', delete: 'Supprimer',
     text: 'Texte', heading: 'Titre', list: 'Liste', quote: 'Citation', callout: 'Encart', video: 'Vidéo', link: 'Lien', image: 'Image', voice: 'Vocal',
     writePlaceholder: 'Commencez à écrire…', headingPlaceholder: 'Titre', quotePlaceholder: 'Citation', calloutPlaceholder: 'Encart', itemPlaceholder: 'Élément',
@@ -64,6 +67,9 @@ export default function JournalEntry() {
   const [title, setTitle] = useState('');
   const [blocks, setBlocks] = useState<JournalBlock[]>([{ ...newBlock('text') }]);
   const [status, setStatus] = useState<Status>('idle');
+  // "Saved" alone says nothing you did not already assume. The clock time says
+  // which version is safe, which is the thing anyone actually wants to know.
+  const [savedAtLabel, setSavedAtLabel] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(typeof paramId === 'string' ? paramId : null);
@@ -73,10 +79,13 @@ export default function JournalEntry() {
   // the honest answer rather than a guess.
   const [writtenAt, setWrittenAt] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
-  const [chipOpen, setChipOpen] = useState(false);
   // Existing entries open READ-ONLY (tap Edit to change); new ones open in edit.
   const [mode, setMode] = useState<'read' | 'edit'>(typeof paramId === 'string' ? 'read' : 'edit');
 
+  // How to redo a failed upload, kept per block. The picked asset never reaches
+  // the block model — only the finished storage key does — so without this a
+  // failure could only ever be reported, never undone.
+  const redo = useRef(new Map<string, () => Promise<void>>());
   const idRef = useRef<string | null>(typeof paramId === 'string' ? paramId : null);
   const latest = useRef({ title: '', blocks: [] as JournalBlock[] });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -120,7 +129,10 @@ export default function JournalEntry() {
       const created = await createJournal(payload);
       if (created) { idRef.current = created.id; if (mounted.current) setSavedId(created.id); }
     }
-    if (mounted.current) setStatus('saved');
+    if (mounted.current) {
+      setSavedAtLabel(new Date().toLocaleTimeString(locale === 'fr' ? 'fr-FR' : 'en-GB', { hour: '2-digit', minute: '2-digit' }));
+      setStatus('saved');
+    }
   };
 
   // No confirmation sheet in either direction: opening the chip's menu IS the
@@ -181,7 +193,8 @@ export default function JournalEntry() {
 
   // --- block ops -------------------------------------------------------------
   const patch = (id: string, p: Partial<JournalBlock>) => setBlocksAndSave((prev) => prev.map((b) => (b.id === id ? { ...b, ...p } : b)));
-  const removeBlock = (id: string) => setBlocksAndSave((prev) => { const n = prev.filter((b) => b.id !== id); return n.length ? n : [{ ...newBlock('text') }]; });
+  const removeBlock = (id: string) => setBlocksAndSave((prev) => {
+    redo.current.delete(id); const n = prev.filter((b) => b.id !== id); return n.length ? n : [{ ...newBlock('text') }]; });
   const move = (id: string, dir: -1 | 1) => setBlocksAndSave((prev) => {
     const i = prev.findIndex((b) => b.id === id); const j = i + dir;
     if (i < 0 || j < 0 || j >= prev.length) return prev;
@@ -189,15 +202,24 @@ export default function JournalEntry() {
   });
   const addText = (type: BlockType) => setBlocksAndSave((prev) => [...prev, newBlock(type)]);
 
+  /** Run an upload for a block, remembering how to run it again if it fails. */
+  const attach = async (blockId: string, send: () => Promise<Partial<JournalBlock> | null>) => {
+    const run = async () => {
+      patch(blockId, { uploading: true, failed: false });
+      const up = await send().catch(() => null);
+      if (up) { redo.current.delete(blockId); patch(blockId, { ...up, uploading: false, failed: false }); }
+      else { redo.current.set(blockId, run); patch(blockId, { uploading: false, failed: true }); }
+    };
+    await run();
+  };
+
   const addImage = async () => {
     setError(null);
     const picked = await pickImage().catch(() => null);
     if (!picked) return;
     const b = newBlock('image'); b.localUri = picked.uri; b.width = picked.width; b.height = picked.height;
     setBlocksAndSave((prev) => [...prev, b]);
-    const up = await uploadImage(picked).catch(() => null);
-    if (up) patch(b.id, { ...up, uploading: false });
-    else patch(b.id, { uploading: false, failed: true });
+    await attach(b.id, () => uploadImage(picked));
   };
   const addVideo = async () => {
     setError(null);
@@ -205,9 +227,7 @@ export default function JournalEntry() {
     if (!picked) return;
     const b = newBlock('video'); b.localUri = picked.thumbUri ?? picked.uri; b.durationSeconds = picked.durationSeconds;
     setBlocksAndSave((prev) => [...prev, b]);
-    const up = await uploadVideo(picked).catch(() => null);
-    if (up) patch(b.id, { ...up, uploading: false });
-    else patch(b.id, { uploading: false, failed: true });
+    await attach(b.id, () => uploadVideo(picked));
   };
   const startVoice = async () => {
     setError(null);
@@ -227,9 +247,7 @@ export default function JournalEntry() {
       const mime = Platform.OS === 'web' ? 'audio/webm' : 'audio/mp4';
       const b = newBlock('voice'); b.localUri = uri; b.durationSeconds = seconds;
       setBlocksAndSave((prev) => [...prev, b]);
-      const up = await uploadVoice(uri, mime, seconds).catch(() => null);
-      if (up) patch(b.id, { ...up, uploading: false });
-      else patch(b.id, { uploading: false, failed: true });
+      await attach(b.id, () => uploadVoice(uri, mime, seconds));
     } catch { setError(tr.uploadFailed); }
   };
 
@@ -265,14 +283,13 @@ export default function JournalEntry() {
           <TouchableOpacity onPress={back} activeOpacity={0.7} style={darkCircleBtn}><ChevronLeft size={18} color="#fff" strokeWidth={2} /></TouchableOpacity>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             {mode === 'edit' && status === 'saved' && <Check size={13} color={EDD.green} strokeWidth={2.5} />}
-            {mode === 'edit' && status !== 'idle' ? <MonoLabel color={EDD.faint} size={9.5}>{status === 'saving' ? tr.saving : tr.saved}</MonoLabel> : null}
+            {mode === 'edit' && status !== 'idle' ? <MonoLabel color={EDD.faint} size={9.5}>{status === 'saving' ? tr.saving : tr.saved.replace('{time}', savedAtLabel)}</MonoLabel> : null}
           </View>
           <View style={{ flex: 1 }} />
           {savedId && !entryIsEmpty(title, blocks) && (
             <ShareChip
               shared={shared} sharedAt={sharedAt} busy={sharing} face={face} locale={locale}
               copy={{ canRead: tr.canRead, private: tr.private, sharedOn: tr.sharedOn, onlyYou: tr.onlyYou, stopSharing: tr.stopSharing, shareWith: tr.shareWith }}
-              open={chipOpen} onOpen={() => setChipOpen(true)} onClose={() => setChipOpen(false)}
               onToggle={toggleShare}
             />
           )}
@@ -300,7 +317,8 @@ export default function JournalEntry() {
             />
             {blocks.map((b, i) => (
               <BlockRow key={b.id} block={b} tr={tr} first={i === 0} last={i === blocks.length - 1}
-                onPatch={(p) => patch(b.id, p)} onRemove={() => removeBlock(b.id)} onUp={() => move(b.id, -1)} onDown={() => move(b.id, 1)} />
+                onPatch={(p) => patch(b.id, p)} onRemove={() => removeBlock(b.id)} onUp={() => move(b.id, -1)} onDown={() => move(b.id, 1)}
+                onRetry={redo.current.get(b.id)} />
             ))}
             {error && <Text style={{ color: '#DC2626', fontSize: 13, marginTop: 8, paddingHorizontal: 4 }}>{error}</Text>}
           </ScrollView>
@@ -395,10 +413,12 @@ function ReadBlock({ block: b, tr }: { block: JournalBlock; tr: Tr }) {
   }
 }
 
-function BlockRow({ block: b, tr, first, last, onPatch, onRemove, onUp, onDown }: {
+function BlockRow({ block: b, tr, first, last, onPatch, onRemove, onUp, onDown, onRetry }: {
   block: JournalBlock; tr: Tr; first: boolean; last: boolean;
   onPatch: (p: Partial<JournalBlock>) => void; onRemove: () => void; onUp: () => void; onDown: () => void;
+  onRetry?: () => Promise<void>;
 }) {
+  const menu = useAnchoredMenu();
   // Multiline text grows to fit its content (fixes the tiny fixed-height box +
   // horizontal overflow on web); single-line inputs stay plain.
   const input = (extra: object, value: string, onChange: (v: string) => void, placeholder: string, multiline = true) =>
@@ -451,14 +471,28 @@ function BlockRow({ block: b, tr, first, last, onPatch, onRemove, onUp, onDown }
   );
   else if (isMedia(b.type)) content = <MediaBlock block={b} tr={tr} />;
 
+  // Up, down and delete used to sit under EVERY block, so a page of writing
+  // read as a stack of controls. One quiet handle carries all three instead,
+  // and a failed upload puts its way out at the top of the same menu.
+  const actions = [
+    ...(onRetry ? [{ key: 'retry', label: tr.retry, color: EDA.green, Icon: RotateCw, onPress: () => { void onRetry(); } }] : []),
+    { key: 'up', label: tr.moveUp, Icon: ChevronUp, disabled: first, onPress: onUp },
+    { key: 'down', label: tr.moveDown, Icon: ChevronDown, disabled: last, onPress: onDown },
+    { key: 'del', label: tr.delete, color: '#B4443A', Icon: Trash2, onPress: onRemove },
+  ];
+
   return (
-    <View style={{ marginBottom: 14 }}>
-      {content}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 4, opacity: 0.55 }}>
-        <TouchableOpacity onPress={onUp} disabled={first} hitSlop={6} style={{ padding: 4, opacity: first ? 0.3 : 1 }}><ChevronUp size={15} color={EDA.faint} /></TouchableOpacity>
-        <TouchableOpacity onPress={onDown} disabled={last} hitSlop={6} style={{ padding: 4, opacity: last ? 0.3 : 1 }}><ChevronDown size={15} color={EDA.faint} /></TouchableOpacity>
-        <TouchableOpacity onPress={onRemove} hitSlop={6} style={{ padding: 4, marginLeft: 'auto' }}><Trash2 size={14} color={EDA.faint} /></TouchableOpacity>
-      </View>
+    <View style={{ marginBottom: 16, flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+      <View style={{ flex: 1 }}>{content}</View>
+      <TouchableOpacity
+        ref={menu.ref}
+        onPress={menu.show}
+        hitSlop={8}
+        style={{ width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginTop: 2 }}
+      >
+        <MoreHorizontal size={15} color={b.failed ? '#B4443A' : EDA.faint} strokeWidth={2} />
+      </TouchableOpacity>
+      <AnchoredMenu open={menu.open} anchor={menu.anchor} onClose={menu.hide} actions={actions} />
     </View>
   );
 }

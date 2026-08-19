@@ -9,14 +9,13 @@
 // control has already answered "are you sure"; asking twice is a question about
 // a question. Stopping is red because it is the only destructive thing here,
 // but it sits behind a tap rather than under the words.
-import { useRef, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 import { ChevronDown, EyeOff, Send } from 'lucide-react-native';
 import { EDA } from '@/src/ui/editorial';
+import { AnchoredMenu, useAnchoredMenu } from '@/src/ui/AnchoredMenu';
 import { initialOf, type PractitionerFace } from '@/src/care/practitioner-face';
 
 const RED = '#B4443A';
-const MENU_W = 210;
 
 export interface ShareChipCopy {
   canRead: string;   // "{name} can read this"
@@ -28,7 +27,7 @@ export interface ShareChipCopy {
 }
 
 export function ShareChip({
-  shared, sharedAt, busy, face, copy, locale, open, onOpen, onClose, onToggle,
+  shared, sharedAt, busy, face, copy, locale, onToggle,
 }: {
   shared: boolean;
   sharedAt: string | null;
@@ -36,37 +35,18 @@ export function ShareChip({
   face: PractitionerFace | null;
   copy: ShareChipCopy;
   locale: 'en' | 'fr';
-  open: boolean;
-  onOpen: () => void;
-  onClose: () => void;
   onToggle: (next: boolean) => void;
 }) {
   const name = (face?.name ?? '').replace(/^dr\.?\s*/i, '').trim();
   const label = shared ? copy.canRead.replace('{name}', name || copy.private) : copy.private;
 
-  // A Modal renders against the WINDOW, not against this chip — on the web
-  // build, where the app sits in a centred phone-width frame, a menu positioned
-  // from the window edge lands outside the phone entirely. Measure the chip and
-  // hang the menu off it, which is also what it should do on a tablet.
-  const chip = useRef<View>(null);
-  const { width: screenW } = useWindowDimensions();
-  const [anchor, setAnchor] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
-
-  const openAtChip = () => {
-    chip.current?.measureInWindow((x, y, w, h) => setAnchor({ x, y, w, h }));
-    onOpen();
-  };
-
-  const left = anchor
-    ? Math.max(8, Math.min(anchor.x + anchor.w - MENU_W, screenW - MENU_W - 8))
-    : Math.max(8, screenW - MENU_W - 18);
-  const top = anchor ? anchor.y + anchor.h + 8 : 92;
+  const menu = useAnchoredMenu();
 
   return (
     <>
       <Pressable
-        ref={chip}
-        onPress={openAtChip}
+        ref={menu.ref}
+        onPress={menu.show}
         disabled={busy}
         style={{
           flexDirection: 'row', alignItems: 'center', gap: 6, height: 30, borderRadius: 15,
@@ -85,25 +65,17 @@ export function ShareChip({
         <ChevronDown size={11} color={shared ? EDA.greenDeep : 'rgba(255,255,255,0.55)'} strokeWidth={2.6} />
       </Pressable>
 
-      <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
-        <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(22,24,20,0.2)' }} />
-        <View style={{ position: 'absolute', top, left, width: MENU_W, backgroundColor: '#fff', borderWidth: 1, borderColor: EDA.line, borderRadius: 16, overflow: 'hidden' }}>
-          <Text style={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 10, fontSize: 11.5, color: EDA.faint, borderBottomWidth: 1, borderBottomColor: '#F1EFEA' }}>
-            {shared ? copy.sharedOn.replace('{date}', longDate(sharedAt, locale)) : copy.onlyYou}
-          </Text>
-          <Pressable
-            onPress={() => { onClose(); onToggle(!shared); }}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 14, paddingVertical: 13 }}
-          >
-            {shared
-              ? <EyeOff size={15} color={RED} strokeWidth={1.9} />
-              : <Send size={15} color={EDA.green} strokeWidth={1.9} />}
-            <Text style={{ flex: 1, fontSize: 13.5, fontWeight: '700', color: shared ? RED : EDA.green }}>
-              {shared ? copy.stopSharing : copy.shareWith.replace('{name}', name || '')}
-            </Text>
-          </Pressable>
-        </View>
-      </Modal>
+      <AnchoredMenu
+        open={menu.open}
+        anchor={menu.anchor}
+        onClose={menu.hide}
+        note={shared ? copy.sharedOn.replace('{date}', longDate(sharedAt, locale)) : copy.onlyYou}
+        actions={[
+          shared
+            ? { key: 'stop', label: copy.stopSharing, color: RED, Icon: EyeOff, onPress: () => onToggle(false) }
+            : { key: 'share', label: copy.shareWith.replace('{name}', name || ''), color: EDA.green, Icon: Send, onPress: () => onToggle(true) },
+        ]}
+      />
     </>
   );
 }
