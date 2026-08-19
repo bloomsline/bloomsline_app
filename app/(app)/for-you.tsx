@@ -1,18 +1,23 @@
-// For You — Flow E "Space for you" landing (screen e0), from the V2 cloud design.
-// Two self-guided spaces: a private Journal, and Small activities (the Library of
-// practitioner-made practices, always open, never assigned). Hybrid editorial re-skin.
+// For You — v2. The same two doors as before (the journal, and practices that
+// are always open and never assigned), rebuilt on the dark ground so the three
+// tabs a patient lives in look like one app.
+//
+// Content is deliberately unchanged: this screen is not on the design board, so
+// restyling it is a faithful move and redesigning it would be an invented one.
 import { useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
-import { PenLine, Sprout, Settings } from 'lucide-react-native';
+import { PenLine, Sprout, Settings, ChevronRight, type LucideIcon } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
 import { TabIntro } from '@/src/ui/TabIntro';
-import { EDA, EdHeader, EdCard, EdPill, FadeIn } from '@/src/ui/editorial';
+import { EDD, FadeIn, MonoLabel } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 
 const T = {
   en: {
+    kicker: 'For you',
     title: 'Space for you',
     subtitle: 'Take what helps, whenever it suits you.',
     journal: 'Journal',
@@ -23,6 +28,7 @@ const T = {
     browse: 'Browse activities',
   },
   fr: {
+    kicker: 'Pour vous',
     title: 'Un espace pour vous',
     subtitle: 'Prenez ce qui vous fait du bien, quand cela vous convient.',
     journal: 'Journal',
@@ -39,40 +45,83 @@ export default function ForYou() {
   const { locale } = useI18n();
   const tr = T[locale];
   const [introActive, setIntroActive] = useState(false);
-  const dim = { opacity: introActive ? 0.3 : 1 } as const;
+
   return (
-    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
-      <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={{ paddingBottom: 180 }} showsVerticalScrollIndicator={false}>
-        <EdHeader kicker="FOR YOU" title={tr.title} subtitle={tr.subtitle} rightIcon={Settings} onRight={() => router.navigate('/settings' as never)} />
-        <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
-          <TabIntro tabKey="foryou" onActiveChange={setIntroActive} />
-
-          <View style={dim} pointerEvents={introActive ? 'none' : 'auto'}>
-            {/* Journal */}
-            <EdCard style={{ padding: 22, marginBottom: 14 }}>
-              <View style={{ width: 52, height: 52, borderRadius: 15, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                <PenLine size={23} color={EDA.green} strokeWidth={2} />
-              </View>
-              <Text style={{ fontSize: 19, fontWeight: '800', color: EDA.ink, letterSpacing: -0.3, marginBottom: 6 }}>{tr.journal}</Text>
-              <Text style={{ fontSize: 13.5, color: EDA.inkSoft, lineHeight: 21, marginBottom: 18 }}>{tr.journalDesc}</Text>
-              <EdPill label={tr.openJournal} variant="green" onPress={() => router.navigate('/journal' as never)} />
-            </EdCard>
-
-            {/* Small activities */}
-            <EdCard style={{ padding: 22 }}>
-              <View style={{ width: 52, height: 52, borderRadius: 15, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                <Sprout size={23} color={EDA.green} strokeWidth={2} />
-              </View>
-              <Text style={{ fontSize: 19, fontWeight: '800', color: EDA.ink, letterSpacing: -0.3, marginBottom: 6 }}>{tr.activities}</Text>
-              <Text style={{ fontSize: 13.5, color: EDA.inkSoft, lineHeight: 21, marginBottom: 18 }}>{tr.activitiesDesc}</Text>
-              <EdPill label={tr.browse} variant="outline" onPress={() => router.navigate('/library' as never)} />
-            </EdCard>
+    <View style={{ flex: 1, backgroundColor: EDD.ground }}>
+      <StatusBar style="light" />
+      <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+        <View style={{ paddingHorizontal: 22, paddingTop: 8, paddingBottom: 18, flexDirection: 'row', alignItems: 'flex-start' }}>
+          <View style={{ flex: 1 }}>
+            <MonoLabel color={EDD.faint} size={10.5} style={{ marginBottom: 10 }}>{tr.kicker}</MonoLabel>
+            <Text style={{ fontSize: 27, fontWeight: '800', color: EDD.text, letterSpacing: -0.9, lineHeight: 31 }}>{tr.title}</Text>
+            <Text style={{ marginTop: 8, fontSize: 14, color: EDD.textSoft, lineHeight: 21 }}>{tr.subtitle}</Text>
           </View>
-        </FadeIn>
-      </ScrollView>
+          <TouchableOpacity
+            onPress={() => router.navigate('/settings' as never)}
+            activeOpacity={0.8}
+            style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: EDD.card, borderWidth: 1, borderColor: EDD.cardLine, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Settings size={17} color={EDD.textSoft} strokeWidth={2} />
+          </TouchableOpacity>
+        </View>
 
-      <TabBar active="foryou" />
+        <ScrollView contentContainerStyle={{ paddingBottom: 170 }} showsVerticalScrollIndicator={false}>
+          <View style={{ paddingHorizontal: 22 }}>
+            <TabIntro tabKey="foryou" tone="dark" onActiveChange={setIntroActive} />
+          </View>
+
+          <FadeIn style={{ paddingHorizontal: 22, opacity: introActive ? 0.3 : 1 }}>
+            <View pointerEvents={introActive ? 'none' : 'auto'} style={{ gap: 12 }}>
+              <DoorCard
+                Icon={PenLine}
+                title={tr.journal}
+                body={tr.journalDesc}
+                action={tr.openJournal}
+                onPress={() => router.navigate('/journal' as never)}
+              />
+              <DoorCard
+                Icon={Sprout}
+                title={tr.activities}
+                body={tr.activitiesDesc}
+                action={tr.browse}
+                onPress={() => router.navigate('/library' as never)}
+              />
+            </View>
+          </FadeIn>
+        </ScrollView>
+      </SafeAreaView>
+
+      <TabBar active="foryou" tone="dark" />
     </View>
+  );
+}
+
+/** One of the two places this tab opens onto. The whole card is the target — a
+ *  button inside a tappable card gives two hit areas for one destination. */
+function DoorCard({
+  Icon, title, body, action, onPress,
+}: {
+  Icon: LucideIcon;
+  title: string;
+  body: string;
+  action: string;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.85}
+      style={{ backgroundColor: EDD.card, borderWidth: 1, borderColor: EDD.cardLine, borderRadius: 20, padding: 20 }}
+    >
+      <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: 'rgba(127,217,192,0.14)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+        <Icon size={21} color={EDD.green} strokeWidth={2} />
+      </View>
+      <Text style={{ fontSize: 18, fontWeight: '800', color: EDD.text, letterSpacing: -0.3, marginBottom: 6 }}>{title}</Text>
+      <Text style={{ fontSize: 13.5, color: EDD.textSoft, lineHeight: 21 }}>{body}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 16 }}>
+        <Text style={{ fontSize: 14, fontWeight: '700', color: EDD.green }}>{action}</Text>
+        <ChevronRight size={16} color={EDD.green} strokeWidth={2.2} />
+      </View>
+    </TouchableOpacity>
   );
 }
