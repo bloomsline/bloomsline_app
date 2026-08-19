@@ -3,13 +3,17 @@ import { Animated, Pressable, Text, View } from 'react-native';
 import { Check } from 'lucide-react-native';
 import { storageGet, storageSet } from '@/src/storage';
 import { useI18n } from '@/src/i18n';
+import { EDD } from '@/src/ui/editorial';
 
 type TabKey = 'care' | 'moments' | 'foryou';
 
-// First-visit explainer for a tab. An INLINE mint card at the top of the tab
-// content (not a popup) that gently fades in, shown once per tab and remembered
-// via storage. Dismissed with "Got it".
-export function TabIntro({ tabKey, onActiveChange }: { tabKey: TabKey; onActiveChange?: (active: boolean) => void }) {
+// First-visit explainer for a tab. An INLINE card at the top of the tab content
+// (not a popup) that gently fades in, shown once per tab and remembered via
+// storage. Dismissed with "Got it".
+//
+// `tone` follows the tab it sits on: a mint card reads as a highlight on the
+// light tabs and as a hole punched in the page on the dark ones.
+export function TabIntro({ tabKey, tone = 'light', onActiveChange }: { tabKey: TabKey; tone?: 'light' | 'dark'; onActiveChange?: (active: boolean) => void }) {
   const { t } = useI18n();
   const [show, setShow] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
@@ -41,6 +45,7 @@ export function TabIntro({ tabKey, onActiveChange }: { tabKey: TabKey; onActiveC
 
   if (!show) return null;
   const copy = t.tabIntro[tabKey];
+  const dark = tone === 'dark';
 
   return (
     <Animated.View
@@ -50,18 +55,33 @@ export function TabIntro({ tabKey, onActiveChange }: { tabKey: TabKey; onActiveC
         marginBottom: 16,
       }}
     >
-      <View className="rounded-2xl bg-brand-tint p-4">
-        <View className="flex-row gap-2.5">
-          <Check size={18} color="#2F6E5F" strokeWidth={2.5} style={{ marginTop: 1 }} />
-          <View className="flex-1">
-            <Text className="text-[15px] font-bold text-ink">{copy.title}</Text>
-            <Text className="mt-1 text-[13px] leading-[19px] text-[#57736A]">{copy.body}</Text>
+      {dark ? (
+        <View style={{ borderRadius: 18, padding: 16, backgroundColor: EDD.card, borderWidth: 1, borderColor: EDD.cardLine }}>
+          <View className="flex-row gap-2.5">
+            <Check size={18} color={EDD.green} strokeWidth={2.5} style={{ marginTop: 1 }} />
+            <View className="flex-1">
+              <Text style={{ fontSize: 15, fontWeight: '700', color: EDD.text }}>{copy.title}</Text>
+              <Text style={{ marginTop: 4, fontSize: 13, lineHeight: 19, color: EDD.textSoft }}>{copy.body}</Text>
+            </View>
           </View>
+          <Pressable onPress={dismiss} style={{ marginTop: 14, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: '#fff' }}>
+            <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#141414' }}>{t.tabIntro.gotIt}</Text>
+          </Pressable>
         </View>
-        <Pressable onPress={dismiss} className="mt-3.5 h-[46px] items-center justify-center rounded-full bg-brand">
-          <Text className="text-[15px] font-semibold text-white">{t.tabIntro.gotIt}</Text>
-        </Pressable>
-      </View>
+      ) : (
+        <View className="rounded-2xl bg-brand-tint p-4">
+          <View className="flex-row gap-2.5">
+            <Check size={18} color="#2F6E5F" strokeWidth={2.5} style={{ marginTop: 1 }} />
+            <View className="flex-1">
+              <Text className="text-[15px] font-bold text-ink">{copy.title}</Text>
+              <Text className="mt-1 text-[13px] leading-[19px] text-[#57736A]">{copy.body}</Text>
+            </View>
+          </View>
+          <Pressable onPress={dismiss} className="mt-3.5 h-[46px] items-center justify-center rounded-full bg-brand">
+            <Text className="text-[15px] font-semibold text-white">{t.tabIntro.gotIt}</Text>
+          </Pressable>
+        </View>
+      )}
     </Animated.View>
   );
 }

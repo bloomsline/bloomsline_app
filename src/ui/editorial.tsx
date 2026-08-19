@@ -20,6 +20,26 @@ export const EDA = {
   slot: '#101210', // dark accent
 };
 
+/**
+ * The dark ground v2 uses for the tabs a patient lives in — My Care and Moments
+ * are both drawn dark on the design board. It lives beside EDA rather than
+ * inside one screen so the two cannot drift apart.
+ *
+ * Surfaces are translucent white rather than opaque greys, so they sit correctly
+ * on whatever is behind them — which matters because Moments puts photography
+ * back there.
+ */
+export const EDD = {
+  ground: '#0E1512',
+  card: 'rgba(255,255,255,0.055)',
+  cardLine: 'rgba(255,255,255,0.10)',
+  text: '#FFFFFF',
+  textSoft: 'rgba(255,255,255,0.68)',
+  faint: 'rgba(255,255,255,0.40)',
+  green: '#7FD9C0', // the accent the dark onboarding screens already use
+  amber: '#E9C46A', // "awaiting payment" only — never decorative
+};
+
 const RISE = Easing.bezier(0.16, 0.84, 0.24, 1);
 
 /** Opacity + gentle upward glide on mount — the app's default entrance, and the
