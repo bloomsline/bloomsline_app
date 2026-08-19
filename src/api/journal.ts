@@ -9,6 +9,7 @@ export interface JournalEntry {
   blocks?: JournalBlock[]; // full block content (GET /:id only)
   wordCount: number;
   sharedWithPractitioner?: boolean; // list AND GET /:id — the list marks sent pages
+  sharedWithPractitionerAt?: string | null; // ISO; GET /:id only — names the date on the chip
   createdAt: string; // ISO
   updatedAt: string; // ISO
 }
@@ -61,11 +62,12 @@ export async function deleteJournal(id: string): Promise<boolean> {
   }
 }
 
-/** Share / unshare an entry with the practitioner. Returns the confirmed state;
+/** Share / unshare an entry with the practitioner. Returns the confirmed state
+ *  and the date it was sent, so the chip can name it without a second read;
  *  throws on failure so the caller can revert an optimistic toggle. */
-export async function shareJournal(id: string, shared: boolean): Promise<boolean> {
+export async function shareJournal(id: string, shared: boolean): Promise<{ shared: boolean; sharedAt: string | null }> {
   const res = await apiFetch(`/api/mobile/journal/${id}/share`, { method: 'POST', body: JSON.stringify({ shared }) });
   if (!res.ok) throw new Error(`share failed (${res.status})`);
   const data = await res.json().catch(() => ({}));
-  return data?.shared === true;
+  return { shared: data?.shared === true, sharedAt: typeof data?.sharedAt === 'string' ? data.sharedAt : null };
 }

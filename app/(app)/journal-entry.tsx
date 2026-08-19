@@ -1,8 +1,11 @@
-// e2 — Journal writing, block editor. An entry is an ordered list of blocks
+// A journal page — reading and writing. An entry is an ordered list of blocks
 // (text/heading/list/quote/callout/link + image/video/voice). SAVES AS YOU GO
 // (debounced autosave). New entries are created on first real content; existing
 // ones are patched. Media uploads straight to storage via the journal presign.
-// Private to the patient (sharing is a later phase).
+//
+// The chrome matches the list: a dark bar with no photograph over light paper.
+// Sharing lives in that bar as a chip that names WHO can read the page, rather
+// than as a verb under the writing — see ShareChip for why.
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Linking, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -12,9 +15,11 @@ import { useAudioRecorder, useAudioRecorderState, requestRecordingPermissionsAsy
 import {
   ChevronLeft, Check, Trash2, Type, Heading as HeadingIcon, List as ListIcon, Quote as QuoteIcon,
   Megaphone, Link2, Image as ImageIcon, Video as VideoIcon, Mic, Play, ChevronUp, ChevronDown, X,
-  Send, CircleCheckBig, Pencil,
+  Pencil,
 } from 'lucide-react-native';
-import { EDA, MonoLabel } from '@/src/ui/editorial';
+import { EDA, EDD, MonoLabel } from '@/src/ui/editorial';
+import { ShareChip } from '@/src/journal/ShareChip';
+import { usePractitionerFace } from '@/src/care/practitioner-face';
 import { createJournal, deleteJournal, getJournal, shareJournal, updateJournal } from '@/src/api/journal';
 import { newBlock, serializeForSave, entryIsEmpty, isMedia, type BlockType, type JournalBlock } from '@/src/journal/blocks';
 import { pickImage, pickVideo, uploadImage, uploadVideo, uploadVoice } from '@/src/journal/media';
@@ -30,9 +35,9 @@ const T = {
     text: 'Text', heading: 'Heading', list: 'List', quote: 'Quote', callout: 'Callout', video: 'Video', link: 'Link', image: 'Image', voice: 'Voice',
     writePlaceholder: 'Start writing…', headingPlaceholder: 'Heading', quotePlaceholder: 'Quote', calloutPlaceholder: 'Callout', itemPlaceholder: 'List item',
     addItem: 'Add item', linkUrl: 'https://…', linkLabel: 'Link text (optional)', recording: 'Recording…', stop: 'Stop', tapRecord: 'Tap to record a voice note', uploadFailed: 'Upload failed', mediaUnavailable: 'Media unavailable', micNeeded: 'Microphone access is needed.', voiceNote: 'Voice note',
-    share: 'Share with practitioner', sharedTap: 'Shared · Tap to stop', shareError: 'Could not update sharing. Please try again.',
-    shareConfirmTitle: 'Share entry', shareConfirmBody: 'Share this journal entry with your practitioner? They’ll be able to read it.', shareConfirm: 'Share',
-    stopConfirmTitle: 'Stop sharing', stopConfirmBody: 'Stop sharing this entry? Your practitioner will no longer see it.', stopConfirm: 'Stop sharing',
+    shareError: 'Could not update sharing. Please try again.',
+    canRead: '{name} can read this', private: 'Private', sharedOn: 'Shared {date}',
+    onlyYou: 'Only you can read this.', stopSharing: 'Stop sharing', shareWith: 'Share with {name}',
   },
   fr: {
     saving: 'Enregistrement…', saved: 'Enregistré', titlePlaceholder: 'Titre', words: 'mots',
@@ -40,9 +45,9 @@ const T = {
     text: 'Texte', heading: 'Titre', list: 'Liste', quote: 'Citation', callout: 'Encart', video: 'Vidéo', link: 'Lien', image: 'Image', voice: 'Vocal',
     writePlaceholder: 'Commencez à écrire…', headingPlaceholder: 'Titre', quotePlaceholder: 'Citation', calloutPlaceholder: 'Encart', itemPlaceholder: 'Élément',
     addItem: 'Ajouter', linkUrl: 'https://…', linkLabel: 'Texte du lien (facultatif)', recording: 'Enregistrement…', stop: 'Arrêter', tapRecord: 'Appuyez pour enregistrer un vocal', uploadFailed: 'Échec de l’envoi', mediaUnavailable: 'Média indisponible', micNeeded: 'L’accès au micro est nécessaire.', voiceNote: 'Note vocale',
-    share: 'Partager avec le praticien', sharedTap: 'Partagé · Appuyez pour arrêter', shareError: 'Impossible de mettre à jour le partage. Réessayez.',
-    shareConfirmTitle: 'Partager la note', shareConfirmBody: 'Partager cette note de journal avec votre praticien ? Il pourra la lire.', shareConfirm: 'Partager',
-    stopConfirmTitle: 'Arrêter le partage', stopConfirmBody: 'Arrêter de partager cette note ? Votre praticien ne la verra plus.', stopConfirm: 'Arrêter',
+    shareError: 'Impossible de mettre à jour le partage. Réessayez.',
+    canRead: '{name} peut la lire', private: 'Privé', sharedOn: 'Partagée le {date}',
+    onlyYou: 'Vous seul pouvez la lire.', stopSharing: 'Ne plus partager', shareWith: 'Partager avec {name}',
   },
 } as const;
 
@@ -63,7 +68,12 @@ export default function JournalEntry() {
   const [error, setError] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(typeof paramId === 'string' ? paramId : null);
   const [shared, setShared] = useState(false);
+  const [sharedAt, setSharedAt] = useState<string | null>(null);
+  // The day the page was started. A new page has none yet, and today is then
+  // the honest answer rather than a guess.
+  const [writtenAt, setWrittenAt] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [chipOpen, setChipOpen] = useState(false);
   // Existing entries open READ-ONLY (tap Edit to change); new ones open in edit.
   const [mode, setMode] = useState<'read' | 'edit'>(typeof paramId === 'string' ? 'read' : 'edit');
 
@@ -71,6 +81,8 @@ export default function JournalEntry() {
   const latest = useRef({ title: '', blocks: [] as JournalBlock[] });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mounted = useRef(true);
+
+  const face = usePractitionerFace();
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recState = useAudioRecorderState(recorder);
@@ -86,6 +98,8 @@ export default function JournalEntry() {
           const bs = e.blocks && e.blocks.length ? e.blocks : [{ ...newBlock('text') }];
           setBlocks(bs);
           setShared(e.sharedWithPractitioner ?? false);
+          setSharedAt(e.sharedWithPractitionerAt ?? null);
+          setWrittenAt(e.createdAt ?? null);
           latest.current = { title: e.title ?? '', blocks: bs };
         }
         setLoaded(true);
@@ -109,32 +123,22 @@ export default function JournalEntry() {
     if (mounted.current) setStatus('saved');
   };
 
-  // Sharing sends the entry to the practitioner (or withdraws it) — both
-  // directions confirm first, mirroring the delete + moments-share flows.
-  const toggleShare = async () => {
+  // No confirmation sheet in either direction: opening the chip's menu IS the
+  // deliberate act, and the menu already names the state and the one thing you
+  // can do about it. A sheet on top of that asks a question about a question.
+  const toggleShare = async (next: boolean) => {
     if (!savedId || sharing) return;
-    const next = !shared;
     setSharing(true); setShared(next);
     try {
-      const confirmed = await shareJournal(savedId, next);
-      setShared(confirmed);
+      const res = await shareJournal(savedId, next);
+      setShared(res.shared);
+      setSharedAt(res.sharedAt);
     } catch {
       setShared(!next);
-      if (Platform.OS === 'web') globalThis.alert?.(tr.shareError); else setError(tr.shareError);
+      setError(tr.shareError);
     } finally {
       setSharing(false);
     }
-  };
-  const confirmToggleShare = async () => {
-    if (!savedId || sharing) return;
-    const next = !shared;
-    const ok = await confirm({
-      title: next ? tr.shareConfirmTitle : tr.stopConfirmTitle,
-      message: next ? tr.shareConfirmBody : tr.stopConfirmBody,
-      confirmLabel: next ? tr.shareConfirm : tr.stopConfirm,
-      cancelLabel: tr.cancel,
-    });
-    if (ok) toggleShare();
   };
 
   const schedule = () => {
@@ -229,9 +233,13 @@ export default function JournalEntry() {
     } catch { setError(tr.uploadFailed); }
   };
 
-  const words = latest.current.blocks
+  const words = blocks
     .flatMap((b) => (b.type === 'list' ? (b.items ?? []) : [b.text ?? '']))
     .join(' ').trim().split(/\s+/).filter(Boolean).length;
+
+  // The date and the length, said once at the top of the page instead of in a
+  // footer bar. Both are facts about the page, not controls.
+  const metaLine = `${(writtenAt ? new Date(writtenAt) : new Date()).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long' })} · ${words} ${tr.words}`;
 
   const TOOLS: { type: BlockType; label: string; Icon: typeof Type; onPress: () => void }[] = [
     { type: 'text', label: tr.text, Icon: Type, onPress: () => addText('text') },
@@ -246,27 +254,42 @@ export default function JournalEntry() {
   ];
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: EDA.canvas }}>
-      <StatusBar style="dark" />
+    <View style={{ flex: 1, backgroundColor: EDD.ground }}>
+      <StatusBar style="light" />
+      <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 22, paddingVertical: 12 }}>
-          <TouchableOpacity onPress={back} activeOpacity={0.7} style={circleBtn}><ChevronLeft size={18} color={EDA.ink} strokeWidth={2} /></TouchableOpacity>
+        {/* The bar. Dark and imageless, like the list it came from — and where
+            the share state lives, because a state belongs with the chrome and
+            not under the writing. */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 18, paddingVertical: 12 }}>
+          <TouchableOpacity onPress={back} activeOpacity={0.7} style={darkCircleBtn}><ChevronLeft size={18} color="#fff" strokeWidth={2} /></TouchableOpacity>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            {mode === 'edit' && status === 'saved' && <Check size={13} color={EDA.green} strokeWidth={2.5} />}
-            {mode === 'edit' && status !== 'idle' ? <MonoLabel color={EDA.faint} size={9.5}>{status === 'saving' ? tr.saving : tr.saved}</MonoLabel> : null}
+            {mode === 'edit' && status === 'saved' && <Check size={13} color={EDD.green} strokeWidth={2.5} />}
+            {mode === 'edit' && status !== 'idle' ? <MonoLabel color={EDD.faint} size={9.5}>{status === 'saving' ? tr.saving : tr.saved}</MonoLabel> : null}
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            {mode === 'read' && (
-              <TouchableOpacity onPress={() => setMode('edit')} activeOpacity={0.7} style={circleBtn}><Pencil size={16} color={EDA.ink} strokeWidth={2} /></TouchableOpacity>
-            )}
-            <TouchableOpacity onPress={confirmDelete} activeOpacity={0.7} style={circleBtn}><Trash2 size={16} color={EDA.faint} strokeWidth={2} /></TouchableOpacity>
-          </View>
+          <View style={{ flex: 1 }} />
+          {savedId && !entryIsEmpty(title, blocks) && (
+            <ShareChip
+              shared={shared} sharedAt={sharedAt} busy={sharing} face={face} locale={locale}
+              copy={{ canRead: tr.canRead, private: tr.private, sharedOn: tr.sharedOn, onlyYou: tr.onlyYou, stopSharing: tr.stopSharing, shareWith: tr.shareWith }}
+              open={chipOpen} onOpen={() => setChipOpen(true)} onClose={() => setChipOpen(false)}
+              onToggle={toggleShare}
+            />
+          )}
+          {mode === 'read' && (
+            <TouchableOpacity onPress={() => setMode('edit')} activeOpacity={0.7} style={darkCircleBtn}><Pencil size={16} color="#fff" strokeWidth={2} /></TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={confirmDelete} activeOpacity={0.7} style={darkCircleBtn}><Trash2 size={16} color={EDD.textSoft} strokeWidth={2} /></TouchableOpacity>
         </View>
 
+        {/* The paper. */}
+        <View style={{ flex: 1, backgroundColor: EDA.canvas, borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden' }}>
+
         {loaded && (mode === 'read' ? (
-          <ReadView title={title} blocks={blocks} tr={tr} />
+          <ReadView title={title} blocks={blocks} tr={tr} meta={metaLine} />
         ) : (
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <Text style={{ fontSize: 11.5, color: EDA.faint, marginBottom: 8, paddingHorizontal: 4 }}>{metaLine}</Text>
             <TextInput
               value={title}
               onChangeText={onTitle}
@@ -307,24 +330,15 @@ export default function JournalEntry() {
           </View>
         ))}
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 8, gap: 12 }}>
-          {savedId && !entryIsEmpty(title, blocks) && (
-            <TouchableOpacity onPress={confirmToggleShare} disabled={sharing} activeOpacity={0.85}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: shared ? EDA.greenTint : EDA.green, borderWidth: shared ? 1 : 0, borderColor: EDA.line }}>
-              {sharing ? <ActivityIndicator size="small" color={shared ? EDA.green : '#fff'} />
-                : shared ? <CircleCheckBig size={15} color={EDA.green} strokeWidth={2} />
-                : <Send size={14} color="#fff" strokeWidth={2} />}
-              <Text style={{ fontSize: 12.5, fontWeight: '700', color: shared ? EDA.green : '#fff' }}>{shared ? tr.sharedTap : tr.share}</Text>
-            </TouchableOpacity>
-          )}
-          <View style={{ marginLeft: 'auto' }}><MonoLabel color={EDA.faint}>{words} {tr.words}</MonoLabel></View>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
-const circleBtn = { width: 38, height: 38, borderRadius: 19, backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, alignItems: 'center', justifyContent: 'center' } as const;
+const darkCircleBtn = { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' } as const;
+
 
 type Tr = { [K in keyof (typeof T)['en']]: string };
 
@@ -344,9 +358,10 @@ function AutoGrowInput({ value, onChange, placeholder, style }: { value: string;
 
 // Read-only rendering of an entry — the readable "journal" view (tap Edit to
 // change). Plain Text flows and wraps naturally, so nothing is clipped.
-function ReadView({ title, blocks, tr }: { title: string; blocks: JournalBlock[]; tr: Tr }) {
+function ReadView({ title, blocks, tr, meta }: { title: string; blocks: JournalBlock[]; tr: Tr; meta: string }) {
   return (
-    <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 12, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+    <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <Text style={{ fontSize: 11.5, color: EDA.faint, marginBottom: 8 }}>{meta}</Text>
       {title.trim() ? <Text style={{ fontSize: 24, fontWeight: '800', color: EDA.ink, letterSpacing: -0.4, marginBottom: 18 }}>{title}</Text> : null}
       <View style={{ gap: 16 }}>{blocks.map((b) => <ReadBlock key={b.id} block={b} tr={tr} />)}</View>
     </ScrollView>
