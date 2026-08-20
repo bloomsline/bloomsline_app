@@ -15,11 +15,12 @@ import { useAudioRecorder, useAudioRecorderState, requestRecordingPermissionsAsy
 import {
   ChevronLeft, Check, Trash2, Type, Heading as HeadingIcon, List as ListIcon, Quote as QuoteIcon,
   Megaphone, Link2, Image as ImageIcon, Video as VideoIcon, Mic, Play, ChevronUp, ChevronDown, X,
-  Pencil, MoreHorizontal, RotateCw,
+  Pencil, MoreHorizontal, RotateCw, GripVertical,
 } from 'lucide-react-native';
 import { EDA, EDD, MonoLabel } from '@/src/ui/editorial';
 import { ShareChip } from '@/src/journal/ShareChip';
 import { AnchoredMenu, useAnchoredMenu } from '@/src/ui/AnchoredMenu';
+import { useBlockDrag } from '@/src/journal/useBlockDrag';
 import { usePractitionerFace } from '@/src/care/practitioner-face';
 import { createJournal, deleteJournal, getJournal, shareJournal, updateJournal } from '@/src/api/journal';
 import { newBlock, serializeForSave, entryIsEmpty, isMedia, type BlockType, type JournalBlock } from '@/src/journal/blocks';
@@ -201,6 +202,13 @@ export default function JournalEntry() {
     const n = [...prev]; [n[i], n[j]] = [n[j], n[i]]; return n;
   });
   const addText = (type: BlockType) => setBlocksAndSave((prev) => [...prev, newBlock(type)]);
+  const reorder = (from: number, to: number) => setBlocksAndSave((prev) => {
+    const n = [...prev];
+    n.splice(to, 0, ...n.splice(from, 1));
+    return n;
+  });
+
+  const drag = useBlockDrag(blocks.length, reorder);
 
   /** Run an upload for a block, remembering how to run it again if it fails. */
   const attach = async (blockId: string, send: () => Promise<Partial<JournalBlock> | null>) => {
@@ -305,7 +313,12 @@ export default function JournalEntry() {
         {loaded && (mode === 'read' ? (
           <ReadView title={title} blocks={blocks} tr={tr} meta={metaLine} />
         ) : (
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <ScrollView
+            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32 }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            scrollEnabled={!drag.dragging}
+          >
             <Text style={{ fontSize: 11.5, color: EDA.faint, marginBottom: 8, paddingHorizontal: 4 }}>{metaLine}</Text>
             <TextInput
               value={title}
@@ -318,7 +331,11 @@ export default function JournalEntry() {
             {blocks.map((b, i) => (
               <BlockRow key={b.id} block={b} tr={tr} first={i === 0} last={i === blocks.length - 1}
                 onPatch={(p) => patch(b.id, p)} onRemove={() => removeBlock(b.id)} onUp={() => move(b.id, -1)} onDown={() => move(b.id, 1)}
-                onRetry={redo.current.get(b.id)} />
+                onRetry={redo.current.get(b.id)}
+                onMeasure={(h) => drag.measure(i, h)}
+                gripHandlers={drag.gripHandlers(i)}
+                shift={drag.shiftOf(i)}
+                lifted={drag.draggingIndex === i} />
             ))}
             {error && <Text style={{ color: '#DC2626', fontSize: 13, marginTop: 8, paddingHorizontal: 4 }}>{error}</Text>}
           </ScrollView>
@@ -413,10 +430,14 @@ function ReadBlock({ block: b, tr }: { block: JournalBlock; tr: Tr }) {
   }
 }
 
-function BlockRow({ block: b, tr, first, last, onPatch, onRemove, onUp, onDown, onRetry }: {
+function BlockRow({ block: b, tr, first, last, onPatch, onRemove, onUp, onDown, onRetry, onMeasure, gripHandlers, shift, lifted }: {
   block: JournalBlock; tr: Tr; first: boolean; last: boolean;
   onPatch: (p: Partial<JournalBlock>) => void; onRemove: () => void; onUp: () => void; onDown: () => void;
   onRetry?: () => Promise<void>;
+  onMeasure: (height: number) => void;
+  gripHandlers: object;
+  shift: number;
+  lifted: boolean;
 }) {
   const menu = useAnchoredMenu();
   // Multiline text grows to fit its content (fixes the tiny fixed-height box +
@@ -482,13 +503,34 @@ function BlockRow({ block: b, tr, first, last, onPatch, onRemove, onUp, onDown, 
   ];
 
   return (
-    <View style={{ marginBottom: 16, flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+    <View
+      onLayout={(e) => onMeasure(e.nativeEvent.layout.height)}
+      style={{
+        marginBottom: 16, flexDirection: 'row', alignItems: 'flex-start', gap: 4,
+        transform: [{ translateY: shift }],
+        // The dragged row rides above the rest and casts a shadow, so it reads
+        // as picked up rather than as the page having gone wrong.
+        zIndex: lifted ? 10 : 0,
+        ...(lifted
+          ? { backgroundColor: EDA.card, borderRadius: 12, shadowColor: '#000', shadowOpacity: 0.16, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 }
+          : null),
+      }}
+    >
       <View style={{ flex: 1 }}>{content}</View>
+      {/* Grip and menu: one thing to move the block with, one for everything
+          else. The menu keeps Move up / Move down, which is the way through for
+          anyone not dragging. */}
+      <View
+        {...gripHandlers}
+        style={[{ width: 24, height: 30, alignItems: 'center', justifyContent: 'center', marginTop: 2 }, { userSelect: 'none', cursor: 'grab' } as never]}
+      >
+        <GripVertical size={15} color={lifted ? EDA.green : EDA.faint} strokeWidth={2} />
+      </View>
       <TouchableOpacity
         ref={menu.ref}
         onPress={menu.show}
         hitSlop={8}
-        style={{ width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center', marginTop: 2 }}
+        style={{ width: 24, height: 30, alignItems: 'center', justifyContent: 'center', marginTop: 2 }}
       >
         <MoreHorizontal size={15} color={b.failed ? '#B4443A' : EDA.faint} strokeWidth={2} />
       </TouchableOpacity>
