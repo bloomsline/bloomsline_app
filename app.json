@@ -36,7 +36,20 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Bloomsline uses the microphone so you can record a voice note in a moment or a journal page."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Bloomsline needs your photos so you can add one to a moment or a journal page.",
+          "cameraPermission": "Bloomsline needs the camera so you can take a photo or record a video for a moment."
+        }
+      ]
     ]
   }
 }
