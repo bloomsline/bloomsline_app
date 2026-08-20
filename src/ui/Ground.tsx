@@ -1,51 +1,45 @@
 // The ground the three tabs stand on.
 //
-// It was a flat #0E1512, which is a colour rather than a room: nothing to catch
-// the eye, and every card on top of it sat at exactly the same depth. This is
-// the same near-black with light in it — a warm bloom high on the screen, a cool
-// one low, and the edges falling away — so the surface has somewhere to be
-// brightest and the cards read as lying ON something.
+// A warm bloom sitting high and centred, over a base that darkens toward the
+// foot of the screen — the light lands behind the greeting rather than behind
+// the cards. The colours are not invented: they are sampled from the design,
+// so the peak is its (51,42,33) against (24,28,26) at the top corners.
 //
-// Drawn as one static SVG rather than stacked translucent views: gradients in
-// views cost a layer each and would sit between the content and the touch
-// handling. This is a single non-interactive layer under everything.
+// It is an IMAGE, and that is the point. Two earlier versions failed:
+//
+//   SVG radial gradients looked right and then vanished after the app was
+//   backgrounded and reopened. An SVG fill is a reference to an id elsewhere in
+//   the document (`url(#ed-warm)`), and that reference is what a repaint after
+//   restore is known to drop. All three screens also declared the same ids,
+//   which collide the day two of them mount at once.
+//
+//   LinearGradient survives a repaint but cannot concentrate light at a point,
+//   so the bloom flattened into a wash coming from above.
+//
+// A bitmap has no ids to resolve and no compositing to redo. It is 8KB for a
+// 160x320 source, because a gradient carries no detail worth more than that;
+// it is stretched rather than cropped so the bloom keeps its position on any
+// screen shape.
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
-import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
+import { Image, StyleSheet, View } from 'react-native';
 import { EDD } from './editorial';
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const GROUND = require('../../assets/ground.png');
 
 export function Ground({ children, style }: { children: ReactNode; style?: object }) {
   return (
     <View style={[{ flex: 1, backgroundColor: EDD.ground }, style]}>
-      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
-        <Defs>
-          {/* High and slightly left: the light falls where the greeting is, so
-              a name reads against the brightest part of the screen. */}
-          <RadialGradient id="ed-warm" cx="42%" cy="12%" rx="95%" ry="62%">
-            <Stop offset="0" stopColor="#9C8563" stopOpacity="0.55" />
-            <Stop offset="0.5" stopColor="#5A5140" stopOpacity="0.22" />
-            <Stop offset="1" stopColor="#0E1512" stopOpacity="0" />
-          </RadialGradient>
-
-          {/* A cooler counterweight low down, so the screen is not simply warm
-              at one end and dead at the other. */}
-          <RadialGradient id="ed-cool" cx="78%" cy="92%" rx="80%" ry="48%">
-            <Stop offset="0" stopColor="#2A4A44" stopOpacity="0.30" />
-            <Stop offset="1" stopColor="#0E1512" stopOpacity="0" />
-          </RadialGradient>
-
-          {/* Edges fall away. Keeps the corners from competing with the content
-              and stops the warm bloom looking like a spill. */}
-          <RadialGradient id="ed-vignette" cx="50%" cy="45%" rx="78%" ry="70%">
-            <Stop offset="0.55" stopColor="#000000" stopOpacity="0" />
-            <Stop offset="1" stopColor="#000000" stopOpacity="0.38" />
-          </RadialGradient>
-        </Defs>
-
-        <Rect x="0" y="0" width="100%" height="100%" fill="url(#ed-warm)" />
-        <Rect x="0" y="0" width="100%" height="100%" fill="url(#ed-cool)" />
-        <Rect x="0" y="0" width="100%" height="100%" fill="url(#ed-vignette)" />
-      </Svg>
+      <Image
+        source={GROUND}
+        resizeMode="stretch"
+        // absoluteFill alone is not enough: an Image keeps the source's own
+        // dimensions unless the style overrides them, so the 160x320 asset drew
+        // at 160x320 in the middle of the screen with a seam down its edge.
+        style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }]}
+        // Decorative: it carries no information a screen reader should announce.
+        accessible={false}
+      />
       {children}
     </View>
   );
