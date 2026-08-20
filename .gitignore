@@ -24,6 +24,12 @@ expo-env.d.ts
 # secrets / local env
 .env
 .env.local
+# Copies made while switching dev roles hold the same keys as the original.
+.env.bak*
+.env.*.bak
+
+# Agent scratch: worktrees are separate checkouts, never content of this one.
+.claude/
 
 # macOS
 .DS_Store
