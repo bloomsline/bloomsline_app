@@ -21,6 +21,7 @@ import { Line } from '@/src/moments/Line';
 import { MomentDetail } from '@/src/moments/MomentDetail';
 import { useLanding } from '@/src/prefs/landing';
 import { useOnboarding } from '@/src/onboarding/context';
+import { Ground } from '@/src/ui/Ground';
 import { useI18n } from '@/src/i18n';
 import { listMoments, type MomentDTO } from '@/src/api/moments';
 
@@ -70,7 +71,7 @@ export default function Moments() {
   const title = greetHere ? (pretty ? `${greeting},\n${pretty}.` : `${greeting}.`) : t.tabs.moments;
 
   return (
-    <View style={{ flex: 1, backgroundColor: EDD.ground }}>
+    <Ground>
       <StatusBar style="light" />
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <View style={{ paddingHorizontal: 22, paddingTop: 8, paddingBottom: 10, flexDirection: 'row', alignItems: 'flex-start' }}>
@@ -147,6 +148,6 @@ export default function Moments() {
 
       <TabBar active="moments" tone="dark" />
       {viewing ? <MomentDetail moment={viewing} onClose={() => setViewing(null)} onChanged={load} /> : null}
-    </View>
+    </Ground>
   );
 }

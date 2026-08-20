@@ -22,6 +22,7 @@ import { FORCE_CARE_HUB } from '@/src/config';
 import { fetchCare, fetchTodo, type CareSession, type PatientCare, type TodoItem } from '@/src/api/care';
 import { resourceTypeMeta, statusLabel } from '@/src/care/resources';
 import { notify } from '@/src/ui/alert';
+import { Ground } from '@/src/ui/Ground';
 
 const PREVIEW_NEXT: CareSession = { id: 'preview', scheduledAt: inDays(5, 9), durationMinutes: 50, sessionFormat: 'video', sessionType: 'session', status: 'scheduled', meetLink: null, paymentStatus: null };
 const PREVIEW_UPCOMING: CareSession[] = [
@@ -139,7 +140,7 @@ export default function MyCare() {
   const mapsUrl = real?.practitioner?.mapsUrl ?? (preview ? 'https://maps.app.goo.gl/i6t7e2RgonE7LdZT8' : null);
 
   return (
-    <View style={{ flex: 1, backgroundColor: EDD.ground }}>
+    <Ground>
       <StatusBar style="light" />
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingBottom: 180 }} showsVerticalScrollIndicator={false}>
@@ -226,7 +227,7 @@ export default function MyCare() {
       </SafeAreaView>
 
       <TabBar active="care" tone="dark" />
-    </View>
+    </Ground>
   );
 }
 
