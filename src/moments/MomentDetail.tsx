@@ -3,12 +3,13 @@
 // wired Share-to-practitioner and Delete. Deferred vs v1: the conversation thread
 // (no moment_comments backend yet) and the video/voice player (media storage dark).
 import { useState } from 'react';
-import { ActivityIndicator, Image, Linking, Modal, Platform, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, Platform, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Send, CircleCheckBig, Trash2, Play, Mic } from 'lucide-react-native';
 import { MOOD_COLORS, moodLabel } from './moods';
 import { deleteMoment, shareMoment, type MomentDTO, type MomentMediaDTO } from '@/src/api/moments';
 import { useConfirm } from '@/src/ui/confirm';
+import { AudioRow, MediaViewer } from '@/src/ui/MediaViewer';
 import { useI18n } from '@/src/i18n';
 import { EDA, MonoLabel } from '@/src/ui/editorial';
 
@@ -54,7 +55,6 @@ const T = {
 } as const;
 
 const fmtDur = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-const openMedia = (url: string) => (Platform.OS === 'web' ? globalThis.open?.(url, '_blank') : Linking.openURL(url).catch(() => {}));
 
 const BLOOM = EDA.green;
 
@@ -66,6 +66,9 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
   const [shared, setShared] = useState(moment.sharedWithPractitioner);
   const [sharing, setSharing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // Which media item is open full screen, or null. The index is into
+  // `moment.media`, so stepping in the viewer walks the whole moment.
+  const [viewing, setViewing] = useState<number | null>(null);
 
 
   // Sharing sends the moment to the practitioner (or withdraws it), so both
@@ -131,7 +134,7 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
 
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* Media — first item as a hero */}
-            {moment.media.length > 0 && <MediaHero item={moment.media[0]} />}
+            {moment.media.length > 0 && <MediaHero item={moment.media[0]} onOpen={() => setViewing(0)} />}
 
             <View style={{ padding: 20 }}>
               {/* Moods */}
@@ -156,8 +159,8 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
               {moment.media.length > 1 && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
                   <View style={{ flexDirection: 'row', gap: 8 }}>
-                    {moment.media.slice(1).map((m) => (
-                      <MediaThumb key={m.id} item={m} />
+                    {moment.media.slice(1).map((m, i) => (
+                      <MediaThumb key={m.id} item={m} onOpen={() => setViewing(i + 1)} />
                     ))}
                   </View>
                 </ScrollView>
@@ -211,27 +214,45 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
           </ScrollView>
         </Pressable>
       </Pressable>
+      {/* The viewer sits inside this sheet so closing it returns here rather
+          than dismissing the moment underneath it. */}
+      {viewing !== null ? (
+        <MediaViewer
+          // The DTO types `kind` as a string; anything unexpected is treated as
+          // an image, which shows something rather than a blank stage.
+          items={moment.media.map((m) => ({
+            kind: m.kind === 'video' ? ('video' as const) : m.kind === 'audio' ? ('audio' as const) : ('image' as const),
+            url: m.url,
+            thumbnailUrl: m.thumbnailUrl,
+            durationSeconds: m.durationSeconds,
+          }))}
+          index={viewing}
+          onIndex={setViewing}
+          onClose={() => setViewing(null)}
+        />
+      ) : null}
     </Modal>
   );
 }
 
-function MediaHero({ item }: { item: MomentMediaDTO }) {
+function MediaHero({ item, onOpen }: { item: MomentMediaDTO; onOpen: () => void }) {
   const { locale } = useI18n();
   const tr = T[locale];
+  // Audio plays in place. There is nothing to look at, so a full screen showing
+  // a progress bar would be theatre.
   if (item.kind === 'audio') {
     return (
-      <TouchableOpacity onPress={() => openMedia(item.url)} activeOpacity={0.8} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: EDA.greenTint, paddingHorizontal: 20, paddingVertical: 18 }}>
-        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: EDA.green, alignItems: 'center', justifyContent: 'center' }}>
-          <Play size={18} color="#fff" fill="#fff" />
-        </View>
-        <Text style={{ fontSize: 15, fontWeight: '600', color: EDA.ink }}>{tr.voiceNote}{item.durationSeconds ? ` · ${fmtDur(item.durationSeconds)}` : ''}</Text>
-      </TouchableOpacity>
+      <View style={{ paddingHorizontal: 20, paddingVertical: 18 }}>
+        <AudioRow url={item.url} durationSeconds={item.durationSeconds} label={`${tr.voiceNote}${item.durationSeconds ? ` · ${fmtDur(item.durationSeconds)}` : ''}`} />
+      </View>
     );
   }
   const poster = item.thumbnailUrl ?? (item.kind === 'image' ? item.url : null);
   const isVideo = item.kind === 'video';
+  // An image is now tappable too: it used to be `disabled` unless it was a
+  // video, so a photograph could not be enlarged at all.
   return (
-    <TouchableOpacity activeOpacity={isVideo ? 0.9 : 1} disabled={!isVideo} onPress={isVideo ? () => openMedia(item.url) : undefined}>
+    <TouchableOpacity activeOpacity={0.9} onPress={onOpen}>
       {poster ? <Image source={{ uri: poster }} style={{ width: '100%', height: 260 }} resizeMode="cover" /> : <View style={{ width: '100%', height: 260, backgroundColor: EDA.slot }} />}
       {isVideo && (
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
@@ -244,12 +265,12 @@ function MediaHero({ item }: { item: MomentMediaDTO }) {
   );
 }
 
-function MediaThumb({ item }: { item: MomentMediaDTO }) {
+function MediaThumb({ item, onOpen }: { item: MomentMediaDTO; onOpen: () => void }) {
   const { locale } = useI18n();
   const tr = T[locale];
   if (item.kind === 'audio') {
     return (
-      <TouchableOpacity onPress={() => openMedia(item.url)} activeOpacity={0.8} style={{ width: 120, height: 120, borderRadius: 16, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+      <TouchableOpacity onPress={onOpen} activeOpacity={0.8} style={{ width: 120, height: 120, borderRadius: 16, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center', gap: 6 }}>
         <Mic size={22} color={EDA.green} strokeWidth={2} />
         <Text style={{ fontSize: 11, color: EDA.inkSoft }}>{item.durationSeconds ? fmtDur(item.durationSeconds) : tr.voice}</Text>
       </TouchableOpacity>
@@ -258,7 +279,7 @@ function MediaThumb({ item }: { item: MomentMediaDTO }) {
   const poster = item.thumbnailUrl ?? (item.kind === 'image' ? item.url : null);
   const isVideo = item.kind === 'video';
   return (
-    <TouchableOpacity activeOpacity={isVideo ? 0.9 : 1} disabled={!isVideo} onPress={isVideo ? () => openMedia(item.url) : undefined}>
+    <TouchableOpacity activeOpacity={0.9} onPress={onOpen}>
       {poster ? <Image source={{ uri: poster }} style={{ width: 120, height: 120, borderRadius: 16 }} resizeMode="cover" /> : <View style={{ width: 120, height: 120, borderRadius: 16, backgroundColor: EDA.slot }} />}
       {isVideo && (
         <View style={{ position: 'absolute', top: 44, left: 44, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
