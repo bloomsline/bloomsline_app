@@ -20,6 +20,7 @@ import {
 import { EDA, EDD, MonoLabel } from '@/src/ui/editorial';
 import { ShareChip } from '@/src/journal/ShareChip';
 import { AnchoredMenu, useAnchoredMenu } from '@/src/ui/AnchoredMenu';
+import { AudioRow, MediaViewer, type ViewerItem } from '@/src/ui/MediaViewer';
 import { useBlockDrag } from '@/src/journal/useBlockDrag';
 import { usePractitionerFace } from '@/src/care/practitioner-face';
 import { createJournal, deleteJournal, getJournal, shareJournal, updateJournal } from '@/src/api/journal';
@@ -27,6 +28,10 @@ import { newBlock, serializeForSave, entryIsEmpty, isMedia, type BlockType, type
 import { pickImage, pickVideo, uploadImage, uploadVideo, uploadVoice } from '@/src/journal/media';
 import { useConfirm } from '@/src/ui/confirm';
 import { useI18n } from '@/src/i18n';
+
+/** A LINK is not media: it belongs in a browser, and always did. */
+const openLink = (url: string) =>
+  Platform.OS === 'web' ? globalThis.open?.(url, '_blank') : Linking.openURL(url).catch(() => {});
 
 type Status = 'idle' | 'saving' | 'saved';
 
@@ -56,7 +61,6 @@ const T = {
 } as const;
 
 const fmtDur = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
-const openMedia = (url: string) => (Platform.OS === 'web' ? globalThis.open?.(url, '_blank') : Linking.openURL(url).catch(() => {}));
 
 export default function JournalEntry() {
   const router = useRouter();
@@ -71,6 +75,8 @@ export default function JournalEntry() {
   // "Saved" alone says nothing you did not already assume. The clock time says
   // which version is safe, which is the thing anyone actually wants to know.
   const [savedAtLabel, setSavedAtLabel] = useState('');
+  /** Which media block is open full screen, by block id. */
+  const [viewingId, setViewingId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(typeof paramId === 'string' ? paramId : null);
@@ -311,7 +317,7 @@ export default function JournalEntry() {
         <View style={{ flex: 1, backgroundColor: EDA.canvas, borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden' }}>
 
         {loaded && (mode === 'read' ? (
-          <ReadView title={title} blocks={blocks} tr={tr} meta={metaLine} />
+          <ReadView title={title} blocks={blocks} tr={tr} meta={metaLine} onOpenMedia={setViewingId} />
         ) : (
           <ScrollView
             contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32 }}
@@ -368,6 +374,26 @@ export default function JournalEntry() {
         </View>
       </KeyboardAvoidingView>
       </SafeAreaView>
+
+      {/* Everything on the page, so stepping in the viewer walks the page
+          rather than showing one item in isolation. */}
+      {viewingId ? (
+        (() => {
+          const shown: ViewerItem[] = blocks
+            .filter((b) => (b.type === 'image' || b.type === 'video') && b.url)
+            .map((b) => ({ kind: b.type === 'video' ? ('video' as const) : ('image' as const), url: b.url!, thumbnailUrl: b.localUri ?? null }));
+          const at = blocks.filter((b) => (b.type === 'image' || b.type === 'video') && b.url).findIndex((b) => b.id === viewingId);
+          if (at < 0 || shown.length === 0) return null;
+          return (
+            <MediaViewer
+              items={shown}
+              index={at}
+              onIndex={(i) => setViewingId(blocks.filter((b) => (b.type === 'image' || b.type === 'video') && b.url)[i]?.id ?? null)}
+              onClose={() => setViewingId(null)}
+            />
+          );
+        })()
+      ) : null}
     </View>
   );
 }
@@ -393,17 +419,17 @@ function AutoGrowInput({ value, onChange, placeholder, style }: { value: string;
 
 // Read-only rendering of an entry — the readable "journal" view (tap Edit to
 // change). Plain Text flows and wraps naturally, so nothing is clipped.
-function ReadView({ title, blocks, tr, meta }: { title: string; blocks: JournalBlock[]; tr: Tr; meta: string }) {
+function ReadView({ title, blocks, tr, meta, onOpenMedia }: { title: string; blocks: JournalBlock[]; tr: Tr; meta: string; onOpenMedia: (blockId: string) => void }) {
   return (
     <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
       <Text style={{ fontSize: 11.5, color: EDA.faint, marginBottom: 8 }}>{meta}</Text>
       {title.trim() ? <Text style={{ fontSize: 24, fontWeight: '800', color: EDA.ink, letterSpacing: -0.4, marginBottom: 18 }}>{title}</Text> : null}
-      <View style={{ gap: 16 }}>{blocks.map((b) => <ReadBlock key={b.id} block={b} tr={tr} />)}</View>
+      <View style={{ gap: 16 }}>{blocks.map((b) => <ReadBlock key={b.id} block={b} tr={tr} onOpenMedia={onOpenMedia} />)}</View>
     </ScrollView>
   );
 }
 
-function ReadBlock({ block: b, tr }: { block: JournalBlock; tr: Tr }) {
+function ReadBlock({ block: b, tr, onOpenMedia }: { block: JournalBlock; tr: Tr; onOpenMedia?: (blockId: string) => void }) {
   switch (b.type) {
     case 'heading': return <Text style={{ fontSize: 19, fontWeight: '800', color: EDA.ink, letterSpacing: -0.3 }}>{b.text}</Text>;
     case 'text': return <Text style={{ fontSize: 16, lineHeight: 27, color: EDA.inkSoft }}>{b.text}</Text>;
@@ -420,12 +446,19 @@ function ReadBlock({ block: b, tr }: { block: JournalBlock; tr: Tr }) {
       </View>
     );
     case 'link': return (
-      <TouchableOpacity onPress={() => b.url && openMedia(b.url)} activeOpacity={0.7} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <TouchableOpacity onPress={() => b.url && openLink(b.url)} activeOpacity={0.7} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Link2 size={16} color={EDA.green} /><Text style={{ fontSize: 15.5, fontWeight: '600', color: EDA.green }}>{b.label || b.url}</Text>
       </TouchableOpacity>
     );
-    case 'image': case 'video': case 'voice':
-      return <TouchableOpacity activeOpacity={0.9} disabled={!b.url} onPress={() => b.url && openMedia(b.url)}><MediaBlock block={b} tr={tr} /></TouchableOpacity>;
+    case 'voice':
+      // Plays where it sits. Nothing to look at, so nothing to open.
+      return b.url ? (
+        <AudioRow url={b.url} durationSeconds={b.durationSeconds} label={tr.voiceNote} />
+      ) : (
+        <MediaBlock block={b} tr={tr} />
+      );
+    case 'image': case 'video':
+      return <TouchableOpacity activeOpacity={0.9} disabled={!b.url} onPress={() => b.url && onOpenMedia?.(b.id)}><MediaBlock block={b} tr={tr} /></TouchableOpacity>;
     default: return null;
   }
 }
