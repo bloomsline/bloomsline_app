@@ -33,13 +33,17 @@ export function TabBar({ active, tone }: { active: TabId; tone?: 'light' | 'dark
 
   if (tone === 'dark') {
     return (
-      <View className="absolute inset-x-6 bottom-8 flex-row items-center">
+      <View className="absolute inset-x-6 bottom-8 flex-row items-center justify-between">
         {/* A pill, not bare labels. Bare text has no ground of its own, so the
             page scrolls UNDERNEATH it — the day heading collided with the tab
             row. The container gives the bar a surface; the active tab gets its
-            own inner pill so selection reads without relying on weight alone. */}
+            own inner pill so selection reads without relying on weight alone.
+            It HUGS its labels — no flex-1. Stretching it to the full width left
+            a dead third after "For You" and pushed its edge into the + button;
+            the row is justify-between instead, so the pill ends where the words
+            do and the + stays at the margin. */}
         <View
-          className="flex-1 flex-row items-center self-start rounded-full p-1"
+          className="flex-row items-center self-start rounded-full p-1"
           style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine }}
         >
           {order.map((id) => TABS[id]).map((tab) => {
