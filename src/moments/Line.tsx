@@ -73,8 +73,7 @@ const SIDE_PAD = 74;  // keeps a node (and its dot) clear of either edge
  * Lay the week out. Kept separate from the drawing so it can be reasoned about
  * (and, later, tested) without a renderer.
  */
-export function layout(moments: MomentDTO[], width: number, locale: 'en' | 'fr'): { nodes: LineNode[]; height: number } {
-  const { mode } = useTheme();
+export function layout(moments: MomentDTO[], width: number, locale: 'en' | 'fr', mode: 'light' | 'dark'): { nodes: LineNode[]; height: number } {
   const usable = width - SIDE_PAD - NODE / 2 - 14;
   // Oldest first: the line is read downward, and "today" belongs at the foot.
   const ordered = [...moments].sort((a, b) => +new Date(a.capturedAt) - +new Date(b.capturedAt));
@@ -168,7 +167,7 @@ export function Line({
 }) {
   const { mode } = useTheme();
   const { t: TT } = useTheme();
-  const { nodes, height } = useMemo(() => layout(moments, width, locale), [moments, width, locale]);
+  const { nodes, height } = useMemo(() => layout(moments, width, locale, mode), [moments, width, locale, mode]);
 
   const todayY = height - NODE / 2 - 6;
   const todayX = SIDE_PAD + 0.5 * (width - SIDE_PAD - NODE / 2 - 14);
