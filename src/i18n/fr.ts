@@ -244,6 +244,8 @@ export const fr: Dict = {
     tapToRead: 'appuyez pour lire',
     weekSoFar: 'Votre semaine jusqu’ici',
     scrollBack: '↑ remonter',
+    loadingOlder: 'Chargement des moments précédents',
+    lineStart: 'Le début de votre ligne',
     emptyTitle: 'Votre ligne commence ici.',
     emptyBody: 'Capturez un moment et il y prendra sa place. Au fil d’une semaine, vous verrez apparaître une forme.',
     failedTitle: 'Impossible d’accéder à votre ligne.',
