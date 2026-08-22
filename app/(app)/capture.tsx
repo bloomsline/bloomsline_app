@@ -32,6 +32,7 @@ import { pickMedia, captureMedia, cameraAvailable, uploadMedia, type PreparedMed
 import { useOnboarding } from '@/src/onboarding/context';
 import { useI18n, fmt } from '@/src/i18n';
 import { notify } from '@/src/ui/alert';
+import { useTheme } from '@/src/ui/theme-mode';
 
 const MAX_MOODS = 3; // the board asks for "up to 3 feelings"
 
@@ -47,6 +48,7 @@ const moodsForTone = (tone: Tone) =>
   tone === 'mixed' ? MOODS : MOODS.filter((m) => isLighter(m.key) === (tone === 'good'));
 
 export default function Capture() {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { t, locale } = useI18n();
   const tr = t.capture;
@@ -153,7 +155,7 @@ export default function Capture() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: EDD.ground }}>
+    <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="light" />
 
       {/* The photograph, when there is one, is the ground for every step — it is
@@ -192,7 +194,7 @@ export default function Capture() {
           <>
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
               <ScrollView contentContainerStyle={{ paddingHorizontal: 26, paddingTop: 6, flexGrow: 1 }} keyboardShouldPersistTaps="handled">
-                <Text style={{ fontSize: 12.5, color: EDD.faint, marginBottom: 12 }}>{when}</Text>
+                <Text style={{ fontSize: 12.5, color: TT.faint, marginBottom: 12 }}>{when}</Text>
                 <TextInput
                   value={note}
                   onChangeText={setNote}
@@ -201,9 +203,9 @@ export default function Capture() {
                   multiline
                   autoFocus={step === 'write'}
                   editable={step === 'write'}
-                  selectionColor={EDD.green}
+                  selectionColor={TT.accent}
                   style={[
-                    { fontSize: 21, fontWeight: '600', color: EDD.text, lineHeight: 29, minHeight: 90, textAlignVertical: 'top' },
+                    { fontSize: 21, fontWeight: '600', color: TT.ink, lineHeight: 29, minHeight: 90, textAlignVertical: 'top' },
                     Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null,
                   ]}
                 />
@@ -219,7 +221,7 @@ export default function Capture() {
                   ) : media ? (
                     <MediaBadge media={media} onClear={() => setMedia(null)} tr={tr} />
                   ) : null}
-                  <View style={{ height: 1, backgroundColor: EDD.cardLine, marginBottom: 14 }} />
+                  <View style={{ height: 1, backgroundColor: TT.cardLine, marginBottom: 14 }} />
                   <View style={{ flexDirection: 'row', gap: 10 }}>
                     <Chip Icon={ImagePlus} label={tr.photoOrVideo} onPress={() => setPicker('visual')} />
                     <Chip Icon={Mic} label={tr.voice} onPress={() => setPicker('voice')} />
@@ -231,8 +233,8 @@ export default function Capture() {
                     onPress={() => hasSomething && setStep('feel')}
                     style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', paddingVertical: 14, opacity: hasSomething ? 1 : 0.45 }}
                   >
-                    <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: EDD.text }}>{tr.addFeeling}</Text>
-                    <Text style={{ fontSize: 10.5, letterSpacing: 1, color: EDD.faint }}>{tr.required.toUpperCase()}</Text>
+                    <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: TT.ink }}>{tr.addFeeling}</Text>
+                    <Text style={{ fontSize: 10.5, letterSpacing: 1, color: TT.faint }}>{tr.required.toUpperCase()}</Text>
                   </Pressable>
 
                   <Pressable
@@ -277,6 +279,7 @@ export default function Capture() {
 }
 
 function Header({ step, tr, onClose, onBack }: { step: Step; tr: Cap; onClose: () => void; onBack: () => void }) {
+  const { t: TT } = useTheme();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, paddingTop: 8, paddingBottom: 16 }}>
       <Pressable
@@ -285,11 +288,11 @@ function Header({ step, tr, onClose, onBack }: { step: Step; tr: Cap; onClose: (
       >
         {step === 'write' ? <X size={17} color="#fff" strokeWidth={2} /> : <ChevronLeft size={18} color="#fff" strokeWidth={2} />}
       </Pressable>
-      <Text style={{ flex: 1, textAlign: 'center', fontSize: 10.5, letterSpacing: 1.6, color: EDD.faint }}>
+      <Text style={{ flex: 1, textAlign: 'center', fontSize: 10.5, letterSpacing: 1.6, color: TT.faint }}>
         {(step === 'preview' ? tr.preview : tr.newMoment).toUpperCase()}
       </Text>
       <View style={{ width: 34, alignItems: 'flex-end' }}>
-        {step === 'write' ? <Text style={{ fontSize: 11, color: EDD.faint }}>1/2</Text> : null}
+        {step === 'write' ? <Text style={{ fontSize: 11, color: TT.faint }}>1/2</Text> : null}
       </View>
     </View>
   );
@@ -310,6 +313,7 @@ function FeelSheet({
   onToggle: (k: string) => void;
   onDone: () => void;
 }) {
+  const { t: TT } = useTheme();
   const rise = useRef(new Animated.Value(0)).current;
   // In an effect, not during render: the sheet's entrance is a side effect, and
   // starting it inline fires on every re-render (each feeling tap) as well.
@@ -325,18 +329,18 @@ function FeelSheet({
         transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }],
         backgroundColor: 'rgba(20,26,23,0.96)',
         borderTopLeftRadius: 26, borderTopRightRadius: 26,
-        borderTopWidth: 1, borderColor: EDD.cardLine,
+        borderTopWidth: 1, borderColor: TT.cardLine,
         paddingHorizontal: 22, paddingTop: 12, paddingBottom: 26,
       }}
     >
       <View style={{ alignSelf: 'center', width: 38, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.22)', marginBottom: 14 }} />
-      <Text style={{ fontSize: 10.5, letterSpacing: 1.4, color: EDD.faint, marginBottom: 14 }}>{tr.step2.toUpperCase()}</Text>
+      <Text style={{ fontSize: 10.5, letterSpacing: 1.4, color: TT.faint, marginBottom: 14 }}>{tr.step2.toUpperCase()}</Text>
 
       {/* The question sits ABOVE the pills, and is replaced by the second one
           below them once a choice is made — the sheet grows rather than swapping
           screens, so the pills never move and changing your mind costs nothing. */}
       {tone === null ? (
-        <Text style={{ fontSize: 17, fontWeight: '700', color: EDD.text, marginBottom: 14 }}>{tr.wasMore}</Text>
+        <Text style={{ fontSize: 17, fontWeight: '700', color: TT.ink, marginBottom: 14 }}>{tr.wasMore}</Text>
       ) : null}
 
       <View style={{ flexDirection: 'row', gap: 9 }}>
@@ -346,9 +350,9 @@ function FeelSheet({
             <Pressable
               key={k}
               onPress={() => onTone(k)}
-              style={{ flex: 1, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? 'rgba(255,255,255,0.14)' : 'transparent', borderWidth: 1, borderColor: on ? 'rgba(255,255,255,0.30)' : EDD.cardLine }}
+              style={{ flex: 1, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? 'rgba(255,255,255,0.14)' : 'transparent', borderWidth: 1, borderColor: on ? 'rgba(255,255,255,0.30)' : TT.cardLine }}
             >
-              <Text style={{ fontSize: 13.5, fontWeight: on ? '700' : '500', color: on ? EDD.text : EDD.textSoft }}>{tr.tone[k]}</Text>
+              <Text style={{ fontSize: 13.5, fontWeight: on ? '700' : '500', color: on ? TT.ink : TT.inkSoft }}>{tr.tone[k]}</Text>
             </Pressable>
           );
         })}
@@ -356,8 +360,8 @@ function FeelSheet({
 
       {tone !== null ? (
         <>
-          <Text style={{ marginTop: 18, fontSize: 17, fontWeight: '700', color: EDD.text }}>{tr.howFeel}</Text>
-          <Text style={{ marginTop: 3, fontSize: 12.5, color: EDD.faint }}>{fmt(tr.pickUpTo, { n: String(MAX_MOODS) })}</Text>
+          <Text style={{ marginTop: 18, fontSize: 17, fontWeight: '700', color: TT.ink }}>{tr.howFeel}</Text>
+          <Text style={{ marginTop: 3, fontSize: 12.5, color: TT.faint }}>{fmt(tr.pickUpTo, { n: String(MAX_MOODS) })}</Text>
 
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
             {moodsForTone(tone).map((m) => {
@@ -366,10 +370,10 @@ function FeelSheet({
                 <Pressable
                   key={m.key}
                   onPress={() => onToggle(m.key)}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, height: 34, borderRadius: 17, backgroundColor: on ? `${m.color}2E` : 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: on ? m.color : EDD.cardLine }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, height: 34, borderRadius: 17, backgroundColor: on ? `${m.color}2E` : 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: on ? m.color : TT.cardLine }}
                 >
-                  <m.Icon size={13} color={on ? m.color : EDD.textSoft} strokeWidth={2} />
-                  <Text style={{ fontSize: 13, fontWeight: on ? '700' : '500', color: on ? EDD.text : EDD.textSoft }}>{moodLabel(m.key, locale)}</Text>
+                  <m.Icon size={13} color={on ? m.color : TT.inkSoft} strokeWidth={2} />
+                  <Text style={{ fontSize: 13, fontWeight: on ? '700' : '500', color: on ? TT.ink : TT.inkSoft }}>{moodLabel(m.key, locale)}</Text>
                 </Pressable>
               );
             })}
@@ -405,12 +409,13 @@ function Preview({
   onEdit: () => void;
   onCommit: () => void;
 }) {
+  const { t: TT } = useTheme();
   return (
     <View style={{ flex: 1, paddingHorizontal: 26 }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
-        <Text style={{ fontSize: 12.5, color: EDD.faint, marginBottom: 12 }}>{when}</Text>
+        <Text style={{ fontSize: 12.5, color: TT.faint, marginBottom: 12 }}>{when}</Text>
         {note.trim() ? (
-          <Text style={{ fontSize: 21, fontWeight: '600', color: EDD.text, lineHeight: 29 }}>{note.trim()}</Text>
+          <Text style={{ fontSize: 21, fontWeight: '600', color: TT.ink, lineHeight: 29 }}>{note.trim()}</Text>
         ) : null}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
           {moods.map((k) => {
@@ -419,7 +424,7 @@ function Preview({
             return (
               <View key={k} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, height: 32, borderRadius: 16, backgroundColor: `${m.color}2E`, borderWidth: 1, borderColor: m.color }}>
                 <m.Icon size={13} color={m.color} strokeWidth={2} />
-                <Text style={{ fontSize: 12.5, fontWeight: '700', color: EDD.text }}>{moodLabel(k, locale)}</Text>
+                <Text style={{ fontSize: 12.5, fontWeight: '700', color: TT.ink }}>{moodLabel(k, locale)}</Text>
               </View>
             );
           })}
@@ -432,18 +437,18 @@ function Preview({
       {canShare ? (
         <Pressable
           onPress={onToggleShare}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: EDD.card, borderWidth: 1, borderColor: share ? 'rgba(127,217,192,0.45)' : EDD.cardLine, borderRadius: 18, padding: 14, marginBottom: 14 }}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: TT.card, borderWidth: 1, borderColor: share ? 'rgba(127,217,192,0.45)' : TT.cardLine, borderRadius: 18, padding: 14, marginBottom: 14 }}
         >
-          {share ? <Eye size={17} color={EDD.green} strokeWidth={2} /> : <Lock size={17} color={EDD.faint} strokeWidth={2} />}
+          {share ? <Eye size={17} color={TT.accent} strokeWidth={2} /> : <Lock size={17} color={TT.faint} strokeWidth={2} />}
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: share ? EDD.green : EDD.text }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: share ? TT.accent : TT.ink }}>
               {share ? fmt(tr.showPrac, { prac: pracFirst }) : tr.keepPrivate}
             </Text>
-            <Text style={{ fontSize: 11.5, color: EDD.faint, marginTop: 2 }}>
+            <Text style={{ fontSize: 11.5, color: TT.faint, marginTop: 2 }}>
               {share ? tr.canChangeLater : fmt(tr.pracCannotSee, { prac: pracFirst })}
             </Text>
           </View>
-          <View style={{ width: 42, height: 25, borderRadius: 13, padding: 3, backgroundColor: share ? EDD.green : 'rgba(255,255,255,0.16)', alignItems: share ? 'flex-end' : 'flex-start' }}>
+          <View style={{ width: 42, height: 25, borderRadius: 13, padding: 3, backgroundColor: share ? TT.accent : 'rgba(255,255,255,0.16)', alignItems: share ? 'flex-end' : 'flex-start' }}>
             <View style={{ width: 19, height: 19, borderRadius: 10, backgroundColor: '#fff' }} />
           </View>
         </Pressable>
@@ -453,9 +458,9 @@ function Preview({
         <Pressable
           onPress={onEdit}
           disabled={busy}
-          style={{ width: 96, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: EDD.cardLine }}
+          style={{ width: 96, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: TT.cardLine }}
         >
-          <Text style={{ fontSize: 14.5, fontWeight: '700', color: EDD.text }}>{tr.edit}</Text>
+          <Text style={{ fontSize: 14.5, fontWeight: '700', color: TT.ink }}>{tr.edit}</Text>
         </Pressable>
         <Pressable
           onPress={onCommit}
@@ -488,6 +493,7 @@ function PickerSheet({
   onLibrary: () => void;
   onRecord: () => void;
 }) {
+  const { t: TT } = useTheme();
   const rise = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(rise, { toValue: 1, duration: 260, useNativeDriver: true }).start();
@@ -521,12 +527,12 @@ function PickerSheet({
           transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) }],
           backgroundColor: 'rgba(20,26,23,0.97)',
           borderTopLeftRadius: 26, borderTopRightRadius: 26,
-          borderTopWidth: 1, borderColor: EDD.cardLine,
+          borderTopWidth: 1, borderColor: TT.cardLine,
           paddingHorizontal: 18, paddingTop: 12, paddingBottom: 22,
         }}
       >
         <View style={{ alignSelf: 'center', width: 38, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.22)', marginBottom: 14 }} />
-        <Text style={{ fontSize: 10.5, letterSpacing: 1.4, color: EDD.faint, marginBottom: 8, paddingHorizontal: 4 }}>
+        <Text style={{ fontSize: 10.5, letterSpacing: 1.4, color: TT.faint, marginBottom: 8, paddingHorizontal: 4 }}>
           {(which === 'visual' ? tr.photoOrVideo : tr.voice).toUpperCase()}
         </Text>
         {rows.map((r) => (
@@ -535,12 +541,12 @@ function PickerSheet({
             onPress={r.onPress}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, paddingHorizontal: 4 }}
           >
-            <r.Icon size={19} color={EDD.text} strokeWidth={2} />
-            <Text style={{ fontSize: 15.5, fontWeight: '600', color: EDD.text }}>{r.label}</Text>
+            <r.Icon size={19} color={TT.ink} strokeWidth={2} />
+            <Text style={{ fontSize: 15.5, fontWeight: '600', color: TT.ink }}>{r.label}</Text>
           </Pressable>
         ))}
         <Pressable onPress={onClose} style={{ marginTop: 8, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)' }}>
-          <Text style={{ fontSize: 14.5, fontWeight: '700', color: EDD.text }}>{tr.cancel}</Text>
+          <Text style={{ fontSize: 14.5, fontWeight: '700', color: TT.ink }}>{tr.cancel}</Text>
         </Pressable>
       </Animated.View>
     </>
@@ -549,6 +555,7 @@ function PickerSheet({
 
 /** While a voice note is being recorded: the elapsed time and the way to stop. */
 function RecordingBar({ seconds, onStop, tr }: { seconds: number; onStop: () => void; tr: Cap }) {
+  const { t: TT } = useTheme();
   const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -564,30 +571,32 @@ function RecordingBar({ seconds, onStop, tr }: { seconds: number; onStop: () => 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
       <Animated.View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: '#E5534B', opacity: pulse }} />
-      <Text style={{ flex: 1, fontSize: 13, color: EDD.text, fontWeight: '600' }}>
+      <Text style={{ flex: 1, fontSize: 13, color: TT.ink, fontWeight: '600' }}>
         {tr.recording}  {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}
       </Text>
       <Pressable onPress={onStop} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.12)' }}>
-        <Square size={12} color={EDD.text} strokeWidth={2.5} fill={EDD.text} />
-        <Text style={{ fontSize: 13, fontWeight: '700', color: EDD.text }}>{tr.stop}</Text>
+        <Square size={12} color={TT.ink} strokeWidth={2.5} fill={TT.ink} />
+        <Text style={{ fontSize: 13, fontWeight: '700', color: TT.ink }}>{tr.stop}</Text>
       </Pressable>
     </View>
   );
 }
 
 function Chip({ Icon, label, onPress }: { Icon: typeof ImagePlus; label: string; onPress: () => void }) {
+  const { t: TT } = useTheme();
   return (
     <Pressable
       onPress={onPress}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 14, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: EDD.cardLine }}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 14, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: TT.cardLine }}
     >
-      <Icon size={15} color={EDD.text} strokeWidth={2} />
-      <Text style={{ fontSize: 13, fontWeight: '600', color: EDD.text }}>{label}</Text>
+      <Icon size={15} color={TT.ink} strokeWidth={2} />
+      <Text style={{ fontSize: 13, fontWeight: '600', color: TT.ink }}>{label}</Text>
     </Pressable>
   );
 }
 
 function MediaBadge({ media, onClear, tr }: { media: PreparedMedia; onClear: () => void; tr: Cap }) {
+  const { t: TT } = useTheme();
   const thumb = media.kind === 'image' ? media.uri : media.kind === 'video' ? media.thumbUri ?? null : null;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
@@ -595,14 +604,14 @@ function MediaBadge({ media, onClear, tr }: { media: PreparedMedia; onClear: () 
         <Image source={{ uri: thumb }} style={{ width: 40, height: 40, borderRadius: 10 }} />
       ) : (
         <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' }}>
-          <Mic size={17} color={EDD.text} strokeWidth={2} />
+          <Mic size={17} color={TT.ink} strokeWidth={2} />
         </View>
       )}
-      <Text style={{ flex: 1, fontSize: 12.5, color: EDD.textSoft }}>
+      <Text style={{ flex: 1, fontSize: 12.5, color: TT.inkSoft }}>
         {media.kind === 'image' ? tr.photoAdded : media.kind === 'video' ? tr.videoAdded : tr.voiceAdded}
       </Text>
       <Pressable onPress={onClear} style={{ width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.10)' }}>
-        <X size={14} color={EDD.text} strokeWidth={2} />
+        <X size={14} color={TT.ink} strokeWidth={2} />
       </Pressable>
     </View>
   );

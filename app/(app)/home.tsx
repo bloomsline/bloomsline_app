@@ -73,15 +73,15 @@ export default function MyCare() {
     <View style={{ paddingHorizontal: 22, paddingTop: 8, paddingBottom: 18 }}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
         <View style={{ flex: 1 }}>
-          <MonoLabel color={EDD.faint} size={10.5} style={{ marginBottom: 10 }}>{dateKicker}</MonoLabel>
-          <Text style={{ fontSize: 27, fontWeight: '800', color: EDD.text, letterSpacing: -0.9, lineHeight: 31 }}>{headerTitle}</Text>
+          <MonoLabel color={TT.faint} size={10.5} style={{ marginBottom: 10 }}>{dateKicker}</MonoLabel>
+          <Text style={{ fontSize: 27, fontWeight: '800', color: TT.ink, letterSpacing: -0.9, lineHeight: 31 }}>{headerTitle}</Text>
         </View>
         <TouchableOpacity
           onPress={() => router.navigate('/settings' as never)}
           activeOpacity={0.8}
-          style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: EDD.card, borderWidth: 1, borderColor: EDD.cardLine, alignItems: 'center', justifyContent: 'center' }}
+          style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Settings size={17} color={EDD.textSoft} strokeWidth={2} />
+          <Settings size={17} color={TT.inkSoft} strokeWidth={2} />
         </TouchableOpacity>
       </View>
     </View>
@@ -161,10 +161,10 @@ export default function MyCare() {
               >
                 <Avatar initial={initial} size={44} />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 15.5, fontWeight: '700', color: EDD.text }}>{pracName}</Text>
-                  {pracHeadline ? <Text style={{ fontSize: 12.5, color: EDD.textSoft, marginTop: 1 }}>{pracHeadline}</Text> : null}
+                  <Text style={{ fontSize: 15.5, fontWeight: '700', color: TT.ink }}>{pracName}</Text>
+                  {pracHeadline ? <Text style={{ fontSize: 12.5, color: TT.inkSoft, marginTop: 1 }}>{pracHeadline}</Text> : null}
                 </View>
-                <ChevronRight size={18} color={EDD.faint} strokeWidth={2} />
+                <ChevronRight size={18} color={TT.faint} strokeWidth={2} />
               </TouchableOpacity>
 
               <SectionRule label={t.care.yourSessions} />
@@ -181,9 +181,9 @@ export default function MyCare() {
                   onMaps={() => mapsUrl && openUrl(mapsUrl)}
                 />
               ) : (
-                <View style={{ marginHorizontal: 22, backgroundColor: EDD.card, borderWidth: 1, borderColor: EDD.cardLine, borderRadius: 20, padding: 20 }}>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: EDD.text }}>{t.care.noSession}</Text>
-                  <Text style={{ fontSize: 13, color: EDD.textSoft, marginTop: 3 }}>{t.care.noSessionSub}</Text>
+                <View style={{ marginHorizontal: 22, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine, borderRadius: 20, padding: 20 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: TT.ink }}>{t.care.noSession}</Text>
+                  <Text style={{ fontSize: 13, color: TT.inkSoft, marginTop: 3 }}>{t.care.noSessionSub}</Text>
                 </View>
               )}
 
@@ -191,12 +191,12 @@ export default function MyCare() {
                 <TouchableOpacity
                   onPress={() => router.navigate('/book' as never)}
                   activeOpacity={0.85}
-                  style={{ marginHorizontal: 22, marginTop: 16, height: 50, borderRadius: 25, borderWidth: 1, borderColor: EDD.cardLine, alignItems: 'center', justifyContent: 'center' }}
+                  style={{ marginHorizontal: 22, marginTop: 16, height: 50, borderRadius: 25, borderWidth: 1, borderColor: TT.cardLine, alignItems: 'center', justifyContent: 'center' }}
                 >
-                  <Text style={{ fontSize: 14.5, fontWeight: '700', color: EDD.text }}>{t.care.bookAnother}</Text>
+                  <Text style={{ fontSize: 14.5, fontWeight: '700', color: TT.ink }}>{t.care.bookAnother}</Text>
                 </TouchableOpacity>
               ) : (
-                <Text style={{ fontSize: 12.5, color: EDD.textSoft, textAlign: 'center', marginTop: 14, paddingHorizontal: 34 }}>{t.care.bookNote}</Text>
+                <Text style={{ fontSize: 12.5, color: TT.inkSoft, textAlign: 'center', marginTop: 14, paddingHorizontal: 34 }}>{t.care.bookNote}</Text>
               )}
 
               {todoItems.length > 0 && (
@@ -219,7 +219,7 @@ export default function MyCare() {
               )}
 
               <SectionRule label={t.care.archive} />
-              <View style={{ marginHorizontal: 22, backgroundColor: EDD.card, borderWidth: 1, borderColor: EDD.cardLine, borderRadius: 18, overflow: 'hidden' }}>
+              <View style={{ marginHorizontal: 22, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine, borderRadius: 18, overflow: 'hidden' }}>
                 <UtilityRow Icon={RotateCcw} label={t.care.pastSessions} onPress={() => router.navigate('/session-history' as never)} divider />
                 <UtilityRow Icon={FileText} label={t.care.documents} onPress={() => router.navigate('/documents' as never)} />
               </View>
@@ -249,6 +249,7 @@ function SessionCarousel({
   onJoin: (s: CareSession) => void;
   onMaps: () => void;
 }) {
+  const { t: TT } = useTheme();
   const { width } = useWindowDimensions();
   const [index, setIndex] = useState(0);
   const scroller = useRef<ScrollView>(null);
@@ -294,7 +295,7 @@ function SessionCarousel({
           {sessions.map((s, i) => (
             <View
               key={s.id}
-              style={{ height: 2, width: i === index ? 16 : 6, borderRadius: 1, backgroundColor: i === index ? EDD.text : 'rgba(255,255,255,0.25)' }}
+              style={{ height: 2, width: i === index ? 16 : 6, borderRadius: 1, backgroundColor: i === index ? TT.ink : 'rgba(255,255,255,0.25)' }}
             />
           ))}
         </View>
@@ -317,27 +318,28 @@ function SessionCard({
   onJoin: () => void;
   onMaps: () => void;
 }) {
+  const { t: TT } = useTheme();
   const inPerson = session.sessionFormat === 'in_person';
   const pay = session.paymentStatus;
   return (
-    <View style={{ width, backgroundColor: EDD.card, borderWidth: 1, borderColor: EDD.cardLine, borderRadius: 20, padding: 18 }}>
+    <View style={{ width, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine, borderRadius: 20, padding: 18 }}>
       <TouchableOpacity
         onPress={onOpen}
         activeOpacity={0.7}
         style={{ position: 'absolute', top: 12, right: 12, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' }}
       >
-        <Ellipsis size={17} color={EDD.text} strokeWidth={2.5} />
+        <Ellipsis size={17} color={TT.ink} strokeWidth={2.5} />
       </TouchableOpacity>
 
-      <MonoLabel color={EDD.faint} size={10} style={{ marginBottom: 8 }}>{first ? t.care.nextSession : t.care.then}</MonoLabel>
-      <Text style={{ fontSize: 19, fontWeight: '800', color: EDD.text, letterSpacing: -0.4 }}>{longDate(session.scheduledAt, locale)}</Text>
-      <Text style={{ fontSize: 13, color: EDD.textSoft, marginTop: 4 }}>
+      <MonoLabel color={TT.faint} size={10} style={{ marginBottom: 8 }}>{first ? t.care.nextSession : t.care.then}</MonoLabel>
+      <Text style={{ fontSize: 19, fontWeight: '800', color: TT.ink, letterSpacing: -0.4 }}>{longDate(session.scheduledAt, locale)}</Text>
+      <Text style={{ fontSize: 13, color: TT.inkSoft, marginTop: 4 }}>
         {clock(session.scheduledAt, locale)}  ·  {fmtFormat(session.sessionFormat, locale)}{first ? '' : ` · ${session.durationMinutes} min`}
       </Text>
 
       {pay ? (
         <View style={{ alignSelf: 'flex-start', marginTop: 12, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: pay === 'paid' ? 'rgba(127,217,192,0.16)' : 'rgba(233,196,106,0.16)' }}>
-          <Text style={{ fontSize: 11.5, fontWeight: '700', color: pay === 'paid' ? EDD.green : EDD.amber }}>
+          <Text style={{ fontSize: 11.5, fontWeight: '700', color: pay === 'paid' ? TT.accent : TT.amber }}>
             {pay === 'paid' ? t.care.paid : pay === 'free' ? t.care.noCharge : t.care.awaitingPayment}
           </Text>
         </View>
@@ -362,8 +364,8 @@ function SessionCard({
         </TouchableOpacity>
       ) : first && inPerson && address ? (
         <View style={{ flexDirection: 'row', gap: 7, marginTop: 14, alignItems: 'flex-start' }}>
-          <MapPin size={15} color={EDD.faint} strokeWidth={2} style={{ marginTop: 1 }} />
-          <Text style={{ flex: 1, fontSize: 13, color: EDD.textSoft, lineHeight: 19 }}>{address}</Text>
+          <MapPin size={15} color={TT.faint} strokeWidth={2} style={{ marginTop: 1 }} />
+          <Text style={{ flex: 1, fontSize: 13, color: TT.inkSoft, lineHeight: 19 }}>{address}</Text>
         </View>
       ) : (
         <View style={{ height: first ? 16 : 4 }} />
@@ -373,13 +375,14 @@ function SessionCard({
 }
 
 function SectionRule({ label, action, onAction }: { label: string; action?: string; onAction?: () => void }) {
+  const { t: TT } = useTheme();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 22, marginTop: 28, marginBottom: 12 }}>
-      <MonoLabel color={EDD.faint} size={10}>{label}</MonoLabel>
-      <View style={{ flex: 1, height: 1, backgroundColor: EDD.cardLine }} />
+      <MonoLabel color={TT.faint} size={10}>{label}</MonoLabel>
+      <View style={{ flex: 1, height: 1, backgroundColor: TT.cardLine }} />
       {action ? (
         <TouchableOpacity onPress={onAction} activeOpacity={0.7}>
-          <Text style={{ fontSize: 12, fontWeight: '700', color: EDD.green }}>{action}</Text>
+          <Text style={{ fontSize: 12, fontWeight: '700', color: TT.accent }}>{action}</Text>
         </TouchableOpacity>
       ) : null}
     </View>
@@ -415,36 +418,39 @@ function firstNameOf(name: string): string {
 }
 
 function Avatar({ initial, size }: { initial: string; size: number }) {
+  const { t: TT } = useTheme();
   return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: 'rgba(127,217,192,0.18)', borderWidth: 1, borderColor: EDD.cardLine, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ color: EDD.green, fontWeight: '700', fontSize: size * 0.38 }}>{initial}</Text>
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: 'rgba(127,217,192,0.18)', borderWidth: 1, borderColor: TT.cardLine, alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ color: TT.accent, fontWeight: '700', fontSize: size * 0.38 }}>{initial}</Text>
     </View>
   );
 }
 
 function ResourceRow({ Icon, title, sub, onPress }: { Icon: LucideIcon; title: string; sub: string; onPress: () => void }) {
+  const { t: TT } = useTheme();
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={{ backgroundColor: EDD.card, borderWidth: 1, borderColor: EDD.cardLine, borderRadius: 18, padding: 14, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine, borderRadius: 18, padding: 14, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
       <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(127,217,192,0.14)', alignItems: 'center', justifyContent: 'center' }}>
-        <Icon size={18} color={EDD.green} strokeWidth={2} />
+        <Icon size={18} color={TT.accent} strokeWidth={2} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 14.5, fontWeight: '700', color: EDD.text }}>{title}</Text>
-        <Text style={{ fontSize: 12, color: EDD.textSoft, marginTop: 1 }}>{sub}</Text>
+        <Text style={{ fontSize: 14.5, fontWeight: '700', color: TT.ink }}>{title}</Text>
+        <Text style={{ fontSize: 12, color: TT.inkSoft, marginTop: 1 }}>{sub}</Text>
       </View>
-      <ChevronRight size={18} color={EDD.faint} strokeWidth={2} />
+      <ChevronRight size={18} color={TT.faint} strokeWidth={2} />
     </TouchableOpacity>
   );
 }
 
 function UtilityRow({ Icon, label, onPress, divider }: { Icon: LucideIcon; label: string; onPress: () => void; divider?: boolean }) {
+  const { t: TT } = useTheme();
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={{ padding: 15, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14, borderBottomWidth: divider ? 1 : 0, borderBottomColor: EDD.cardLine }}>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={{ padding: 15, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14, borderBottomWidth: divider ? 1 : 0, borderBottomColor: TT.cardLine }}>
       <View style={{ width: 22, alignItems: 'center' }}>
-        <Icon size={17} color={EDD.textSoft} strokeWidth={2} />
+        <Icon size={17} color={TT.inkSoft} strokeWidth={2} />
       </View>
-      <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '700', color: EDD.text }}>{label}</Text>
-      <ChevronRight size={18} color={EDD.faint} strokeWidth={2} />
+      <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '700', color: TT.ink }}>{label}</Text>
+      <ChevronRight size={18} color={TT.faint} strokeWidth={2} />
     </TouchableOpacity>
   );
 }

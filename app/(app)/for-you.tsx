@@ -15,6 +15,7 @@ import { TabIntro } from '@/src/ui/TabIntro';
 import { EDD, FadeIn, MonoLabel } from '@/src/ui/editorial';
 import { Ground } from '@/src/ui/Ground';
 import { useI18n } from '@/src/i18n';
+import { useTheme } from '@/src/ui/theme-mode';
 
 const T = {
   en: {
@@ -42,6 +43,7 @@ const T = {
 } as const;
 
 export default function ForYou() {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale];
@@ -53,16 +55,16 @@ export default function ForYou() {
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <View style={{ paddingHorizontal: 22, paddingTop: 8, paddingBottom: 18, flexDirection: 'row', alignItems: 'flex-start' }}>
           <View style={{ flex: 1 }}>
-            <MonoLabel color={EDD.faint} size={10.5} style={{ marginBottom: 10 }}>{tr.kicker}</MonoLabel>
-            <Text style={{ fontSize: 27, fontWeight: '800', color: EDD.text, letterSpacing: -0.9, lineHeight: 31 }}>{tr.title}</Text>
-            <Text style={{ marginTop: 8, fontSize: 14, color: EDD.textSoft, lineHeight: 21 }}>{tr.subtitle}</Text>
+            <MonoLabel color={TT.faint} size={10.5} style={{ marginBottom: 10 }}>{tr.kicker}</MonoLabel>
+            <Text style={{ fontSize: 27, fontWeight: '800', color: TT.ink, letterSpacing: -0.9, lineHeight: 31 }}>{tr.title}</Text>
+            <Text style={{ marginTop: 8, fontSize: 14, color: TT.inkSoft, lineHeight: 21 }}>{tr.subtitle}</Text>
           </View>
           <TouchableOpacity
             onPress={() => router.navigate('/settings' as never)}
             activeOpacity={0.8}
-            style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: EDD.card, borderWidth: 1, borderColor: EDD.cardLine, alignItems: 'center', justifyContent: 'center' }}
+            style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine, alignItems: 'center', justifyContent: 'center' }}
           >
-            <Settings size={17} color={EDD.textSoft} strokeWidth={2} />
+            <Settings size={17} color={TT.inkSoft} strokeWidth={2} />
           </TouchableOpacity>
         </View>
 
@@ -108,20 +110,21 @@ function DoorCard({
   action: string;
   onPress: () => void;
 }) {
+  const { t: TT } = useTheme();
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.85}
-      style={{ backgroundColor: EDD.card, borderWidth: 1, borderColor: EDD.cardLine, borderRadius: 20, padding: 20 }}
+      style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine, borderRadius: 20, padding: 20 }}
     >
       <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: 'rgba(127,217,192,0.14)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-        <Icon size={21} color={EDD.green} strokeWidth={2} />
+        <Icon size={21} color={TT.accent} strokeWidth={2} />
       </View>
-      <Text style={{ fontSize: 18, fontWeight: '800', color: EDD.text, letterSpacing: -0.3, marginBottom: 6 }}>{title}</Text>
-      <Text style={{ fontSize: 13.5, color: EDD.textSoft, lineHeight: 21 }}>{body}</Text>
+      <Text style={{ fontSize: 18, fontWeight: '800', color: TT.ink, letterSpacing: -0.3, marginBottom: 6 }}>{title}</Text>
+      <Text style={{ fontSize: 13.5, color: TT.inkSoft, lineHeight: 21 }}>{body}</Text>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 16 }}>
-        <Text style={{ fontSize: 14, fontWeight: '700', color: EDD.green }}>{action}</Text>
-        <ChevronRight size={16} color={EDD.green} strokeWidth={2.2} />
+        <Text style={{ fontSize: 14, fontWeight: '700', color: TT.accent }}>{action}</Text>
+        <ChevronRight size={16} color={TT.accent} strokeWidth={2.2} />
       </View>
     </TouchableOpacity>
   );

@@ -74,7 +74,7 @@ export default function Journal() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: EDD.ground }}>
+    <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="light" />
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         {/* The head: dark, and pointedly without an image. */}
@@ -88,12 +88,12 @@ export default function Journal() {
             </TouchableOpacity>
             <View style={{ flex: 1 }} />
             <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }}>
-              <Lock size={16} color={EDD.textSoft} strokeWidth={2} />
+              <Lock size={16} color={TT.inkSoft} strokeWidth={2} />
             </View>
           </View>
-          <MonoLabel color={EDD.faint} size={10.5} style={{ marginBottom: 8 }}>{tr.kicker}</MonoLabel>
-          <Text style={{ fontSize: 30, fontWeight: '800', color: EDD.text, letterSpacing: -1 }}>{tr.title}</Text>
-          <Text style={{ marginTop: 8, fontSize: 13.5, color: EDD.textSoft, lineHeight: 20, maxWidth: 300 }}>{tr.subtitle}</Text>
+          <MonoLabel color={TT.faint} size={10.5} style={{ marginBottom: 8 }}>{tr.kicker}</MonoLabel>
+          <Text style={{ fontSize: 30, fontWeight: '800', color: TT.ink, letterSpacing: -1 }}>{tr.title}</Text>
+          <Text style={{ marginTop: 8, fontSize: 13.5, color: TT.inkSoft, lineHeight: 20, maxWidth: 300 }}>{tr.subtitle}</Text>
         </View>
 
         {/* The paper. */}

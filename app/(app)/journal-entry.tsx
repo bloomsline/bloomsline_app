@@ -288,7 +288,7 @@ export default function JournalEntry() {
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: EDD.ground }}>
+    <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="light" />
       <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
@@ -298,8 +298,8 @@ export default function JournalEntry() {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 18, paddingVertical: 12 }}>
           <TouchableOpacity onPress={back} activeOpacity={0.7} style={darkCircleBtn}><ChevronLeft size={18} color="#fff" strokeWidth={2} /></TouchableOpacity>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            {mode === 'edit' && status === 'saved' && <Check size={13} color={EDD.green} strokeWidth={2.5} />}
-            {mode === 'edit' && status !== 'idle' ? <MonoLabel color={EDD.faint} size={9.5}>{status === 'saving' ? tr.saving : tr.saved.replace('{time}', savedAtLabel)}</MonoLabel> : null}
+            {mode === 'edit' && status === 'saved' && <Check size={13} color={TT.accent} strokeWidth={2.5} />}
+            {mode === 'edit' && status !== 'idle' ? <MonoLabel color={TT.faint} size={9.5}>{status === 'saving' ? tr.saving : tr.saved.replace('{time}', savedAtLabel)}</MonoLabel> : null}
           </View>
           <View style={{ flex: 1 }} />
           {savedId && !entryIsEmpty(title, blocks) && (
@@ -312,7 +312,7 @@ export default function JournalEntry() {
           {mode === 'read' && (
             <TouchableOpacity onPress={() => setMode('edit')} activeOpacity={0.7} style={darkCircleBtn}><Pencil size={16} color="#fff" strokeWidth={2} /></TouchableOpacity>
           )}
-          <TouchableOpacity onPress={confirmDelete} activeOpacity={0.7} style={darkCircleBtn}><Trash2 size={16} color={EDD.textSoft} strokeWidth={2} /></TouchableOpacity>
+          <TouchableOpacity onPress={confirmDelete} activeOpacity={0.7} style={darkCircleBtn}><Trash2 size={16} color={TT.inkSoft} strokeWidth={2} /></TouchableOpacity>
         </View>
 
         {/* The paper. */}
