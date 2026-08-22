@@ -9,7 +9,7 @@ import Svg, { Path, Circle, Defs, LinearGradient, Stop, Line, Text as SvgText } 
 import { MOOD_SCORES, MOOD_COLORS, moodLabel } from './moods';
 import { formatTime } from './DayNav';
 import { useI18n } from '@/src/i18n';
-import { EDA, MonoLabel } from '@/src/ui/editorial';
+import { MonoLabel } from '@/src/ui/editorial';
 import type { MomentDTO } from '@/src/api/moments';
 import { useTheme } from '@/src/ui/theme-mode';
 

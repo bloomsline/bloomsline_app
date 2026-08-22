@@ -2,7 +2,6 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { AppState, Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { PenLine, X } from 'lucide-react-native';
-import { EDA } from '@/src/ui/editorial';
 import { saveNoteDraft, discardNoteDraft, type NoteRange } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
 

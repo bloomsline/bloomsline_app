@@ -3,7 +3,7 @@ import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'r
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { CalendarPlus, Check, ChevronDown, ChevronUp, NotebookPen, PenLine, Share2, Sparkles, UserPlus, Video, MapPin, Phone, Settings as SettingsIcon, X, type LucideIcon } from 'lucide-react-native';
-import { EDA, EdHeader, EdCard, EdSection, FadeIn } from '@/src/ui/editorial';
+import { EdHeader, EdCard, EdSection, FadeIn } from '@/src/ui/editorial';
 import { PractitionerTabBar, PRACTITIONER_TAB_PAD } from '@/src/ui/PractitionerTabBar';
 import { useConfirm } from '@/src/ui/confirm';
 import { useI18n } from '@/src/i18n';

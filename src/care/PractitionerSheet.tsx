@@ -1,6 +1,6 @@
 import { Image, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { X } from 'lucide-react-native';
-import { EDA, MonoLabel } from '@/src/ui/editorial';
+import { MonoLabel } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 import type { CarePractitioner } from '@/src/api/care';
 import { useTheme } from '@/src/ui/theme-mode';

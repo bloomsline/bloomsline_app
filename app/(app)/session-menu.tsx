@@ -7,7 +7,7 @@ import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Info } from 'lucide-react-native';
-import { EDA, EdPill, MonoLabel } from '@/src/ui/editorial';
+import { EdPill, MonoLabel } from '@/src/ui/editorial';
 import { useOnboarding } from '@/src/onboarding/context';
 import { cancelSession } from '@/src/api/booking';
 import { useConfirm } from '@/src/ui/confirm';

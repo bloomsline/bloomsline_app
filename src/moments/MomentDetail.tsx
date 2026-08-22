@@ -11,7 +11,7 @@ import { deleteMoment, shareMoment, type MomentDTO, type MomentMediaDTO } from '
 import { useConfirm } from '@/src/ui/confirm';
 import { AudioRow, MediaViewer } from '@/src/ui/MediaViewer';
 import { useI18n } from '@/src/i18n';
-import { EDA, MonoLabel } from '@/src/ui/editorial';
+import { MonoLabel } from '@/src/ui/editorial';
 import { useTheme } from '@/src/ui/theme-mode';
 
 const T = {
@@ -57,7 +57,6 @@ const T = {
 
 const fmtDur = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-const BLOOM = EDA.green;
 
 export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO; onClose: () => void; onChanged: () => void }) {
   const { t: TT } = useTheme();
@@ -178,15 +177,15 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
                 activeOpacity={0.85}
                 style={{
                   flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16, paddingVertical: 16,
-                  backgroundColor: shared ? TT.accentTint : BLOOM, borderRadius: 27, borderWidth: shared ? 1 : 0, borderColor: shared ? TT.line : 'transparent',
+                  backgroundColor: shared ? TT.accentTint : TT.accent, borderRadius: 27, borderWidth: shared ? 1 : 0, borderColor: shared ? TT.line : 'transparent',
                 }}
               >
                 {sharing ? (
-                  <ActivityIndicator size="small" color={shared ? BLOOM : '#fff'} />
+                  <ActivityIndicator size="small" color={shared ? TT.accent : '#fff'} />
                 ) : shared ? (
                   <>
-                    <CircleCheckBig size={18} color={BLOOM} strokeWidth={2} />
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: BLOOM }}>{tr.sharedTap}</Text>
+                    <CircleCheckBig size={18} color={TT.accent} strokeWidth={2} />
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: TT.accent }}>{tr.sharedTap}</Text>
                   </>
                 ) : (
                   <>

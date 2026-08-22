@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { RefreshCw, Sparkles, X } from 'lucide-react-native';
-import { EDA } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 import { fetchPulse, generatePulse, type Pulse } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
+import { LIGHT, DARK, type Mode } from '@/src/ui/tokens';
 
 // The session brief, on the phone.
 //
@@ -41,14 +41,31 @@ const fill = (s: string, v: Record<string, string>) => s.replace(/\{(\w+)\}/g, (
 
 // Signal tone. An amber signal is something to hold in mind walking in, not an
 // alarm — the wording does that work, the colour just groups them.
-const KIND: Record<string, { bg: string; fg: string }> = {
-  concern: { bg: '#FEF3C7', fg: '#B45309' },
-  risk: { bg: '#FFE4E6', fg: '#BE123C' },
-  positive: { bg: EDA.greenTint, fg: EDA.greenDeep },
+// Signal chips, per theme.
+//
+// Record<Mode, ...> rather than a function of the palette: these are MODULE
+// level, so a hook cannot reach them, and keeping them static preserves the
+// Record<string, ...> annotation that string indexing depends on. (The function
+// form was tried and reverted — it dropped the annotation and broke `KIND[k]`.)
+//
+// The dark values are not the light ones dimmed. A pale chip on a dark card
+// reads as a sticker; the tint becomes a low-alpha wash of the hue it means and
+// the text lightens to sit on it, the same rule TILES follows in tokens.ts.
+const KIND: Record<Mode, Record<string, { bg: string; fg: string }>> = {
+  light: {
+    concern: { bg: '#FEF3C7', fg: '#B45309' },
+    risk: { bg: '#FFE4E6', fg: '#BE123C' },
+    positive: { bg: LIGHT.accentTint, fg: LIGHT.accentDeep },
+  },
+  dark: {
+    concern: { bg: 'rgba(233,196,106,0.16)', fg: '#E9C46A' },
+    risk: { bg: 'rgba(244,63,94,0.18)', fg: '#FDA4AF' },
+    positive: { bg: DARK.accentTint, fg: DARK.accent },
+  },
 };
 
 export function PulseSheet({ memberId, who, onClose }: { memberId: string | null; who: string; onClose: () => void }) {
-  const { t: TT } = useTheme();
+  const { t: TT, mode } = useTheme();
   const { locale } = useI18n();
   const tr = T[locale] ?? T.en;
 
@@ -150,7 +167,7 @@ export function PulseSheet({ memberId, who, onClose }: { memberId: string | null
                   <View style={{ marginTop: 20 }}>
                     <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: TT.faint, marginBottom: 9 }}>{tr.signals}</Text>
                     {pulse.content.signals.map((sig, i) => {
-                      const c = KIND[sig.kind] ?? { bg: TT.bg, fg: TT.inkSoft };
+                      const c = KIND[mode][sig.kind] ?? { bg: TT.bg, fg: TT.inkSoft };
                       return (
                         <View key={i} style={{ flexDirection: 'row', gap: 9, alignItems: 'flex-start', marginBottom: 7 }}>
                           <View style={{ height: 7, width: 7, borderRadius: 4, backgroundColor: c.fg, marginTop: 6 }} />

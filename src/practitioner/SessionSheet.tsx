@@ -5,7 +5,6 @@ import {
   CalendarClock, CheckCircle2, ChevronDown, Mail, MapPin, MoreHorizontal, NotebookPen, Phone,
   Repeat, Send, Trash2, UserX, Video, X, XCircle,
 } from 'lucide-react-native';
-import { EDA } from '@/src/ui/editorial';
 import { useConfirm } from '@/src/ui/confirm';
 import { notify } from '@/src/ui/alert';
 import { useI18n } from '@/src/i18n';
@@ -15,6 +14,7 @@ import {
   type CloseReasonGroup, type PractitionerSession,
 } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
+import { LIGHT, DARK, type Mode } from '@/src/ui/tokens';
 
 // Everything you can do to a session, without leaving the day.
 //
@@ -76,21 +76,34 @@ const FORMAT_ICON = { video: Video, in_person: MapPin, phone: Phone } as const;
 // Pill colours mirror the care app's popover so the two surfaces read as one
 // product — a practitioner moving between laptop and phone should not have to
 // relearn what amber means.
-const TONE = {
-  amber: { bg: '#FEF3C7', fg: '#B45309' },
-  blue: { bg: '#DBEAFE', fg: '#1D4ED8' },
-  green: { bg: EDA.greenTint, fg: EDA.greenDeep },
-  rose: { bg: '#FFE4E6', fg: '#BE123C' },
-  grey: { bg: '#F1F0EC', fg: '#6B6B63' },
-} as const;
+// `keyof typeof TONE` used to name a colour; it would now name a THEME, so the
+// tone names get their own type rather than being read off the map.
+type ToneName = 'amber' | 'blue' | 'green' | 'rose' | 'grey';
+const TONE: Record<Mode, Record<ToneName, { bg: string; fg: string }>> = {
+  light: {
+    amber: { bg: '#FEF3C7', fg: '#B45309' },
+    blue: { bg: '#DBEAFE', fg: '#1D4ED8' },
+    green: { bg: LIGHT.accentTint, fg: LIGHT.accentDeep },
+    rose: { bg: '#FFE4E6', fg: '#BE123C' },
+    grey: { bg: '#F1F0EC', fg: '#6B6B63' },
+  },
+  dark: {
+    amber: { bg: 'rgba(233,196,106,0.16)', fg: '#E9C46A' },
+    blue: { bg: 'rgba(125,180,235,0.16)', fg: '#8FC2EF' },
+    green: { bg: DARK.accentTint, fg: DARK.accent },
+    rose: { bg: 'rgba(244,63,94,0.18)', fg: '#FDA4AF' },
+    grey: { bg: 'rgba(255,255,255,0.07)', fg: 'rgba(255,255,255,0.72)' },
+  },
+};
 
-const STATUS_TONE: Record<string, keyof typeof TONE> = {
+const STATUS_TONE: Record<string, ToneName> = {
   pending: 'amber', scheduled: 'blue', completed: 'green', cancelled: 'rose', no_show: 'grey',
 };
-const PAYMENT_TONE: Record<string, keyof typeof TONE> = { paid: 'green', unpaid: 'amber', free: 'grey' };
+const PAYMENT_TONE: Record<string, ToneName> = { paid: 'green', unpaid: 'amber', free: 'grey' };
 
-function Pill({ label, tone }: { label: string; tone: keyof typeof TONE }) {
-  const c = TONE[tone];
+function Pill({ label, tone }: { label: string; tone: ToneName }) {
+  const { mode: themeMode } = useTheme();
+  const c = TONE[themeMode][tone];
   return (
     <View style={{ borderRadius: 11, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: c.bg }}>
       <Text style={{ fontSize: 11, fontWeight: '800', color: c.fg }}>{label}</Text>
@@ -157,7 +170,7 @@ export function SessionSheet({
   /** Something changed on the server: the day needs refetching. */
   onChanged: () => void;
 }) {
-  const { t: TT } = useTheme();
+  const { t: TT, mode: themeMode } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale] ?? T.en;
@@ -304,9 +317,9 @@ export function SessionSheet({
                   {s.paymentStatus && <Pill label={tr.payments[s.paymentStatus as keyof typeof tr.payments] ?? s.paymentStatus} tone={PAYMENT_TONE[s.paymentStatus] ?? 'grey'} />}
                   {s.source && tr.origins[s.source as keyof typeof tr.origins] && <Pill label={tr.origins[s.source as keyof typeof tr.origins]} tone="grey" />}
                   {s.seriesTotal ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 11, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: TONE.grey.bg }}>
-                      <Repeat size={11} color={TONE.grey.fg} />
-                      <Text style={{ fontSize: 11, fontWeight: '800', color: TONE.grey.fg }}>{s.seriesPosition}/{s.seriesTotal}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 11, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: TONE[themeMode].grey.bg }}>
+                      <Repeat size={11} color={TONE[themeMode].grey.fg} />
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: TONE[themeMode].grey.fg }}>{s.seriesPosition}/{s.seriesTotal}</Text>
                     </View>
                   ) : null}
                 </View>

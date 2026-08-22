@@ -12,7 +12,7 @@ import { useRouter } from 'expo-router';
 import { PenLine, Sprout, Settings, ChevronRight, type LucideIcon } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
 import { TabIntro } from '@/src/ui/TabIntro';
-import { EDD, FadeIn, MonoLabel } from '@/src/ui/editorial';
+import { FadeIn, MonoLabel } from '@/src/ui/editorial';
 import { Ground } from '@/src/ui/Ground';
 import { useI18n } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';

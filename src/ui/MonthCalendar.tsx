@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
-import { EDA } from '@/src/ui/editorial';
 import { useTheme } from '@/src/ui/theme-mode';
 
 // A month grid for picking a day.

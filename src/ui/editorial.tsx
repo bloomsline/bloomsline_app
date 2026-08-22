@@ -14,7 +14,7 @@ import { useTheme } from './theme-mode';
 // nothing could ask "what is the page colour" without knowing its own theme.
 //
 // New code should use `useTheme()` from `theme-mode` instead of either name.
-export { EDA, EDD } from './tokens';
+export { EDD } from './tokens';
 
 const RISE = Easing.bezier(0.16, 0.84, 0.24, 1);
 

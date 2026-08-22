@@ -25,7 +25,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { X, ChevronLeft, ImagePlus, Mic, Lock, Eye, Camera, Video, Images, Square, Circle } from 'lucide-react-native';
-import { EDD } from '@/src/ui/editorial';
 import { MOODS, moodLabel } from '@/src/moments/moods';
 import { createMoment, shareMoment } from '@/src/api/moments';
 import { pickMedia, captureMedia, cameraAvailable, uploadMedia, type PreparedMedia } from '@/src/moments/media-upload';

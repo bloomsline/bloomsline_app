@@ -16,7 +16,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { Settings } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
 import { TabIntro } from '@/src/ui/TabIntro';
-import { EDD, FadeIn, MonoLabel } from '@/src/ui/editorial';
+import { FadeIn, MonoLabel } from '@/src/ui/editorial';
 import { Line } from '@/src/moments/Line';
 import { MomentDetail } from '@/src/moments/MomentDetail';
 import { useLanding } from '@/src/prefs/landing';

@@ -8,7 +8,6 @@ import * as ImagePicker from 'expo-image-picker';
 import * as WebBrowser from 'expo-web-browser';
 import { Check, ExternalLink, FileText, Minus, Paperclip, Play, Plus, Upload, X } from 'lucide-react-native';
 import { CARE } from '@/src/care/theme';
-import { EDA } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 import { htmlToPlainText, parseRichText, type Span } from '@/src/resources/html';
 import { ZonedCanvasField } from '@/src/resources/zoned-canvas-field';

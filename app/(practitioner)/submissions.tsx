@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronRight, FileText, User } from 'lucide-react-native';
-import { EDA, EdHeader, EdCard, EdSection, FadeIn } from '@/src/ui/editorial';
+import { EdHeader, EdCard, EdSection, FadeIn } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 import { fetchSubmissionGroups, fetchSubmissions, type SubmissionGroups, type SubmissionSummary } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';

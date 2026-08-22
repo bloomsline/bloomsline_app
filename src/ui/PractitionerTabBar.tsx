@@ -1,7 +1,6 @@
 import { Platform, Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LayoutGrid, Users, CalendarDays, Library, type LucideIcon } from 'lucide-react-native';
-import { EDA } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
 
