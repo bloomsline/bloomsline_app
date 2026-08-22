@@ -73,7 +73,32 @@ const SIDE_PAD = 74;  // keeps a node (and its dot) clear of either edge
  * Lay the week out. Kept separate from the drawing so it can be reasoned about
  * (and, later, tested) without a renderer.
  */
-export function layout(moments: MomentDTO[], width: number, locale: 'en' | 'fr', mode: 'light' | 'dark'): { nodes: LineNode[]; height: number } {
+/**
+ * The label on the left rail, at the first node of each day.
+ *
+ * Three tiers, because a weekday stops being unambiguous after seven days: a
+ * moment from March read "Thu", identically to last Thursday, and the labels
+ * repeated down the line with nothing to anchor them.
+ *
+ *   today / yesterday   named, because that is how people refer to them
+ *   within this week    weekday — short and enough
+ *   older               a real date, with the YEAR once it is not this year
+ */
+export function dayLabelFor(d: Date, now: Date, locale: 'en' | 'fr', l: { today: string; yesterday: string }): string {
+  const tag = (x: Date) => `${x.getFullYear()}-${x.getMonth()}-${x.getDate()}`;
+  const y = new Date(now);
+  y.setDate(y.getDate() - 1);
+  if (tag(d) === tag(now)) return l.today;
+  if (tag(d) === tag(y)) return l.yesterday;
+  const lc = locale === 'fr' ? 'fr-FR' : 'en-US';
+  // Calendar days apart, not hours — 25 hours ago can still be "this week".
+  const midnight = (x: Date) => +new Date(x.getFullYear(), x.getMonth(), x.getDate());
+  const days = Math.round((midnight(now) - midnight(d)) / 86_400_000);
+  if (days < 7) return d.toLocaleDateString(lc, { weekday: 'short' });
+  return d.toLocaleDateString(lc, d.getFullYear() === now.getFullYear() ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+export function layout(moments: MomentDTO[], width: number, locale: 'en' | 'fr', mode: 'light' | 'dark', dayLabels: { today: string; yesterday: string }, now: Date = new Date()): { nodes: LineNode[]; height: number } {
   const usable = width - SIDE_PAD - NODE / 2 - 14;
   // Oldest first: the line is read downward, and "today" belongs at the foot.
   const ordered = [...moments].sort((a, b) => +new Date(a.capturedAt) - +new Date(b.capturedAt));
@@ -90,7 +115,7 @@ export function layout(moments: MomentDTO[], width: number, locale: 'en' | 'fr',
       y: TOP_PAD + i * ROW + NODE / 2,
       face: faceOf(m),
       color: m.moods.length > 0 ? moodColor(m.moods[0]) : veil(mode, 0.35),
-      dayLabel: isNewDay ? d.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'short' }) : null,
+      dayLabel: isNewDay ? dayLabelFor(d, now, locale, dayLabels) : null,
     };
   });
 
@@ -161,13 +186,13 @@ export function Line({
   moments: MomentDTO[];
   width: number;
   locale: 'en' | 'fr';
-  labels: { heavier: string; lighter: string; today: string; tapToRead: string };
+  labels: { heavier: string; lighter: string; today: string; yesterday: string; tapToRead: string };
   onOpen: (m: MomentDTO) => void;
   onCaptureToday: () => void;
 }) {
   const { mode } = useTheme();
   const { t: TT } = useTheme();
-  const { nodes, height } = useMemo(() => layout(moments, width, locale, mode), [moments, width, locale, mode]);
+  const { nodes, height } = useMemo(() => layout(moments, width, locale, mode, labels), [moments, width, locale, mode, labels]);
 
   const todayY = height - NODE / 2 - 6;
   const todayX = SIDE_PAD + 0.5 * (width - SIDE_PAD - NODE / 2 - 14);

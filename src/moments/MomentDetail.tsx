@@ -58,7 +58,13 @@ const T = {
 const fmtDur = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 
-export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO; onClose: () => void; onChanged: () => void }) {
+/** What the sheet changed, so the timeline can patch itself in place. It used to
+ *  just say "something changed" and the line refetched its first page — which,
+ *  now that the line is paged, would throw away every older page the reader had
+ *  scrolled back through and drop them at today. */
+export type MomentChange = { id: string; deleted: true } | { id: string; shared: boolean };
+
+export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO; onClose: () => void; onChanged: (change: MomentChange) => void }) {
   const { t: TT } = useTheme();
   const insets = useSafeAreaInsets();
   const { locale, t } = useI18n();
@@ -94,7 +100,7 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
     try {
       const confirmed = await shareMoment(moment.id, next);
       setShared(confirmed);
-      onChanged();
+      onChanged({ id: moment.id, shared: confirmed });
     } catch {
       setShared(!next); // revert
       if (Platform.OS === 'web') globalThis.alert?.(tr.updateSharingError);
@@ -107,7 +113,7 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
     setDeleting(true);
     try {
       await deleteMoment(moment.id);
-      onChanged();
+      onChanged({ id: moment.id, deleted: true });
       onClose();
     } catch {
       setDeleting(false);

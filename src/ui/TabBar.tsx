@@ -33,13 +33,17 @@ export function TabBar({ active, tone }: { active: TabId; tone?: 'light' | 'dark
 
   if (tone === 'dark') {
     return (
-      <View className="absolute inset-x-6 bottom-8 flex-row items-center">
+      <View className="absolute inset-x-6 bottom-8 flex-row items-center justify-between">
         {/* A pill, not bare labels. Bare text has no ground of its own, so the
             page scrolls UNDERNEATH it — the day heading collided with the tab
             row. The container gives the bar a surface; the active tab gets its
-            own inner pill so selection reads without relying on weight alone. */}
+            own inner pill so selection reads without relying on weight alone.
+            It HUGS its labels — no flex-1. Stretching it to the full width left
+            a dead third after "For You" and pushed its edge into the + button;
+            the row is justify-between instead, so the pill ends where the words
+            do and the + stays at the margin. */}
         <View
-          className="flex-1 flex-row items-center self-start rounded-full p-1"
+          className="flex-row items-center self-start rounded-full p-1"
           style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine }}
         >
           {order.map((id) => TABS[id]).map((tab) => {
@@ -61,14 +65,20 @@ export function TabBar({ active, tone }: { active: TabId; tone?: 'light' | 'dark
             );
           })}
         </View>
-        <Pressable
-          accessibilityLabel="Capture a moment"
-          className="h-[46px] w-[46px] items-center justify-center rounded-[23px]"
-          style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine }}
-          onPress={() => router.navigate('/capture' as never)}
-        >
-          <Plus size={22} color={TT.ink} strokeWidth={2.2} />
-        </Pressable>
+        {/* Capture belongs to Moments. It wrote a moment regardless of which
+            tab you were on, so on My Care and For You it was an action with no
+            relationship to what was on screen. Gone there; the pill just sits
+            on its own. */}
+        {active === 'moments' && (
+          <Pressable
+            accessibilityLabel="Capture a moment"
+            className="h-[46px] w-[46px] items-center justify-center rounded-[23px]"
+            style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine }}
+            onPress={() => router.navigate('/capture' as never)}
+          >
+            <Plus size={22} color={TT.ink} strokeWidth={2.2} />
+          </Pressable>
+        )}
       </View>
     );
   }
@@ -96,14 +106,16 @@ export function TabBar({ active, tone }: { active: TabId; tone?: 'light' | 'dark
           );
         })}
       </View>
-      <Pressable
-        accessibilityLabel="Capture a moment"
-        className="h-[54px] w-[54px] items-center justify-center rounded-[27px]"
-        style={{ backgroundColor: TT.ctaBg, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}
-        onPress={() => router.navigate('/capture' as never)}
-      >
-        <Plus size={24} color={TT.ctaFg} strokeWidth={2.4} />
-      </Pressable>
+      {active === 'moments' && (
+        <Pressable
+          accessibilityLabel="Capture a moment"
+          className="h-[54px] w-[54px] items-center justify-center rounded-[27px]"
+          style={{ backgroundColor: TT.ctaBg, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}
+          onPress={() => router.navigate('/capture' as never)}
+        >
+          <Plus size={24} color={TT.ctaFg} strokeWidth={2.4} />
+        </Pressable>
+      )}
     </View>
   );
 }
