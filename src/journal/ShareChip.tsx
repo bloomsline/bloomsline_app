@@ -14,6 +14,7 @@ import { ChevronDown, EyeOff, Send } from 'lucide-react-native';
 import { EDA } from '@/src/ui/editorial';
 import { AnchoredMenu, useAnchoredMenu } from '@/src/ui/AnchoredMenu';
 import { initialOf, type PractitionerFace } from '@/src/care/practitioner-face';
+import { useTheme } from '@/src/ui/theme-mode';
 
 const RED = '#B4443A';
 
@@ -37,6 +38,7 @@ export function ShareChip({
   locale: 'en' | 'fr';
   onToggle: (next: boolean) => void;
 }) {
+  const { t: TT } = useTheme();
   const name = (face?.name ?? '').replace(/^dr\.?\s*/i, '').trim();
   const label = shared ? copy.canRead.replace('{name}', name || copy.private) : copy.private;
 
@@ -55,14 +57,14 @@ export function ShareChip({
         }}
       >
         {busy ? (
-          <ActivityIndicator size="small" color={shared ? EDA.greenDeep : EDA.faint} />
+          <ActivityIndicator size="small" color={shared ? TT.accentDeep : TT.faint} />
         ) : shared ? (
           <Avatar face={face} />
         ) : null}
-        <Text numberOfLines={1} style={{ fontSize: 11.5, fontWeight: '700', color: shared ? EDA.greenDeep : 'rgba(255,255,255,0.72)', maxWidth: 150 }}>
+        <Text numberOfLines={1} style={{ fontSize: 11.5, fontWeight: '700', color: shared ? TT.accentDeep : 'rgba(255,255,255,0.72)', maxWidth: 150 }}>
           {label}
         </Text>
-        <ChevronDown size={11} color={shared ? EDA.greenDeep : 'rgba(255,255,255,0.55)'} strokeWidth={2.6} />
+        <ChevronDown size={11} color={shared ? TT.accentDeep : 'rgba(255,255,255,0.55)'} strokeWidth={2.6} />
       </Pressable>
 
       <AnchoredMenu
@@ -73,7 +75,7 @@ export function ShareChip({
         actions={[
           shared
             ? { key: 'stop', label: copy.stopSharing, color: RED, Icon: EyeOff, onPress: () => onToggle(false) }
-            : { key: 'share', label: copy.shareWith.replace('{name}', name || ''), color: EDA.green, Icon: Send, onPress: () => onToggle(true) },
+            : { key: 'share', label: copy.shareWith.replace('{name}', name || ''), color: TT.accent, Icon: Send, onPress: () => onToggle(true) },
         ]}
       />
     </>
@@ -81,11 +83,12 @@ export function ShareChip({
 }
 
 function Avatar({ face }: { face: PractitionerFace | null }) {
+  const { t: TT } = useTheme();
   if (face?.photoUrl) {
     return <Image source={{ uri: face.photoUrl }} style={{ width: 24, height: 24, borderRadius: 12 }} />;
   }
   return (
-    <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: EDA.green, alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: TT.accent, alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ fontSize: 11, fontWeight: '800', color: '#fff' }}>{initialOf(face?.name)}</Text>
     </View>
   );

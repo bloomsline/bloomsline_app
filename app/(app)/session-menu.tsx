@@ -12,6 +12,7 @@ import { useOnboarding } from '@/src/onboarding/context';
 import { cancelSession } from '@/src/api/booking';
 import { useConfirm } from '@/src/ui/confirm';
 import { fmt, useI18n, type Locale } from '@/src/i18n';
+import { useTheme } from '@/src/ui/theme-mode';
 
 // Destructive tone for the cancel action, in an editorial-warm register.
 const DANGER = '#B04A32';
@@ -65,6 +66,7 @@ const T = {
 } as const;
 
 export default function SessionMenu() {
+  const { t: TT } = useTheme();
   const { locale } = useI18n();
   const confirm = useConfirm();
   const tr = T[locale];
@@ -107,19 +109,19 @@ export default function SessionMenu() {
   return (
     <View style={{ flex: 1, backgroundColor: 'rgba(20,20,20,0.4)', justifyContent: 'flex-end' }}>
       <Pressable style={{ flex: 1 }} onPress={close} />
-      <SafeAreaView edges={['bottom']} style={{ backgroundColor: EDA.card, borderTopLeftRadius: 28, borderTopRightRadius: 28 }}>
+      <SafeAreaView edges={['bottom']} style={{ backgroundColor: TT.card, borderTopLeftRadius: 28, borderTopRightRadius: 28 }}>
         <View style={{ paddingHorizontal: 24, paddingTop: 14, paddingBottom: 8 }}>
-          <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: EDA.line, alignSelf: 'center', marginBottom: 18 }} />
+          <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: TT.line, alignSelf: 'center', marginBottom: 18 }} />
 
-          <MonoLabel color={EDA.faint} style={{ marginBottom: 12 }}>{tr.session}</MonoLabel>
+          <MonoLabel color={TT.faint} style={{ marginBottom: 12 }}>{tr.session}</MonoLabel>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: EDA.line }}>
-            <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: EDA.green, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: TT.line }}>
+            <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: TT.accent, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ color: '#fff', fontWeight: '700', fontSize: 18 }}>{initial}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: EDA.ink }}>{start ? `${longDate(start, locale)} · ${clock(start)}` : tr.session}</Text>
-              <Text style={{ fontSize: 12.5, color: EDA.inkSoft, marginTop: 1 }}>{tr.with} {name} · {duration} min · {fmtFormat(format, tr)}</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: TT.ink }}>{start ? `${longDate(start, locale)} · ${clock(start)}` : tr.session}</Text>
+              <Text style={{ fontSize: 12.5, color: TT.inkSoft, marginTop: 1 }}>{tr.with} {name} · {duration} min · {fmtFormat(format, tr)}</Text>
             </View>
           </View>
 
@@ -129,9 +131,9 @@ export default function SessionMenu() {
           </View>
 
           {(canCancel || canReschedule) && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: EDA.greenTint, borderRadius: 14, padding: 13, marginBottom: 16 }}>
-              <Info size={15} color={EDA.green} strokeWidth={2} />
-              <Text style={{ flex: 1, fontSize: 12.5, color: EDA.inkSoft, lineHeight: 18 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: TT.accentTint, borderRadius: 14, padding: 13, marginBottom: 16 }}>
+              <Info size={15} color={TT.accent} strokeWidth={2} />
+              <Text style={{ flex: 1, fontSize: 12.5, color: TT.inkSoft, lineHeight: 18 }}>
                 {fmt(tr.changesNotice, { hours: noticeHours })}
               </Text>
             </View>
@@ -142,14 +144,14 @@ export default function SessionMenu() {
           )}
           {canReschedule && canCancel && <View style={{ height: 10 }} />}
           {canCancel && (
-            <Pressable onPress={confirmCancel} disabled={busy} style={{ height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: EDA.card, borderWidth: 1.5, borderColor: DANGER_BORDER }}>
+            <Pressable onPress={confirmCancel} disabled={busy} style={{ height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: TT.card, borderWidth: 1.5, borderColor: DANGER_BORDER }}>
               {busy ? <ActivityIndicator color={DANGER} /> : <Text style={{ fontSize: 15.5, fontWeight: '700', color: DANGER }}>{tr.cancel}</Text>}
             </Pressable>
           )}
 
           {/* Neither allowed: say so, so the sheet is not an empty panel. */}
           {!canCancel && !canReschedule && (
-            <Text style={{ fontSize: 12.5, color: EDA.inkSoft, textAlign: 'center', lineHeight: 18 }}>
+            <Text style={{ fontSize: 12.5, color: TT.inkSoft, textAlign: 'center', lineHeight: 18 }}>
               {tr.contactPractitioner}
             </Text>
           )}
@@ -160,10 +162,11 @@ export default function SessionMenu() {
 }
 
 function MiniFact({ label, value }: { label: string; value: string }) {
+  const { t: TT } = useTheme();
   return (
-    <View style={{ flex: 1, backgroundColor: EDA.canvas, borderWidth: 1, borderColor: EDA.line, borderRadius: 14, padding: 12, alignItems: 'center' }}>
-      <MonoLabel color={EDA.faint} size={9.5}>{label}</MonoLabel>
-      <Text style={{ fontSize: 14, color: EDA.ink, fontWeight: '700', marginTop: 5 }}>{value}</Text>
+    <View style={{ flex: 1, backgroundColor: TT.bg, borderWidth: 1, borderColor: TT.line, borderRadius: 14, padding: 12, alignItems: 'center' }}>
+      <MonoLabel color={TT.faint} size={9.5}>{label}</MonoLabel>
+      <Text style={{ fontSize: 14, color: TT.ink, fontWeight: '700', marginTop: 5 }}>{value}</Text>
     </View>
   );
 }

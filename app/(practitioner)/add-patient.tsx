@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TextInput, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
-import { EDA, EdHeader, EdCard, EdPill, EdSection, FadeIn } from '@/src/ui/editorial';
+import { EdHeader, EdCard, EdPill, EdSection, FadeIn } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 import { addPatient } from '@/src/api/practitioner';
+import { useTheme } from '@/src/ui/theme-mode';
 
 // Add a patient. Name is required; an email is what makes the app invitation
 // possible — and whether one actually goes out is decided server-side, where the
@@ -25,6 +26,7 @@ const T = {
 } as const;
 
 export default function AddPatient() {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale] ?? T.en;
@@ -52,15 +54,15 @@ export default function AddPatient() {
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={EDA.faint}
-        style={{ fontSize: 15.5, color: EDA.ink }}
+        placeholderTextColor={TT.faint}
+        style={{ fontSize: 15.5, color: TT.ink }}
         {...extra}
       />
     </EdCard>
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+    <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         <EdHeader kicker={tr.kicker} title={tr.title} onBack={back} />
@@ -71,7 +73,7 @@ export default function AddPatient() {
           {field(lastName, setLast, tr.last)}
           {field(email, setEmail, tr.email, { keyboardType: 'email-address', autoCapitalize: 'none', autoCorrect: false })}
 
-          <Text style={{ fontSize: 12.5, color: EDA.faint, lineHeight: 18, marginTop: 4 }}>{tr.inviteNote}</Text>
+          <Text style={{ fontSize: 12.5, color: TT.faint, lineHeight: 18, marginTop: 4 }}>{tr.inviteNote}</Text>
 
           <EdPill
             label={saving ? '…' : tr.save}

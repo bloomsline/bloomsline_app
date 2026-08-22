@@ -3,10 +3,11 @@ import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { History } from 'lucide-react-native';
-import { EDA, EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
+import { EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
 import { Block } from '@/src/resources/blocks';
 import { useI18n } from '@/src/i18n';
 import { fetchSubmission, type SubmissionDetail } from '@/src/api/practitioner';
+import { useTheme } from '@/src/ui/theme-mode';
 
 // One submission, read-only.
 //
@@ -30,6 +31,7 @@ const T = {
 } as const;
 
 export default function SubmissionScreen() {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale] ?? T.en;
@@ -58,32 +60,32 @@ export default function SubmissionScreen() {
     : '';
 
   return (
-    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+    <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         <EdHeader kicker={tr.kicker} title={view?.who ?? ''} onBack={back} />
 
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 18 }}>
           {!loaded && <ActivityIndicator />}
-          {loaded && !view && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.missing}</Text>}
+          {loaded && !view && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.missing}</Text>}
 
           {view && (
             <>
               <EdCard style={{ marginBottom: 14 }}>
-                <Text numberOfLines={3} style={{ fontSize: 15, fontWeight: '700', color: EDA.ink }}>{view.resourceTitle}</Text>
-                <Text style={{ fontSize: 12.5, color: EDA.faint, marginTop: 4 }}>
+                <Text numberOfLines={3} style={{ fontSize: 15, fontWeight: '700', color: TT.ink }}>{view.resourceTitle}</Text>
+                <Text style={{ fontSize: 12.5, color: TT.faint, marginTop: 4 }}>
                   {when} · {tr.sources[view.source as keyof typeof tr.sources] ?? view.source}
                 </Text>
                 {view.score && (
-                  <Text style={{ fontSize: 14, fontWeight: '800', color: EDA.green, marginTop: 6 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: TT.accent, marginTop: 6 }}>
                     {view.score.total}/{view.score.maxScore}{view.score.label ? ` · ${view.score.label}` : ''}
                   </Text>
                 )}
               </EdCard>
 
               <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 9, marginBottom: 18, paddingHorizontal: 2 }}>
-                <History size={13} color={EDA.faint} style={{ marginTop: 2 }} />
-                <Text style={{ flex: 1, fontSize: 12, lineHeight: 18, color: EDA.faint }}>{tr.pinned}</Text>
+                <History size={13} color={TT.faint} style={{ marginTop: 2 }} />
+                <Text style={{ flex: 1, fontSize: 12, lineHeight: 18, color: TT.faint }}>{tr.pinned}</Text>
               </View>
 
               {view.version.blocks.map((b) => (
@@ -100,9 +102,9 @@ export default function SubmissionScreen() {
 
               {view.practitionerNote ? (
                 <View style={{ marginTop: 22 }}>
-                  <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: EDA.faint, marginBottom: 8 }}>{tr.note}</Text>
+                  <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: TT.faint, marginBottom: 8 }}>{tr.note}</Text>
                   <EdCard>
-                    <Text style={{ fontSize: 14.5, lineHeight: 21, color: EDA.ink }}>{view.practitionerNote}</Text>
+                    <Text style={{ fontSize: 14.5, lineHeight: 21, color: TT.ink }}>{view.practitionerNote}</Text>
                   </EdCard>
                 </View>
               ) : null}

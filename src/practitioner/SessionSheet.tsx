@@ -14,6 +14,7 @@ import {
   cancelSession, closeSession, decideRequest, deleteSession, resendSessionDetails, sendPaymentReminder,
   type CloseReasonGroup, type PractitionerSession,
 } from '@/src/api/practitioner';
+import { useTheme } from '@/src/ui/theme-mode';
 
 // Everything you can do to a session, without leaving the day.
 //
@@ -98,17 +99,19 @@ function Pill({ label, tone }: { label: string; tone: keyof typeof TONE }) {
 }
 
 function Label({ children }: { children: string }) {
-  return <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: EDA.faint, marginBottom: 8 }}>{children}</Text>;
+  const { t: TT } = useTheme();
+  return <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: TT.faint, marginBottom: 8 }}>{children}</Text>;
 }
 
 /** Outlined action, the sheet's secondary button. */
 function Outline({ Icon, label, onPress, disabled, tone }: { Icon: typeof Video; label: string; onPress: () => void; disabled?: boolean; tone?: 'rose' }) {
-  const fg = tone === 'rose' ? '#BE123C' : EDA.inkSoft;
+  const { t: TT } = useTheme();
+  const fg = tone === 'rose' ? '#BE123C' : TT.inkSoft;
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 20, borderWidth: 1, borderColor: EDA.line, backgroundColor: EDA.card, paddingHorizontal: 14, paddingVertical: 9, opacity: disabled ? 0.5 : 1 }}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 20, borderWidth: 1, borderColor: TT.line, backgroundColor: TT.card, paddingHorizontal: 14, paddingVertical: 9, opacity: disabled ? 0.5 : 1 }}
     >
       <Icon size={15} color={fg} />
       <Text style={{ fontSize: 13.5, fontWeight: '700', color: fg }}>{label}</Text>
@@ -118,7 +121,8 @@ function Outline({ Icon, label, onPress, disabled, tone }: { Icon: typeof Video;
 
 /** One row of the "More actions" list. */
 function MenuRow({ Icon, label, onPress, danger }: { Icon: typeof Video; label: string; onPress: () => void; danger?: boolean }) {
-  const fg = danger ? '#BE123C' : EDA.inkSoft;
+  const { t: TT } = useTheme();
+  const fg = danger ? '#BE123C' : TT.inkSoft;
   return (
     <Pressable onPress={onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12 }}>
       <Icon size={16} color={fg} />
@@ -129,12 +133,13 @@ function MenuRow({ Icon, label, onPress, danger }: { Icon: typeof Video; label: 
 
 /** A choice chip — used for outcome, payment and no-show reason. */
 function Chip({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
+  const { t: TT } = useTheme();
   return (
     <Pressable
       onPress={onPress}
-      style={{ borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: on ? EDA.greenTint : EDA.card, borderWidth: 1.5, borderColor: on ? EDA.green : EDA.line }}
+      style={{ borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: on ? TT.accentTint : TT.card, borderWidth: 1.5, borderColor: on ? TT.accent : TT.line }}
     >
-      <Text style={{ fontSize: 13.5, fontWeight: '700', color: on ? EDA.greenDeep : EDA.inkSoft }}>{label}</Text>
+      <Text style={{ fontSize: 13.5, fontWeight: '700', color: on ? TT.accentDeep : TT.inkSoft }}>{label}</Text>
     </Pressable>
   );
 }
@@ -152,6 +157,7 @@ export function SessionSheet({
   /** Something changed on the server: the day needs refetching. */
   onChanged: () => void;
 }) {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale] ?? T.en;
@@ -264,27 +270,27 @@ export function SessionSheet({
   return (
     <Modal visible transparent animationType="slide" onRequestClose={() => { reset(); onClose(); }}>
       <Pressable style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(20,20,18,0.45)' }} onPress={() => { reset(); onClose(); }}>
-        <Pressable onPress={() => {}} style={{ maxHeight: '88%', borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: EDA.card }}>
+        <Pressable onPress={() => {}} style={{ maxHeight: '88%', borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: TT.card }}>
           <View style={{ alignItems: 'center', paddingTop: 10 }}>
-            <View style={{ height: 4, width: 40, borderRadius: 2, backgroundColor: EDA.line }} />
+            <View style={{ height: 4, width: 40, borderRadius: 2, backgroundColor: TT.line }} />
           </View>
 
           <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 16, paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
             {/* header */}
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
-              <View style={{ height: 36, width: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: EDA.canvas }}>
-                <Icon size={17} color={EDA.inkSoft} />
+              <View style={{ height: 36, width: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: TT.bg }}>
+                <Icon size={17} color={TT.inkSoft} />
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7 }}>
-                  <Text numberOfLines={1} style={{ fontSize: 17.5, fontWeight: '800', color: EDA.ink, letterSpacing: -0.2 }}>{s.who}</Text>
+                  <Text numberOfLines={1} style={{ fontSize: 17.5, fontWeight: '800', color: TT.ink, letterSpacing: -0.2 }}>{s.who}</Text>
                   {s.isGuest && <Pill label={tr.guest} tone="grey" />}
                   <Pill label={statusLabel} tone={statusTone} />
                 </View>
-                <Text style={{ fontSize: 13.5, color: EDA.inkSoft, marginTop: 3 }}>{dayLabel} · {hhmm(start)}–{hhmm(end)}</Text>
+                <Text style={{ fontSize: 13.5, color: TT.inkSoft, marginTop: 3 }}>{dayLabel} · {hhmm(start)}–{hhmm(end)}</Text>
               </View>
-              <Pressable onPress={() => { reset(); onClose(); }} hitSlop={8} style={{ height: 30, width: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: EDA.canvas }}>
-                <X size={16} color={EDA.inkSoft} />
+              <Pressable onPress={() => { reset(); onClose(); }} hitSlop={8} style={{ height: 30, width: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: TT.bg }}>
+                <X size={16} color={TT.inkSoft} />
               </Pressable>
             </View>
 
@@ -292,7 +298,7 @@ export function SessionSheet({
               <>
                 {/* facts */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7, marginTop: 16 }}>
-                  <Text style={{ fontSize: 13.5, color: EDA.inkSoft }}>
+                  <Text style={{ fontSize: 13.5, color: TT.inkSoft }}>
                     {s.sessionType} · {s.sessionFormat.replace('_', ' ')} · {s.durationMinutes}m{price ? ` · ${price}` : ''}
                   </Text>
                   {s.paymentStatus && <Pill label={tr.payments[s.paymentStatus as keyof typeof tr.payments] ?? s.paymentStatus} tone={PAYMENT_TONE[s.paymentStatus] ?? 'grey'} />}
@@ -305,22 +311,22 @@ export function SessionSheet({
                   ) : null}
                 </View>
 
-                {s.location ? <Text style={{ fontSize: 13.5, color: EDA.inkSoft, marginTop: 7 }}>{s.location}</Text> : null}
+                {s.location ? <Text style={{ fontSize: 13.5, color: TT.inkSoft, marginTop: 7 }}>{s.location}</Text> : null}
                 {s.email ? (
                   <Pressable onPress={() => { void Linking.openURL(`mailto:${s.email}`); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 9 }}>
-                    <Mail size={14} color={EDA.faint} />
-                    <Text numberOfLines={1} style={{ flex: 1, fontSize: 13.5, color: EDA.inkSoft }}>{s.email}</Text>
+                    <Mail size={14} color={TT.faint} />
+                    <Text numberOfLines={1} style={{ flex: 1, fontSize: 13.5, color: TT.inkSoft }}>{s.email}</Text>
                   </Pressable>
                 ) : null}
 
-                {flash ? <Text style={{ fontSize: 13, fontWeight: '700', color: EDA.green, marginTop: 12 }}>{flash}</Text> : null}
+                {flash ? <Text style={{ fontSize: 13, fontWeight: '700', color: TT.accent, marginTop: 12 }}>{flash}</Text> : null}
 
                 {/* primary actions */}
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 18 }}>
                   {s.meetLink ? (
                     <Pressable
                       onPress={() => { void Linking.openURL(s.meetLink as string); }}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 20, backgroundColor: EDA.green, paddingHorizontal: 16, paddingVertical: 10 }}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 20, backgroundColor: TT.accent, paddingHorizontal: 16, paddingVertical: 10 }}
                     >
                       <Video size={15} color="#fff" />
                       <Text style={{ fontSize: 13.5, fontWeight: '800', color: '#fff' }}>{tr.join}</Text>
@@ -334,11 +340,11 @@ export function SessionSheet({
 
                 {/* a request waiting on a yes or no */}
                 {isPending && (
-                  <View style={{ flexDirection: 'row', gap: 9, marginTop: 16, borderTopWidth: 1, borderTopColor: EDA.line, paddingTop: 16 }}>
+                  <View style={{ flexDirection: 'row', gap: 9, marginTop: 16, borderTopWidth: 1, borderTopColor: TT.line, paddingTop: 16 }}>
                     <Pressable
                       onPress={() => void run(() => decideRequest(s.id, 'approve'))}
                       disabled={busy}
-                      style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 22, backgroundColor: EDA.green, paddingVertical: 12, opacity: busy ? 0.6 : 1 }}
+                      style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 22, backgroundColor: TT.accent, paddingVertical: 12, opacity: busy ? 0.6 : 1 }}
                     >
                       <CheckCircle2 size={16} color="#fff" />
                       <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>{tr.approve}</Text>
@@ -346,7 +352,7 @@ export function SessionSheet({
                     <Pressable
                       onPress={doDecline}
                       disabled={busy}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 22, borderWidth: 1, borderColor: EDA.line, paddingHorizontal: 18, paddingVertical: 12 }}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 22, borderWidth: 1, borderColor: TT.line, paddingHorizontal: 18, paddingVertical: 12 }}
                     >
                       <XCircle size={16} color="#BE123C" />
                       <Text style={{ fontSize: 14, fontWeight: '800', color: '#BE123C' }}>{tr.decline}</Text>
@@ -356,7 +362,7 @@ export function SessionSheet({
 
                 {/* close it out / edit what was recorded */}
                 {!isPending && canManage && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 16, borderTopWidth: 1, borderTopColor: EDA.line, paddingTop: 16 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 16, borderTopWidth: 1, borderTopColor: TT.line, paddingTop: 16 }}>
                     <Pressable
                       onPress={() => {
                         // Editing a recorded outcome opens on what was recorded,
@@ -367,20 +373,20 @@ export function SessionSheet({
                         setReason(s.cancellationReason ?? '');
                         setMode('close');
                       }}
-                      style={{ flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 20, backgroundColor: EDA.greenTint, paddingHorizontal: 16, paddingVertical: 10 }}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 20, backgroundColor: TT.accentTint, paddingHorizontal: 16, paddingVertical: 10 }}
                     >
-                      <CheckCircle2 size={15} color={EDA.greenDeep} />
-                      <Text style={{ fontSize: 13.5, fontWeight: '800', color: EDA.greenDeep }}>{isActive ? tr.complete : tr.editOutcome}</Text>
+                      <CheckCircle2 size={15} color={TT.accentDeep} />
+                      <Text style={{ fontSize: 13.5, fontWeight: '800', color: TT.accentDeep }}>{isActive ? tr.complete : tr.editOutcome}</Text>
                     </Pressable>
                     <View style={{ flex: 1 }} />
-                    <Pressable onPress={() => setShowMenu((v) => !v)} hitSlop={8} style={{ height: 34, width: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: EDA.canvas }} accessibilityLabel={tr.more}>
-                      <MoreHorizontal size={17} color={EDA.inkSoft} />
+                    <Pressable onPress={() => setShowMenu((v) => !v)} hitSlop={8} style={{ height: 34, width: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: TT.bg }} accessibilityLabel={tr.more}>
+                      <MoreHorizontal size={17} color={TT.inkSoft} />
                     </Pressable>
                   </View>
                 )}
 
                 {showMenu && (
-                  <View style={{ marginTop: 6, borderTopWidth: 1, borderTopColor: EDA.line, paddingTop: 4 }}>
+                  <View style={{ marginTop: 6, borderTopWidth: 1, borderTopColor: TT.line, paddingTop: 4 }}>
                     {canRemind && <MenuRow Icon={Mail} label={tr.remind} onPress={() => { setShowMenu(false); void run(sendPaymentReminder.bind(null, s.id), { keepOpen: true, flash: tr.reminded }); }} />}
                     {canManage && isActive && (
                       <>
@@ -394,7 +400,7 @@ export function SessionSheet({
                 )}
 
                 {s.isGuest && (
-                  <Text style={{ fontSize: 12, color: EDA.faint, marginTop: 16, lineHeight: 18 }}>{tr.guestNote}</Text>
+                  <Text style={{ fontSize: 12, color: TT.faint, marginTop: 16, lineHeight: 18 }}>{tr.guestNote}</Text>
                 )}
               </>
             )}
@@ -413,7 +419,7 @@ export function SessionSheet({
                     <Label>{tr.whyNot}</Label>
                     {closeReasons.map((g) => (
                       <View key={g.label} style={{ marginBottom: 14 }}>
-                        <Text style={{ fontSize: 12, fontWeight: '700', color: EDA.faint, marginBottom: 7 }}>{g.label}</Text>
+                        <Text style={{ fontSize: 12, fontWeight: '700', color: TT.faint, marginBottom: 7 }}>{g.label}</Text>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                           {g.options.map(([slug, label]) => (
                             <Chip key={slug} label={label} on={reason === slug} onPress={() => setReason(slug)} />
@@ -437,9 +443,9 @@ export function SessionSheet({
                   value={summary}
                   onChangeText={setSummary}
                   placeholder={tr.notePlaceholder}
-                  placeholderTextColor={EDA.faint}
+                  placeholderTextColor={TT.faint}
                   multiline
-                  style={{ minHeight: 90, borderRadius: 16, borderWidth: 1.5, borderColor: EDA.line, backgroundColor: EDA.canvas, padding: 13, fontSize: 14.5, color: EDA.ink, textAlignVertical: 'top' }}
+                  style={{ minHeight: 90, borderRadius: 16, borderWidth: 1.5, borderColor: TT.line, backgroundColor: TT.bg, padding: 13, fontSize: 14.5, color: TT.ink, textAlignVertical: 'top' }}
                 />
 
                 <View style={{ flexDirection: 'row', gap: 9, marginTop: 20 }}>
@@ -447,7 +453,7 @@ export function SessionSheet({
                   <Pressable
                     onPress={saveClose}
                     disabled={busy}
-                    style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: EDA.green, paddingVertical: 13, opacity: busy ? 0.6 : 1 }}
+                    style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: TT.accent, paddingVertical: 13, opacity: busy ? 0.6 : 1 }}
                   >
                     {busy ? <ActivityIndicator color="#fff" /> : <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#fff' }}>{tr.save}</Text>}
                   </Pressable>
@@ -463,8 +469,8 @@ export function SessionSheet({
                   value={cancelReason}
                   onChangeText={setCancelReason}
                   placeholder={tr.reasonPlaceholder}
-                  placeholderTextColor={EDA.faint}
-                  style={{ height: 48, borderRadius: 16, borderWidth: 1.5, borderColor: EDA.line, backgroundColor: EDA.canvas, paddingHorizontal: 13, fontSize: 14.5, color: EDA.ink }}
+                  placeholderTextColor={TT.faint}
+                  style={{ height: 48, borderRadius: 16, borderWidth: 1.5, borderColor: TT.line, backgroundColor: TT.bg, paddingHorizontal: 13, fontSize: 14.5, color: TT.ink }}
                 />
 
                 {/* A recurring session has three genuinely different answers, so

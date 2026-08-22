@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { EDA } from '@/src/ui/editorial';
+import { useTheme } from '@/src/ui/theme-mode';
 
 // A month grid for picking a day.
 //
@@ -22,6 +23,7 @@ export function MonthCalendar({
   markedDays?: Set<string>;
   minDate?: Date;
 }) {
+  const { t: TT } = useTheme();
   const today = useMemo(() => startOfDay(new Date()), []);
   const floor = minDate ? startOfDay(minDate) : today;
   const [cursor, setCursor] = useState(() => (selected ? new Date(`${selected}T00:00:00`) : new Date()));
@@ -44,20 +46,20 @@ export function MonthCalendar({
   );
 
   return (
-    <View style={{ backgroundColor: EDA.card, borderRadius: 20, borderWidth: 1, borderColor: EDA.line, padding: 14 }}>
+    <View style={{ backgroundColor: TT.card, borderRadius: 20, borderWidth: 1, borderColor: TT.line, padding: 14 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
         <Pressable onPress={() => setCursor(new Date(year, month - 1, 1))} hitSlop={10} accessibilityLabel="Previous month">
-          <ChevronLeft size={18} color={EDA.ink} />
+          <ChevronLeft size={18} color={TT.ink} />
         </Pressable>
-        <Text style={{ flex: 1, textAlign: 'center', fontSize: 15, fontWeight: '800', color: EDA.ink, textTransform: 'capitalize' }}>{monthLabel}</Text>
+        <Text style={{ flex: 1, textAlign: 'center', fontSize: 15, fontWeight: '800', color: TT.ink, textTransform: 'capitalize' }}>{monthLabel}</Text>
         <Pressable onPress={() => setCursor(new Date(year, month + 1, 1))} hitSlop={10} accessibilityLabel="Next month">
-          <ChevronRight size={18} color={EDA.ink} />
+          <ChevronRight size={18} color={TT.ink} />
         </Pressable>
       </View>
 
       <View style={{ flexDirection: 'row' }}>
         {weekdays.map((w, i) => (
-          <Text key={i} style={{ flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '700', color: EDA.faint }}>{w}</Text>
+          <Text key={i} style={{ flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '700', color: TT.faint }}>{w}</Text>
         ))}
       </View>
 
@@ -76,10 +78,10 @@ export function MonthCalendar({
               disabled={past}
               style={{ width: `${100 / 7}%`, height: 42, alignItems: 'center', justifyContent: 'center' }}
             >
-              <View style={{ height: 34, width: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? EDA.green : 'transparent' }}>
-                <Text style={{ fontSize: 14.5, fontWeight: on ? '800' : '500', color: on ? '#fff' : past ? EDA.line : EDA.ink }}>{d.getDate()}</Text>
+              <View style={{ height: 34, width: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? TT.accent : 'transparent' }}>
+                <Text style={{ fontSize: 14.5, fontWeight: on ? '800' : '500', color: on ? '#fff' : past ? TT.line : TT.ink }}>{d.getDate()}</Text>
               </View>
-              {marked && !on ? <View style={{ position: 'absolute', bottom: 4, height: 4, width: 4, borderRadius: 2, backgroundColor: EDA.green }} /> : null}
+              {marked && !on ? <View style={{ position: 'absolute', bottom: 4, height: 4, width: 4, borderRadius: 2, backgroundColor: TT.accent }} /> : null}
             </Pressable>
           );
         })}

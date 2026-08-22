@@ -11,6 +11,7 @@ import { OnboardingProvider } from '@/src/onboarding/context';
 import { LandingProvider } from '@/src/prefs/landing';
 import { I18nProvider } from '@/src/i18n';
 import { ConfirmProvider } from '@/src/ui/confirm';
+import { ThemeProvider, useTheme } from '@/src/ui/theme-mode';
 import { FONT_ASSETS } from '@/src/ui/fonts';
 
 // MUST be at the ROOT, not only in the auth modules that start the flow.
@@ -29,11 +30,33 @@ WebBrowser.maybeCompleteAuthSession();
 // reads like a real device instead of stretching across the whole browser.
 // No-op on native.
 function PhoneFrame({ children }: { children: React.ReactNode }) {
+  const { t, mode } = useTheme();
   if (Platform.OS !== 'web') return <>{children}</>;
   return (
-    <View style={{ flex: 1, backgroundColor: '#E7E7E4', alignItems: 'center' }}>
-      <View style={{ flex: 1, width: '100%', maxWidth: 420, backgroundColor: '#fff', overflow: 'hidden' }}>{children}</View>
+    <View style={{ flex: 1, backgroundColor: mode === 'dark' ? '#0A0F0D' : '#E7E7E4', alignItems: 'center' }}>
+      <View style={{ flex: 1, width: '100%', maxWidth: 420, backgroundColor: t.bg, overflow: 'hidden' }}>{children}</View>
     </View>
+  );
+}
+
+/**
+ * Everything that needs to know the theme, inside the provider.
+ *
+ * `ready` is the stored-preference gate: until the saved choice has been read
+ * back we render the ground colour and nothing else. Skipping that is how a
+ * themed app ships the flash where it paints light, then snaps to dark a frame
+ * later — worst for exactly the users who went and set the preference.
+ */
+function Themed() {
+  const { t, mode, ready } = useTheme();
+  if (!ready) return <View style={{ flex: 1, backgroundColor: t.bg }} />;
+  return (
+    <>
+      <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+      <PhoneFrame>
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg } }} />
+      </PhoneFrame>
+    </>
   );
 }
 
@@ -47,12 +70,15 @@ export default function RootLayout() {
         <I18nProvider>
           <OnboardingProvider>
             <LandingProvider>
-              <ConfirmProvider>
-                <StatusBar style="dark" />
-                <PhoneFrame>
-                  <Stack screenOptions={{ headerShown: false }} />
-                </PhoneFrame>
-              </ConfirmProvider>
+              {/* ThemeProvider wraps ConfirmProvider, not the other way round:
+                  ConfirmProvider renders themed UI of its own, so it has to be
+                  INSIDE. Nesting it outside typechecks perfectly and throws on
+                  first paint. */}
+              <ThemeProvider>
+                <ConfirmProvider>
+                  <Themed />
+                </ConfirmProvider>
+              </ThemeProvider>
             </LandingProvider>
           </OnboardingProvider>
         </I18nProvider>

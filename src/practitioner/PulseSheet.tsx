@@ -4,6 +4,7 @@ import { RefreshCw, Sparkles, X } from 'lucide-react-native';
 import { EDA } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 import { fetchPulse, generatePulse, type Pulse } from '@/src/api/practitioner';
+import { useTheme } from '@/src/ui/theme-mode';
 
 // The session brief, on the phone.
 //
@@ -47,6 +48,7 @@ const KIND: Record<string, { bg: string; fg: string }> = {
 };
 
 export function PulseSheet({ memberId, who, onClose }: { memberId: string | null; who: string; onClose: () => void }) {
+  const { t: TT } = useTheme();
   const { locale } = useI18n();
   const tr = T[locale] ?? T.en;
 
@@ -94,35 +96,35 @@ export function PulseSheet({ memberId, who, onClose }: { memberId: string | null
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(20,20,18,0.45)' }} onPress={onClose}>
-        <Pressable onPress={() => {}} style={{ maxHeight: '88%', borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: EDA.card }}>
+        <Pressable onPress={() => {}} style={{ maxHeight: '88%', borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: TT.card }}>
           <View style={{ alignItems: 'center', paddingTop: 10 }}>
-            <View style={{ height: 4, width: 40, borderRadius: 2, backgroundColor: EDA.line }} />
+            <View style={{ height: 4, width: 40, borderRadius: 2, backgroundColor: TT.line }} />
           </View>
 
           <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 16, paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 11 }}>
-              <View style={{ height: 34, width: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: EDA.greenTint }}>
-                <Sparkles size={16} color={EDA.greenDeep} />
+              <View style={{ height: 34, width: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: TT.accentTint }}>
+                <Sparkles size={16} color={TT.accentDeep} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: EDA.faint }}>{tr.kicker}</Text>
-                <Text style={{ fontSize: 17.5, fontWeight: '800', color: EDA.ink, marginTop: 2 }}>{who}</Text>
+                <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: TT.faint }}>{tr.kicker}</Text>
+                <Text style={{ fontSize: 17.5, fontWeight: '800', color: TT.ink, marginTop: 2 }}>{who}</Text>
               </View>
-              <Pressable onPress={onClose} hitSlop={8} style={{ height: 30, width: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: EDA.canvas }}>
-                <X size={16} color={EDA.inkSoft} />
+              <Pressable onPress={onClose} hitSlop={8} style={{ height: 30, width: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: TT.bg }}>
+                <X size={16} color={TT.inkSoft} />
               </Pressable>
             </View>
 
             {!loaded && <ActivityIndicator style={{ marginTop: 22 }} />}
 
             {loaded && !consented && (
-              <Text style={{ fontSize: 14, lineHeight: 21, color: EDA.inkSoft, marginTop: 18 }}>{tr.consentOff}</Text>
+              <Text style={{ fontSize: 14, lineHeight: 21, color: TT.inkSoft, marginTop: 18 }}>{tr.consentOff}</Text>
             )}
 
             {loaded && consented && !pulse && !busy && (
               <View style={{ marginTop: 18 }}>
-                <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.none}</Text>
-                <Pressable onPress={build} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16, borderRadius: 24, backgroundColor: EDA.green, paddingVertical: 13 }}>
+                <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.none}</Text>
+                <Pressable onPress={build} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16, borderRadius: 24, backgroundColor: TT.accent, paddingVertical: 13 }}>
                   <Sparkles size={16} color="#fff" />
                   <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#fff' }}>{tr.generate}</Text>
                 </Pressable>
@@ -132,13 +134,13 @@ export function PulseSheet({ memberId, who, onClose }: { memberId: string | null
             {busy && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 20 }}>
                 <ActivityIndicator />
-                <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.generating}</Text>
+                <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.generating}</Text>
               </View>
             )}
 
             {pulse && !busy && (
               <>
-                <Text style={{ fontSize: 15.5, lineHeight: 23, color: EDA.ink, marginTop: 18 }}>{pulse.content.pulseLine}</Text>
+                <Text style={{ fontSize: 15.5, lineHeight: 23, color: TT.ink, marginTop: 18 }}>{pulse.content.pulseLine}</Text>
 
                 {staleCount > 0 && (
                   <Text style={{ fontSize: 12.5, color: '#B45309', marginTop: 10 }}>{fill(tr.stale, { n: String(staleCount) })}</Text>
@@ -146,13 +148,13 @@ export function PulseSheet({ memberId, who, onClose }: { memberId: string | null
 
                 {pulse.content.signals?.length > 0 && (
                   <View style={{ marginTop: 20 }}>
-                    <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: EDA.faint, marginBottom: 9 }}>{tr.signals}</Text>
+                    <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: TT.faint, marginBottom: 9 }}>{tr.signals}</Text>
                     {pulse.content.signals.map((sig, i) => {
-                      const c = KIND[sig.kind] ?? { bg: EDA.canvas, fg: EDA.inkSoft };
+                      const c = KIND[sig.kind] ?? { bg: TT.bg, fg: TT.inkSoft };
                       return (
                         <View key={i} style={{ flexDirection: 'row', gap: 9, alignItems: 'flex-start', marginBottom: 7 }}>
                           <View style={{ height: 7, width: 7, borderRadius: 4, backgroundColor: c.fg, marginTop: 6 }} />
-                          <Text style={{ flex: 1, fontSize: 14.5, lineHeight: 21, color: EDA.ink }}>{sig.text}</Text>
+                          <Text style={{ flex: 1, fontSize: 14.5, lineHeight: 21, color: TT.ink }}>{sig.text}</Text>
                         </View>
                       );
                     })}
@@ -161,10 +163,10 @@ export function PulseSheet({ memberId, who, onClose }: { memberId: string | null
 
                 {pulse.content.nextSteps?.length > 0 && (
                   <View style={{ marginTop: 20 }}>
-                    <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: EDA.faint, marginBottom: 9 }}>{tr.next}</Text>
+                    <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: TT.faint, marginBottom: 9 }}>{tr.next}</Text>
                     {pulse.content.nextSteps.map((n, i) => (
-                      <View key={i} style={{ borderRadius: 14, backgroundColor: EDA.greenTint, padding: 12, marginBottom: 7 }}>
-                        <Text style={{ fontSize: 14.5, lineHeight: 21, color: EDA.greenDeep }}>{n}</Text>
+                      <View key={i} style={{ borderRadius: 14, backgroundColor: TT.accentTint, padding: 12, marginBottom: 7 }}>
+                        <Text style={{ fontSize: 14.5, lineHeight: 21, color: TT.accentDeep }}>{n}</Text>
                       </View>
                     ))}
                   </View>
@@ -172,11 +174,11 @@ export function PulseSheet({ memberId, who, onClose }: { memberId: string | null
 
                 {pulse.content.themes?.length > 0 && (
                   <View style={{ marginTop: 20 }}>
-                    <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: EDA.faint, marginBottom: 9 }}>{tr.themes}</Text>
+                    <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: TT.faint, marginBottom: 9 }}>{tr.themes}</Text>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>
                       {pulse.content.themes.map((t, i) => (
-                        <View key={i} style={{ borderRadius: 12, backgroundColor: EDA.canvas, paddingHorizontal: 10, paddingVertical: 5 }}>
-                          <Text style={{ fontSize: 12.5, fontWeight: '600', color: EDA.inkSoft }}>{t.label}</Text>
+                        <View key={i} style={{ borderRadius: 12, backgroundColor: TT.bg, paddingHorizontal: 10, paddingVertical: 5 }}>
+                          <Text style={{ fontSize: 12.5, fontWeight: '600', color: TT.inkSoft }}>{t.label}</Text>
                         </View>
                       ))}
                     </View>
@@ -185,13 +187,13 @@ export function PulseSheet({ memberId, who, onClose }: { memberId: string | null
 
                 {/* Provenance. A brief that will not say what it read is asking
                     to be trusted on nothing. */}
-                <Text style={{ fontSize: 12, color: EDA.faint, marginTop: 20, lineHeight: 18 }}>
+                <Text style={{ fontSize: 12, color: TT.faint, marginTop: 20, lineHeight: 18 }}>
                   {fill(tr.from, { notes: String(pulse.noteCount), sessions: String(pulse.sessionCount) })}
                 </Text>
 
-                <Pressable onPress={build} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16, borderRadius: 22, borderWidth: 1, borderColor: EDA.line, paddingVertical: 12 }}>
-                  <RefreshCw size={15} color={EDA.inkSoft} />
-                  <Text style={{ fontSize: 13.5, fontWeight: '700', color: EDA.inkSoft }}>{tr.regenerate}</Text>
+                <Pressable onPress={build} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16, borderRadius: 22, borderWidth: 1, borderColor: TT.line, paddingVertical: 12 }}>
+                  <RefreshCw size={15} color={TT.inkSoft} />
+                  <Text style={{ fontSize: 13.5, fontWeight: '700', color: TT.inkSoft }}>{tr.regenerate}</Text>
                 </Pressable>
               </>
             )}

@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-nativ
 import { Bold, Italic, List, Minus, Quote, Tag as TagIcon, X } from 'lucide-react-native';
 import { EDA } from '@/src/ui/editorial';
 import type { NoteRange } from '@/src/api/practitioner';
+import { useTheme } from '@/src/ui/theme-mode';
 
 // The note editor, as close to the care app's as a phone allows.
 //
@@ -45,6 +46,7 @@ export function NoteEditor({
   statusLine?: string;
   header: string;
 }) {
+  const { t: TT } = useTheme();
   const [sel, setSel] = useState({ start: 0, end: 0 });
   const [tagOpen, setTagOpen] = useState(false);
   const [tplOpen, setTplOpen] = useState(false);
@@ -100,14 +102,14 @@ export function NoteEditor({
           the status line below says so rather than a dialog asserting it. */}
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingBottom: 14 }}>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 18, fontWeight: '800', color: EDA.ink }}>{header}</Text>
-          {statusLine ? <Text style={{ fontSize: 11.5, color: EDA.faint, marginTop: 2 }}>{statusLine}</Text> : null}
+          <Text style={{ fontSize: 18, fontWeight: '800', color: TT.ink }}>{header}</Text>
+          {statusLine ? <Text style={{ fontSize: 11.5, color: TT.faint, marginTop: 2 }}>{statusLine}</Text> : null}
         </View>
         <Pressable onPress={onMinimize} hitSlop={10} accessibilityLabel="Minimize">
-          <Minus size={20} color={EDA.inkSoft} />
+          <Minus size={20} color={TT.inkSoft} />
         </Pressable>
         <Pressable onPress={onCancel} hitSlop={10} accessibilityLabel="Close">
-          <X size={20} color={EDA.inkSoft} />
+          <X size={20} color={TT.inkSoft} />
         </Pressable>
       </View>
 
@@ -115,66 +117,66 @@ export function NoteEditor({
           Close control on purpose. */}
       {onDiscard ? (
         <Pressable onPress={onDiscard} hitSlop={8} style={{ alignSelf: 'flex-start', paddingBottom: 10 }}>
-          <Text style={{ fontSize: 12.5, fontWeight: '600', color: EDA.faint }}>Discard draft</Text>
+          <Text style={{ fontSize: 12.5, fontWeight: '600', color: TT.faint }}>Discard draft</Text>
         </Pressable>
       ) : null}
 
       {/* Toolbar. Formatting acts on the SELECTION, so it is disabled without
           one rather than silently doing nothing. */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: EDA.line, backgroundColor: EDA.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingHorizontal: 10, paddingVertical: 8 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: TT.line, backgroundColor: TT.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingHorizontal: 10, paddingVertical: 8 }}>
         <ToolButton Icon={Bold} on={marked('bold')} disabled={!hasSelection} onPress={() => (marked('bold') ? clearMark('bold') : applyMark('bold'))} label="Bold" />
         <ToolButton Icon={Italic} on={marked('italic')} disabled={!hasSelection} onPress={() => (marked('italic') ? clearMark('italic') : applyMark('italic'))} label="Italic" />
-        <View style={{ width: 1, height: 20, backgroundColor: EDA.line, marginHorizontal: 2 }} />
+        <View style={{ width: 1, height: 20, backgroundColor: TT.line, marginHorizontal: 2 }} />
         <ToolButton Icon={List} on={false} disabled={false} onPress={bulletLine} label="Bullet list" />
         <ToolButton Icon={Quote} on={marked('quote')} disabled={!hasSelection} onPress={() => (marked('quote') ? clearMark('quote') : applyMark('quote'))} label="Quote" />
         <ToolButton Icon={TagIcon} on={tagOpen} disabled={!hasSelection} onPress={() => setTagOpen((v) => !v)} label="Tag" />
         <View style={{ flex: 1 }} />
         {templates.length > 0 && (
           <Pressable onPress={() => setTplOpen((v) => !v)} hitSlop={8}>
-            <Text style={{ fontSize: 12.5, fontWeight: '700', color: EDA.green }}>Templates</Text>
+            <Text style={{ fontSize: 12.5, fontWeight: '700', color: TT.accent }}>Templates</Text>
           </Pressable>
         )}
       </View>
 
       {tplOpen && (
-        <View style={{ borderWidth: 1, borderTopWidth: 0, borderColor: EDA.line, backgroundColor: EDA.card, paddingHorizontal: 10, paddingVertical: 8, gap: 6 }}>
+        <View style={{ borderWidth: 1, borderTopWidth: 0, borderColor: TT.line, backgroundColor: TT.card, paddingHorizontal: 10, paddingVertical: 8, gap: 6 }}>
           {templates.map((t) => (
             <Pressable key={t.id} onPress={() => insertTemplate(t.body)} style={{ paddingVertical: 7 }}>
-              <Text style={{ fontSize: 14, color: EDA.ink }}>{t.label}</Text>
+              <Text style={{ fontSize: 14, color: TT.ink }}>{t.label}</Text>
             </Pressable>
           ))}
         </View>
       )}
 
       {tagOpen && (
-        <View style={{ borderWidth: 1, borderTopWidth: 0, borderColor: EDA.line, backgroundColor: EDA.card, paddingHorizontal: 10, paddingVertical: 10 }}>
-          <Text style={{ fontSize: 11.5, fontWeight: '700', color: EDA.faint, marginBottom: 8 }}>TAG THE SELECTED TEXT</Text>
+        <View style={{ borderWidth: 1, borderTopWidth: 0, borderColor: TT.line, backgroundColor: TT.card, paddingHorizontal: 10, paddingVertical: 10 }}>
+          <Text style={{ fontSize: 11.5, fontWeight: '700', color: TT.faint, marginBottom: 8 }}>TAG THE SELECTED TEXT</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {tags.map((t) => (
-              <Pressable key={t.slug} onPress={() => applyMark('tag', t.slug)} style={{ borderRadius: 14, paddingHorizontal: 11, paddingVertical: 7, backgroundColor: EDA.greenTint, borderWidth: 1, borderColor: EDA.green }}>
-                <Text style={{ fontSize: 12.5, fontWeight: '700', color: EDA.greenDeep, textTransform: 'capitalize' }}>{t.label}</Text>
+              <Pressable key={t.slug} onPress={() => applyMark('tag', t.slug)} style={{ borderRadius: 14, paddingHorizontal: 11, paddingVertical: 7, backgroundColor: TT.accentTint, borderWidth: 1, borderColor: TT.accent }}>
+                <Text style={{ fontSize: 12.5, fontWeight: '700', color: TT.accentDeep, textTransform: 'capitalize' }}>{t.label}</Text>
               </Pressable>
             ))}
             {marked('tag') && (
-              <Pressable onPress={() => clearMark('tag')} style={{ borderRadius: 14, paddingHorizontal: 11, paddingVertical: 7, borderWidth: 1, borderColor: EDA.line }}>
-                <Text style={{ fontSize: 12.5, fontWeight: '700', color: EDA.inkSoft }}>Remove tag</Text>
+              <Pressable onPress={() => clearMark('tag')} style={{ borderRadius: 14, paddingHorizontal: 11, paddingVertical: 7, borderWidth: 1, borderColor: TT.line }}>
+                <Text style={{ fontSize: 12.5, fontWeight: '700', color: TT.inkSoft }}>Remove tag</Text>
               </Pressable>
             )}
           </View>
         </View>
       )}
 
-      <View style={{ borderWidth: 1, borderTopWidth: 0, borderColor: EDA.line, backgroundColor: EDA.card, paddingHorizontal: 14, paddingVertical: 12 }}>
+      <View style={{ borderWidth: 1, borderTopWidth: 0, borderColor: TT.line, backgroundColor: TT.card, paddingHorizontal: 14, paddingVertical: 12 }}>
         <TextInput
           value={title}
           onChangeText={onTitle}
           placeholder="Title (optional)"
-          placeholderTextColor={EDA.faint}
-          style={{ fontSize: 15.5, fontWeight: '700', color: EDA.ink }}
+          placeholderTextColor={TT.faint}
+          style={{ fontSize: 15.5, fontWeight: '700', color: TT.ink }}
         />
       </View>
 
-      <View style={{ borderWidth: 1, borderTopWidth: 0, borderColor: EDA.line, backgroundColor: EDA.card, borderBottomLeftRadius: 16, borderBottomRightRadius: 16, paddingHorizontal: 14, paddingVertical: 12 }}>
+      <View style={{ borderWidth: 1, borderTopWidth: 0, borderColor: TT.line, backgroundColor: TT.card, borderBottomLeftRadius: 16, borderBottomRightRadius: 16, paddingHorizontal: 14, paddingVertical: 12 }}>
         <TextInput
           value={text}
           onChangeText={(v) => {
@@ -185,15 +187,15 @@ export function NoteEditor({
           }}
           onSelectionChange={(e) => setSel(e.nativeEvent.selection)}
           placeholder="Write a note for this session…"
-          placeholderTextColor={EDA.faint}
+          placeholderTextColor={TT.faint}
           multiline
           textAlignVertical="top"
-          style={{ minHeight: 200, fontSize: 15.5, lineHeight: 24, color: EDA.ink }}
+          style={{ minHeight: 200, fontSize: 15.5, lineHeight: 24, color: TT.ink }}
         />
       </View>
 
       {!hasSelection && (
-        <Text style={{ fontSize: 12, color: EDA.faint, marginTop: 8 }}>
+        <Text style={{ fontSize: 12, color: TT.faint, marginTop: 8 }}>
           Select a sentence to tag, quote or format it.
         </Text>
       )}
@@ -204,9 +206,9 @@ export function NoteEditor({
             <Pressable
               key={t}
               onPress={() => onNoteType(t)}
-              style={{ borderRadius: 14, paddingHorizontal: 11, paddingVertical: 7, backgroundColor: t === noteType ? EDA.greenTint : EDA.card, borderWidth: 1.5, borderColor: t === noteType ? EDA.green : EDA.line }}
+              style={{ borderRadius: 14, paddingHorizontal: 11, paddingVertical: 7, backgroundColor: t === noteType ? TT.accentTint : TT.card, borderWidth: 1.5, borderColor: t === noteType ? TT.accent : TT.line }}
             >
-              <Text style={{ fontSize: 12.5, fontWeight: '700', color: t === noteType ? EDA.greenDeep : EDA.inkSoft, textTransform: 'capitalize' }}>{t.replace(/_/g, ' ')}</Text>
+              <Text style={{ fontSize: 12.5, fontWeight: '700', color: t === noteType ? TT.accentDeep : TT.inkSoft, textTransform: 'capitalize' }}>{t.replace(/_/g, ' ')}</Text>
             </Pressable>
           ))}
         </View>
@@ -215,23 +217,23 @@ export function NoteEditor({
       {/* The footer's tag summary, as the care modal has bottom-left. */}
       {usedTags.length > 0 && (
         <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 16 }}>
-          <TagIcon size={13} color={EDA.faint} />
+          <TagIcon size={13} color={TT.faint} />
           {usedTags.map((t) => (
-            <View key={t.slug} style={{ borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4, backgroundColor: EDA.greenTint }}>
-              <Text style={{ fontSize: 11.5, fontWeight: '700', color: EDA.greenDeep, textTransform: 'capitalize' }}>{t.label}</Text>
+            <View key={t.slug} style={{ borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4, backgroundColor: TT.accentTint }}>
+              <Text style={{ fontSize: 11.5, fontWeight: '700', color: TT.accentDeep, textTransform: 'capitalize' }}>{t.label}</Text>
             </View>
           ))}
         </View>
       )}
 
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 22 }}>
-        <Pressable onPress={onCancel} style={{ flex: 1, height: 50, borderRadius: 25, borderWidth: 1.5, borderColor: EDA.line, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 15, fontWeight: '600', color: EDA.inkSoft }}>Close</Text>
+        <Pressable onPress={onCancel} style={{ flex: 1, height: 50, borderRadius: 25, borderWidth: 1.5, borderColor: TT.line, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 15, fontWeight: '600', color: TT.inkSoft }}>Close</Text>
         </Pressable>
         <Pressable
           onPress={onSave}
           disabled={saving || !text.trim()}
-          style={{ flex: 1.4, height: 50, borderRadius: 25, backgroundColor: EDA.green, alignItems: 'center', justifyContent: 'center', opacity: saving || !text.trim() ? 0.45 : 1 }}
+          style={{ flex: 1.4, height: 50, borderRadius: 25, backgroundColor: TT.accent, alignItems: 'center', justifyContent: 'center', opacity: saving || !text.trim() ? 0.45 : 1 }}
         >
           {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>Save note</Text>}
         </Pressable>
@@ -243,13 +245,14 @@ export function NoteEditor({
 }
 
 function ToolButton({ Icon, on, disabled, onPress, label }: { Icon: typeof Bold; on: boolean; disabled: boolean; onPress: () => void; label: string }) {
+  const { t: TT } = useTheme();
   return (
     <Pressable
       onPress={disabled ? undefined : onPress}
       accessibilityLabel={label}
-      style={{ height: 34, width: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? EDA.greenTint : 'transparent', opacity: disabled ? 0.35 : 1 }}
+      style={{ height: 34, width: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? TT.accentTint : 'transparent', opacity: disabled ? 0.35 : 1 }}
     >
-      <Icon size={16} color={on ? EDA.green : EDA.ink} strokeWidth={2} />
+      <Icon size={16} color={on ? TT.accent : TT.ink} strokeWidth={2} />
     </Pressable>
   );
 }

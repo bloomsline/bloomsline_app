@@ -6,6 +6,7 @@ import { ChevronRight, FileText, User } from 'lucide-react-native';
 import { EDA, EdHeader, EdCard, EdSection, FadeIn } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 import { fetchSubmissionGroups, fetchSubmissions, type SubmissionGroups, type SubmissionSummary } from '@/src/api/practitioner';
+import { useTheme } from '@/src/ui/theme-mode';
 
 // What patients have sent back.
 //
@@ -34,6 +35,7 @@ const T = {
 } as const;
 
 export default function Submissions() {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale] ?? T.en;
@@ -82,7 +84,7 @@ export default function Submissions() {
   const rows = mode === 'resource' ? (groups?.byResource ?? []) : (groups?.byPatient ?? []);
 
   return (
-    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+    <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         <EdHeader kicker={tr.kicker} title={focused ? (params.title ?? tr.title) : tr.title} onBack={back} />
@@ -98,7 +100,7 @@ export default function Submissions() {
           {!loaded && <ActivityIndicator />}
 
           {/* grouped */}
-          {loaded && !focused && rows.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.empty}</Text>}
+          {loaded && !focused && rows.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.empty}</Text>}
           {loaded && !focused && rows.map((r) => {
             const name = 'title' in r ? r.title : r.name;
             return (
@@ -111,18 +113,18 @@ export default function Submissions() {
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 }}
               >
                 <View style={{ flex: 1 }}>
-                  <Text numberOfLines={2} style={{ fontSize: 15, fontWeight: '700', color: EDA.ink }}>{name}</Text>
-                  <Text style={{ fontSize: 12.5, color: EDA.green, marginTop: 3, fontWeight: '700' }}>
+                  <Text numberOfLines={2} style={{ fontSize: 15, fontWeight: '700', color: TT.ink }}>{name}</Text>
+                  <Text style={{ fontSize: 12.5, color: TT.accent, marginTop: 3, fontWeight: '700' }}>
                     {r.count} {r.count === 1 ? tr.one : tr.many}
                   </Text>
                 </View>
-                <ChevronRight size={17} color={EDA.faint} />
+                <ChevronRight size={17} color={TT.faint} />
               </EdCard>
             );
           })}
 
           {/* one resource's or one patient's submissions */}
-          {loaded && focused && items.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.emptyOne}</Text>}
+          {loaded && focused && items.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.emptyOne}</Text>}
           {loaded && focused && items.length > 0 && <EdSection label={`${items.length} ${items.length === 1 ? tr.one : tr.many}`.toUpperCase()} />}
           {loaded && focused && items.map((s) => (
             <EdCard
@@ -133,19 +135,19 @@ export default function Submissions() {
               <View style={{ flex: 1 }}>
                 {/* Whichever the list is NOT grouped by is the useful headline:
                     a resource's list wants names, a patient's wants titles. */}
-                <Text numberOfLines={2} style={{ fontSize: 15, fontWeight: '700', color: EDA.ink }}>
+                <Text numberOfLines={2} style={{ fontSize: 15, fontWeight: '700', color: TT.ink }}>
                   {focusResource ? s.who : s.resourceTitle}
                 </Text>
-                <Text style={{ fontSize: 12.5, color: EDA.faint, marginTop: 3 }}>
+                <Text style={{ fontSize: 12.5, color: TT.faint, marginTop: 3 }}>
                   {when(s.submittedAt)} · {tr.sources[s.source as keyof typeof tr.sources] ?? s.source}
                 </Text>
                 {s.score && (
-                  <Text style={{ fontSize: 12.5, fontWeight: '700', color: EDA.green, marginTop: 3 }}>
+                  <Text style={{ fontSize: 12.5, fontWeight: '700', color: TT.accent, marginTop: 3 }}>
                     {s.score.total}/{s.score.maxScore}{s.score.label ? ` · ${s.score.label}` : ''}
                   </Text>
                 )}
               </View>
-              <ChevronRight size={17} color={EDA.faint} />
+              <ChevronRight size={17} color={TT.faint} />
             </EdCard>
           ))}
         </FadeIn>
@@ -155,13 +157,14 @@ export default function Submissions() {
 }
 
 function Toggle({ Icon, label, on, onPress }: { Icon: typeof FileText; label: string; on: boolean; onPress: () => void }) {
+  const { t: TT } = useTheme();
   return (
     <Pressable
       onPress={onPress}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: on ? EDA.greenTint : EDA.card, borderWidth: 1.5, borderColor: on ? EDA.green : EDA.line }}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: on ? TT.accentTint : TT.card, borderWidth: 1.5, borderColor: on ? TT.accent : TT.line }}
     >
-      <Icon size={14} color={on ? EDA.greenDeep : EDA.inkSoft} />
-      <Text style={{ fontSize: 13.5, fontWeight: '700', color: on ? EDA.greenDeep : EDA.inkSoft }}>{label}</Text>
+      <Icon size={14} color={on ? TT.accentDeep : TT.inkSoft} />
+      <Text style={{ fontSize: 13.5, fontWeight: '700', color: on ? TT.accentDeep : TT.inkSoft }}>{label}</Text>
     </Pressable>
   );
 }

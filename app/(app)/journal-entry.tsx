@@ -28,6 +28,7 @@ import { newBlock, serializeForSave, entryIsEmpty, isMedia, type BlockType, type
 import { pickImage, pickVideo, uploadImage, uploadVideo, uploadVoice } from '@/src/journal/media';
 import { useConfirm } from '@/src/ui/confirm';
 import { useI18n } from '@/src/i18n';
+import { useTheme } from '@/src/ui/theme-mode';
 
 /** A LINK is not media: it belongs in a browser, and always did. */
 const openLink = (url: string) =>
@@ -63,6 +64,7 @@ const T = {
 const fmtDur = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
 
 export default function JournalEntry() {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
   const confirm = useConfirm();
@@ -314,7 +316,7 @@ export default function JournalEntry() {
         </View>
 
         {/* The paper. */}
-        <View style={{ flex: 1, backgroundColor: EDA.canvas, borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden' }}>
+        <View style={{ flex: 1, backgroundColor: TT.bg, borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden' }}>
 
         {loaded && (mode === 'read' ? (
           <ReadView title={title} blocks={blocks} tr={tr} meta={metaLine} onOpenMedia={setViewingId} />
@@ -325,14 +327,14 @@ export default function JournalEntry() {
             showsVerticalScrollIndicator={false}
             scrollEnabled={!drag.dragging}
           >
-            <Text style={{ fontSize: 11.5, color: EDA.faint, marginBottom: 8, paddingHorizontal: 4 }}>{metaLine}</Text>
+            <Text style={{ fontSize: 11.5, color: TT.faint, marginBottom: 8, paddingHorizontal: 4 }}>{metaLine}</Text>
             <TextInput
               value={title}
               onChangeText={onTitle}
               placeholder={tr.titlePlaceholder}
-              placeholderTextColor={EDA.faint}
+              placeholderTextColor={TT.faint}
               multiline
-              style={[{ fontSize: 23, fontWeight: '800', color: EDA.ink, letterSpacing: -0.4, marginBottom: 14, paddingHorizontal: 4 }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
+              style={[{ fontSize: 23, fontWeight: '800', color: TT.ink, letterSpacing: -0.4, marginBottom: 14, paddingHorizontal: 4 }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
             />
             {blocks.map((b, i) => (
               <BlockRow key={b.id} block={b} tr={tr} first={i === 0} last={i === blocks.length - 1}
@@ -349,22 +351,22 @@ export default function JournalEntry() {
 
         {/* Recording bar OR the block toolbar — edit mode only */}
         {mode === 'edit' && (recording ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 12, borderTopWidth: 1, borderTopColor: EDA.line }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 12, borderTopWidth: 1, borderTopColor: TT.line }}>
             <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: '#DC2626' }} />
-            <Text style={{ fontSize: 14, fontWeight: '600', color: EDA.ink }}>{tr.recording} {fmtDur(Math.round((recState.durationMillis ?? 0) / 1000))}</Text>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: TT.ink }}>{tr.recording} {fmtDur(Math.round((recState.durationMillis ?? 0) / 1000))}</Text>
             <TouchableOpacity onPress={stopVoice} activeOpacity={0.85} style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#DC2626', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 }}>
               <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: '#fff' }} />
               <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>{tr.stop}</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={{ borderTopWidth: 1, borderTopColor: EDA.line, paddingVertical: 8 }}>
+          <View style={{ borderTopWidth: 1, borderTopColor: TT.line, paddingVertical: 8 }}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }} keyboardShouldPersistTaps="handled">
               {TOOLS.map(({ type, label, Icon, onPress }) => (
                 <TouchableOpacity key={type} onPress={onPress} activeOpacity={0.8}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 }}>
-                  <Icon size={15} color={EDA.ink} strokeWidth={2} />
-                  <Text style={{ fontSize: 13, fontWeight: '600', color: EDA.ink }}>{label}</Text>
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 }}>
+                  <Icon size={15} color={TT.ink} strokeWidth={2} />
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: TT.ink }}>{label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -406,13 +408,14 @@ type Tr = { [K in keyof (typeof T)['en']]: string };
 // Multiline input that grows to its content height (native grows on its own;
 // web needs this) and always spans the full width — no clipped box / overflow.
 function AutoGrowInput({ value, onChange, placeholder, style }: { value: string; onChange: (v: string) => void; placeholder: string; style: object }) {
+  const { t: TT } = useTheme();
   const [h, setH] = useState(0);
   const minH = (style as { lineHeight?: number }).lineHeight ?? 24;
   return (
     <TextInput
-      value={value} onChangeText={onChange} placeholder={placeholder} placeholderTextColor={EDA.faint} multiline
+      value={value} onChangeText={onChange} placeholder={placeholder} placeholderTextColor={TT.faint} multiline
       onContentSizeChange={(e) => setH(e.nativeEvent.contentSize.height)}
-      style={[{ color: EDA.ink, padding: 0, width: '100%', height: Math.max(h, minH) }, style, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
+      style={[{ color: TT.ink, padding: 0, width: '100%', height: Math.max(h, minH) }, style, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
     />
   );
 }
@@ -420,34 +423,36 @@ function AutoGrowInput({ value, onChange, placeholder, style }: { value: string;
 // Read-only rendering of an entry — the readable "journal" view (tap Edit to
 // change). Plain Text flows and wraps naturally, so nothing is clipped.
 function ReadView({ title, blocks, tr, meta, onOpenMedia }: { title: string; blocks: JournalBlock[]; tr: Tr; meta: string; onOpenMedia: (blockId: string) => void }) {
+  const { t: TT } = useTheme();
   return (
     <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-      <Text style={{ fontSize: 11.5, color: EDA.faint, marginBottom: 8 }}>{meta}</Text>
-      {title.trim() ? <Text style={{ fontSize: 24, fontWeight: '800', color: EDA.ink, letterSpacing: -0.4, marginBottom: 18 }}>{title}</Text> : null}
+      <Text style={{ fontSize: 11.5, color: TT.faint, marginBottom: 8 }}>{meta}</Text>
+      {title.trim() ? <Text style={{ fontSize: 24, fontWeight: '800', color: TT.ink, letterSpacing: -0.4, marginBottom: 18 }}>{title}</Text> : null}
       <View style={{ gap: 16 }}>{blocks.map((b) => <ReadBlock key={b.id} block={b} tr={tr} onOpenMedia={onOpenMedia} />)}</View>
     </ScrollView>
   );
 }
 
 function ReadBlock({ block: b, tr, onOpenMedia }: { block: JournalBlock; tr: Tr; onOpenMedia?: (blockId: string) => void }) {
+  const { t: TT } = useTheme();
   switch (b.type) {
-    case 'heading': return <Text style={{ fontSize: 19, fontWeight: '800', color: EDA.ink, letterSpacing: -0.3 }}>{b.text}</Text>;
-    case 'text': return <Text style={{ fontSize: 16, lineHeight: 27, color: EDA.inkSoft }}>{b.text}</Text>;
-    case 'quote': return <View style={{ borderLeftWidth: 3, borderLeftColor: EDA.green, paddingLeft: 14 }}><Text style={{ fontSize: 16, lineHeight: 26, fontStyle: 'italic', color: EDA.inkSoft }}>{b.text}</Text></View>;
-    case 'callout': return <View style={{ backgroundColor: EDA.greenTint, borderRadius: 16, padding: 16 }}><Text style={{ fontSize: 15.5, lineHeight: 25, color: EDA.ink }}>{b.text}</Text></View>;
+    case 'heading': return <Text style={{ fontSize: 19, fontWeight: '800', color: TT.ink, letterSpacing: -0.3 }}>{b.text}</Text>;
+    case 'text': return <Text style={{ fontSize: 16, lineHeight: 27, color: TT.inkSoft }}>{b.text}</Text>;
+    case 'quote': return <View style={{ borderLeftWidth: 3, borderLeftColor: TT.accent, paddingLeft: 14 }}><Text style={{ fontSize: 16, lineHeight: 26, fontStyle: 'italic', color: TT.inkSoft }}>{b.text}</Text></View>;
+    case 'callout': return <View style={{ backgroundColor: TT.accentTint, borderRadius: 16, padding: 16 }}><Text style={{ fontSize: 15.5, lineHeight: 25, color: TT.ink }}>{b.text}</Text></View>;
     case 'list': return (
       <View style={{ gap: 8 }}>
         {(b.items ?? []).map((it, i) => (
           <View key={i} style={{ flexDirection: 'row', gap: 10 }}>
-            <Text style={{ fontSize: 16, color: EDA.green, lineHeight: 25 }}>{b.ordered ? `${i + 1}.` : '•'}</Text>
-            <Text style={{ flex: 1, fontSize: 16, lineHeight: 25, color: EDA.inkSoft }}>{it}</Text>
+            <Text style={{ fontSize: 16, color: TT.accent, lineHeight: 25 }}>{b.ordered ? `${i + 1}.` : '•'}</Text>
+            <Text style={{ flex: 1, fontSize: 16, lineHeight: 25, color: TT.inkSoft }}>{it}</Text>
           </View>
         ))}
       </View>
     );
     case 'link': return (
       <TouchableOpacity onPress={() => b.url && openLink(b.url)} activeOpacity={0.7} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Link2 size={16} color={EDA.green} /><Text style={{ fontSize: 15.5, fontWeight: '600', color: EDA.green }}>{b.label || b.url}</Text>
+        <Link2 size={16} color={TT.accent} /><Text style={{ fontSize: 15.5, fontWeight: '600', color: TT.accent }}>{b.label || b.url}</Text>
       </TouchableOpacity>
     );
     case 'voice':
@@ -472,6 +477,7 @@ function BlockRow({ block: b, tr, first, last, onPatch, onRemove, onUp, onDown, 
   shift: number;
   lifted: boolean;
 }) {
+  const { t: TT } = useTheme();
   const menu = useAnchoredMenu();
   // Multiline text grows to fit its content (fixes the tiny fixed-height box +
   // horizontal overflow on web); single-line inputs stay plain.
@@ -479,48 +485,48 @@ function BlockRow({ block: b, tr, first, last, onPatch, onRemove, onUp, onDown, 
     multiline ? (
       <AutoGrowInput value={value} onChange={onChange} placeholder={placeholder} style={extra} />
     ) : (
-      <TextInput value={value} onChangeText={onChange} placeholder={placeholder} placeholderTextColor={EDA.faint}
-        style={[{ color: EDA.ink, padding: 0 }, extra, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]} />
+      <TextInput value={value} onChangeText={onChange} placeholder={placeholder} placeholderTextColor={TT.faint}
+        style={[{ color: TT.ink, padding: 0 }, extra, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]} />
     );
 
   let content: React.ReactNode = null;
-  if (b.type === 'text') content = input({ fontSize: 15.5, lineHeight: 26, color: EDA.inkSoft }, b.text ?? '', (v) => onPatch({ text: v }), tr.writePlaceholder);
+  if (b.type === 'text') content = input({ fontSize: 15.5, lineHeight: 26, color: TT.inkSoft }, b.text ?? '', (v) => onPatch({ text: v }), tr.writePlaceholder);
   else if (b.type === 'heading') content = input({ fontSize: 19, fontWeight: '800', letterSpacing: -0.3 }, b.text ?? '', (v) => onPatch({ text: v }), tr.headingPlaceholder);
   else if (b.type === 'quote') content = (
-    <View style={{ borderLeftWidth: 3, borderLeftColor: EDA.green, paddingLeft: 12 }}>
-      {input({ fontSize: 15.5, lineHeight: 25, fontStyle: 'italic', color: EDA.inkSoft }, b.text ?? '', (v) => onPatch({ text: v }), tr.quotePlaceholder)}
+    <View style={{ borderLeftWidth: 3, borderLeftColor: TT.accent, paddingLeft: 12 }}>
+      {input({ fontSize: 15.5, lineHeight: 25, fontStyle: 'italic', color: TT.inkSoft }, b.text ?? '', (v) => onPatch({ text: v }), tr.quotePlaceholder)}
     </View>
   );
   else if (b.type === 'callout') content = (
-    <View style={{ backgroundColor: EDA.greenTint, borderRadius: 14, padding: 14 }}>
-      {input({ fontSize: 15, lineHeight: 24, color: EDA.ink }, b.text ?? '', (v) => onPatch({ text: v }), tr.calloutPlaceholder)}
+    <View style={{ backgroundColor: TT.accentTint, borderRadius: 14, padding: 14 }}>
+      {input({ fontSize: 15, lineHeight: 24, color: TT.ink }, b.text ?? '', (v) => onPatch({ text: v }), tr.calloutPlaceholder)}
     </View>
   );
   else if (b.type === 'list') content = (
     <View style={{ gap: 8 }}>
       {(b.items ?? ['']).map((it, idx) => (
         <View key={idx} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
-          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: EDA.green, marginTop: 9 }} />
+          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: TT.accent, marginTop: 9 }} />
           <View style={{ flex: 1 }}>
             {input({ fontSize: 15.5, lineHeight: 24 }, it, (v) => onPatch({ items: (b.items ?? []).map((x, k) => (k === idx ? v : x)) }), tr.itemPlaceholder, false)}
           </View>
           {(b.items?.length ?? 0) > 1 && (
-            <TouchableOpacity onPress={() => onPatch({ items: (b.items ?? []).filter((_, k) => k !== idx) })} hitSlop={8}><X size={14} color={EDA.faint} /></TouchableOpacity>
+            <TouchableOpacity onPress={() => onPatch({ items: (b.items ?? []).filter((_, k) => k !== idx) })} hitSlop={8}><X size={14} color={TT.faint} /></TouchableOpacity>
           )}
         </View>
       ))}
       <TouchableOpacity onPress={() => onPatch({ items: [...(b.items ?? []), ''] })} activeOpacity={0.7} style={{ marginLeft: 16 }}>
-        <Text style={{ fontSize: 13, fontWeight: '600', color: EDA.green }}>+ {tr.addItem}</Text>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: TT.accent }}>+ {tr.addItem}</Text>
       </TouchableOpacity>
     </View>
   );
   else if (b.type === 'link') content = (
-    <View style={{ backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, borderRadius: 12, padding: 12, gap: 8 }}>
+    <View style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, borderRadius: 12, padding: 12, gap: 8 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Link2 size={15} color={EDA.green} />
-        {input({ fontSize: 14.5, color: EDA.ink, flex: 1 }, b.url ?? '', (v) => onPatch({ url: v }), tr.linkUrl, false)}
+        <Link2 size={15} color={TT.accent} />
+        {input({ fontSize: 14.5, color: TT.ink, flex: 1 }, b.url ?? '', (v) => onPatch({ url: v }), tr.linkUrl, false)}
       </View>
-      {input({ fontSize: 13.5, color: EDA.inkSoft }, b.label ?? '', (v) => onPatch({ label: v }), tr.linkLabel, false)}
+      {input({ fontSize: 13.5, color: TT.inkSoft }, b.label ?? '', (v) => onPatch({ label: v }), tr.linkLabel, false)}
     </View>
   );
   else if (isMedia(b.type)) content = <MediaBlock block={b} tr={tr} />;
@@ -529,7 +535,7 @@ function BlockRow({ block: b, tr, first, last, onPatch, onRemove, onUp, onDown, 
   // read as a stack of controls. One quiet handle carries all three instead,
   // and a failed upload puts its way out at the top of the same menu.
   const actions = [
-    ...(onRetry ? [{ key: 'retry', label: tr.retry, color: EDA.green, Icon: RotateCw, onPress: () => { void onRetry(); } }] : []),
+    ...(onRetry ? [{ key: 'retry', label: tr.retry, color: TT.accent, Icon: RotateCw, onPress: () => { void onRetry(); } }] : []),
     { key: 'up', label: tr.moveUp, Icon: ChevronUp, disabled: first, onPress: onUp },
     { key: 'down', label: tr.moveDown, Icon: ChevronDown, disabled: last, onPress: onDown },
     { key: 'del', label: tr.delete, color: '#B4443A', Icon: Trash2, onPress: onRemove },
@@ -545,7 +551,7 @@ function BlockRow({ block: b, tr, first, last, onPatch, onRemove, onUp, onDown, 
         // as picked up rather than as the page having gone wrong.
         zIndex: lifted ? 10 : 0,
         ...(lifted
-          ? { backgroundColor: EDA.card, borderRadius: 12, shadowColor: '#000', shadowOpacity: 0.16, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 }
+          ? { backgroundColor: TT.card, borderRadius: 12, shadowColor: '#000', shadowOpacity: 0.16, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 8 }
           : null),
       }}
     >
@@ -557,7 +563,7 @@ function BlockRow({ block: b, tr, first, last, onPatch, onRemove, onUp, onDown, 
         {...gripHandlers}
         style={[{ width: 24, height: 30, alignItems: 'center', justifyContent: 'center', marginTop: 2 }, { userSelect: 'none', cursor: 'grab' } as never]}
       >
-        <GripVertical size={15} color={lifted ? EDA.green : EDA.faint} strokeWidth={2} />
+        <GripVertical size={15} color={lifted ? TT.accent : TT.faint} strokeWidth={2} />
       </View>
       <TouchableOpacity
         ref={menu.ref}
@@ -565,7 +571,7 @@ function BlockRow({ block: b, tr, first, last, onPatch, onRemove, onUp, onDown, 
         hitSlop={8}
         style={{ width: 24, height: 30, alignItems: 'center', justifyContent: 'center', marginTop: 2 }}
       >
-        <MoreHorizontal size={15} color={b.failed ? '#B4443A' : EDA.faint} strokeWidth={2} />
+        <MoreHorizontal size={15} color={b.failed ? '#B4443A' : TT.faint} strokeWidth={2} />
       </TouchableOpacity>
       <AnchoredMenu open={menu.open} anchor={menu.anchor} onClose={menu.hide} actions={actions} />
     </View>
@@ -573,14 +579,15 @@ function BlockRow({ block: b, tr, first, last, onPatch, onRemove, onUp, onDown, 
 }
 
 function MediaBlock({ block: b, tr }: { block: JournalBlock; tr: Tr }) {
+  const { t: TT } = useTheme();
   const uri = b.url ?? b.localUri ?? null;
   if (b.type === 'voice') {
     return (
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: EDA.greenTint, borderRadius: 14, padding: 14 }}>
-        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: EDA.green, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: TT.accentTint, borderRadius: 14, padding: 14 }}>
+        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: TT.accent, alignItems: 'center', justifyContent: 'center' }}>
           {b.uploading ? <ActivityIndicator size="small" color="#fff" /> : <Play size={16} color="#fff" fill="#fff" />}
         </View>
-        <Text style={{ fontSize: 15, fontWeight: '600', color: EDA.ink }}>{tr.voiceNote}{b.durationSeconds ? ` · ${fmtDur(b.durationSeconds)}` : ''}</Text>
+        <Text style={{ fontSize: 15, fontWeight: '600', color: TT.ink }}>{tr.voiceNote}{b.durationSeconds ? ` · ${fmtDur(b.durationSeconds)}` : ''}</Text>
         {b.failed && <Text style={{ marginLeft: 'auto', fontSize: 12, color: '#DC2626' }}>{tr.uploadFailed}</Text>}
       </View>
     );

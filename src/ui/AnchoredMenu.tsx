@@ -8,6 +8,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { Modal, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { EDA } from '@/src/ui/editorial';
+import { useTheme } from '@/src/ui/theme-mode';
 
 export interface Anchor { x: number; y: number; w: number; h: number }
 
@@ -47,6 +48,7 @@ export function AnchoredMenu({
   actions: MenuAction[];
   align?: 'left' | 'right';
 }) {
+  const { t: TT } = useTheme();
   const { width: screenW, height: screenH } = useWindowDimensions();
 
   const rawLeft = anchor ? (align === 'right' ? anchor.x + anchor.w - width : anchor.x) : screenW - width - 18;
@@ -61,9 +63,9 @@ export function AnchoredMenu({
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(22,24,20,0.2)' }} />
-      <View style={{ position: 'absolute', top, left, width, backgroundColor: '#fff', borderWidth: 1, borderColor: EDA.line, borderRadius: 16, overflow: 'hidden' }}>
+      <View style={{ position: 'absolute', top, left, width, backgroundColor: '#fff', borderWidth: 1, borderColor: TT.line, borderRadius: 16, overflow: 'hidden' }}>
         {note ? (
-          <Text style={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 10, fontSize: 11.5, color: EDA.faint, borderBottomWidth: 1, borderBottomColor: '#F1EFEA' }}>
+          <Text style={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 10, fontSize: 11.5, color: TT.faint, borderBottomWidth: 1, borderBottomColor: '#F1EFEA' }}>
             {note}
           </Text>
         ) : null}
@@ -74,8 +76,8 @@ export function AnchoredMenu({
             onPress={() => { onClose(); a.onPress(); }}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 14, paddingVertical: 13, opacity: a.disabled ? 0.35 : 1 }}
           >
-            {a.Icon ? <a.Icon size={15} color={a.color ?? EDA.ink} strokeWidth={1.9} /> : null}
-            <Text style={{ flex: 1, fontSize: 13.5, fontWeight: '700', color: a.color ?? EDA.ink }}>{a.label}</Text>
+            {a.Icon ? <a.Icon size={15} color={a.color ?? TT.ink} strokeWidth={1.9} /> : null}
+            <Text style={{ flex: 1, fontSize: 13.5, fontWeight: '700', color: a.color ?? TT.ink }}>{a.label}</Text>
           </Pressable>
         ))}
       </View>

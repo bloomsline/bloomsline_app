@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { LayoutGrid, Users, CalendarDays, Library, type LucideIcon } from 'lucide-react-native';
 import { EDA } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
+import { useTheme } from '@/src/ui/theme-mode';
 
 // The practitioner's tab bar: a floating pill of four destinations.
 //
@@ -25,6 +26,7 @@ const TABS: Record<PractitionerTabId, { Icon: LucideIcon; href: string; en: stri
 const ORDER: PractitionerTabId[] = ['home', 'calendar', 'people', 'resources'];
 
 export function PractitionerTabBar({ active }: { active: PractitionerTabId }) {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
   const fr = locale === 'fr';
@@ -34,7 +36,7 @@ export function PractitionerTabBar({ active }: { active: PractitionerTabId }) {
       <View
         style={{
           flex: 1, flexDirection: 'row', justifyContent: 'space-around', borderRadius: 40, paddingHorizontal: 10, paddingVertical: 12,
-          backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line,
+          backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line,
           shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, shadowOffset: { width: 0, height: 6 }, elevation: 8,
         }}
       >
@@ -46,12 +48,12 @@ export function PractitionerTabBar({ active }: { active: PractitionerTabId }) {
               <View
                 style={{
                   height: 42, width: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center',
-                  ...(on ? { backgroundColor: EDA.green } : { borderWidth: 1, borderColor: EDA.line, backgroundColor: EDA.canvas }),
+                  ...(on ? { backgroundColor: TT.accent } : { borderWidth: 1, borderColor: TT.line, backgroundColor: TT.bg }),
                 }}
               >
-                <tab.Icon size={19} color={on ? '#fff' : EDA.faint} strokeWidth={on ? 2 : 1.6} />
+                <tab.Icon size={19} color={on ? '#fff' : TT.faint} strokeWidth={on ? 2 : 1.6} />
               </View>
-              <Text style={{ marginTop: 4, fontSize: 10.5, fontWeight: on ? '700' : '400', color: on ? EDA.green : EDA.faint }}>
+              <Text style={{ marginTop: 4, fontSize: 10.5, fontWeight: on ? '700' : '400', color: on ? TT.accent : TT.faint }}>
                 {fr ? tab.fr : tab.en}
               </Text>
             </Pressable>

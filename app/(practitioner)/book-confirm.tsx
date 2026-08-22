@@ -3,9 +3,10 @@ import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Check, Info, MapPin, Phone, Video } from 'lucide-react-native';
-import { EDA, EdHeader, EdCard, EdPill, FadeIn } from '@/src/ui/editorial';
+import { EdHeader, EdCard, EdPill, FadeIn } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 import { bookSession } from '@/src/api/practitioner';
+import { useTheme } from '@/src/ui/theme-mode';
 
 // Confirm the booking — the practitioner's counterpart to the patient's
 // book-confirm screen, and deliberately the same shape.
@@ -36,6 +37,7 @@ const T = {
 const FORMAT_ICON = { video: Video, in_person: MapPin, phone: Phone } as const;
 
 export default function BookConfirm() {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale] ?? T.en;
@@ -75,19 +77,19 @@ export default function BookConfirm() {
   const finish = () => router.navigate('/(practitioner)/home' as never);
 
   return (
-    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+    <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         <EdHeader kicker={tr.kicker} title={done ? tr.done : tr.title} onBack={done ? undefined : () => router.back()} />
 
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           <EdCard style={{ marginBottom: 18 }}>
-            <Text style={{ fontSize: 20, fontWeight: '800', color: EDA.ink, letterSpacing: -0.4 }}>{p.name ?? ''}</Text>
-            <Text style={{ fontSize: 15, color: EDA.ink, marginTop: 8, textTransform: 'capitalize' }}>{when}</Text>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.green, marginTop: 2 }}>{time} · {duration} min</Text>
+            <Text style={{ fontSize: 20, fontWeight: '800', color: TT.ink, letterSpacing: -0.4 }}>{p.name ?? ''}</Text>
+            <Text style={{ fontSize: 15, color: TT.ink, marginTop: 8, textTransform: 'capitalize' }}>{when}</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: TT.accent, marginTop: 2 }}>{time} · {duration} min</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
-              <Icon size={14} color={EDA.faint} />
-              <Text style={{ fontSize: 13.5, color: EDA.inkSoft }}>
+              <Icon size={14} color={TT.faint} />
+              <Text style={{ fontSize: 13.5, color: TT.inkSoft }}>
                 {tr[format as 'video' | 'phone' | 'in_person'] ?? format}{p.label ? ` · ${p.label}` : ''}
               </Text>
             </View>
@@ -95,9 +97,9 @@ export default function BookConfirm() {
 
           {done ? (
             <>
-              <EdCard style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: EDA.greenTint, borderColor: EDA.green }}>
-                <Check size={18} color={EDA.green} strokeWidth={3} />
-                <Text style={{ flex: 1, fontSize: 14.5, color: EDA.greenDeep, lineHeight: 21 }}>
+              <EdCard style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: TT.accentTint, borderColor: TT.accent }}>
+                <Check size={18} color={TT.accent} strokeWidth={3} />
+                <Text style={{ flex: 1, fontSize: 14.5, color: TT.accentDeep, lineHeight: 21 }}>
                   {p.name} — {tr.doneBody}
                 </Text>
               </EdCard>
@@ -106,8 +108,8 @@ export default function BookConfirm() {
           ) : (
             <>
               <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start', marginBottom: 22 }}>
-                <Info size={15} color={EDA.faint} style={{ marginTop: 2 }} />
-                <Text style={{ flex: 1, fontSize: 13, color: EDA.inkSoft, lineHeight: 19 }}>{tr.note}</Text>
+                <Info size={15} color={TT.faint} style={{ marginTop: 2 }} />
+                <Text style={{ flex: 1, fontSize: 13, color: TT.inkSoft, lineHeight: 19 }}>{tr.note}</Text>
               </View>
               <EdPill label={saving ? '…' : tr.confirm} onPress={confirm} disabled={saving} />
               {saving && <ActivityIndicator style={{ marginTop: 12 }} />}

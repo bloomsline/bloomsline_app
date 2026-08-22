@@ -14,7 +14,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { ChevronRight, Plus, Ellipsis, RotateCcw, FileText, MapPin, Settings, type LucideIcon } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
 import { TabIntro } from '@/src/ui/TabIntro';
-import { EDA, EDD, EdCard, FadeIn, MonoLabel } from '@/src/ui/editorial';
+import { EDD, EdCard, FadeIn, MonoLabel } from '@/src/ui/editorial';
 import { useLanding } from '@/src/prefs/landing';
 import { useI18n, fmt } from '@/src/i18n';
 import { useOnboarding } from '@/src/onboarding/context';
@@ -23,6 +23,7 @@ import { fetchCare, fetchTodo, type CareSession, type PatientCare, type TodoItem
 import { resourceTypeMeta, statusLabel } from '@/src/care/resources';
 import { notify } from '@/src/ui/alert';
 import { Ground } from '@/src/ui/Ground';
+import { useTheme } from '@/src/ui/theme-mode';
 
 const PREVIEW_NEXT: CareSession = { id: 'preview', scheduledAt: inDays(5, 9), durationMinutes: 50, sessionFormat: 'video', sessionType: 'session', status: 'scheduled', meetLink: null, paymentStatus: null };
 const PREVIEW_UPCOMING: CareSession[] = [
@@ -35,6 +36,7 @@ const PREVIEW_TODOS: TodoItem[] = [
 ];
 
 export default function MyCare() {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { firstName, practitionerName, hasPractitioner } = useOnboarding();
   const { landing } = useLanding();
@@ -90,21 +92,21 @@ export default function MyCare() {
   // error state rather than an invitation.
   if (loaded && !showHub) {
     return (
-      <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+      <View style={{ flex: 1, backgroundColor: TT.bg }}>
         <StatusBar style="dark" />
         <SafeAreaView edges={['top']} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={{ paddingBottom: 180 }} showsVerticalScrollIndicator={false}>
             <View style={{ paddingHorizontal: 22, paddingTop: 12 }}>
-              <MonoLabel color={EDA.faint} size={10.5} style={{ marginBottom: 10 }}>{dateKicker}</MonoLabel>
-              <Text style={{ fontSize: 27, fontWeight: '800', color: EDA.ink, letterSpacing: -0.9, lineHeight: 31 }}>{headerTitle}</Text>
+              <MonoLabel color={TT.faint} size={10.5} style={{ marginBottom: 10 }}>{dateKicker}</MonoLabel>
+              <Text style={{ fontSize: 27, fontWeight: '800', color: TT.ink, letterSpacing: -0.9, lineHeight: 31 }}>{headerTitle}</Text>
             </View>
             <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
               <EdCard style={{ alignItems: 'center', padding: 24 }}>
-                <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-                  <Plus size={22} color={EDA.green} strokeWidth={2} />
+                <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: TT.accentTint, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                  <Plus size={22} color={TT.accent} strokeWidth={2} />
                 </View>
-                <Text style={{ fontSize: 16, fontWeight: '700', color: EDA.ink }}>{t.care.connectTitle}</Text>
-                <Text style={{ fontSize: 13, color: EDA.inkSoft, textAlign: 'center', marginTop: 6, lineHeight: 19 }}>{t.care.connectSub}</Text>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: TT.ink }}>{t.care.connectTitle}</Text>
+                <Text style={{ fontSize: 13, color: TT.inkSoft, textAlign: 'center', marginTop: 6, lineHeight: 19 }}>{t.care.connectSub}</Text>
               </EdCard>
             </FadeIn>
           </ScrollView>

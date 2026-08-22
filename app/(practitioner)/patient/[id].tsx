@@ -7,6 +7,7 @@ import { EDA, EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
 import { RichText } from '@/src/resources/blocks';
 import { useI18n } from '@/src/i18n';
 import { fetchPatient, type PatientDetail } from '@/src/api/practitioner';
+import { useTheme } from '@/src/ui/theme-mode';
 
 // One patient, to READ.
 //
@@ -88,12 +89,13 @@ function Chip({ label, tone = 'grey' }: { label: string; tone?: keyof typeof TON
 /** One line of the filter dropdown. A box rather than a switch, because several
  *  can be on at once and a switch reads as "either/or". */
 function CheckRow({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
+  const { t: TT } = useTheme();
   return (
     <Pressable onPress={onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 11 }}>
-      <View style={{ height: 19, width: 19, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? EDA.green : 'transparent', borderWidth: 1.5, borderColor: on ? EDA.green : EDA.line }}>
+      <View style={{ height: 19, width: 19, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? TT.accent : 'transparent', borderWidth: 1.5, borderColor: on ? TT.accent : TT.line }}>
         {on ? <Check size={12} color="#fff" strokeWidth={3} /> : null}
       </View>
-      <Text style={{ flex: 1, fontSize: 14.5, fontWeight: on ? '700' : '500', color: EDA.ink }}>{label}</Text>
+      <Text style={{ flex: 1, fontSize: 14.5, fontWeight: on ? '700' : '500', color: TT.ink }}>{label}</Text>
     </Pressable>
   );
 }
@@ -123,15 +125,17 @@ function tagLabel(slug: string, vocab?: { slug: string; label: string }[]): stri
 
 /** One fact inside an expanded session: label left, value right. */
 function Row({ label, value }: { label: string; value: string }) {
+  const { t: TT } = useTheme();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 4 }}>
-      <Text style={{ width: 92, fontSize: 12.5, color: EDA.faint }}>{label}</Text>
-      <Text style={{ flex: 1, fontSize: 13.5, fontWeight: '600', color: EDA.ink }}>{value}</Text>
+      <Text style={{ width: 92, fontSize: 12.5, color: TT.faint }}>{label}</Text>
+      <Text style={{ flex: 1, fontSize: 13.5, fontWeight: '600', color: TT.ink }}>{value}</Text>
     </View>
   );
 }
 
 export default function PatientDetailScreen() {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const patientId = typeof id === 'string' ? id : '';
@@ -205,7 +209,7 @@ export default function PatientDetailScreen() {
             : undefined;
 
   return (
-    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+    <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <EdHeader kicker={tr.kicker} title={data?.patient.name ?? '…'} onBack={back} />
 
@@ -227,10 +231,10 @@ export default function PatientDetailScreen() {
               <Pressable
                 key={t}
                 onPress={() => setTab(t)}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: on ? EDA.green : EDA.card, borderWidth: 1, borderColor: on ? EDA.green : EDA.line }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: on ? TT.accent : TT.card, borderWidth: 1, borderColor: on ? TT.accent : TT.line }}
               >
-                <Text style={{ fontSize: 13.5, fontWeight: '700', color: on ? '#fff' : EDA.inkSoft }}>{tr.tabs[t]}</Text>
-                {n ? <Text style={{ fontSize: 11.5, fontWeight: '700', color: on ? 'rgba(255,255,255,0.75)' : EDA.faint }}>{n}</Text> : null}
+                <Text style={{ fontSize: 13.5, fontWeight: '700', color: on ? '#fff' : TT.inkSoft }}>{tr.tabs[t]}</Text>
+                {n ? <Text style={{ fontSize: 11.5, fontWeight: '700', color: on ? 'rgba(255,255,255,0.75)' : TT.faint }}>{n}</Text> : null}
               </Pressable>
             );
           })}
@@ -240,31 +244,31 @@ export default function PatientDetailScreen() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 18, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         <FadeIn>
           {!loaded && <ActivityIndicator />}
-          {loaded && !data && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.missing}</Text>}
+          {loaded && !data && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.missing}</Text>}
 
           {data && tab === 'overview' && (
             <>
               {data.patient.email ? (
                 <EdCard style={{ marginBottom: 12 }}>
-                  <Text style={{ fontSize: 14.5, color: EDA.ink }}>{data.patient.email}</Text>
+                  <Text style={{ fontSize: 14.5, color: TT.ink }}>{data.patient.email}</Text>
                   {data.patient.lastSessionAt ? (
-                    <Text style={{ fontSize: 12.5, color: EDA.faint, marginTop: 3 }}>{day(data.patient.lastSessionAt)}</Text>
+                    <Text style={{ fontSize: 12.5, color: TT.faint, marginTop: 3 }}>{day(data.patient.lastSessionAt)}</Text>
                   ) : null}
                 </EdCard>
               ) : null}
-              {data.overview.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.noOverview}</Text>}
+              {data.overview.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.noOverview}</Text>}
               {data.overview.map((s) => (
                 <EdCard key={s.id} style={{ marginBottom: 10 }}>
-                  <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: EDA.faint, marginBottom: 6 }}>{s.title.toUpperCase()}</Text>
+                  <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: TT.faint, marginBottom: 6 }}>{s.title.toUpperCase()}</Text>
                   {Array.isArray(s.value) ? (
                     s.value.map((v, i) => (
                       <View key={i} style={{ flexDirection: 'row', gap: 8, marginTop: i ? 5 : 0 }}>
-                        <Text style={{ fontSize: 14.5, color: EDA.faint }}>·</Text>
-                        <Text style={{ flex: 1, fontSize: 14.5, lineHeight: 21, color: EDA.ink }}>{v}</Text>
+                        <Text style={{ fontSize: 14.5, color: TT.faint }}>·</Text>
+                        <Text style={{ flex: 1, fontSize: 14.5, lineHeight: 21, color: TT.ink }}>{v}</Text>
                       </View>
                     ))
                   ) : (
-                    <Text style={{ fontSize: 14.5, lineHeight: 21, color: EDA.ink }}>{s.value}</Text>
+                    <Text style={{ fontSize: 14.5, lineHeight: 21, color: TT.ink }}>{s.value}</Text>
                   )}
                 </EdCard>
               ))}
@@ -273,13 +277,13 @@ export default function PatientDetailScreen() {
 
           {data && tab === 'sessions' && (
             <>
-              {data.sessions.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.noSessions}</Text>}
+              {data.sessions.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.noSessions}</Text>}
               {data.sessions.map((s) => {
                 const open = openSession === s.id;
                 return (
                   <EdCard key={s.id} onPress={() => setOpenSession(open ? null : s.id)} style={{ marginBottom: 10 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-                      <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '700', color: EDA.ink }}>{dayTime(s.scheduledAt)}</Text>
+                      <Text style={{ flex: 1, fontSize: 14.5, fontWeight: '700', color: TT.ink }}>{dayTime(s.scheduledAt)}</Text>
                       <Chip
                         label={tr.statuses[s.status as keyof typeof tr.statuses] ?? s.status}
                         tone={s.status === 'completed' ? 'green' : s.status === 'pending' ? 'amber' : s.status === 'cancelled' ? 'rose' : 'grey'}
@@ -288,15 +292,15 @@ export default function PatientDetailScreen() {
                           rotate` on a lucide SVG does not apply under
                           react-native-web — the chevron simply disappeared when
                           expanded, losing the only affordance saying so. */}
-                      {open ? <ChevronUp size={15} color={EDA.faint} /> : <ChevronDown size={15} color={EDA.faint} />}
+                      {open ? <ChevronUp size={15} color={TT.faint} /> : <ChevronDown size={15} color={TT.faint} />}
                     </View>
-                    <Text style={{ fontSize: 12.5, color: EDA.faint, marginTop: 4 }}>
+                    <Text style={{ fontSize: 12.5, color: TT.faint, marginTop: 4 }}>
                       {s.sessionTypeLabel ?? s.sessionType} · {s.sessionFormat.replace('_', ' ')} · {s.durationMinutes}m
                       {s.paymentStatus === 'unpaid' ? ` · ${tr.unpaid}` : ''}
                     </Text>
 
                     {open && (
-                      <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: EDA.line, paddingTop: 13 }}>
+                      <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: TT.line, paddingTop: 13 }}>
                         {/* What was DECIDED, in the order it gets asked: did it
                             happen, was it paid, and if not, why not. */}
                         <Row label={tr.outcome} value={tr.outcomes[s.status as keyof typeof tr.outcomes] ?? s.status} />
@@ -308,17 +312,17 @@ export default function PatientDetailScreen() {
                         {s.source && tr.sources[s.source as keyof typeof tr.sources]
                           ? <Row label={tr.origin} value={tr.sources[s.source as keyof typeof tr.sources]} /> : null}
 
-                        <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: EDA.faint, marginTop: 15, marginBottom: 7 }}>
+                        <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: TT.faint, marginTop: 15, marginBottom: 7 }}>
                           {tr.sessionNote}
                         </Text>
                         {s.note ? (
-                          <View style={{ borderRadius: 14, backgroundColor: EDA.canvas, padding: 13 }}>
+                          <View style={{ borderRadius: 14, backgroundColor: TT.bg, padding: 13 }}>
                             <RichText html={s.note} />
                           </View>
                         ) : (
                           // Said plainly. "No note" is a real answer when scanning a
                           // history — it is how you spot the one you never wrote up.
-                          <Text style={{ fontSize: 14, color: EDA.faint }}>{tr.noNote}</Text>
+                          <Text style={{ fontSize: 14, color: TT.faint }}>{tr.noNote}</Text>
                         )}
                       </View>
                     )}
@@ -331,13 +335,13 @@ export default function PatientDetailScreen() {
           {data && tab === 'notes' && (
             <>
               <EdCard style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, marginBottom: 14 }}>
-                <Search size={16} color={EDA.faint} />
+                <Search size={16} color={TT.faint} />
                 <TextInput
                   value={q}
                   onChangeText={setQ}
                   placeholder={tr.searchNotes}
-                  placeholderTextColor={EDA.faint}
-                  style={{ flex: 1, fontSize: 15, color: EDA.ink }}
+                  placeholderTextColor={TT.faint}
+                  style={{ flex: 1, fontSize: 15, color: TT.ink }}
                   autoCorrect={false}
                 />
               </EdCard>
@@ -348,21 +352,21 @@ export default function PatientDetailScreen() {
                 <View style={{ marginBottom: 14 }}>
                   <Pressable
                     onPress={() => setFilterOpen((v) => !v)}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 16, borderWidth: 1, borderColor: activeFilters ? EDA.green : EDA.line, backgroundColor: EDA.card, paddingHorizontal: 14, paddingVertical: 11 }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 16, borderWidth: 1, borderColor: activeFilters ? TT.accent : TT.line, backgroundColor: TT.card, paddingHorizontal: 14, paddingVertical: 11 }}
                   >
-                    <SlidersHorizontal size={15} color={activeFilters ? EDA.green : EDA.faint} />
+                    <SlidersHorizontal size={15} color={activeFilters ? TT.accent : TT.faint} />
                     {/* The button states what is ON, not just that filtering
                         exists. A closed dropdown that hides its own selection is
                         how a list ends up looking wrong for no visible reason. */}
-                    <Text style={{ flex: 1, fontSize: 13.5, fontWeight: '700', color: activeFilters ? EDA.greenDeep : EDA.inkSoft }} numberOfLines={1}>
+                    <Text style={{ flex: 1, fontSize: 13.5, fontWeight: '700', color: activeFilters ? TT.accentDeep : TT.inkSoft }} numberOfLines={1}>
                       {filterSummary}
                     </Text>
                     {activeFilters ? (
                       <Pressable onPress={() => { setPickedTags([]); setQuoteOnly(false); }} hitSlop={8}>
-                        <Text style={{ fontSize: 12.5, fontWeight: '700', color: EDA.green }}>{tr.clear}</Text>
+                        <Text style={{ fontSize: 12.5, fontWeight: '700', color: TT.accent }}>{tr.clear}</Text>
                       </Pressable>
                     ) : null}
-                    {filterOpen ? <ChevronUp size={15} color={EDA.faint} /> : <ChevronDown size={15} color={EDA.faint} />}
+                    {filterOpen ? <ChevronUp size={15} color={TT.faint} /> : <ChevronDown size={15} color={TT.faint} />}
                   </Pressable>
 
                   {filterOpen && (
@@ -383,8 +387,8 @@ export default function PatientDetailScreen() {
                 </View>
               )}
 
-              {data.notes.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.noNotes}</Text>}
-              {data.notes.length > 0 && notes.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.noMatch}</Text>}
+              {data.notes.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.noNotes}</Text>}
+              {data.notes.length > 0 && notes.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.noMatch}</Text>}
               {notes.map((n) => {
                 const open = openNote === n.id;
                 return (
@@ -392,14 +396,14 @@ export default function PatientDetailScreen() {
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
                       {/* The SESSION's date when there is one. A note is about a
                           session, not about the evening it got typed up. */}
-                      <Text style={{ flex: 1, fontSize: 12, color: EDA.faint }}>
+                      <Text style={{ flex: 1, fontSize: 12, color: TT.faint }}>
                         {n.sessionAt ? `${tr.session} · ${day(n.sessionAt)}` : day(n.createdAt)}
                       </Text>
                       {n.isPrivate ? <Chip label={tr.private} /> : null}
-                      {open ? <ChevronUp size={15} color={EDA.faint} /> : <ChevronDown size={15} color={EDA.faint} />}
+                      {open ? <ChevronUp size={15} color={TT.faint} /> : <ChevronDown size={15} color={TT.faint} />}
                     </View>
 
-                    {n.title ? <Text style={{ fontSize: 15.5, fontWeight: '700', color: EDA.ink, marginTop: 4 }}>{n.title}</Text> : null}
+                    {n.title ? <Text style={{ fontSize: 15.5, fontWeight: '700', color: TT.ink, marginTop: 4 }}>{n.title}</Text> : null}
 
                     {open ? (
                       // Rich only once opened. The content is the web editor's
@@ -407,7 +411,7 @@ export default function PatientDetailScreen() {
                       // <p> tags on screen, which is what the list used to do.
                       <View style={{ marginTop: 8 }}><RichText html={n.content} /></View>
                     ) : (
-                      <Text numberOfLines={3} style={{ fontSize: 14.5, lineHeight: 22, color: EDA.inkSoft, marginTop: 4 }}>
+                      <Text numberOfLines={3} style={{ fontSize: 14.5, lineHeight: 22, color: TT.inkSoft, marginTop: 4 }}>
                         {plain(n.content)}
                       </Text>
                     )}
@@ -428,7 +432,7 @@ export default function PatientDetailScreen() {
 
           {data && tab === 'resources' && (
             <>
-              {data.resources.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.noResources}</Text>}
+              {data.resources.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.noResources}</Text>}
               {data.resources.map((r) => (
                 <EdCard
                   key={r.id}
@@ -438,19 +442,19 @@ export default function PatientDetailScreen() {
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 }}
                 >
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink }}>{r.title ?? '—'}</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: TT.ink }}>{r.title ?? '—'}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 6 }}>
                       <Chip
                         label={tr.assign[r.status as keyof typeof tr.assign] ?? r.status}
                         tone={r.status === 'completed' ? 'green' : 'grey'}
                       />
-                      <Text style={{ fontSize: 12.5, color: EDA.faint }}>{day(r.completedAt ?? r.assignedAt)}</Text>
+                      <Text style={{ fontSize: 12.5, color: TT.faint }}>{day(r.completedAt ?? r.assignedAt)}</Text>
                     </View>
                     {r.responseId ? (
-                      <Text style={{ fontSize: 12.5, fontWeight: '700', color: EDA.green, marginTop: 6 }}>{tr.viewResponse}</Text>
+                      <Text style={{ fontSize: 12.5, fontWeight: '700', color: TT.accent, marginTop: 6 }}>{tr.viewResponse}</Text>
                     ) : null}
                   </View>
-                  {r.responseId ? <ChevronRight size={17} color={EDA.faint} /> : null}
+                  {r.responseId ? <ChevronRight size={17} color={TT.faint} /> : null}
                 </EdCard>
               ))}
             </>
@@ -459,21 +463,21 @@ export default function PatientDetailScreen() {
           {data && tab === 'documents' && (
             <>
               {data.documents.length === 0 && (data.files ?? []).length === 0 && (
-                <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.noDocuments}</Text>
+                <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.noDocuments}</Text>
               )}
 
               {/* Uploaded files. A different table from the signature documents
                   below, and the reason this tab looked empty for a patient who
                   plainly had one. */}
               {(data.files ?? []).length > 0 && (
-                <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: EDA.faint, marginBottom: 8 }}>{tr.uploaded}</Text>
+                <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: TT.faint, marginBottom: 8 }}>{tr.uploaded}</Text>
               )}
               {(data.files ?? []).map((f) => (
                 <EdCard key={f.id} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 11, marginBottom: 10 }}>
-                  <Paperclip size={16} color={EDA.faint} style={{ marginTop: 2 }} />
+                  <Paperclip size={16} color={TT.faint} style={{ marginTop: 2 }} />
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink }}>{f.name}</Text>
-                    <Text style={{ fontSize: 12.5, color: EDA.faint, marginTop: 4 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: TT.ink }}>{f.name}</Text>
+                    <Text style={{ fontSize: 12.5, color: TT.faint, marginTop: 4 }}>
                       {day(f.createdAt)}{f.sizeBytes ? ` · ${fileSize(f.sizeBytes)}` : ''}{f.folder ? ` · ${f.folder}` : ''}
                     </Text>
                   </View>
@@ -481,22 +485,22 @@ export default function PatientDetailScreen() {
               ))}
 
               {data.documents.length > 0 && (
-                <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: EDA.faint, marginTop: (data.files ?? []).length ? 14 : 0, marginBottom: 8 }}>{tr.forSignature}</Text>
+                <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: TT.faint, marginTop: (data.files ?? []).length ? 14 : 0, marginBottom: 8 }}>{tr.forSignature}</Text>
               )}
               {data.documents.map((d) => (
                 <EdCard key={d.id} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 11, marginBottom: 10 }}>
-                  <FileSignature size={16} color={EDA.faint} style={{ marginTop: 2 }} />
+                  <FileSignature size={16} color={TT.faint} style={{ marginTop: 2 }} />
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink }}>{d.title}</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: TT.ink }}>{d.title}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 6 }}>
                       <Chip
                         label={tr.docs[d.status as keyof typeof tr.docs] ?? d.status}
                         tone={d.status === 'signed' ? 'green' : d.status === 'expired' ? 'rose' : 'grey'}
                       />
-                      <Text style={{ fontSize: 12.5, color: EDA.faint }}>{day(d.signedAt ?? d.viewedAt ?? d.sentAt)}</Text>
+                      <Text style={{ fontSize: 12.5, color: TT.faint }}>{day(d.signedAt ?? d.viewedAt ?? d.sentAt)}</Text>
                     </View>
                     {d.signedAt && d.signerName ? (
-                      <Text style={{ fontSize: 12.5, color: EDA.faint, marginTop: 4 }}>{d.signerName}</Text>
+                      <Text style={{ fontSize: 12.5, color: TT.faint, marginTop: 4 }}>{d.signerName}</Text>
                     ) : null}
                   </View>
                 </EdCard>
