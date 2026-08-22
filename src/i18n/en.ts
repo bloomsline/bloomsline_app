@@ -241,6 +241,7 @@ export const en = {
     heavier: 'heavier',
     lighter: 'lighter',
     today: 'Today',
+    yesterday: 'Yesterday',
     tapToRead: 'tap to read',
     weekSoFar: 'Your week so far',
     scrollBack: '↑ scroll back',

@@ -131,7 +131,7 @@ export default function Moments() {
                   moments={moments}
                   width={width > 460 ? 420 : width}
                   locale={locale}
-                  labels={{ heavier: tr.heavier, lighter: tr.lighter, today: tr.today, tapToRead: tr.tapToRead }}
+                  labels={{ heavier: tr.heavier, lighter: tr.lighter, today: tr.today, yesterday: tr.yesterday, tapToRead: tr.tapToRead }}
                   onOpen={setViewing}
                   onCaptureToday={() => router.navigate('/capture' as never)}
                 />

@@ -240,6 +240,7 @@ export const fr: Dict = {
     heavier: 'plus lourd',
     lighter: 'plus léger',
     today: 'Aujourd’hui',
+    yesterday: 'Hier',
     tapToRead: 'appuyez pour lire',
     weekSoFar: 'Votre semaine jusqu’ici',
     scrollBack: '↑ remonter',
