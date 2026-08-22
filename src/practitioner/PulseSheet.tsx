@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { RefreshCw, Sparkles, X } from 'lucide-react-native';
-import { EDA } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 import { fetchPulse, generatePulse, type Pulse } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';

@@ -3,7 +3,6 @@ import { Animated, Pressable, Text, View } from 'react-native';
 import { Check } from 'lucide-react-native';
 import { storageGet, storageSet } from '@/src/storage';
 import { useI18n } from '@/src/i18n';
-import { EDD } from '@/src/ui/editorial';
 import { useTheme } from '@/src/ui/theme-mode';
 
 type TabKey = 'care' | 'moments' | 'foryou';

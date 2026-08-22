@@ -6,7 +6,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollVie
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Check, CircleCheckBig, MessageCircle } from 'lucide-react-native';
-import { EDA, EdHeader, EdPill, FadeIn } from '@/src/ui/editorial';
+import { EdHeader, EdPill, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { Block, INTERACTIVE, ResourceIntro } from '@/src/resources/blocks';
 import { fetchAssignment, submitAssignment, type AssignmentView, type PatientScore } from '@/src/api/resources';

@@ -3,11 +3,12 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
-import { EDA, EdHeader, MonoLabel, FadeIn } from '@/src/ui/editorial';
+import { EdHeader, MonoLabel, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { fetchHistory, type CareSession } from '@/src/api/care';
 import { useI18n, type Locale } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
+import { LIGHT, DARK, type Mode } from '@/src/ui/tokens';
 
 const T = {
   en: {
@@ -38,16 +39,26 @@ const T = {
 
 // Badge colors per status, in editorial tones; the label comes from the active
 // dictionary. Green = attended, warm neutral = past, muted clay = cancelled/missed.
-const STATUS_STYLE: Record<string, { labelKey: 'attended' | 'past' | 'cancelled' | 'missed'; color: string; bg: string }> = {
-  completed: { labelKey: 'attended', color: EDA.greenDeep, bg: EDA.greenTint },
-  scheduled: { labelKey: 'past', color: EDA.inkSoft, bg: '#EDEBE3' },
-  pending: { labelKey: 'past', color: EDA.inkSoft, bg: '#EDEBE3' },
-  cancelled: { labelKey: 'cancelled', color: '#9A6A54', bg: '#F1E8E1' },
-  no_show: { labelKey: 'missed', color: '#B07A4E', bg: '#F1E8E1' },
+type StatusStyle = { labelKey: 'attended' | 'past' | 'cancelled' | 'missed'; color: string; bg: string };
+const STATUS_STYLE: Record<Mode, Record<string, StatusStyle>> = {
+  light: {
+    completed: { labelKey: 'attended', color: LIGHT.accentDeep, bg: LIGHT.accentTint },
+    scheduled: { labelKey: 'past', color: LIGHT.inkSoft, bg: '#EDEBE3' },
+    pending: { labelKey: 'past', color: LIGHT.inkSoft, bg: '#EDEBE3' },
+    cancelled: { labelKey: 'cancelled', color: '#9A6A54', bg: '#F1E8E1' },
+    no_show: { labelKey: 'missed', color: '#B07A4E', bg: '#F1E8E1' },
+  },
+  dark: {
+    completed: { labelKey: 'attended', color: DARK.accent, bg: DARK.accentTint },
+    scheduled: { labelKey: 'past', color: DARK.inkSoft, bg: 'rgba(255,255,255,0.07)' },
+    pending: { labelKey: 'past', color: DARK.inkSoft, bg: 'rgba(255,255,255,0.07)' },
+    cancelled: { labelKey: 'cancelled', color: '#D8A88F', bg: 'rgba(216,168,143,0.16)' },
+    no_show: { labelKey: 'missed', color: '#DCA878', bg: 'rgba(220,168,120,0.16)' },
+  },
 };
 
 export default function SessionHistory() {
-  const { t: TT } = useTheme();
+  const { t: TT, mode } = useTheme();
   const { locale } = useI18n();
   const tr = T[locale];
   const router = useRouter();
@@ -76,7 +87,7 @@ export default function SessionHistory() {
           ) : (
             <View style={{ gap: 10 }}>
               {items.map((s) => {
-                const st = STATUS_STYLE[s.status] ?? STATUS_STYLE.scheduled;
+                const st = STATUS_STYLE[mode][s.status] ?? STATUS_STYLE[mode].scheduled;
                 return (
                   <View key={s.id} style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, borderRadius: 18, padding: 15, paddingRight: 14, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
                     <View style={{ width: 46, alignItems: 'center' }}>

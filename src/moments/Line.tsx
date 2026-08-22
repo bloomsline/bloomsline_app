@@ -12,7 +12,6 @@ import { useMemo, useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { Quote, ImageOff, AudioLines, Video, Play } from 'lucide-react-native';
-import { EDD } from '@/src/ui/editorial';
 import { MOOD_SCORES, moodColor } from '@/src/moments/moods';
 import type { MomentDTO } from '@/src/api/moments';
 import { useTheme } from '@/src/ui/theme-mode';

@@ -3,13 +3,14 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { CalendarPlus, ChevronLeft, ChevronRight, MapPin, Phone, Video } from 'lucide-react-native';
-import { EDA, EdHeader, FadeIn } from '@/src/ui/editorial';
+import { EdHeader, FadeIn } from '@/src/ui/editorial';
 import { PractitionerTabBar, PRACTITIONER_TAB_PAD } from '@/src/ui/PractitionerTabBar';
 import { ymd } from '@/src/ui/MonthCalendar';
 import { SessionSheet } from '@/src/practitioner/SessionSheet';
 import { useI18n } from '@/src/i18n';
 import { fetchDay, fetchBookingOptions, type CloseReasonGroup, type PractitionerSession, type SessionTypeOption } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
+import { LIGHT, DARK, type Mode, type Palette } from '@/src/ui/tokens';
 
 // The day, as a timeline rather than a list.
 //
@@ -43,7 +44,7 @@ const FORMAT_ICON = { video: Video, in_person: MapPin, phone: Phone } as const;
 const OFF = new Set(['cancelled', 'no_show']);
 
 export default function DayCalendar() {
-  const { t: TT } = useTheme();
+  const { t: TT, mode } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale] ?? T.en;
@@ -168,14 +169,14 @@ export default function DayCalendar() {
 
       {/* Day stepper — the whole point of a day view is moving between days. */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 22, paddingTop: 14 }}>
-        <Pressable onPress={() => step(-1)} hitSlop={10} style={circle} accessibilityLabel="Previous day">
+        <Pressable onPress={() => step(-1)} hitSlop={10} style={circle(TT)} accessibilityLabel="Previous day">
           <ChevronLeft size={17} color={TT.ink} />
         </Pressable>
         <Pressable onPress={() => setDate(new Date())} style={{ borderRadius: 18, borderWidth: 1, borderColor: TT.line, backgroundColor: TT.card, paddingHorizontal: 14, paddingVertical: 8 }}>
           <Text style={{ fontSize: 13.5, fontWeight: '700', color: TT.ink }}>{tr.today}</Text>
         </Pressable>
         <Text style={{ flex: 1, fontSize: 13.5, color: TT.inkSoft, textTransform: 'capitalize' }} numberOfLines={1}>{heading}</Text>
-        <Pressable onPress={() => step(1)} hitSlop={10} style={circle} accessibilityLabel="Next day">
+        <Pressable onPress={() => step(1)} hitSlop={10} style={circle(TT)} accessibilityLabel="Next day">
           <ChevronRight size={17} color={TT.ink} />
         </Pressable>
       </View>
@@ -261,11 +262,10 @@ export default function DayCalendar() {
 // A deep amber takes white text but reads as rust, and a request should catch
 // the eye without shouting. This one is light enough for dark ink, which keeps
 // it warm rather than heavy while still being the loudest thing on the day.
-const FILL = {
-  booked: EDA.green,
-  pending: '#F0B45F',
-  off: '#E7E5DF',
-} as const;
+const FILL: Record<Mode, { booked: string; pending: string; off: string }> = {
+  light: { booked: LIGHT.accent, pending: '#F0B45F', off: '#E7E5DF' },
+  dark: { booked: DARK.accent, pending: '#C79447', off: 'rgba(255,255,255,0.10)' },
+};
 
 /**
  * One session on the grid.
@@ -281,15 +281,20 @@ const FILL = {
 function SessionBlock({ session: s, top, timeLabel, pendingLabel, onPress }: {
   session: PractitionerSession; top: number; timeLabel: string; pendingLabel: string; onPress: () => void;
 }) {
+  const { mode } = useTheme();
   const height = Math.max(24, (s.durationMinutes / 60) * HOUR_HEIGHT - 3);
   const pending = s.status === 'pending';
   const off = OFF.has(s.status ?? '');
   const Icon = FORMAT_ICON[s.sessionFormat as keyof typeof FORMAT_ICON] ?? MapPin;
 
-  const fill = pending ? FILL.pending : off ? FILL.off : FILL.booked;
-  // White on the deep green; dark ink on the two light fills. Picked per fill
-  // rather than per state, because contrast is a property of the background.
-  const ink = off ? '#6E6C64' : pending ? '#4A3208' : '#FFFFFF';
+  const fill = pending ? FILL[mode].pending : off ? FILL[mode].off : FILL[mode].booked;
+  // Ink is picked per FILL, not per state, because contrast is a property of the
+  // background. The booked fill is the accent, and the accent changes with the
+  // theme: white reads on the deep green and is 1.7:1 on the mint, so on dark it
+  // takes the ground colour instead.
+  const ink = off ? (mode === 'dark' ? 'rgba(255,255,255,0.72)' : '#6E6C64')
+    : pending ? '#4A3208'
+    : mode === 'dark' ? DARK.bg : '#FFFFFF';
   const dim = off ? '#8C8A82' : pending ? 'rgba(74,50,8,0.72)' : 'rgba(255,255,255,0.82)';
   // 34px is where a second line stops being cramped: a 45-minute session lands
   // just above it, a 30-minute one just below.
@@ -343,4 +348,4 @@ function NowLine({ minutesInto, spanMinutes }: { minutesInto: (iso: string) => n
   );
 }
 
-const circle = { height: 34, width: 34, borderRadius: 17, alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line };
+const circle = (t: Palette) => ({ height: 34, width: 34, borderRadius: 17, alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: t.card, borderWidth: 1, borderColor: t.line });

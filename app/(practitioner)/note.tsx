@@ -3,7 +3,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollVie
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ChevronRight } from 'lucide-react-native';
-import { EDA, EdHeader, EdCard, EdSection, FadeIn } from '@/src/ui/editorial';
+import { EdHeader, EdCard, EdSection, FadeIn } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 import { useNoteDraft } from '@/src/notes/draft';
 import { NoteEditor } from '@/src/notes/NoteEditor';

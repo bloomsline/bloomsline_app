@@ -6,7 +6,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollVie
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Lock, CircleCheckBig } from 'lucide-react-native';
-import { EDA, EdHeader, EdPill, FadeIn } from '@/src/ui/editorial';
+import { EdHeader, EdPill, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { resourceTypeMeta } from '@/src/care/resources';
 import { Block, INTERACTIVE, ResourceIntro } from '@/src/resources/blocks';

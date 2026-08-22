@@ -11,7 +11,7 @@ import { useCallback, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { EDA, EdHeader, EdCard, EdSection, EdPill, FadeIn, MonoLabel } from '@/src/ui/editorial';
+import { EdHeader, EdCard, EdSection, EdPill, FadeIn, MonoLabel } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useOnboarding } from '@/src/onboarding/context';
 import { fetchCare, type CarePractitioner } from '@/src/api/care';

@@ -3,7 +3,6 @@
 // timeline share.
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useI18n, type Locale } from '@/src/i18n';
-import { EDA } from '@/src/ui/editorial';
 import { useTheme } from '@/src/ui/theme-mode';
 
 // Localized short weekday + month names (Sun-indexed / Jan-indexed) plus the

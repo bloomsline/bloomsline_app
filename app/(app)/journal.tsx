@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ChevronLeft, Lock, Search, PenLine, Plus, ChevronRight, MessageCircle, Sparkles, CalendarDays, type LucideIcon } from 'lucide-react-native';
-import { EDA, EDD, MonoLabel } from '@/src/ui/editorial';
+import { MonoLabel } from '@/src/ui/editorial';
 import { useOnboarding } from '@/src/onboarding/context';
 import { useI18n } from '@/src/i18n';
 import { listJournal, createJournal, type JournalEntry } from '@/src/api/journal';

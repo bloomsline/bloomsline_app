@@ -5,7 +5,7 @@ import { ActivityIndicator, Platform, ScrollView, Text, TouchableOpacity, View }
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Check, ChevronRight, MessageCircle, type LucideIcon } from 'lucide-react-native';
-import { EDA, EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
+import { EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
 import { useOnboarding } from '@/src/onboarding/context';
 import { FORCE_CARE_HUB } from '@/src/config';
 import { fetchTodo, type TodoItem } from '@/src/api/care';

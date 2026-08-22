@@ -3,7 +3,7 @@ import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Check, Languages, LogOut, type LucideIcon } from 'lucide-react-native';
-import { EDA, EdHeader, EdCard, EdSection, FadeIn, MonoLabel } from '@/src/ui/editorial';
+import { EdHeader, EdCard, EdSection, FadeIn, MonoLabel } from '@/src/ui/editorial';
 import { useAuth } from '@/src/auth/auth-context';
 import { useConfirm } from '@/src/ui/confirm';
 import { useI18n, type Locale } from '@/src/i18n';

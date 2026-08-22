@@ -11,7 +11,6 @@
 // but it sits behind a tap rather than under the words.
 import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 import { ChevronDown, EyeOff, Send } from 'lucide-react-native';
-import { EDA } from '@/src/ui/editorial';
 import { AnchoredMenu, useAnchoredMenu } from '@/src/ui/AnchoredMenu';
 import { initialOf, type PractitionerFace } from '@/src/care/practitioner-face';
 import { useTheme } from '@/src/ui/theme-mode';

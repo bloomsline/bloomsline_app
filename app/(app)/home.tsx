@@ -14,7 +14,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { ChevronRight, Plus, Ellipsis, RotateCcw, FileText, MapPin, Settings, type LucideIcon } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
 import { TabIntro } from '@/src/ui/TabIntro';
-import { EDD, EdCard, FadeIn, MonoLabel } from '@/src/ui/editorial';
+import { EdCard, FadeIn, MonoLabel } from '@/src/ui/editorial';
 import { useLanding } from '@/src/prefs/landing';
 import { useI18n, fmt } from '@/src/i18n';
 import { useOnboarding } from '@/src/onboarding/context';

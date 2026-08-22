@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { Bold, Italic, List, Minus, Quote, Tag as TagIcon, X } from 'lucide-react-native';
-import { EDA } from '@/src/ui/editorial';
 import type { NoteRange } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
 

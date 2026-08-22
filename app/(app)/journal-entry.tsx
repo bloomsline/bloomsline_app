@@ -17,7 +17,7 @@ import {
   Megaphone, Link2, Image as ImageIcon, Video as VideoIcon, Mic, Play, ChevronUp, ChevronDown, X,
   Pencil, MoreHorizontal, RotateCw, GripVertical,
 } from 'lucide-react-native';
-import { EDA, EDD, MonoLabel } from '@/src/ui/editorial';
+import { MonoLabel } from '@/src/ui/editorial';
 import { ShareChip } from '@/src/journal/ShareChip';
 import { AnchoredMenu, useAnchoredMenu } from '@/src/ui/AnchoredMenu';
 import { AudioRow, MediaViewer, type ViewerItem } from '@/src/ui/MediaViewer';

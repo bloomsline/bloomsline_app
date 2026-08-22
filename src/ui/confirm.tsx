@@ -5,7 +5,6 @@
 //   if (await confirm({ title, message, confirmLabel, destructive })) doThing();
 import { createContext, useCallback, useContext, useRef, useState } from 'react';
 import { Modal, Platform, Pressable, Text, TouchableOpacity, View } from 'react-native';
-import { EDA } from './editorial';
 import { useTheme } from '@/src/ui/theme-mode';
 
 export interface ConfirmOptions {

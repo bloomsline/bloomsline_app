@@ -3,11 +3,12 @@ import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Check, ChevronDown, ChevronRight, ChevronUp, FileSignature, Paperclip, Search, SlidersHorizontal } from 'lucide-react-native';
-import { EDA, EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
+import { EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
 import { RichText } from '@/src/resources/blocks';
 import { useI18n } from '@/src/i18n';
 import { fetchPatient, type PatientDetail } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
+import { LIGHT, DARK, type Mode } from '@/src/ui/tokens';
 
 // One patient, to READ.
 //
@@ -70,15 +71,25 @@ const T = {
 type Tab = 'overview' | 'sessions' | 'notes' | 'resources' | 'documents';
 const TABS: Tab[] = ['overview', 'sessions', 'notes', 'resources', 'documents'];
 
-const TONE = {
-  green: { bg: EDA.greenTint, fg: EDA.greenDeep },
-  amber: { bg: '#FEF3C7', fg: '#B45309' },
-  grey: { bg: '#F1F0EC', fg: '#6B6B63' },
-  rose: { bg: '#FFE4E6', fg: '#BE123C' },
-} as const;
+type ToneName = 'green' | 'amber' | 'grey' | 'rose';
+const TONE: Record<Mode, Record<ToneName, { bg: string; fg: string }>> = {
+  light: {
+    green: { bg: LIGHT.accentTint, fg: LIGHT.accentDeep },
+    amber: { bg: '#FEF3C7', fg: '#B45309' },
+    grey: { bg: '#F1F0EC', fg: '#6B6B63' },
+    rose: { bg: '#FFE4E6', fg: '#BE123C' },
+  },
+  dark: {
+    green: { bg: DARK.accentTint, fg: DARK.accent },
+    amber: { bg: 'rgba(233,196,106,0.16)', fg: '#E9C46A' },
+    grey: { bg: 'rgba(255,255,255,0.07)', fg: 'rgba(255,255,255,0.72)' },
+    rose: { bg: 'rgba(244,63,94,0.18)', fg: '#FDA4AF' },
+  },
+};
 
-function Chip({ label, tone = 'grey' }: { label: string; tone?: keyof typeof TONE }) {
-  const c = TONE[tone];
+function Chip({ label, tone = 'grey' }: { label: string; tone?: ToneName }) {
+  const { mode } = useTheme();
+  const c = TONE[mode][tone];
   return (
     <View style={{ borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2, backgroundColor: c.bg }}>
       <Text style={{ fontSize: 10.5, fontWeight: '800', color: c.fg }}>{label}</Text>

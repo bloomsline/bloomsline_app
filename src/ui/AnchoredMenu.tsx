@@ -7,7 +7,6 @@
 // which is also the right behaviour on a tablet.
 import { useCallback, useRef, useState } from 'react';
 import { Modal, Pressable, Text, View, useWindowDimensions } from 'react-native';
-import { EDA } from '@/src/ui/editorial';
 import { useTheme } from '@/src/ui/theme-mode';
 
 export interface Anchor { x: number; y: number; w: number; h: number }
