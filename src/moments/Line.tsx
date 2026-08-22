@@ -16,6 +16,12 @@ import { MOOD_SCORES, moodColor } from '@/src/moments/moods';
 import type { MomentDTO } from '@/src/api/moments';
 import { useTheme } from '@/src/ui/theme-mode';
 
+/** Translucent ink for the timeline's own marks. White on the dark ground,
+ *  near-black on cream — the literals these replaced assumed a ground that is
+ *  now only sometimes dark, so they disappeared entirely in light mode. */
+const veil = (mode: 'light' | 'dark', a: number) =>
+  mode === 'dark' ? `rgba(255,255,255,${a})` : `rgba(20,20,20,${a})`;
+
 /** 0..1 across the line: 0 is the heaviest edge, 1 the lightest. */
 export function valenceOf(m: { moods: string[] }): number {
   const scores = m.moods.map((k) => MOOD_SCORES[k]).filter((n): n is number => typeof n === 'number');
@@ -68,6 +74,7 @@ const SIDE_PAD = 74;  // keeps a node (and its dot) clear of either edge
  * (and, later, tested) without a renderer.
  */
 export function layout(moments: MomentDTO[], width: number, locale: 'en' | 'fr'): { nodes: LineNode[]; height: number } {
+  const { mode } = useTheme();
   const usable = width - SIDE_PAD - NODE / 2 - 14;
   // Oldest first: the line is read downward, and "today" belongs at the foot.
   const ordered = [...moments].sort((a, b) => +new Date(a.capturedAt) - +new Date(b.capturedAt));
@@ -83,7 +90,7 @@ export function layout(moments: MomentDTO[], width: number, locale: 'en' | 'fr')
       x: SIDE_PAD + valenceOf(m) * usable,
       y: TOP_PAD + i * ROW + NODE / 2,
       face: faceOf(m),
-      color: m.moods.length > 0 ? moodColor(m.moods[0]) : 'rgba(255,255,255,0.35)',
+      color: m.moods.length > 0 ? moodColor(m.moods[0]) : veil(mode, 0.35),
       dayLabel: isNewDay ? d.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'short' }) : null,
     };
   });
@@ -114,6 +121,7 @@ function stemPath(nodes: LineNode[], todayY: number, todayX: number): string {
  * rather than as a missing file. Saying so is kinder and truer than a blank.
  */
 function NodeFace({ node, onPress }: { node: LineNode; onPress: () => void }) {
+  const { mode } = useTheme();
   const [broken, setBroken] = useState(false);
   const face = node.face;
   const showPhoto = !!face?.uri && !broken;
@@ -121,20 +129,20 @@ function NodeFace({ node, onPress }: { node: LineNode; onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
-      style={{ position: 'absolute', left: node.x - NODE / 2, top: node.y - NODE / 2, width: NODE, height: NODE, borderRadius: NODE / 2, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.07)' }}
+      style={{ position: 'absolute', left: node.x - NODE / 2, top: node.y - NODE / 2, width: NODE, height: NODE, borderRadius: NODE / 2, overflow: 'hidden', borderWidth: 1, borderColor: veil(mode, 0.28), alignItems: 'center', justifyContent: 'center', backgroundColor: veil(mode, 0.07) }}
     >
       {showPhoto ? (
         <Image source={{ uri: face!.uri! }} style={{ width: NODE, height: NODE }} onError={() => setBroken(true)} />
       ) : face?.kind === 'audio' ? (
-        <AudioLines size={19} color="rgba(255,255,255,0.72)" strokeWidth={2} />
+        <AudioLines size={19} color={veil(mode, 0.72)} strokeWidth={2} />
       ) : face && broken ? (
         // The kind is still known even when the file will not load, so say which
         // kind is missing rather than falling back to "this is a written note".
-        <ImageOff size={17} color="rgba(255,255,255,0.38)" strokeWidth={2} />
+        <ImageOff size={17} color={veil(mode, 0.38)} strokeWidth={2} />
       ) : face?.kind === 'video' ? (
-        <Video size={18} color="rgba(255,255,255,0.72)" strokeWidth={2} />
+        <Video size={18} color={veil(mode, 0.72)} strokeWidth={2} />
       ) : (
-        <Quote size={18} color="rgba(255,255,255,0.55)" strokeWidth={2} />
+        <Quote size={18} color={veil(mode, 0.55)} strokeWidth={2} />
       )}
 
       {/* A video keeps its play mark even over a poster — the poster is a still,
@@ -158,6 +166,7 @@ export function Line({
   onOpen: (m: MomentDTO) => void;
   onCaptureToday: () => void;
 }) {
+  const { mode } = useTheme();
   const { t: TT } = useTheme();
   const { nodes, height } = useMemo(() => layout(moments, width, locale), [moments, width, locale]);
 
@@ -168,21 +177,21 @@ export function Line({
   return (
     <View style={{ width, height: height + 30 }}>
       {/* The axis: a hairline down the middle and the two ends named once. */}
-      <View style={{ position: 'absolute', left: todayX, top: 8, bottom: 30, width: 1, backgroundColor: 'rgba(255,255,255,0.07)' }} />
-      <Text style={{ position: 'absolute', left: RAIL, top: -12, fontSize: 11, color: 'rgba(255,255,255,0.28)' }}>{labels.heavier}</Text>
-      <Text style={{ position: 'absolute', right: 14, top: -12, fontSize: 11, color: 'rgba(255,255,255,0.28)' }}>{labels.lighter}</Text>
+      <View style={{ position: 'absolute', left: todayX, top: 8, bottom: 30, width: 1, backgroundColor: veil(mode, 0.07) }} />
+      <Text style={{ position: 'absolute', left: RAIL, top: -12, fontSize: 11, color: veil(mode, 0.28) }}>{labels.heavier}</Text>
+      <Text style={{ position: 'absolute', right: 14, top: -12, fontSize: 11, color: veil(mode, 0.28) }}>{labels.lighter}</Text>
 
       <Svg width={width} height={height + 30} style={{ position: 'absolute' }}>
-        {path ? <Path d={path} stroke="rgba(255,255,255,0.22)" strokeWidth={1} fill="none" /> : null}
+        {path ? <Path d={path} stroke={veil(mode, 0.22)} strokeWidth={1} fill="none" /> : null}
         {/* Today: an empty circle waiting to be filled, drawn dashed so it reads
             as a place for something rather than something already there. */}
-        <Circle cx={todayX} cy={todayY} r={NODE / 2 - 4} stroke="rgba(255,255,255,0.30)" strokeWidth={1.5} strokeDasharray="4 5" fill="none" />
+        <Circle cx={todayX} cy={todayY} r={NODE / 2 - 4} stroke={veil(mode, 0.30)} strokeWidth={1.5} strokeDasharray="4 5" fill="none" />
       </Svg>
 
       {nodes.map((n) => (
         <View key={n.moment.id}>
           {n.dayLabel ? (
-            <Text style={{ position: 'absolute', left: 14, top: n.y - 8, fontSize: 12, color: 'rgba(255,255,255,0.42)' }}>{n.dayLabel}</Text>
+            <Text style={{ position: 'absolute', left: 14, top: n.y - 8, fontSize: 12, color: veil(mode, 0.42) }}>{n.dayLabel}</Text>
           ) : null}
 
           <NodeFace node={n} onPress={() => onOpen(n.moment)} />

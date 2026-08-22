@@ -34,11 +34,26 @@ export function TabBar({ active, tone }: { active: TabId; tone?: 'light' | 'dark
   if (tone === 'dark') {
     return (
       <View className="absolute inset-x-6 bottom-8 flex-row items-center">
-        <View className="flex-1 flex-row items-center gap-6">
+        {/* A pill, not bare labels. Bare text has no ground of its own, so the
+            page scrolls UNDERNEATH it — the day heading collided with the tab
+            row. The container gives the bar a surface; the active tab gets its
+            own inner pill so selection reads without relying on weight alone. */}
+        <View
+          className="flex-1 flex-row items-center self-start rounded-full p-1"
+          style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine }}
+        >
           {order.map((id) => TABS[id]).map((tab) => {
             const on = tab.id === active;
             return (
-              <Pressable key={tab.id} disabled={on} onPress={() => router.navigate(tab.href as never)}>
+              <Pressable
+                key={tab.id}
+                disabled={on}
+                onPress={() => router.navigate(tab.href as never)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: on }}
+                className="rounded-full px-3.5 py-1.5"
+                style={on ? { backgroundColor: TT.bg } : undefined}
+              >
                 <Text style={{ fontSize: 13.5, fontWeight: on ? '700' : '500', color: on ? TT.ink : TT.faint }}>
                   {t.tabs[TAB_LABEL[tab.id]]}
                 </Text>
