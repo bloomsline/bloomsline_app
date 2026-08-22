@@ -4,8 +4,9 @@
 // taxonomy in front of the thing a person actually came to do, so v2 inverts it:
 //
 //   1. write   the words open the screen, one plain question, keyboard already
-//              up. Photo / video / voice sit under a rule at the foot, and the
-//              feeling is a required ROW rather than a screen of its own.
+//              up. Photo / video / voice sit under a rule at the foot, and Next
+//              is the only way on — the feeling is asked for in a sheet over
+//              this step, not behind a second control that says the same thing.
 //   2. feel    a sheet rises over the writing, which dims but stays visible, so
 //              the question is asked about something you can still see. Choosing
 //              "was this more…" GROWS the sheet rather than replacing it, so
@@ -32,6 +33,7 @@ import { useOnboarding } from '@/src/onboarding/context';
 import { useI18n, fmt } from '@/src/i18n';
 import { notify } from '@/src/ui/alert';
 import { useTheme } from '@/src/ui/theme-mode';
+import { veil } from '@/src/ui/tokens';
 
 const MAX_MOODS = 3; // the board asks for "up to 3 feelings"
 
@@ -47,7 +49,7 @@ const moodsForTone = (tone: Tone) =>
   tone === 'mixed' ? MOODS : MOODS.filter((m) => isLighter(m.key) === (tone === 'good'));
 
 export default function Capture() {
-  const { t: TT } = useTheme();
+  const { t: TT, mode } = useTheme();
   const router = useRouter();
   const { t, locale } = useI18n();
   const tr = t.capture;
@@ -155,14 +157,19 @@ export default function Capture() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="light" />
+      {/* Was always "light", which is the status bar for a dark app. */}
+      <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
 
       {/* The photograph, when there is one, is the ground for every step — it is
-          the moment, not an attachment to it. */}
+          the moment, not an attachment to it.
+          The wash over it has to follow the theme along with everything else: a
+          dark scrim under light-mode text put near-black words on a near-black
+          photograph. It is the same wash either way, just the page's own colour
+          instead of an assumed dark one. */}
       {photoUri ? (
         <>
           <Image source={{ uri: photoUri }} style={{ position: 'absolute', inset: 0 }} resizeMode="cover" />
-          <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(14,21,18,0.55)' }} />
+          <View style={{ position: 'absolute', inset: 0, backgroundColor: mode === 'dark' ? 'rgba(14,21,18,0.55)' : 'rgba(245,242,235,0.78)' }} />
         </>
       ) : null}
 
@@ -198,7 +205,7 @@ export default function Capture() {
                   value={note}
                   onChangeText={setNote}
                   placeholder={tr.what}
-                  placeholderTextColor="rgba(255,255,255,0.42)"
+                  placeholderTextColor={TT.faint}
                   multiline
                   autoFocus={step === 'write'}
                   editable={step === 'write'}
@@ -213,7 +220,7 @@ export default function Capture() {
               {step === 'write' ? (
                 <View style={{ paddingHorizontal: 26, paddingBottom: 8 }}>
                   {error ? (
-                    <Text style={{ fontSize: 12.5, color: '#E5837B', marginBottom: 12, lineHeight: 18 }}>{error}</Text>
+                    <Text style={{ fontSize: 12.5, color: TT.danger, marginBottom: 12, lineHeight: 18 }}>{error}</Text>
                   ) : null}
                   {recording ? (
                     <RecordingBar seconds={Math.round((recState.durationMillis ?? 0) / 1000)} onStop={stopRec} tr={tr} />
@@ -226,22 +233,17 @@ export default function Capture() {
                     <Chip Icon={Mic} label={tr.voice} onPress={() => setPicker('voice')} />
                   </View>
 
-                  {/* The feeling is a row that says it is required, not a screen
-                      you have to get past before you can write anything. */}
-                  <Pressable
-                    onPress={() => hasSomething && setStep('feel')}
-                    style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', paddingVertical: 14, opacity: hasSomething ? 1 : 0.45 }}
-                  >
-                    <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: TT.ink }}>{tr.addFeeling}</Text>
-                    <Text style={{ fontSize: 10.5, letterSpacing: 1, color: TT.faint }}>{tr.required.toUpperCase()}</Text>
-                  </Pressable>
-
+                  {/* There used to be an "Add a feeling / REQUIRED" row above
+                      this button. It opened the same sheet Next does, so it was
+                      a second control for one action — and reading it as a
+                      to-do left over made the button below look like a separate
+                      step you had not earned yet. Next says where it goes. */}
                   <Pressable
                     onPress={() => hasSomething && setStep('feel')}
                     disabled={!hasSomething}
-                    style={{ height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: hasSomething ? '#fff' : 'rgba(255,255,255,0.12)' }}
+                    style={{ marginTop: 20, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: hasSomething ? TT.ctaBg : veil(mode, 0.10) }}
                   >
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: hasSomething ? '#141414' : 'rgba(255,255,255,0.4)' }}>{tr.next}</Text>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: hasSomething ? TT.ctaFg : TT.faint }}>{tr.next}</Text>
                   </Pressable>
                 </View>
               ) : null}
@@ -283,9 +285,12 @@ function Header({ step, tr, onClose, onBack }: { step: Step; tr: Cap; onClose: (
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, paddingTop: 8, paddingBottom: 16 }}>
       <Pressable
         onPress={step === 'write' ? onClose : onBack}
-        style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }}
+        // The circular affordance inverts by theme on purpose — the point of it
+        // is to be the highest-contrast thing here, which on cream is a dark
+        // disc, not a white one that vanishes into the page.
+        style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: TT.circleBg, alignItems: 'center', justifyContent: 'center' }}
       >
-        {step === 'write' ? <X size={17} color="#fff" strokeWidth={2} /> : <ChevronLeft size={18} color="#fff" strokeWidth={2} />}
+        {step === 'write' ? <X size={17} color={TT.circleFg} strokeWidth={2} /> : <ChevronLeft size={18} color={TT.circleFg} strokeWidth={2} />}
       </Pressable>
       <Text style={{ flex: 1, textAlign: 'center', fontSize: 10.5, letterSpacing: 1.6, color: TT.faint }}>
         {(step === 'preview' ? tr.preview : tr.newMoment).toUpperCase()}
@@ -312,7 +317,7 @@ function FeelSheet({
   onToggle: (k: string) => void;
   onDone: () => void;
 }) {
-  const { t: TT } = useTheme();
+  const { t: TT, mode } = useTheme();
   const rise = useRef(new Animated.Value(0)).current;
   // In an effect, not during render: the sheet's entrance is a side effect, and
   // starting it inline fires on every re-render (each feeling tap) as well.
@@ -326,13 +331,13 @@ function FeelSheet({
         position: 'absolute', left: 0, right: 0, bottom: 0,
         opacity: rise,
         transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }],
-        backgroundColor: 'rgba(20,26,23,0.96)',
+        backgroundColor: TT.sheet,
         borderTopLeftRadius: 26, borderTopRightRadius: 26,
         borderTopWidth: 1, borderColor: TT.cardLine,
         paddingHorizontal: 22, paddingTop: 12, paddingBottom: 26,
       }}
     >
-      <View style={{ alignSelf: 'center', width: 38, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.22)', marginBottom: 14 }} />
+      <View style={{ alignSelf: 'center', width: 38, height: 3, borderRadius: 2, backgroundColor: veil(mode, 0.22), marginBottom: 14 }} />
       <Text style={{ fontSize: 10.5, letterSpacing: 1.4, color: TT.faint, marginBottom: 14 }}>{tr.step2.toUpperCase()}</Text>
 
       {/* The question sits ABOVE the pills, and is replaced by the second one
@@ -349,7 +354,7 @@ function FeelSheet({
             <Pressable
               key={k}
               onPress={() => onTone(k)}
-              style={{ flex: 1, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? 'rgba(255,255,255,0.14)' : 'transparent', borderWidth: 1, borderColor: on ? 'rgba(255,255,255,0.30)' : TT.cardLine }}
+              style={{ flex: 1, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? veil(mode, 0.14) : 'transparent', borderWidth: 1, borderColor: on ? veil(mode, 0.30) : TT.cardLine }}
             >
               <Text style={{ fontSize: 13.5, fontWeight: on ? '700' : '500', color: on ? TT.ink : TT.inkSoft }}>{tr.tone[k]}</Text>
             </Pressable>
@@ -369,7 +374,7 @@ function FeelSheet({
                 <Pressable
                   key={m.key}
                   onPress={() => onToggle(m.key)}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, height: 34, borderRadius: 17, backgroundColor: on ? `${m.color}2E` : 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: on ? m.color : TT.cardLine }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, height: 34, borderRadius: 17, backgroundColor: on ? `${m.color}2E` : veil(mode, 0.06), borderWidth: 1, borderColor: on ? m.color : TT.cardLine }}
                 >
                   <m.Icon size={13} color={on ? m.color : TT.inkSoft} strokeWidth={2} />
                   <Text style={{ fontSize: 13, fontWeight: on ? '700' : '500', color: on ? TT.ink : TT.inkSoft }}>{moodLabel(m.key, locale)}</Text>
@@ -381,9 +386,9 @@ function FeelSheet({
           <Pressable
             onPress={onDone}
             disabled={moods.length === 0}
-            style={{ marginTop: 20, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: moods.length > 0 ? '#fff' : 'rgba(255,255,255,0.12)' }}
+            style={{ marginTop: 20, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: moods.length > 0 ? TT.ctaBg : veil(mode, 0.10) }}
           >
-            <Text style={{ fontSize: 15, fontWeight: '700', color: moods.length > 0 ? '#141414' : 'rgba(255,255,255,0.4)' }}>{tr.seeMyMoment}</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: moods.length > 0 ? TT.ctaFg : TT.faint }}>{tr.seeMyMoment}</Text>
           </Pressable>
         </>
       ) : null}
@@ -408,7 +413,7 @@ function Preview({
   onEdit: () => void;
   onCommit: () => void;
 }) {
-  const { t: TT } = useTheme();
+  const { t: TT, mode } = useTheme();
   return (
     <View style={{ flex: 1, paddingHorizontal: 26 }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
@@ -436,7 +441,7 @@ function Preview({
       {canShare ? (
         <Pressable
           onPress={onToggleShare}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: TT.card, borderWidth: 1, borderColor: share ? 'rgba(127,217,192,0.45)' : TT.cardLine, borderRadius: 18, padding: 14, marginBottom: 14 }}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: TT.card, borderWidth: 1, borderColor: share ? TT.accent : TT.cardLine, borderRadius: 18, padding: 14, marginBottom: 14 }}
         >
           {share ? <Eye size={17} color={TT.accent} strokeWidth={2} /> : <Lock size={17} color={TT.faint} strokeWidth={2} />}
           <View style={{ flex: 1 }}>
@@ -447,8 +452,12 @@ function Preview({
               {share ? tr.canChangeLater : fmt(tr.pracCannotSee, { prac: pracFirst })}
             </Text>
           </View>
-          <View style={{ width: 42, height: 25, borderRadius: 13, padding: 3, backgroundColor: share ? TT.accent : 'rgba(255,255,255,0.16)', alignItems: share ? 'flex-end' : 'flex-start' }}>
-            <View style={{ width: 19, height: 19, borderRadius: 10, backgroundColor: '#fff' }} />
+          <View style={{ width: 42, height: 25, borderRadius: 13, padding: 3, backgroundColor: share ? TT.accent : veil(mode, 0.16), alignItems: share ? 'flex-end' : 'flex-start' }}>
+            {/* Deliberately white in BOTH themes, like `slot`: the knob rides on
+                the accent when on and a veil when off, and is the one thing here
+                that must read against both of those rather than against the
+                page. A themed knob disappears into one track or the other. */}
+            <View style={{ width: 19, height: 19, borderRadius: 10, backgroundColor: '#FFFFFF' }} />
           </View>
         </Pressable>
       ) : null}
@@ -464,9 +473,9 @@ function Preview({
         <Pressable
           onPress={onCommit}
           disabled={busy}
-          style={{ flex: 1, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', opacity: busy ? 0.6 : 1 }}
+          style={{ flex: 1, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: TT.ctaBg, opacity: busy ? 0.6 : 1 }}
         >
-          {busy ? <ActivityIndicator color="#141414" /> : <Text style={{ fontSize: 15, fontWeight: '700', color: '#141414' }}>{tr.createMoment}</Text>}
+          {busy ? <ActivityIndicator color={TT.ctaFg} /> : <Text style={{ fontSize: 15, fontWeight: '700', color: TT.ctaFg }}>{tr.createMoment}</Text>}
         </Pressable>
       </View>
     </View>
@@ -492,7 +501,7 @@ function PickerSheet({
   onLibrary: () => void;
   onRecord: () => void;
 }) {
-  const { t: TT } = useTheme();
+  const { t: TT, mode } = useTheme();
   const rise = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(rise, { toValue: 1, duration: 260, useNativeDriver: true }).start();
@@ -518,19 +527,19 @@ function PickerSheet({
 
   return (
     <>
-      <Pressable onPress={onClose} style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.45)' }} />
+      <Pressable onPress={onClose} style={{ position: 'absolute', inset: 0, backgroundColor: TT.scrim }} />
       <Animated.View
         style={{
           position: 'absolute', left: 0, right: 0, bottom: 0,
           opacity: rise,
           transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) }],
-          backgroundColor: 'rgba(20,26,23,0.97)',
+          backgroundColor: TT.sheet,
           borderTopLeftRadius: 26, borderTopRightRadius: 26,
           borderTopWidth: 1, borderColor: TT.cardLine,
           paddingHorizontal: 18, paddingTop: 12, paddingBottom: 22,
         }}
       >
-        <View style={{ alignSelf: 'center', width: 38, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.22)', marginBottom: 14 }} />
+        <View style={{ alignSelf: 'center', width: 38, height: 3, borderRadius: 2, backgroundColor: veil(mode, 0.22), marginBottom: 14 }} />
         <Text style={{ fontSize: 10.5, letterSpacing: 1.4, color: TT.faint, marginBottom: 8, paddingHorizontal: 4 }}>
           {(which === 'visual' ? tr.photoOrVideo : tr.voice).toUpperCase()}
         </Text>
@@ -544,7 +553,7 @@ function PickerSheet({
             <Text style={{ fontSize: 15.5, fontWeight: '600', color: TT.ink }}>{r.label}</Text>
           </Pressable>
         ))}
-        <Pressable onPress={onClose} style={{ marginTop: 8, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.08)' }}>
+        <Pressable onPress={onClose} style={{ marginTop: 8, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: veil(mode, 0.08) }}>
           <Text style={{ fontSize: 14.5, fontWeight: '700', color: TT.ink }}>{tr.cancel}</Text>
         </Pressable>
       </Animated.View>
@@ -554,7 +563,7 @@ function PickerSheet({
 
 /** While a voice note is being recorded: the elapsed time and the way to stop. */
 function RecordingBar({ seconds, onStop, tr }: { seconds: number; onStop: () => void; tr: Cap }) {
-  const { t: TT } = useTheme();
+  const { t: TT, mode } = useTheme();
   const pulse = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -573,7 +582,7 @@ function RecordingBar({ seconds, onStop, tr }: { seconds: number; onStop: () => 
       <Text style={{ flex: 1, fontSize: 13, color: TT.ink, fontWeight: '600' }}>
         {tr.recording}  {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}
       </Text>
-      <Pressable onPress={onStop} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.12)' }}>
+      <Pressable onPress={onStop} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, height: 34, borderRadius: 17, backgroundColor: veil(mode, 0.12) }}>
         <Square size={12} color={TT.ink} strokeWidth={2.5} fill={TT.ink} />
         <Text style={{ fontSize: 13, fontWeight: '700', color: TT.ink }}>{tr.stop}</Text>
       </Pressable>
@@ -582,11 +591,11 @@ function RecordingBar({ seconds, onStop, tr }: { seconds: number; onStop: () => 
 }
 
 function Chip({ Icon, label, onPress }: { Icon: typeof ImagePlus; label: string; onPress: () => void }) {
-  const { t: TT } = useTheme();
+  const { t: TT, mode } = useTheme();
   return (
     <Pressable
       onPress={onPress}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 14, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: TT.cardLine }}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 14, height: 38, borderRadius: 19, backgroundColor: veil(mode, 0.06), borderWidth: 1, borderColor: TT.cardLine }}
     >
       <Icon size={15} color={TT.ink} strokeWidth={2} />
       <Text style={{ fontSize: 13, fontWeight: '600', color: TT.ink }}>{label}</Text>
@@ -595,21 +604,21 @@ function Chip({ Icon, label, onPress }: { Icon: typeof ImagePlus; label: string;
 }
 
 function MediaBadge({ media, onClear, tr }: { media: PreparedMedia; onClear: () => void; tr: Cap }) {
-  const { t: TT } = useTheme();
+  const { t: TT, mode } = useTheme();
   const thumb = media.kind === 'image' ? media.uri : media.kind === 'video' ? media.thumbUri ?? null : null;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
       {thumb ? (
         <Image source={{ uri: thumb }} style={{ width: 40, height: 40, borderRadius: 10 }} />
       ) : (
-        <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: veil(mode, 0.10), alignItems: 'center', justifyContent: 'center' }}>
           <Mic size={17} color={TT.ink} strokeWidth={2} />
         </View>
       )}
       <Text style={{ flex: 1, fontSize: 12.5, color: TT.inkSoft }}>
         {media.kind === 'image' ? tr.photoAdded : media.kind === 'video' ? tr.videoAdded : tr.voiceAdded}
       </Text>
-      <Pressable onPress={onClear} style={{ width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.10)' }}>
+      <Pressable onPress={onClear} style={{ width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: veil(mode, 0.10) }}>
         <X size={14} color={TT.ink} strokeWidth={2} />
       </Pressable>
     </View>

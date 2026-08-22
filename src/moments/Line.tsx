@@ -15,12 +15,10 @@ import { Quote, ImageOff, AudioLines, Video, Play } from 'lucide-react-native';
 import { MOOD_SCORES, moodColor } from '@/src/moments/moods';
 import type { MomentDTO } from '@/src/api/moments';
 import { useTheme } from '@/src/ui/theme-mode';
-
-/** Translucent ink for the timeline's own marks. White on the dark ground,
- *  near-black on cream — the literals these replaced assumed a ground that is
- *  now only sometimes dark, so they disappeared entirely in light mode. */
-const veil = (mode: 'light' | 'dark', a: number) =>
-  mode === 'dark' ? `rgba(255,255,255,${a})` : `rgba(20,20,20,${a})`;
+// Translucent ink for the timeline's own marks. Lived here first; now shared,
+// because capture needed the same thing and two copies of a theme rule is how
+// one of them ends up wrong.
+import { veil } from '@/src/ui/tokens';
 
 /** 0..1 across the line: 0 is the heaviest edge, 1 the lightest. */
 export function valenceOf(m: { moods: string[] }): number {

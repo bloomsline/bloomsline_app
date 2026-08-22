@@ -257,8 +257,6 @@ export const fr: Dict = {
     what: 'Que s’est-il passé ?',
     photoOrVideo: 'Photo ou vidéo',
     voice: 'Audio',
-    addFeeling: 'Ajouter une émotion',
-    required: 'requis',
     next: 'Suivant',
     step2: 'Étape 2 sur 2',
     wasMore: 'Ce moment était plutôt…',

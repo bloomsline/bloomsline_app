@@ -258,8 +258,6 @@ export const en = {
     what: 'What happened?',
     photoOrVideo: 'Photo or video',
     voice: 'Voice',
-    addFeeling: 'Add a feeling',
-    required: 'required',
     next: 'Next',
     step2: 'Step 2 of 2',
     wasMore: 'This moment was more…',

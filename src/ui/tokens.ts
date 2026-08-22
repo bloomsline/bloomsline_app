@@ -25,8 +25,13 @@ export type Mode = 'light' | 'dark';
 export interface Palette {
   /** Page background. */
   bg: string;
-  /** Raised surface — cards, sheets, rows. */
+  /** Raised surface — cards, rows. */
   card: string;
+  /** A sheet that rises OVER content. Distinct from `card` because it has to
+   *  carry its own weight: `card` on dark is a 5% white wash, which is a lift on
+   *  the page but transparent enough to read the writing straight through a
+   *  sheet laid on top of it. */
+  sheet: string;
   /** Card border. Hairline on light; a lift on dark, where shadows do nothing. */
   cardLine: string;
   /** Primary text. */
@@ -51,6 +56,9 @@ export interface Palette {
   ctaFg: string;
   /** Warning / attention. Never decorative. */
   amber: string;
+  /** Something went wrong. The salmon that reads on the dark ground is 2.4:1 on
+   *  cream, so this splits by theme like the accent does. */
+  danger: string;
   /** Scrim behind a sheet. */
   scrim: string;
   /** A deliberately dark surface: media placeholders, a poster with no image.
@@ -62,6 +70,7 @@ export interface Palette {
 export const LIGHT: Palette = {
   bg: '#F5F2EB',
   card: '#FFFFFF',
+  sheet: 'rgba(255,255,255,0.97)',
   cardLine: '#ECE8DF',
   ink: '#141414',
   inkSoft: '#5A5A52',
@@ -75,6 +84,7 @@ export const LIGHT: Palette = {
   ctaBg: '#141414',
   ctaFg: '#FFFFFF',
   amber: '#B4750F',
+  danger: '#B3261E',
   scrim: 'rgba(20,20,20,0.35)',
   slot: '#101210',
 };
@@ -82,6 +92,7 @@ export const LIGHT: Palette = {
 export const DARK: Palette = {
   bg: '#0E1512',
   card: 'rgba(255,255,255,0.055)',
+  sheet: 'rgba(20,26,23,0.96)',
   cardLine: 'rgba(255,255,255,0.10)',
   ink: '#FFFFFF',
   inkSoft: 'rgba(255,255,255,0.68)',
@@ -98,11 +109,27 @@ export const DARK: Palette = {
   ctaBg: '#F2F5F3',
   ctaFg: '#0E1512',
   amber: '#E9C46A',
+  danger: '#E5837B',
   scrim: 'rgba(0,0,0,0.55)',
   slot: '#0A0F0D',
 };
 
 export const PALETTES: Record<Mode, Palette> = { light: LIGHT, dark: DARK };
+
+/**
+ * A translucent wash of INK over whatever is behind it — the fills that are not
+ * worth a token each: a pressed pill, a grabber, a chip's resting state.
+ *
+ * It exists because `rgba(255,255,255,0.12)` is the single most common way this
+ * app has broken in light mode. Written literally it says "a faint lift", and it
+ * IS one on the dark ground; on cream it is a near-invisible smear, and anything
+ * relying on it to be a surface disappears. Same alpha, opposite ink.
+ *
+ * Not for text or glyphs — those have `ink` / `inkSoft` / `faint`, which are
+ * tuned per theme rather than derived from one alpha.
+ */
+export const veil = (mode: Mode, alpha: number): string =>
+  mode === 'dark' ? `rgba(255,255,255,${alpha})` : `rgba(20,20,20,${alpha})`;
 
 /**
  * Icon tiles — a pale tint carrying a saturated glyph of the same hue.
