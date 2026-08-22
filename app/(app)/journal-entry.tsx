@@ -594,7 +594,7 @@ function MediaBlock({ block: b, tr }: { block: JournalBlock; tr: Tr }) {
   }
   // image / video
   return (
-    <View style={{ borderRadius: 14, overflow: 'hidden', backgroundColor: EDA.slot }}>
+    <View style={{ borderRadius: 14, overflow: 'hidden', backgroundColor: TT.slot }}>
       {uri ? <Image source={{ uri }} style={{ width: '100%', height: 200 }} resizeMode="cover" /> : <View style={{ width: '100%', height: 200 }} />}
       {b.type === 'video' && !b.uploading && (
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>

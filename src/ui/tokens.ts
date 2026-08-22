@@ -53,6 +53,10 @@ export interface Palette {
   amber: string;
   /** Scrim behind a sheet. */
   scrim: string;
+  /** A deliberately dark surface: media placeholders, a poster with no image.
+   *  Stays dark in BOTH themes — it stands in for a photograph, and a pale
+   *  placeholder reads as an empty box rather than a missing picture. */
+  slot: string;
 }
 
 export const LIGHT: Palette = {
@@ -72,6 +76,7 @@ export const LIGHT: Palette = {
   ctaFg: '#FFFFFF',
   amber: '#B4750F',
   scrim: 'rgba(20,20,20,0.35)',
+  slot: '#101210',
 };
 
 export const DARK: Palette = {
@@ -94,6 +99,7 @@ export const DARK: Palette = {
   ctaFg: '#0E1512',
   amber: '#E9C46A',
   scrim: 'rgba(0,0,0,0.55)',
+  slot: '#0A0F0D',
 };
 
 export const PALETTES: Record<Mode, Palette> = { light: LIGHT, dark: DARK };
@@ -151,7 +157,7 @@ export const EDA = {
   greenDeep: LIGHT.accentDeep,
   greenTint: LIGHT.accentTint,
   line: LIGHT.line,
-  slot: '#101210',
+  slot: LIGHT.slot,
 };
 
 export const EDD = {

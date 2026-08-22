@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { PenLine, X } from 'lucide-react-native';
 import { EDA } from '@/src/ui/editorial';
 import { saveNoteDraft, discardNoteDraft, type NoteRange } from '@/src/api/practitioner';
+import { useTheme } from '@/src/ui/theme-mode';
 
 // A note being written, held above the screen that is writing it.
 //
@@ -183,6 +184,7 @@ export function useNoteDraft(): DraftContext {
  *  again. Deliberately small and always reachable — a draft you cannot see is a
  *  draft you will lose. */
 function MinimizedNote() {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const ctx = useContext(Ctx);
   if (!ctx?.draft || !ctx.minimized) return null;
@@ -195,11 +197,11 @@ function MinimizedNote() {
         onPress={() => { restore(); router.navigate('/(practitioner)/note' as never); }}
         style={{
           flexDirection: 'row', alignItems: 'center', gap: 10,
-          backgroundColor: EDA.slot, borderRadius: 26, paddingVertical: 12, paddingHorizontal: 16,
+          backgroundColor: TT.ctaBg, borderRadius: 26, paddingVertical: 12, paddingHorizontal: 16,
           shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 8,
         }}
       >
-        <PenLine size={16} color="#fff" strokeWidth={2.2} />
+        <PenLine size={16} color={TT.ctaFg} strokeWidth={2.2} />
         <View style={{ flex: 1 }}>
           <Text numberOfLines={1} style={{ fontSize: 13.5, fontWeight: '700', color: '#fff' }}>{preview}</Text>
           <Text style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.7)' }}>{draft.who}</Text>

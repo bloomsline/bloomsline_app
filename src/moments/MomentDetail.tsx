@@ -238,6 +238,7 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
 }
 
 function MediaHero({ item, onOpen }: { item: MomentMediaDTO; onOpen: () => void }) {
+  const { t: TT } = useTheme();
   const { locale } = useI18n();
   const tr = T[locale];
   // Audio plays in place. There is nothing to look at, so a full screen showing
@@ -255,7 +256,7 @@ function MediaHero({ item, onOpen }: { item: MomentMediaDTO; onOpen: () => void 
   // video, so a photograph could not be enlarged at all.
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={onOpen}>
-      {poster ? <Image source={{ uri: poster }} style={{ width: '100%', height: 260 }} resizeMode="cover" /> : <View style={{ width: '100%', height: 260, backgroundColor: EDA.slot }} />}
+      {poster ? <Image source={{ uri: poster }} style={{ width: '100%', height: 260 }} resizeMode="cover" /> : <View style={{ width: '100%', height: 260, backgroundColor: TT.slot }} />}
       {isVideo && (
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
           <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' }}>
@@ -283,7 +284,7 @@ function MediaThumb({ item, onOpen }: { item: MomentMediaDTO; onOpen: () => void
   const isVideo = item.kind === 'video';
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={onOpen}>
-      {poster ? <Image source={{ uri: poster }} style={{ width: 120, height: 120, borderRadius: 16 }} resizeMode="cover" /> : <View style={{ width: 120, height: 120, borderRadius: 16, backgroundColor: EDA.slot }} />}
+      {poster ? <Image source={{ uri: poster }} style={{ width: 120, height: 120, borderRadius: 16 }} resizeMode="cover" /> : <View style={{ width: 120, height: 120, borderRadius: 16, backgroundColor: TT.slot }} />}
       {isVideo && (
         <View style={{ position: 'absolute', top: 44, left: 44, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
           <Play size={16} color="#fff" fill="#fff" />
