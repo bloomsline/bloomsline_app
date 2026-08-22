@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { User, Heart, HandHeart, Plus, type LucideIcon } from 'lucide-react-native';
 import { useLanding } from '@/src/prefs/landing';
 import { useI18n } from '@/src/i18n';
+import { useTheme } from '@/src/ui/theme-mode';
 
 export type TabId = 'care' | 'moments' | 'foryou';
 
@@ -23,7 +24,8 @@ const TABS: Record<TabId, { id: TabId; Icon: LucideIcon; href: string }> = {
 // plain labels straight on the ground, no pill and no icons, so the navigation
 // stops competing with the content. Until every tab is rebuilt the chrome
 // therefore changes shape between tabs — deliberate and temporary.
-export function TabBar({ active, tone = 'light' }: { active: TabId; tone?: 'light' | 'dark' }) {
+export function TabBar({ active, tone }: { active: TabId; tone?: 'light' | 'dark' }) {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { landing } = useLanding();
   const { t } = useI18n();
@@ -37,7 +39,7 @@ export function TabBar({ active, tone = 'light' }: { active: TabId; tone?: 'ligh
             const on = tab.id === active;
             return (
               <Pressable key={tab.id} disabled={on} onPress={() => router.navigate(tab.href as never)}>
-                <Text style={{ fontSize: 13.5, fontWeight: on ? '700' : '500', color: on ? '#FFFFFF' : 'rgba(255,255,255,0.45)' }}>
+                <Text style={{ fontSize: 13.5, fontWeight: on ? '700' : '500', color: on ? TT.ink : TT.faint }}>
                   {t.tabs[TAB_LABEL[tab.id]]}
                 </Text>
               </Pressable>
@@ -47,10 +49,10 @@ export function TabBar({ active, tone = 'light' }: { active: TabId; tone?: 'ligh
         <Pressable
           accessibilityLabel="Capture a moment"
           className="h-[46px] w-[46px] items-center justify-center rounded-[23px]"
-          style={{ backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' }}
+          style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine }}
           onPress={() => router.navigate('/capture' as never)}
         >
-          <Plus size={22} color="#fff" strokeWidth={2.2} />
+          <Plus size={22} color={TT.ink} strokeWidth={2.2} />
         </Pressable>
       </View>
     );
@@ -60,7 +62,7 @@ export function TabBar({ active, tone = 'light' }: { active: TabId; tone?: 'ligh
     <View className="absolute inset-x-6 bottom-8 flex-row items-center gap-3">
       <View
         className="flex-1 flex-row justify-around rounded-[40px] px-4 py-3"
-        style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EAE8E2', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}
+        style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}
       >
         {order.map((id) => TABS[id]).map((tab) => {
           const on = tab.id === active;
@@ -71,10 +73,10 @@ export function TabBar({ active, tone = 'light' }: { active: TabId; tone?: 'ligh
               disabled={on}
               onPress={() => router.navigate(tab.href as never)}
             >
-              <View className="h-[46px] w-[46px] items-center justify-center rounded-full" style={on ? { backgroundColor: '#128069' } : { borderWidth: 1, borderColor: '#EAE8E2', backgroundColor: '#F6F5F2' }}>
-                <tab.Icon size={20} color={on ? '#fff' : '#9A9A90'} strokeWidth={on ? 2 : 1.6} />
+              <View className="h-[46px] w-[46px] items-center justify-center rounded-full" style={on ? { backgroundColor: TT.accent } : { borderWidth: 1, borderColor: TT.line, backgroundColor: TT.bg }}>
+                <tab.Icon size={20} color={on ? TT.bg : TT.faint} strokeWidth={on ? 2 : 1.6} />
               </View>
-              <Text className="mt-1 text-[11px]" style={{ fontWeight: on ? '700' : '400', color: on ? '#128069' : '#9A9A90' }}>{t.tabs[TAB_LABEL[tab.id]]}</Text>
+              <Text className="mt-1 text-[11px]" style={{ fontWeight: on ? '700' : '400', color: on ? TT.accent : TT.faint }}>{t.tabs[TAB_LABEL[tab.id]]}</Text>
             </Pressable>
           );
         })}
@@ -82,10 +84,10 @@ export function TabBar({ active, tone = 'light' }: { active: TabId; tone?: 'ligh
       <Pressable
         accessibilityLabel="Capture a moment"
         className="h-[54px] w-[54px] items-center justify-center rounded-[27px]"
-        style={{ backgroundColor: '#141414', shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}
+        style={{ backgroundColor: TT.ctaBg, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}
         onPress={() => router.navigate('/capture' as never)}
       >
-        <Plus size={24} color="#fff" strokeWidth={2.4} />
+        <Plus size={24} color={TT.ctaFg} strokeWidth={2.4} />
       </Pressable>
     </View>
   );

@@ -22,14 +22,22 @@
 // screen shape.
 import type { ReactNode } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
-import { EDD } from './editorial';
+import { useTheme } from './theme-mode';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const GROUND = require('../../assets/ground.png');
 
 export function Ground({ children, style }: { children: ReactNode; style?: object }) {
+  const { t, mode } = useTheme();
+
+  // In light mode there is no bloom to draw. The warm page colour IS the ground,
+  // and laying a dark bitmap over it — even faintly — would muddy it. So the
+  // image is skipped entirely rather than dimmed: a light theme that is a dark
+  // theme wearing lower opacity always reads as a mistake.
+  if (mode === 'light') return <View style={[{ flex: 1, backgroundColor: t.bg }, style]}>{children}</View>;
+
   return (
-    <View style={[{ flex: 1, backgroundColor: EDD.ground }, style]}>
+    <View style={[{ flex: 1, backgroundColor: t.bg }, style]}>
       <Image
         source={GROUND}
         resizeMode="stretch"

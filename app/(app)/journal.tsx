@@ -17,6 +17,7 @@ import { EDA, EDD, MonoLabel } from '@/src/ui/editorial';
 import { useOnboarding } from '@/src/onboarding/context';
 import { useI18n } from '@/src/i18n';
 import { listJournal, createJournal, type JournalEntry } from '@/src/api/journal';
+import { useTheme } from '@/src/ui/theme-mode';
 
 /** The three openings offered when there is nothing yet. Each creates a page
  *  titled with the prompt, so the blank screen is never the first thing. */
@@ -27,6 +28,7 @@ const PROMPTS: { key: 'session' | 'good' | 'mind'; Icon: LucideIcon }[] = [
 ];
 
 export default function Journal() {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { t, locale } = useI18n();
   const { practitionerName } = useOnboarding();
@@ -72,7 +74,7 @@ export default function Journal() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: EDD.ground }}>
+    <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="light" />
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         {/* The head: dark, and pointedly without an image. */}
@@ -86,29 +88,29 @@ export default function Journal() {
             </TouchableOpacity>
             <View style={{ flex: 1 }} />
             <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }}>
-              <Lock size={16} color={EDD.textSoft} strokeWidth={2} />
+              <Lock size={16} color={TT.inkSoft} strokeWidth={2} />
             </View>
           </View>
-          <MonoLabel color={EDD.faint} size={10.5} style={{ marginBottom: 8 }}>{tr.kicker}</MonoLabel>
-          <Text style={{ fontSize: 30, fontWeight: '800', color: EDD.text, letterSpacing: -1 }}>{tr.title}</Text>
-          <Text style={{ marginTop: 8, fontSize: 13.5, color: EDD.textSoft, lineHeight: 20, maxWidth: 300 }}>{tr.subtitle}</Text>
+          <MonoLabel color={TT.faint} size={10.5} style={{ marginBottom: 8 }}>{tr.kicker}</MonoLabel>
+          <Text style={{ fontSize: 30, fontWeight: '800', color: TT.ink, letterSpacing: -1 }}>{tr.title}</Text>
+          <Text style={{ marginTop: 8, fontSize: 13.5, color: TT.inkSoft, lineHeight: 20, maxWidth: 300 }}>{tr.subtitle}</Text>
         </View>
 
         {/* The paper. */}
-        <View style={{ flex: 1, backgroundColor: EDA.canvas, borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden' }}>
+        <View style={{ flex: 1, backgroundColor: TT.bg, borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden' }}>
           {entries === null && !failed ? (
             <View style={{ paddingTop: 60, alignItems: 'center' }}>
-              <ActivityIndicator color={EDA.faint} />
+              <ActivityIndicator color={TT.faint} />
             </View>
           ) : failed ? (
             <View style={{ paddingHorizontal: 34, paddingTop: 56, alignItems: 'center' }}>
-              <Text style={{ fontSize: 17, fontWeight: '700', color: EDA.ink, textAlign: 'center' }}>{tr.failedTitle}</Text>
-              <Text style={{ marginTop: 6, fontSize: 13.5, color: EDA.inkSoft, textAlign: 'center', lineHeight: 20 }}>{tr.failedBody}</Text>
+              <Text style={{ fontSize: 17, fontWeight: '700', color: TT.ink, textAlign: 'center' }}>{tr.failedTitle}</Text>
+              <Text style={{ marginTop: 6, fontSize: 13.5, color: TT.inkSoft, textAlign: 'center', lineHeight: 20 }}>{tr.failedBody}</Text>
               <TouchableOpacity
                 onPress={() => { setFailed(false); setEntries(null); void load(); }}
-                style={{ marginTop: 18, height: 44, paddingHorizontal: 26, borderRadius: 22, borderWidth: 1, borderColor: EDA.line, alignItems: 'center', justifyContent: 'center' }}
+                style={{ marginTop: 18, height: 44, paddingHorizontal: 26, borderRadius: 22, borderWidth: 1, borderColor: TT.line, alignItems: 'center', justifyContent: 'center' }}
               >
-                <Text style={{ fontSize: 14, fontWeight: '700', color: EDA.ink }}>{t.common.retry}</Text>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: TT.ink }}>{t.common.retry}</Text>
               </TouchableOpacity>
             </View>
           ) : (entries ?? []).length === 0 ? (
@@ -121,19 +123,19 @@ export default function Journal() {
                 keyboardShouldPersistTaps="handled"
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: '#fff', borderWidth: 1, borderColor: EDA.line, borderRadius: 14, paddingHorizontal: 14, height: 44, marginBottom: 14 }}>
-                  <Search size={16} color={EDA.faint} strokeWidth={2} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: '#fff', borderWidth: 1, borderColor: TT.line, borderRadius: 14, paddingHorizontal: 14, height: 44, marginBottom: 14 }}>
+                  <Search size={16} color={TT.faint} strokeWidth={2} />
                   <TextInput
                     value={q}
                     onChangeText={setQ}
                     placeholder={tr.find}
-                    placeholderTextColor={EDA.faint}
-                    style={[{ flex: 1, fontSize: 14.5, color: EDA.ink }, { outlineStyle: 'none' } as never]}
+                    placeholderTextColor={TT.faint}
+                    style={[{ flex: 1, fontSize: 14.5, color: TT.ink }, { outlineStyle: 'none' } as never]}
                   />
                 </View>
 
                 {shown.length === 0 ? (
-                  <Text style={{ paddingTop: 26, textAlign: 'center', fontSize: 13.5, color: EDA.inkSoft }}>{tr.noMatch}</Text>
+                  <Text style={{ paddingTop: 26, textAlign: 'center', fontSize: 13.5, color: TT.inkSoft }}>{tr.noMatch}</Text>
                 ) : (
                   <View style={{ gap: 10 }}>
                     {shown.map((e) => (
@@ -147,7 +149,7 @@ export default function Journal() {
                 onPress={() => startPage(null)}
                 disabled={creating}
                 activeOpacity={0.9}
-                style={{ position: 'absolute', right: 18, bottom: 26, flexDirection: 'row', alignItems: 'center', gap: 8, height: 48, paddingHorizontal: 20, borderRadius: 24, backgroundColor: EDA.green, opacity: creating ? 0.6 : 1 }}
+                style={{ position: 'absolute', right: 18, bottom: 26, flexDirection: 'row', alignItems: 'center', gap: 8, height: 48, paddingHorizontal: 20, borderRadius: 24, backgroundColor: TT.accent, opacity: creating ? 0.6 : 1 }}
               >
                 <PenLine size={16} color="#fff" strokeWidth={2.2} />
                 <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#fff' }}>{tr.newPage}</Text>
@@ -169,29 +171,30 @@ function EntryCard({
   pracName: string | null;
   onPress: () => void;
 }) {
+  const { t: TT } = useTheme();
   const initial = (pracName ?? '').replace(/^dr\.?\s*/i, '').trim().charAt(0).toUpperCase() || 'M';
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.85}
-      style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: EDA.line, borderRadius: 16, padding: 16 }}
+      style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: TT.line, borderRadius: 16, padding: 16 }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-        <Text style={{ flex: 1, fontSize: 11.5, color: EDA.faint }}>{whenLabel(entry.updatedAt, locale, tr)}</Text>
+        <Text style={{ flex: 1, fontSize: 11.5, color: TT.faint }}>{whenLabel(entry.updatedAt, locale, tr)}</Text>
         {/* A page that has been sent carries the face of who can read it — the
             one place this screen admits anyone else exists. */}
         {entry.sharedWithPractitioner ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 4, paddingRight: 10, height: 24, borderRadius: 12, backgroundColor: EDA.greenTint }}>
-            <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: EDA.green, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 4, paddingRight: 10, height: 24, borderRadius: 12, backgroundColor: TT.accentTint }}>
+            <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: TT.accent, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontSize: 9.5, fontWeight: '800', color: '#fff' }}>{initial}</Text>
             </View>
-            <Text style={{ fontSize: 11, fontWeight: '700', color: EDA.greenDeep }}>{tr.shared}</Text>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: TT.accentDeep }}>{tr.shared}</Text>
           </View>
         ) : null}
       </View>
-      <Text style={{ fontSize: 16.5, fontWeight: '800', color: EDA.ink, letterSpacing: -0.3 }}>{entry.title?.trim() || tr.untitled}</Text>
+      <Text style={{ fontSize: 16.5, fontWeight: '800', color: TT.ink, letterSpacing: -0.3 }}>{entry.title?.trim() || tr.untitled}</Text>
       {entry.body.trim() ? (
-        <Text numberOfLines={2} style={{ marginTop: 5, fontSize: 13, color: EDA.inkSoft, lineHeight: 19 }}>{entry.body.trim()}</Text>
+        <Text numberOfLines={2} style={{ marginTop: 5, fontSize: 13, color: TT.inkSoft, lineHeight: 19 }}>{entry.body.trim()}</Text>
       ) : null}
     </TouchableOpacity>
   );
@@ -205,13 +208,14 @@ function EmptyState({
   onPrompt: (k: 'session' | 'good' | 'mind') => void;
   busy: boolean;
 }) {
+  const { t: TT } = useTheme();
   return (
     <ScrollView contentContainerStyle={{ padding: 22, paddingTop: 40 }} showsVerticalScrollIndicator={false}>
-      <TouchableOpacity onPress={onBlank} disabled={busy} activeOpacity={0.8} style={{ alignSelf: 'center', width: 62, height: 62, borderRadius: 20, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center' }}>
-        <Plus size={26} color={EDA.green} strokeWidth={2.2} />
+      <TouchableOpacity onPress={onBlank} disabled={busy} activeOpacity={0.8} style={{ alignSelf: 'center', width: 62, height: 62, borderRadius: 20, backgroundColor: TT.accentTint, alignItems: 'center', justifyContent: 'center' }}>
+        <Plus size={26} color={TT.accent} strokeWidth={2.2} />
       </TouchableOpacity>
-      <Text style={{ marginTop: 16, textAlign: 'center', fontSize: 19, fontWeight: '800', color: EDA.ink, letterSpacing: -0.3 }}>{tr.startHere}</Text>
-      <Text style={{ marginTop: 4, textAlign: 'center', fontSize: 13.5, color: EDA.inkSoft }}>{tr.orGuide}</Text>
+      <Text style={{ marginTop: 16, textAlign: 'center', fontSize: 19, fontWeight: '800', color: TT.ink, letterSpacing: -0.3 }}>{tr.startHere}</Text>
+      <Text style={{ marginTop: 4, textAlign: 'center', fontSize: 13.5, color: TT.inkSoft }}>{tr.orGuide}</Text>
 
       <View style={{ marginTop: 22, gap: 10 }}>
         {PROMPTS.map(({ key, Icon }) => (
@@ -220,13 +224,13 @@ function EmptyState({
             onPress={() => onPrompt(key)}
             disabled={busy}
             activeOpacity={0.85}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 13, backgroundColor: '#fff', borderWidth: 1, borderColor: EDA.line, borderRadius: 14, paddingHorizontal: 14, height: 54 }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 13, backgroundColor: '#fff', borderWidth: 1, borderColor: TT.line, borderRadius: 14, paddingHorizontal: 14, height: 54 }}
           >
-            <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon size={15} color={EDA.green} strokeWidth={2} />
+            <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: TT.accentTint, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon size={15} color={TT.accent} strokeWidth={2} />
             </View>
-            <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: EDA.ink }}>{tr.prompts[key]}</Text>
-            <ChevronRight size={17} color={EDA.faint} strokeWidth={2} />
+            <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: TT.ink }}>{tr.prompts[key]}</Text>
+            <ChevronRight size={17} color={TT.faint} strokeWidth={2} />
           </TouchableOpacity>
         ))}
       </View>

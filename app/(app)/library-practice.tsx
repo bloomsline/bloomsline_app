@@ -13,6 +13,7 @@ import { Block, INTERACTIVE, ResourceIntro } from '@/src/resources/blocks';
 import { getLibraryResource, runLibraryActivity, type LibraryResourceView } from '@/src/api/library';
 import type { PatientScore } from '@/src/api/resources';
 import { useI18n } from '@/src/i18n';
+import { useTheme } from '@/src/ui/theme-mode';
 
 const T = {
   en: {
@@ -42,6 +43,7 @@ const T = {
 } as const;
 
 export default function LibraryPractice() {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale];
@@ -77,19 +79,19 @@ export default function LibraryPractice() {
 
   if (!loaded) {
     return (
-      <View style={{ flex: 1, backgroundColor: EDA.canvas, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ flex: 1, backgroundColor: TT.bg, alignItems: 'center', justifyContent: 'center' }}>
         <StatusBar style="dark" />
-        <ActivityIndicator color={EDA.green} />
+        <ActivityIndicator color={TT.accent} />
       </View>
     );
   }
   if (!view) {
     return (
-      <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+      <View style={{ flex: 1, backgroundColor: TT.bg }}>
         <StatusBar style="dark" />
         <EdHeader kicker={tr.unavailable} title={tr.unavailable} onBack={back} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: EDA.ink }}>{tr.unavailable}</Text>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: TT.ink }}>{tr.unavailable}</Text>
         </View>
       </View>
     );
@@ -100,7 +102,7 @@ export default function LibraryPractice() {
   const meta = resourceTypeMeta(view.resource.type, locale);
 
   return (
-    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+    <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -108,9 +110,9 @@ export default function LibraryPractice() {
 
           <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
             {/* Private-to-you note */}
-            <View style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: EDA.greenTint, borderRadius: 12, paddingVertical: 5, paddingHorizontal: 10, marginBottom: 16 }}>
-              <Lock size={12} color={EDA.green} strokeWidth={2} />
-              <Text style={{ fontSize: 12.5, fontWeight: '700', color: EDA.green }}>{tr.privateToYou}{view.runCount > 0 ? ` · ${tr.doneCount} ${view.runCount}×` : ''}</Text>
+            <View style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: TT.accentTint, borderRadius: 12, paddingVertical: 5, paddingHorizontal: 10, marginBottom: 16 }}>
+              <Lock size={12} color={TT.accent} strokeWidth={2} />
+              <Text style={{ fontSize: 12.5, fontWeight: '700', color: TT.accent }}>{tr.privateToYou}{view.runCount > 0 ? ` · ${tr.doneCount} ${view.runCount}×` : ''}</Text>
             </View>
 
             <ResourceIntro text={view.resource.description} />
@@ -121,7 +123,7 @@ export default function LibraryPractice() {
         </ScrollView>
 
         <View style={{ position: 'absolute', left: 22, right: 22, bottom: 24 }}>
-          <Pressable onPress={save} disabled={saving} style={{ height: 54, borderRadius: 27, backgroundColor: saving ? EDA.faint : EDA.ink, alignItems: 'center', justifyContent: 'center' }}>
+          <Pressable onPress={save} disabled={saving} style={{ height: 54, borderRadius: 27, backgroundColor: saving ? TT.faint : TT.ink, alignItems: 'center', justifyContent: 'center' }}>
             {saving ? <ActivityIndicator color="#fff" /> : <Text style={{ fontSize: 15.5, fontWeight: '700', color: '#fff' }}>{hasInteractive ? tr.save : tr.markDone}</Text>}
           </Pressable>
         </View>
@@ -131,21 +133,22 @@ export default function LibraryPractice() {
 }
 
 function ResultView({ title, score, onDone, tr }: { title: string; score: PatientScore | null; onDone: () => void; tr: (typeof T)[keyof typeof T] }) {
+  const { t: TT } = useTheme();
   return (
-    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+    <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-        <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
-          <CircleCheckBig size={34} color={EDA.green} strokeWidth={2} />
+        <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: TT.accentTint, alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+          <CircleCheckBig size={34} color={TT.accent} strokeWidth={2} />
         </View>
-        <Text style={{ fontSize: 22, fontWeight: '800', color: EDA.ink, textAlign: 'center', letterSpacing: -0.3 }}>{tr.resultTitle}</Text>
-        <Text style={{ fontSize: 14, color: EDA.inkSoft, textAlign: 'center', marginTop: 6 }}>{title}{tr.resultBodySuffix}</Text>
+        <Text style={{ fontSize: 22, fontWeight: '800', color: TT.ink, textAlign: 'center', letterSpacing: -0.3 }}>{tr.resultTitle}</Text>
+        <Text style={{ fontSize: 14, color: TT.inkSoft, textAlign: 'center', marginTop: 6 }}>{title}{tr.resultBodySuffix}</Text>
 
         {score && (
-          <View style={{ marginTop: 24, alignSelf: 'stretch', backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, borderRadius: 20, padding: 22, alignItems: 'center' }}>
-            <Text style={{ fontSize: 12, fontWeight: '600', color: EDA.faint, textTransform: 'uppercase', letterSpacing: 0.5 }}>{tr.justForYou}</Text>
-            <Text style={{ fontSize: 40, fontWeight: '800', color: EDA.green, marginTop: 6 }}>{score.total}<Text style={{ fontSize: 20, color: EDA.faint, fontWeight: '700' }}> / {score.maxScore}</Text></Text>
-            {score.interpretation && <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink, marginTop: 8 }}>{score.interpretation.label}</Text>}
+          <View style={{ marginTop: 24, alignSelf: 'stretch', backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, borderRadius: 20, padding: 22, alignItems: 'center' }}>
+            <Text style={{ fontSize: 12, fontWeight: '600', color: TT.faint, textTransform: 'uppercase', letterSpacing: 0.5 }}>{tr.justForYou}</Text>
+            <Text style={{ fontSize: 40, fontWeight: '800', color: TT.accent, marginTop: 6 }}>{score.total}<Text style={{ fontSize: 20, color: TT.faint, fontWeight: '700' }}> / {score.maxScore}</Text></Text>
+            {score.interpretation && <Text style={{ fontSize: 15, fontWeight: '700', color: TT.ink, marginTop: 8 }}>{score.interpretation.label}</Text>}
           </View>
         )}
       </View>

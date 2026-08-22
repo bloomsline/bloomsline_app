@@ -4,6 +4,7 @@
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useI18n, type Locale } from '@/src/i18n';
 import { EDA } from '@/src/ui/editorial';
+import { useTheme } from '@/src/ui/theme-mode';
 
 // Localized short weekday + month names (Sun-indexed / Jan-indexed) plus the
 // relative-day labels. Kept local so the date math stays intact.
@@ -56,6 +57,7 @@ export function formatTime(dateStr: string): string {
 }
 
 export function DayNav({ selected, onSelect }: { selected: Date; onSelect: (d: Date) => void }) {
+  const { t: TT } = useTheme();
   const { locale } = useI18n();
   const today = getToday();
   const isViewingToday = isSameDay(selected, today);
@@ -78,13 +80,13 @@ export function DayNav({ selected, onSelect }: { selected: Date; onSelect: (d: D
         onPress={goBack}
         activeOpacity={0.6}
         hitSlop={12}
-        style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, alignItems: 'center', justifyContent: 'center' }}
+        style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, alignItems: 'center', justifyContent: 'center' }}
       >
-        <Text style={{ fontSize: 18, fontWeight: '600', color: EDA.inkSoft, marginTop: -1 }}>‹</Text>
+        <Text style={{ fontSize: 18, fontWeight: '600', color: TT.inkSoft, marginTop: -1 }}>‹</Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={!isViewingToday ? () => onSelect(today) : undefined} activeOpacity={isViewingToday ? 1 : 0.6}>
-        <Text style={{ fontSize: 14, fontWeight: '700', color: isViewingToday ? EDA.green : EDA.ink, letterSpacing: -0.2 }}>{getDateLabel(selected, locale)}</Text>
+        <Text style={{ fontSize: 14, fontWeight: '700', color: isViewingToday ? TT.accent : TT.ink, letterSpacing: -0.2 }}>{getDateLabel(selected, locale)}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -93,11 +95,11 @@ export function DayNav({ selected, onSelect }: { selected: Date; onSelect: (d: D
         hitSlop={12}
         style={{
           width: 34, height: 34, borderRadius: 17,
-          backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line,
+          backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line,
           alignItems: 'center', justifyContent: 'center', opacity: isViewingToday ? 0.4 : 1,
         }}
       >
-        <Text style={{ fontSize: 18, fontWeight: '600', color: EDA.inkSoft, marginTop: -1 }}>›</Text>
+        <Text style={{ fontSize: 18, fontWeight: '600', color: TT.inkSoft, marginTop: -1 }}>›</Text>
       </TouchableOpacity>
     </View>
   );

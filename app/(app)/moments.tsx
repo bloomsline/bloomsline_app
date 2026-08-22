@@ -24,8 +24,10 @@ import { useOnboarding } from '@/src/onboarding/context';
 import { Ground } from '@/src/ui/Ground';
 import { useI18n } from '@/src/i18n';
 import { listMoments, type MomentDTO } from '@/src/api/moments';
+import { useTheme } from '@/src/ui/theme-mode';
 
 export default function Moments() {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { t, locale } = useI18n();
@@ -76,15 +78,15 @@ export default function Moments() {
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <View style={{ paddingHorizontal: 22, paddingTop: 8, paddingBottom: 10, flexDirection: 'row', alignItems: 'flex-start' }}>
           <View style={{ flex: 1 }}>
-            <MonoLabel color={EDD.faint} size={10.5} style={{ marginBottom: 10 }}>{tr.kicker}</MonoLabel>
-            <Text style={{ fontSize: 27, fontWeight: '800', color: EDD.text, letterSpacing: -0.9, lineHeight: 31 }}>{title}</Text>
+            <MonoLabel color={TT.faint} size={10.5} style={{ marginBottom: 10 }}>{tr.kicker}</MonoLabel>
+            <Text style={{ fontSize: 27, fontWeight: '800', color: TT.ink, letterSpacing: -0.9, lineHeight: 31 }}>{title}</Text>
           </View>
           <TouchableOpacity
             onPress={() => router.navigate('/settings' as never)}
             activeOpacity={0.8}
-            style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: EDD.card, borderWidth: 1, borderColor: EDD.cardLine, alignItems: 'center', justifyContent: 'center' }}
+            style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine, alignItems: 'center', justifyContent: 'center' }}
           >
-            <Settings size={17} color={EDD.textSoft} strokeWidth={2} />
+            <Settings size={17} color={TT.inkSoft} strokeWidth={2} />
           </TouchableOpacity>
         </View>
 
@@ -95,7 +97,7 @@ export default function Moments() {
           // The newest end is the foot of the line, so that is where a person
           // should be standing when the screen opens.
           onContentSizeChange={() => scroller.current?.scrollToEnd({ animated: false })}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={EDD.faint} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={TT.faint} />}
         >
           <View style={{ paddingHorizontal: 22 }}>
             <TabIntro tabKey="moments" tone="dark" onActiveChange={setIntroActive} />
@@ -103,24 +105,24 @@ export default function Moments() {
 
           {loading ? (
             <View style={{ paddingTop: 60, alignItems: 'center' }}>
-              <ActivityIndicator color={EDD.faint} />
+              <ActivityIndicator color={TT.faint} />
             </View>
           ) : (
             <FadeIn style={{ opacity: introActive ? 0.3 : 1 }}>
               {moments.length === 0 ? (
                 <View style={{ paddingHorizontal: 34, paddingTop: 40, alignItems: 'center' }}>
-                  <Text style={{ fontSize: 19, fontWeight: '700', color: EDD.text, textAlign: 'center', lineHeight: 26 }}>
+                  <Text style={{ fontSize: 19, fontWeight: '700', color: TT.ink, textAlign: 'center', lineHeight: 26 }}>
                     {failed ? tr.failedTitle : tr.emptyTitle}
                   </Text>
-                  <Text style={{ marginTop: 8, fontSize: 14, color: EDD.textSoft, textAlign: 'center', lineHeight: 21 }}>
+                  <Text style={{ marginTop: 8, fontSize: 14, color: TT.inkSoft, textAlign: 'center', lineHeight: 21 }}>
                     {failed ? tr.failedBody : tr.emptyBody}
                   </Text>
                   {failed ? (
                     <TouchableOpacity
                       onPress={() => { setLoading(true); void load(); }}
-                      style={{ marginTop: 18, height: 44, paddingHorizontal: 26, borderRadius: 22, borderWidth: 1, borderColor: EDD.cardLine, alignItems: 'center', justifyContent: 'center' }}
+                      style={{ marginTop: 18, height: 44, paddingHorizontal: 26, borderRadius: 22, borderWidth: 1, borderColor: TT.cardLine, alignItems: 'center', justifyContent: 'center' }}
                     >
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: EDD.text }}>{t.common.retry}</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: TT.ink }}>{t.common.retry}</Text>
                     </TouchableOpacity>
                   ) : null}
                 </View>
@@ -139,8 +141,8 @@ export default function Moments() {
 
           {moments.length > 0 ? (
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 22, marginTop: 12 }}>
-              <Text style={{ fontSize: 11.5, color: EDD.faint }}>{tr.weekSoFar}</Text>
-              <Text style={{ fontSize: 11.5, color: EDD.faint }}>{tr.scrollBack}</Text>
+              <Text style={{ fontSize: 11.5, color: TT.faint }}>{tr.weekSoFar}</Text>
+              <Text style={{ fontSize: 11.5, color: TT.faint }}>{tr.scrollBack}</Text>
             </View>
           ) : null}
         </ScrollView>

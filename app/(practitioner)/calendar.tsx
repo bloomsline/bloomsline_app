@@ -9,6 +9,7 @@ import { ymd } from '@/src/ui/MonthCalendar';
 import { SessionSheet } from '@/src/practitioner/SessionSheet';
 import { useI18n } from '@/src/i18n';
 import { fetchDay, fetchBookingOptions, type CloseReasonGroup, type PractitionerSession, type SessionTypeOption } from '@/src/api/practitioner';
+import { useTheme } from '@/src/ui/theme-mode';
 
 // The day, as a timeline rather than a list.
 //
@@ -42,6 +43,7 @@ const FORMAT_ICON = { video: Video, in_person: MapPin, phone: Phone } as const;
 const OFF = new Set(['cancelled', 'no_show']);
 
 export default function DayCalendar() {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale] ?? T.en;
@@ -160,21 +162,21 @@ export default function DayCalendar() {
   const isToday = key === ymd(new Date());
 
   return (
-    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+    <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <EdHeader kicker={tr.kicker} title={isToday ? tr.today : heading} rightIcon={CalendarPlus} onRight={() => router.navigate('/(practitioner)/book' as never)} />
 
       {/* Day stepper — the whole point of a day view is moving between days. */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 22, paddingTop: 14 }}>
         <Pressable onPress={() => step(-1)} hitSlop={10} style={circle} accessibilityLabel="Previous day">
-          <ChevronLeft size={17} color={EDA.ink} />
+          <ChevronLeft size={17} color={TT.ink} />
         </Pressable>
-        <Pressable onPress={() => setDate(new Date())} style={{ borderRadius: 18, borderWidth: 1, borderColor: EDA.line, backgroundColor: EDA.card, paddingHorizontal: 14, paddingVertical: 8 }}>
-          <Text style={{ fontSize: 13.5, fontWeight: '700', color: EDA.ink }}>{tr.today}</Text>
+        <Pressable onPress={() => setDate(new Date())} style={{ borderRadius: 18, borderWidth: 1, borderColor: TT.line, backgroundColor: TT.card, paddingHorizontal: 14, paddingVertical: 8 }}>
+          <Text style={{ fontSize: 13.5, fontWeight: '700', color: TT.ink }}>{tr.today}</Text>
         </Pressable>
-        <Text style={{ flex: 1, fontSize: 13.5, color: EDA.inkSoft, textTransform: 'capitalize' }} numberOfLines={1}>{heading}</Text>
+        <Text style={{ flex: 1, fontSize: 13.5, color: TT.inkSoft, textTransform: 'capitalize' }} numberOfLines={1}>{heading}</Text>
         <Pressable onPress={() => step(1)} hitSlop={10} style={circle} accessibilityLabel="Next day">
-          <ChevronRight size={17} color={EDA.ink} />
+          <ChevronRight size={17} color={TT.ink} />
         </Pressable>
       </View>
 
@@ -182,7 +184,7 @@ export default function DayCalendar() {
         <FadeIn>
           {!loaded && <ActivityIndicator />}
           {loaded && items.length === 0 && (
-            <Text style={{ fontSize: 13.5, color: EDA.faint, marginBottom: 12 }}>{tr.nothing}</Text>
+            <Text style={{ fontSize: 13.5, color: TT.faint, marginBottom: 12 }}>{tr.nothing}</Text>
           )}
 
           <View style={{ flexDirection: 'row' }}>
@@ -190,7 +192,7 @@ export default function DayCalendar() {
             <View style={{ width: 46 }}>
               {hours.map((h) => (
                 <View key={h} style={{ height: HOUR_HEIGHT }}>
-                  <Text style={{ fontSize: 11, color: EDA.faint, marginTop: -6 }}>{String(h).padStart(2, '0')}:00</Text>
+                  <Text style={{ fontSize: 11, color: TT.faint, marginTop: -6 }}>{String(h).padStart(2, '0')}:00</Text>
                 </View>
               ))}
             </View>
@@ -201,7 +203,7 @@ export default function DayCalendar() {
                 booking. No mode to switch, no long-press to discover. */}
             <View style={{ flex: 1, position: 'relative' }}>
               {hours.map((h) => (
-                <View key={h} style={{ height: HOUR_HEIGHT, borderTopWidth: 1, borderTopColor: EDA.line }}>
+                <View key={h} style={{ height: HOUR_HEIGHT, borderTopWidth: 1, borderTopColor: TT.line }}>
                   {[0, SNAP_MINUTES * 2].map((m) => (
                     <Pressable
                       key={m}

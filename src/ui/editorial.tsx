@@ -6,39 +6,15 @@ import { Animated, Easing, Pressable, Text, View, type ImageSourcePropType, type
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, type LucideIcon } from 'lucide-react-native';
 import { MONO } from '@/src/ui/fonts';
+import { useTheme } from './theme-mode';
 
-export const EDA = {
-  canvas: '#F6F5F2', // near-white page
-  card: '#FFFFFF', // white cards
-  ink: '#141414',
-  inkSoft: '#5A5A52', // secondary text
-  faint: '#9A9A90', // tertiary / captions
-  green: '#128069',
-  greenDeep: '#0C5B4B',
-  greenTint: '#E7F0EC',
-  line: '#EAE8E2', // hairline divider
-  slot: '#101210', // dark accent
-};
-
-/**
- * The dark ground v2 uses for the tabs a patient lives in — My Care and Moments
- * are both drawn dark on the design board. It lives beside EDA rather than
- * inside one screen so the two cannot drift apart.
- *
- * Surfaces are translucent white rather than opaque greys, so they sit correctly
- * on whatever is behind them — which matters because Moments puts photography
- * back there.
- */
-export const EDD = {
-  ground: '#0E1512',
-  card: 'rgba(255,255,255,0.055)',
-  cardLine: 'rgba(255,255,255,0.10)',
-  text: '#FFFFFF',
-  textSoft: 'rgba(255,255,255,0.68)',
-  faint: 'rgba(255,255,255,0.40)',
-  green: '#7FD9C0', // the accent the dark onboarding screens already use
-  amber: '#E9C46A', // "awaiting payment" only — never decorative
-};
+// EDA and EDD now live in `tokens.ts`, where each key carries BOTH a light and
+// a dark value, and are re-exported here so the ~35 screens importing them from
+// this module keep working. Two hardcoded palettes could not support a switcher:
+// nothing could ask "what is the page colour" without knowing its own theme.
+//
+// New code should use `useTheme()` from `theme-mode` instead of either name.
+export { EDA, EDD } from './tokens';
 
 const RISE = Easing.bezier(0.16, 0.84, 0.24, 1);
 
@@ -53,8 +29,13 @@ export function FadeIn({ delay = 0, y = 12, duration = 600, style, children }: {
 }
 
 /** Monospaced editorial label / kicker. */
-export function MonoLabel({ children, color = EDA.green, size = 10.5, style }: { children: ReactNode; color?: string; size?: number; style?: ViewStyle }) {
-  return <Text style={[{ fontFamily: MONO, fontSize: size, letterSpacing: 2, textTransform: 'uppercase', color }, style]}>{children}</Text>;
+export function MonoLabel({ children, color, size = 10.5, style }: { children: ReactNode; color?: string; size?: number; style?: ViewStyle }) {
+  const { t: TT } = useTheme();
+  // Resolved in the body, not as a default parameter: defaults evaluate before
+  // the hook runs, so `color = TT.accent` is a reference to a value that does
+  // not exist yet.
+  const tone = color ?? TT.accent;
+  return <Text style={[{ fontFamily: MONO, fontSize: size, letterSpacing: 2, textTransform: 'uppercase', color: tone }, style]}>{children}</Text>;
 }
 
 /** Clean light screen header — a mono kicker + oversized title on the canvas,
@@ -78,34 +59,35 @@ export function EdHeader({
   rightIcon?: LucideIcon;
   onRight?: () => void;
 }) {
+  const { t: TT } = useTheme();
   const insets = useSafeAreaInsets();
   const RightIcon = rightIcon;
-  const circle = { width: 38, height: 38, borderRadius: 19, backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, alignItems: 'center' as const, justifyContent: 'center' as const };
+  const circle = { width: 38, height: 38, borderRadius: 19, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, alignItems: 'center' as const, justifyContent: 'center' as const };
   const rightBtn =
     RightIcon && onRight ? (
       <Pressable onPress={onRight} style={circle}>
-        <RightIcon size={18} color={EDA.ink} strokeWidth={2} />
+        <RightIcon size={18} color={TT.ink} strokeWidth={2} />
       </Pressable>
     ) : null;
   // A back chevron keeps its own top row (standard nav). Otherwise the right
   // action sits in-line with the title block, top-aligned to the kicker — so the
   // kicker reads level with the icon instead of below it.
   return (
-    <View style={{ paddingTop: insets.top, backgroundColor: EDA.canvas }}>
+    <View style={{ paddingTop: insets.top, backgroundColor: TT.bg }}>
       <View style={{ paddingHorizontal: 22, paddingTop: 12, paddingBottom: 4 }}>
         {onBack ? (
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <Pressable onPress={onBack} style={circle}>
-              <ChevronLeft size={18} color={EDA.ink} strokeWidth={2} />
+              <ChevronLeft size={18} color={TT.ink} strokeWidth={2} />
             </Pressable>
             {rightBtn}
           </View>
         ) : null}
         <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
           <View style={{ flex: 1 }}>
-            <MonoLabel color={EDA.green} style={{ marginBottom: 8 }}>{kicker}</MonoLabel>
-            <Text style={{ fontSize: 30, fontWeight: '800', color: EDA.ink, letterSpacing: -0.9, lineHeight: 34 }}>{title}</Text>
-            {subtitle ? <Text style={{ fontSize: 14.5, color: EDA.inkSoft, lineHeight: 21, marginTop: 8, maxWidth: 320 }}>{subtitle}</Text> : null}
+            <MonoLabel color={TT.accent} style={{ marginBottom: 8 }}>{kicker}</MonoLabel>
+            <Text style={{ fontSize: 30, fontWeight: '800', color: TT.ink, letterSpacing: -0.9, lineHeight: 34 }}>{title}</Text>
+            {subtitle ? <Text style={{ fontSize: 14.5, color: TT.inkSoft, lineHeight: 21, marginTop: 8, maxWidth: 320 }}>{subtitle}</Text> : null}
           </View>
           {!onBack && rightBtn ? <View style={{ marginLeft: 12 }}>{rightBtn}</View> : null}
         </View>
@@ -116,18 +98,20 @@ export function EdHeader({
 
 /** A light editorial card. */
 export function EdCard({ children, style, onPress }: { children: ReactNode; style?: ViewStyle; onPress?: () => void }) {
-  const inner = <View style={[{ backgroundColor: EDA.card, borderRadius: 20, borderWidth: 1, borderColor: EDA.line, padding: 18 }, style]}>{children}</View>;
+  const { t: TT } = useTheme();
+  const inner = <View style={[{ backgroundColor: TT.card, borderRadius: 20, borderWidth: 1, borderColor: TT.line, padding: 18 }, style]}>{children}</View>;
   return onPress ? <Pressable onPress={onPress}>{inner}</Pressable> : inner;
 }
 
 /** Section label + optional action, editorial style. */
 export function EdSection({ label, action, onAction }: { label: string; action?: string; onAction?: () => void }) {
+  const { t: TT } = useTheme();
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-      <MonoLabel color={EDA.faint}>{label}</MonoLabel>
+      <MonoLabel color={TT.faint}>{label}</MonoLabel>
       {action && onAction ? (
         <Pressable onPress={onAction}>
-          <Text style={{ fontSize: 12.5, fontWeight: '700', color: EDA.green }}>{action}</Text>
+          <Text style={{ fontSize: 12.5, fontWeight: '700', color: TT.accent }}>{action}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -136,9 +120,10 @@ export function EdSection({ label, action, onAction }: { label: string; action?:
 
 /** Pill button. dark = ink CTA, green = accent, outline = secondary on light. */
 export function EdPill({ label, onPress, variant = 'dark', disabled = false, style }: { label: string; onPress?: () => void; variant?: 'dark' | 'green' | 'outline'; disabled?: boolean; style?: ViewStyle }) {
-  const bg = variant === 'dark' ? EDA.ink : variant === 'green' ? EDA.green : 'transparent';
-  const fg = variant === 'outline' ? EDA.ink : '#fff';
-  const border = variant === 'outline' ? { borderWidth: 1.5, borderColor: EDA.line } : undefined;
+  const { t: TT } = useTheme();
+  const bg = variant === 'dark' ? TT.ink : variant === 'green' ? TT.accent : 'transparent';
+  const fg = variant === 'outline' ? TT.ink : '#fff';
+  const border = variant === 'outline' ? { borderWidth: 1.5, borderColor: TT.line } : undefined;
   return (
     <Pressable onPress={disabled ? undefined : onPress} style={[{ height: 54, borderRadius: 27, backgroundColor: bg, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.45 : 1 }, border, style]}>
       <Text style={{ fontSize: 15.5, fontWeight: '700', color: fg }}>{label}</Text>

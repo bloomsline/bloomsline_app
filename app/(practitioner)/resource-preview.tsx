@@ -3,10 +3,11 @@ import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Eye } from 'lucide-react-native';
-import { EDA, EdHeader, EdCard, EdPill, FadeIn } from '@/src/ui/editorial';
+import { EdHeader, EdCard, EdPill, FadeIn } from '@/src/ui/editorial';
 import { Block, ResourceIntro } from '@/src/resources/blocks';
 import { useI18n } from '@/src/i18n';
 import { fetchResourcePreview, type ResourcePreview } from '@/src/api/practitioner';
+import { useTheme } from '@/src/ui/theme-mode';
 
 // See the exercise before you send it.
 //
@@ -31,6 +32,7 @@ const T = {
 } as const;
 
 export default function ResourcePreviewScreen() {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale] ?? T.en;
@@ -55,7 +57,7 @@ export default function ResourcePreviewScreen() {
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/(practitioner)/resources' as never));
 
   return (
-    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+    <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         <EdHeader kicker={tr.kicker} title={view?.resource.title ?? title ?? ''} onBack={back} />
@@ -63,13 +65,13 @@ export default function ResourcePreviewScreen() {
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 18 }}>
           {/* Says plainly that this is a preview. The same words the web uses,
               because a practitioner who has seen one should recognise the other. */}
-          <EdCard style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 18, backgroundColor: EDA.greenTint, borderColor: EDA.greenTint }}>
-            <Eye size={15} color={EDA.greenDeep} style={{ marginTop: 1 }} />
-            <Text style={{ flex: 1, fontSize: 13, lineHeight: 19, color: EDA.greenDeep }}>{tr.chip}</Text>
+          <EdCard style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 18, backgroundColor: TT.accentTint, borderColor: TT.accentTint }}>
+            <Eye size={15} color={TT.accentDeep} style={{ marginTop: 1 }} />
+            <Text style={{ flex: 1, fontSize: 13, lineHeight: 19, color: TT.accentDeep }}>{tr.chip}</Text>
           </EdCard>
 
           {!loaded && <ActivityIndicator />}
-          {loaded && !view && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.missing}</Text>}
+          {loaded && !view && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.missing}</Text>}
 
           {view && (
             <>

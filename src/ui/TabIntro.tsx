@@ -4,6 +4,7 @@ import { Check } from 'lucide-react-native';
 import { storageGet, storageSet } from '@/src/storage';
 import { useI18n } from '@/src/i18n';
 import { EDD } from '@/src/ui/editorial';
+import { useTheme } from '@/src/ui/theme-mode';
 
 type TabKey = 'care' | 'moments' | 'foryou';
 
@@ -14,6 +15,7 @@ type TabKey = 'care' | 'moments' | 'foryou';
 // `tone` follows the tab it sits on: a mint card reads as a highlight on the
 // light tabs and as a hole punched in the page on the dark ones.
 export function TabIntro({ tabKey, tone = 'light', onActiveChange }: { tabKey: TabKey; tone?: 'light' | 'dark'; onActiveChange?: (active: boolean) => void }) {
+  const { t: TT } = useTheme();
   const { t } = useI18n();
   const [show, setShow] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
@@ -56,12 +58,12 @@ export function TabIntro({ tabKey, tone = 'light', onActiveChange }: { tabKey: T
       }}
     >
       {dark ? (
-        <View style={{ borderRadius: 18, padding: 16, backgroundColor: EDD.card, borderWidth: 1, borderColor: EDD.cardLine }}>
+        <View style={{ borderRadius: 18, padding: 16, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine }}>
           <View className="flex-row gap-2.5">
-            <Check size={18} color={EDD.green} strokeWidth={2.5} style={{ marginTop: 1 }} />
+            <Check size={18} color={TT.accent} strokeWidth={2.5} style={{ marginTop: 1 }} />
             <View className="flex-1">
-              <Text style={{ fontSize: 15, fontWeight: '700', color: EDD.text }}>{copy.title}</Text>
-              <Text style={{ marginTop: 4, fontSize: 13, lineHeight: 19, color: EDD.textSoft }}>{copy.body}</Text>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: TT.ink }}>{copy.title}</Text>
+              <Text style={{ marginTop: 4, fontSize: 13, lineHeight: 19, color: TT.inkSoft }}>{copy.body}</Text>
             </View>
           </View>
           <Pressable onPress={dismiss} style={{ marginTop: 14, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: '#fff' }}>

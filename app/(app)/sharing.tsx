@@ -7,12 +7,13 @@ import { ActivityIndicator, Platform, ScrollView, Text, TouchableOpacity, View }
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Lock } from 'lucide-react-native';
-import { EDA, EdHeader, EdCard, FadeIn, MonoLabel } from '@/src/ui/editorial';
+import { EdHeader, EdCard, FadeIn, MonoLabel } from '@/src/ui/editorial';
 import { useOnboarding } from '@/src/onboarding/context';
 import { fetchSharing, type SharedItem } from '@/src/api/care';
 import { shareMoment } from '@/src/api/moments';
 import { moodLabel } from '@/src/moments/moods';
 import { useI18n, fmt, type Locale } from '@/src/i18n';
+import { useTheme } from '@/src/ui/theme-mode';
 
 const T = {
   en: {
@@ -38,6 +39,7 @@ const T = {
 } as const;
 
 export default function Sharing() {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale];
@@ -65,41 +67,41 @@ export default function Sharing() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+    <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         <EdHeader kicker="SHARING" title={fmt(tr.titleCanSee, { name: first })} onBack={() => router.back()} />
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {items === null ? (
-            <View style={{ paddingTop: 40, alignItems: 'center' }}><ActivityIndicator color={EDA.green} /></View>
+            <View style={{ paddingTop: 40, alignItems: 'center' }}><ActivityIndicator color={TT.accent} /></View>
           ) : (
             <>
-              <MonoLabel color={EDA.faint} style={{ marginBottom: 12 }}>{fmt(tr.sharedWith, { name: first, count: items.length })}</MonoLabel>
+              <MonoLabel color={TT.faint} style={{ marginBottom: 12 }}>{fmt(tr.sharedWith, { name: first, count: items.length })}</MonoLabel>
 
               {items.length === 0 ? (
                 <EdCard style={{ alignItems: 'center', padding: 20, marginBottom: 18 }}>
-                  <Text style={{ fontSize: 13.5, color: EDA.inkSoft, textAlign: 'center', lineHeight: 19 }}>{tr.emptyBody}</Text>
+                  <Text style={{ fontSize: 13.5, color: TT.inkSoft, textAlign: 'center', lineHeight: 19 }}>{tr.emptyBody}</Text>
                 </EdCard>
               ) : (
                 <View style={{ gap: 10, marginBottom: 18 }}>
                   {items.map((it) => (
-                    <View key={it.id} style={{ backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, borderRadius: 18, padding: 14, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                      <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: EDA.green }} />
+                    <View key={it.id} style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, borderRadius: 18, padding: 14, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: TT.accent }} />
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 14, fontWeight: '700', color: EDA.ink }} numberOfLines={1}>{label(it, tr, locale)}</Text>
-                        <Text style={{ fontSize: 12, color: EDA.inkSoft, marginTop: 1 }}>{when(it.when, locale)}</Text>
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: TT.ink }} numberOfLines={1}>{label(it, tr, locale)}</Text>
+                        <Text style={{ fontSize: 12, color: TT.inkSoft, marginTop: 1 }}>{when(it.when, locale)}</Text>
                       </View>
                       <TouchableOpacity onPress={() => unshare(it.id)} hitSlop={8} disabled={busy === it.id}>
-                        {busy === it.id ? <ActivityIndicator size="small" color={EDA.green} /> : <Text style={{ fontSize: 13, color: EDA.green, fontWeight: '700' }}>{tr.unshare}</Text>}
+                        {busy === it.id ? <ActivityIndicator size="small" color={TT.accent} /> : <Text style={{ fontSize: 13, color: TT.accent, fontWeight: '700' }}>{tr.unshare}</Text>}
                       </TouchableOpacity>
                     </View>
                   ))}
                 </View>
               )}
 
-              <View style={{ backgroundColor: EDA.greenTint, borderRadius: 18, padding: 16, flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
-                <Lock size={15} color={EDA.greenDeep} strokeWidth={2} />
-                <Text style={{ flex: 1, fontSize: 13, color: EDA.greenDeep, lineHeight: 19 }}>
+              <View style={{ backgroundColor: TT.accentTint, borderRadius: 18, padding: 16, flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
+                <Lock size={15} color={TT.accentDeep} strokeWidth={2} />
+                <Text style={{ flex: 1, fontSize: 13, color: TT.accentDeep, lineHeight: 19 }}>
                   {tr.privacyNote}
                 </Text>
               </View>

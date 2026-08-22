@@ -15,6 +15,7 @@ import { Quote, ImageOff, AudioLines, Video, Play } from 'lucide-react-native';
 import { EDD } from '@/src/ui/editorial';
 import { MOOD_SCORES, moodColor } from '@/src/moments/moods';
 import type { MomentDTO } from '@/src/api/moments';
+import { useTheme } from '@/src/ui/theme-mode';
 
 /** 0..1 across the line: 0 is the heaviest edge, 1 the lightest. */
 export function valenceOf(m: { moods: string[] }): number {
@@ -158,6 +159,7 @@ export function Line({
   onOpen: (m: MomentDTO) => void;
   onCaptureToday: () => void;
 }) {
+  const { t: TT } = useTheme();
   const { nodes, height } = useMemo(() => layout(moments, width, locale), [moments, width, locale]);
 
   const todayY = height - NODE / 2 - 6;
@@ -197,16 +199,16 @@ export function Line({
               onPress={() => onOpen(n.moment)}
               style={{ position: 'absolute', top: n.y - 22, left: n.x < width / 2 ? n.x + NODE / 2 + 16 : undefined, right: n.x < width / 2 ? undefined : width - (n.x - NODE / 2) + 16, maxWidth: width * 0.42 }}
             >
-              <Text numberOfLines={2} style={{ fontSize: 13, color: EDD.textSoft, lineHeight: 18, textAlign: n.x < width / 2 ? 'left' : 'right' }}>
+              <Text numberOfLines={2} style={{ fontSize: 13, color: TT.inkSoft, lineHeight: 18, textAlign: n.x < width / 2 ? 'left' : 'right' }}>
                 {n.moment.textContent}
               </Text>
-              <Text style={{ fontSize: 11, color: EDD.faint, marginTop: 3, textAlign: n.x < width / 2 ? 'left' : 'right' }}>{labels.tapToRead}</Text>
+              <Text style={{ fontSize: 11, color: TT.faint, marginTop: 3, textAlign: n.x < width / 2 ? 'left' : 'right' }}>{labels.tapToRead}</Text>
             </Pressable>
           ) : null}
         </View>
       ))}
 
-      <Text style={{ position: 'absolute', left: 14, top: todayY - 8, fontSize: 12, color: EDD.textSoft, fontWeight: '600' }}>{labels.today}</Text>
+      <Text style={{ position: 'absolute', left: 14, top: todayY - 8, fontSize: 12, color: TT.inkSoft, fontWeight: '600' }}>{labels.today}</Text>
       <Pressable
         onPress={onCaptureToday}
         style={{ position: 'absolute', left: todayX - NODE / 2, top: todayY - NODE / 2, width: NODE, height: NODE, borderRadius: NODE / 2 }}

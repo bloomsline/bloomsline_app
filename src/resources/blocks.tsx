@@ -13,6 +13,7 @@ import { useI18n } from '@/src/i18n';
 import { htmlToPlainText, parseRichText, type Span } from '@/src/resources/html';
 import { ZonedCanvasField } from '@/src/resources/zoned-canvas-field';
 import { uploadResponseFile, type PatientBlock, type UploadedFile } from '@/src/api/resources';
+import { useTheme } from '@/src/ui/theme-mode';
 
 export const INTERACTIVE = new Set(['short_text', 'long_text', 'single_choice', 'multi_choice', 'scale', 'yes_no', 'number', 'date', 'table', 'file_upload', 'zoned_canvas']);
 
@@ -145,11 +146,12 @@ export function Block({ block, value, onChange, missing, readOnly = false, media
 // before the material starts. EDA rather than CARE tokens: this renders inside
 // the editorial screens, next to their green chips.
 export function ResourceIntro({ text }: { text: string | null | undefined }) {
+  const { t: TT } = useTheme();
   const body = text?.trim();
   if (!body) return null;
   return (
-    <View style={{ backgroundColor: EDA.greenTint, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 22 }}>
-      <Text style={{ fontSize: 15, color: EDA.greenDeep, lineHeight: 23 }}>{body}</Text>
+    <View style={{ backgroundColor: TT.accentTint, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 22 }}>
+      <Text style={{ fontSize: 15, color: TT.accentDeep, lineHeight: 23 }}>{body}</Text>
     </View>
   );
 }

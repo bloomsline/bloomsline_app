@@ -12,6 +12,7 @@ import { useConfirm } from '@/src/ui/confirm';
 import { AudioRow, MediaViewer } from '@/src/ui/MediaViewer';
 import { useI18n } from '@/src/i18n';
 import { EDA, MonoLabel } from '@/src/ui/editorial';
+import { useTheme } from '@/src/ui/theme-mode';
 
 const T = {
   en: {
@@ -59,6 +60,7 @@ const fmtDur = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2
 const BLOOM = EDA.green;
 
 export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO; onClose: () => void; onChanged: () => void }) {
+  const { t: TT } = useTheme();
   const insets = useSafeAreaInsets();
   const { locale, t } = useI18n();
   const confirm = useConfirm();
@@ -126,10 +128,10 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
       <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
         <Pressable
           onPress={() => {}}
-          style={{ backgroundColor: EDA.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingBottom: insets.bottom + 16, maxHeight: '82%' }}
+          style={{ backgroundColor: TT.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingBottom: insets.bottom + 16, maxHeight: '82%' }}
         >
           <View style={{ alignItems: 'center', paddingVertical: 12 }}>
-            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: EDA.line }} />
+            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: TT.line }} />
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>
@@ -152,8 +154,8 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
               )}
 
               {/* Text + caption */}
-              {moment.textContent ? <Text style={{ fontSize: 17, color: EDA.ink, lineHeight: 26, marginBottom: 12 }}>{moment.textContent}</Text> : null}
-              {moment.caption ? <Text style={{ fontSize: 15, color: EDA.inkSoft, lineHeight: 22, marginBottom: 12 }}>{moment.caption}</Text> : null}
+              {moment.textContent ? <Text style={{ fontSize: 17, color: TT.ink, lineHeight: 26, marginBottom: 12 }}>{moment.textContent}</Text> : null}
+              {moment.caption ? <Text style={{ fontSize: 15, color: TT.inkSoft, lineHeight: 22, marginBottom: 12 }}>{moment.caption}</Text> : null}
 
               {/* Extra media */}
               {moment.media.length > 1 && (
@@ -167,7 +169,7 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
               )}
 
               {/* Time */}
-              <MonoLabel color={EDA.faint} size={10.5}>{timeLabel}</MonoLabel>
+              <MonoLabel color={TT.faint} size={10.5}>{timeLabel}</MonoLabel>
 
               {/* Share to practitioner */}
               <TouchableOpacity
@@ -176,7 +178,7 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
                 activeOpacity={0.85}
                 style={{
                   flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16, paddingVertical: 16,
-                  backgroundColor: shared ? EDA.greenTint : BLOOM, borderRadius: 27, borderWidth: shared ? 1 : 0, borderColor: shared ? EDA.line : 'transparent',
+                  backgroundColor: shared ? TT.accentTint : BLOOM, borderRadius: 27, borderWidth: shared ? 1 : 0, borderColor: shared ? TT.line : 'transparent',
                 }}
               >
                 {sharing ? (
@@ -236,6 +238,7 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
 }
 
 function MediaHero({ item, onOpen }: { item: MomentMediaDTO; onOpen: () => void }) {
+  const { t: TT } = useTheme();
   const { locale } = useI18n();
   const tr = T[locale];
   // Audio plays in place. There is nothing to look at, so a full screen showing
@@ -253,7 +256,7 @@ function MediaHero({ item, onOpen }: { item: MomentMediaDTO; onOpen: () => void 
   // video, so a photograph could not be enlarged at all.
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={onOpen}>
-      {poster ? <Image source={{ uri: poster }} style={{ width: '100%', height: 260 }} resizeMode="cover" /> : <View style={{ width: '100%', height: 260, backgroundColor: EDA.slot }} />}
+      {poster ? <Image source={{ uri: poster }} style={{ width: '100%', height: 260 }} resizeMode="cover" /> : <View style={{ width: '100%', height: 260, backgroundColor: TT.slot }} />}
       {isVideo && (
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
           <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' }}>
@@ -266,13 +269,14 @@ function MediaHero({ item, onOpen }: { item: MomentMediaDTO; onOpen: () => void 
 }
 
 function MediaThumb({ item, onOpen }: { item: MomentMediaDTO; onOpen: () => void }) {
+  const { t: TT } = useTheme();
   const { locale } = useI18n();
   const tr = T[locale];
   if (item.kind === 'audio') {
     return (
-      <TouchableOpacity onPress={onOpen} activeOpacity={0.8} style={{ width: 120, height: 120, borderRadius: 16, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-        <Mic size={22} color={EDA.green} strokeWidth={2} />
-        <Text style={{ fontSize: 11, color: EDA.inkSoft }}>{item.durationSeconds ? fmtDur(item.durationSeconds) : tr.voice}</Text>
+      <TouchableOpacity onPress={onOpen} activeOpacity={0.8} style={{ width: 120, height: 120, borderRadius: 16, backgroundColor: TT.accentTint, alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+        <Mic size={22} color={TT.accent} strokeWidth={2} />
+        <Text style={{ fontSize: 11, color: TT.inkSoft }}>{item.durationSeconds ? fmtDur(item.durationSeconds) : tr.voice}</Text>
       </TouchableOpacity>
     );
   }
@@ -280,7 +284,7 @@ function MediaThumb({ item, onOpen }: { item: MomentMediaDTO; onOpen: () => void
   const isVideo = item.kind === 'video';
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={onOpen}>
-      {poster ? <Image source={{ uri: poster }} style={{ width: 120, height: 120, borderRadius: 16 }} resizeMode="cover" /> : <View style={{ width: 120, height: 120, borderRadius: 16, backgroundColor: EDA.slot }} />}
+      {poster ? <Image source={{ uri: poster }} style={{ width: 120, height: 120, borderRadius: 16 }} resizeMode="cover" /> : <View style={{ width: 120, height: 120, borderRadius: 16, backgroundColor: TT.slot }} />}
       {isVideo && (
         <View style={{ position: 'absolute', top: 44, left: 44, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
           <Play size={16} color="#fff" fill="#fff" />

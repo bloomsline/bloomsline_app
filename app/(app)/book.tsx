@@ -11,12 +11,13 @@ import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'rea
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronDown, ChevronUp, Check, Video, Phone, MapPin } from 'lucide-react-native';
-import { EDA, EdHeader, EdPill, FadeIn } from '@/src/ui/editorial';
+import { EdHeader, EdPill, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useOnboarding } from '@/src/onboarding/context';
 import { FORCE_CARE_HUB } from '@/src/config';
 import { fetchSlots, type SlotDay, type BookingSlots } from '@/src/api/booking';
 import { useI18n, type Locale } from '@/src/i18n';
+import { useTheme } from '@/src/ui/theme-mode';
 
 type Step = 'service' | 'format' | 'time';
 
@@ -95,6 +96,7 @@ function priceLabel(cents: number | null, currency: string, noChargeLabel: strin
 }
 
 export default function Book() {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale];
@@ -192,22 +194,22 @@ export default function Book() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+      <View style={{ flex: 1, backgroundColor: TT.bg }}>
         <StatusBar style="dark" />
         <EdHeader kicker={kicker} title={title} source={ONBOARDING_IMAGES.card4} onBack={back} />
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={EDA.green} /></View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={TT.accent} /></View>
       </View>
     );
   }
 
   if (!data) {
     return (
-      <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+      <View style={{ flex: 1, backgroundColor: TT.bg }}>
         <StatusBar style="dark" />
         <EdHeader kicker={kicker} title={title} source={ONBOARDING_IMAGES.card4} onBack={back} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: EDA.ink }}>{tr.unavailable}</Text>
-          <Text style={{ fontSize: 13.5, color: EDA.inkSoft, textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: TT.ink }}>{tr.unavailable}</Text>
+          <Text style={{ fontSize: 13.5, color: TT.inkSoft, textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
             {tr.unavailableBody(name)}
           </Text>
         </View>
@@ -230,13 +232,13 @@ export default function Book() {
   const rail = stepList.length > 1 ? (
     <View style={{ flexDirection: 'row', gap: 6, marginBottom: 18 }}>
       {stepList.map((sName, i) => (
-        <View key={sName} style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: i <= stepIdx ? EDA.green : EDA.line }} />
+        <View key={sName} style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: i <= stepIdx ? TT.accent : TT.line }} />
       ))}
     </View>
   ) : null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+    <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: step === 'time' ? 120 : 40 }} showsVerticalScrollIndicator={false}>
         <EdHeader kicker={kicker} title={headerTitle} subtitle={headerSubtitle} source={ONBOARDING_IMAGES.card4} onBack={back} />
@@ -248,12 +250,12 @@ export default function Book() {
               const on = typeId === t.id;
               return (
                 <TouchableOpacity key={t.id} onPress={() => chooseType(t.id)} activeOpacity={0.85}
-                  style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? EDA.greenTint : EDA.card, borderWidth: 1, borderColor: on ? EDA.green : EDA.line, borderRadius: 18, padding: 16, marginBottom: 10 }}>
+                  style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? TT.accentTint : TT.card, borderWidth: 1, borderColor: on ? TT.accent : TT.line, borderRadius: 18, padding: 16, marginBottom: 10 }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15.5, fontWeight: '700', color: EDA.ink }}>{t.name}</Text>
-                    <Text style={{ fontSize: 13, color: EDA.inkSoft, marginTop: 2 }}>{t.durationMinutes} {tr.min} · {priceLabel(t.priceCents, data.currency, tr.noCharge)}</Text>
+                    <Text style={{ fontSize: 15.5, fontWeight: '700', color: TT.ink }}>{t.name}</Text>
+                    <Text style={{ fontSize: 13, color: TT.inkSoft, marginTop: 2 }}>{t.durationMinutes} {tr.min} · {priceLabel(t.priceCents, data.currency, tr.noCharge)}</Text>
                   </View>
-                  {on && <Check size={18} color={EDA.green} strokeWidth={2.5} />}
+                  {on && <Check size={18} color={TT.accent} strokeWidth={2.5} />}
                 </TouchableOpacity>
               );
             })
@@ -263,21 +265,21 @@ export default function Book() {
               const on = format === f;
               return (
                 <TouchableOpacity key={f} onPress={() => chooseFormat(f)} activeOpacity={0.85}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: on ? EDA.greenTint : EDA.card, borderWidth: 1, borderColor: on ? EDA.green : EDA.line, borderRadius: 18, padding: 16, marginBottom: 10 }}>
-                  <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: EDA.greenTint, alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon size={19} color={EDA.green} strokeWidth={2} />
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: on ? TT.accentTint : TT.card, borderWidth: 1, borderColor: on ? TT.accent : TT.line, borderRadius: 18, padding: 16, marginBottom: 10 }}>
+                  <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: TT.accentTint, alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon size={19} color={TT.accent} strokeWidth={2} />
                   </View>
-                  <Text style={{ flex: 1, fontSize: 15.5, fontWeight: '700', color: EDA.ink }}>{formatLabel(f)}</Text>
-                  {on && <Check size={18} color={EDA.green} strokeWidth={2.5} />}
+                  <Text style={{ flex: 1, fontSize: 15.5, fontWeight: '700', color: TT.ink }}>{formatLabel(f)}</Text>
+                  {on && <Check size={18} color={TT.accent} strokeWidth={2.5} />}
                 </TouchableOpacity>
               );
             })
           ) : slotsLoading ? (
-            <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 80 }}><ActivityIndicator color={EDA.green} /></View>
+            <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 80 }}><ActivityIndicator color={TT.accent} /></View>
           ) : days.length === 0 ? (
             <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 60, paddingHorizontal: 10 }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: EDA.ink }}>{tr.noTimes}</Text>
-              <Text style={{ fontSize: 13.5, color: EDA.inkSoft, textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: TT.ink }}>{tr.noTimes}</Text>
+              <Text style={{ fontSize: 13.5, color: TT.inkSoft, textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
                 {tr.noTimesBody}
               </Text>
             </View>
@@ -285,18 +287,18 @@ export default function Book() {
             days.map((d) => {
               const open = openDay === d.date;
               return (
-                <View key={d.date} style={{ backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, borderRadius: 18, overflow: 'hidden', marginBottom: 10 }}>
+                <View key={d.date} style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, borderRadius: 18, overflow: 'hidden', marginBottom: 10 }}>
                   <TouchableOpacity onPress={() => setOpenDay(open ? '' : d.date)} activeOpacity={0.7} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink }}>{dayLabel(d.date, locale)}</Text>
-                    {open ? <ChevronUp size={18} color={EDA.faint} strokeWidth={2} /> : <ChevronDown size={18} color={EDA.faint} strokeWidth={2} />}
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: TT.ink }}>{dayLabel(d.date, locale)}</Text>
+                    {open ? <ChevronUp size={18} color={TT.faint} strokeWidth={2} /> : <ChevronDown size={18} color={TT.faint} strokeWidth={2} />}
                   </TouchableOpacity>
                   {open && (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, paddingBottom: 16 }}>
                       {d.slots.map((sl) => {
                         const on = pick === sl;
                         return (
-                          <TouchableOpacity key={sl} onPress={() => setPick(sl)} activeOpacity={0.8} style={{ paddingVertical: 11, paddingHorizontal: 18, borderRadius: 14, backgroundColor: on ? EDA.green : EDA.card, borderWidth: 1, borderColor: on ? EDA.green : EDA.line }}>
-                            <Text style={{ fontSize: 14, fontWeight: '700', color: on ? '#fff' : EDA.ink }}>{slotTime(sl)}</Text>
+                          <TouchableOpacity key={sl} onPress={() => setPick(sl)} activeOpacity={0.8} style={{ paddingVertical: 11, paddingHorizontal: 18, borderRadius: 14, backgroundColor: on ? TT.accent : TT.card, borderWidth: 1, borderColor: on ? TT.accent : TT.line }}>
+                            <Text style={{ fontSize: 14, fontWeight: '700', color: on ? '#fff' : TT.ink }}>{slotTime(sl)}</Text>
                           </TouchableOpacity>
                         );
                       })}

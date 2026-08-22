@@ -3,11 +3,12 @@ import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Check, Eye, Inbox, Search, Share2 } from 'lucide-react-native';
-import { EDA, EdHeader, EdCard, EdPill, EdSection, FadeIn } from '@/src/ui/editorial';
+import { EdHeader, EdCard, EdPill, EdSection, FadeIn } from '@/src/ui/editorial';
 import { PractitionerTabBar, PRACTITIONER_TAB_PAD } from '@/src/ui/PractitionerTabBar';
 import { useConfirm } from '@/src/ui/confirm';
 import { useI18n } from '@/src/i18n';
 import { fetchShareableResources, fetchPatients, shareResource, type ShareableResource, type PatientListItem } from '@/src/api/practitioner';
+import { useTheme } from '@/src/ui/theme-mode';
 
 // The library, for SHARING. Published resources only — a draft has no frozen
 // version to pin an assignment to, so it cannot be sent.
@@ -38,6 +39,7 @@ const T = {
 const fill = (s: string, vars: Record<string, string>) => s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
 
 export default function Resources() {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale] ?? T.en;
@@ -99,7 +101,7 @@ export default function Resources() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+    <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: PRACTITIONER_TAB_PAD }} showsVerticalScrollIndicator={false}>
         <EdHeader kicker={tr.kicker} title={tr.title} />
@@ -108,17 +110,17 @@ export default function Resources() {
           {!picked ? (
             <>
               <EdCard style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, marginBottom: 16 }}>
-                <Search size={16} color={EDA.faint} />
-                <TextInput value={q} onChangeText={setQ} placeholder={tr.search} placeholderTextColor={EDA.faint} style={{ flex: 1, fontSize: 15, color: EDA.ink }} autoCorrect={false} />
+                <Search size={16} color={TT.faint} />
+                <TextInput value={q} onChangeText={setQ} placeholder={tr.search} placeholderTextColor={TT.faint} style={{ flex: 1, fontSize: 15, color: TT.ink }} autoCorrect={false} />
               </EdCard>
               {!loaded && <ActivityIndicator />}
-              {loaded && shown.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.empty}</Text>}
+              {loaded && shown.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.empty}</Text>}
               {shown.map((r) => {
                 const n = r.submissionCount ?? 0;
                 return (
                   <EdCard key={r.id} onPress={() => { setPicked(r); setDone(''); setError(''); }} style={{ marginBottom: 10 }}>
-                    <Text style={{ fontSize: 15.5, fontWeight: '700', color: EDA.ink }}>{r.title}</Text>
-                    {r.description ? <Text numberOfLines={2} style={{ fontSize: 13, color: EDA.inkSoft, marginTop: 4, lineHeight: 19 }}>{r.description}</Text> : null}
+                    <Text style={{ fontSize: 15.5, fontWeight: '700', color: TT.ink }}>{r.title}</Text>
+                    {r.description ? <Text numberOfLines={2} style={{ fontSize: 13, color: TT.inkSoft, marginTop: 4, lineHeight: 19 }}>{r.description}</Text> : null}
 
                     {/* The card body picks the resource to share. These two are
                         separate targets because they are separate errands, and
@@ -128,20 +130,20 @@ export default function Resources() {
                       <Pressable
                         onPress={() => router.navigate({ pathname: '/(practitioner)/resource-preview', params: { id: r.id, title: r.title } } as never)}
                         hitSlop={6}
-                        style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 16, borderWidth: 1, borderColor: EDA.line, paddingHorizontal: 11, paddingVertical: 6 }}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 16, borderWidth: 1, borderColor: TT.line, paddingHorizontal: 11, paddingVertical: 6 }}
                       >
-                        <Eye size={13} color={EDA.inkSoft} />
-                        <Text style={{ fontSize: 12.5, fontWeight: '700', color: EDA.inkSoft }}>{tr.preview}</Text>
+                        <Eye size={13} color={TT.inkSoft} />
+                        <Text style={{ fontSize: 12.5, fontWeight: '700', color: TT.inkSoft }}>{tr.preview}</Text>
                       </Pressable>
 
                       {n > 0 && (
                         <Pressable
                           onPress={() => router.navigate({ pathname: '/(practitioner)/submissions', params: { resourceId: r.id, title: r.title } } as never)}
                           hitSlop={6}
-                          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 16, backgroundColor: EDA.greenTint, paddingHorizontal: 11, paddingVertical: 6 }}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 16, backgroundColor: TT.accentTint, paddingHorizontal: 11, paddingVertical: 6 }}
                         >
-                          <Inbox size={13} color={EDA.greenDeep} />
-                          <Text style={{ fontSize: 12.5, fontWeight: '800', color: EDA.greenDeep }}>
+                          <Inbox size={13} color={TT.accentDeep} />
+                          <Text style={{ fontSize: 12.5, fontWeight: '800', color: TT.accentDeep }}>
                             {n} {n === 1 ? tr.one : tr.many}
                           </Text>
                         </Pressable>
@@ -158,25 +160,25 @@ export default function Resources() {
                 style={{ marginBottom: 18 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <Share2 size={16} color={EDA.green} />
-                  <Text style={{ flex: 1, fontSize: 15.5, fontWeight: '700', color: EDA.ink }}>{picked.title}</Text>
+                  <Share2 size={16} color={TT.accent} />
+                  <Text style={{ flex: 1, fontSize: 15.5, fontWeight: '700', color: TT.ink }}>{picked.title}</Text>
                   {/* Still reachable at the last step: the moment before sending
                       is exactly when a doubt about which exercise this is
                       surfaces. */}
-                  <Eye size={15} color={EDA.faint} />
+                  <Eye size={15} color={TT.faint} />
                 </View>
               </EdCard>
 
               <EdSection label={tr.pick} />
-              {patients.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.noPatients}</Text>}
+              {patients.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.noPatients}</Text>}
               {patients.map((p) => (
                 <EdCard key={p.id} onPress={() => send(p)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                  <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: EDA.ink }}>{p.name}</Text>
-                  {busyId === p.id ? <ActivityIndicator size="small" /> : <Check size={16} color={EDA.line} />}
+                  <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: TT.ink }}>{p.name}</Text>
+                  {busyId === p.id ? <ActivityIndicator size="small" /> : <Check size={16} color={TT.line} />}
                 </EdCard>
               ))}
 
-              {done ? <Text style={{ fontSize: 13.5, fontWeight: '700', color: EDA.green, marginTop: 6 }}>{done}</Text> : null}
+              {done ? <Text style={{ fontSize: 13.5, fontWeight: '700', color: TT.accent, marginTop: 6 }}>{done}</Text> : null}
               {error ? <Text style={{ fontSize: 13.5, color: '#C0392B', marginTop: 6 }}>{error}</Text> : null}
 
               <EdPill label={tr.back} variant="outline" onPress={() => setPicked(null)} style={{ marginTop: 18 }} />

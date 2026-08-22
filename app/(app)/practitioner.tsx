@@ -16,6 +16,7 @@ import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useOnboarding } from '@/src/onboarding/context';
 import { fetchCare, type CarePractitioner } from '@/src/api/care';
 import { useI18n, fmt } from '@/src/i18n';
+import { useTheme } from '@/src/ui/theme-mode';
 
 const T = {
   en: {
@@ -39,6 +40,7 @@ function joinOrNull(parts: (string | null | undefined)[], sep: string): string |
 }
 
 export default function Practitioner() {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { locale, t } = useI18n();
   const tr = T[locale];
@@ -79,7 +81,7 @@ export default function Practitioner() {
   ].filter((f): f is { label: string; value: string } => f !== null);
 
   return (
-    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+    <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         <EdHeader
@@ -102,7 +104,7 @@ export default function Practitioner() {
           {p?.bio ? (
             <EdCard style={{ marginTop: facts.length > 0 ? 0 : 6, marginBottom: 14 }}>
               <EdSection label={t.profile.about} />
-              <Text style={{ fontSize: 14, color: EDA.inkSoft, lineHeight: 22 }}>{p.bio}</Text>
+              <Text style={{ fontSize: 14, color: TT.inkSoft, lineHeight: 22 }}>{p.bio}</Text>
             </EdCard>
           ) : null}
 
@@ -114,7 +116,7 @@ export default function Practitioner() {
               style={{ marginTop: facts.length === 0 && !p?.bio ? 14 : 6 }}
             />
           ) : (
-            <Text style={{ fontSize: 12.5, color: EDA.inkSoft, textAlign: 'center', marginTop: facts.length === 0 && !p?.bio ? 20 : 6, lineHeight: 18 }}>
+            <Text style={{ fontSize: 12.5, color: TT.inkSoft, textAlign: 'center', marginTop: facts.length === 0 && !p?.bio ? 20 : 6, lineHeight: 18 }}>
               {name ? fmt(tr.arranges, { name }) : tr.arrangesGeneric}
             </Text>
           )}
@@ -125,10 +127,11 @@ export default function Practitioner() {
 }
 
 function FactCard({ label, value }: { label: string; value: string }) {
+  const { t: TT } = useTheme();
   return (
-    <View style={{ flex: 1, backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, borderRadius: 16, padding: 14, alignItems: 'center' }}>
-      <MonoLabel color={EDA.faint} size={9.5}>{label}</MonoLabel>
-      <Text style={{ fontSize: 13.5, color: EDA.ink, fontWeight: '600', marginTop: 6, textAlign: 'center' }}>{value}</Text>
+    <View style={{ flex: 1, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, borderRadius: 16, padding: 14, alignItems: 'center' }}>
+      <MonoLabel color={TT.faint} size={9.5}>{label}</MonoLabel>
+      <Text style={{ fontSize: 13.5, color: TT.ink, fontWeight: '600', marginTop: 6, textAlign: 'center' }}>{value}</Text>
     </View>
   );
 }

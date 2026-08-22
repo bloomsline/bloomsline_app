@@ -7,6 +7,7 @@ import { EDA, EdHeader, MonoLabel, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { fetchHistory, type CareSession } from '@/src/api/care';
 import { useI18n, type Locale } from '@/src/i18n';
+import { useTheme } from '@/src/ui/theme-mode';
 
 const T = {
   en: {
@@ -46,6 +47,7 @@ const STATUS_STYLE: Record<string, { labelKey: 'attended' | 'past' | 'cancelled'
 };
 
 export default function SessionHistory() {
+  const { t: TT } = useTheme();
   const { locale } = useI18n();
   const tr = T[locale];
   const router = useRouter();
@@ -59,32 +61,32 @@ export default function SessionHistory() {
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/home' as never));
 
   return (
-    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+    <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
         <EdHeader source={ONBOARDING_IMAGES.final} kicker="SESSION HISTORY" title={tr.title} onBack={back} />
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {items === null ? (
-            <View style={{ paddingTop: 40, alignItems: 'center' }}><ActivityIndicator color={EDA.green} /></View>
+            <View style={{ paddingTop: 40, alignItems: 'center' }}><ActivityIndicator color={TT.accent} /></View>
           ) : items.length === 0 ? (
-            <View style={{ backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, borderRadius: 20, padding: 24, alignItems: 'center', marginTop: 4 }}>
-              <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink }}>{tr.emptyTitle}</Text>
-              <Text style={{ fontSize: 13, color: EDA.inkSoft, marginTop: 6, textAlign: 'center', lineHeight: 19 }}>{tr.emptyBody}</Text>
+            <View style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, borderRadius: 20, padding: 24, alignItems: 'center', marginTop: 4 }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: TT.ink }}>{tr.emptyTitle}</Text>
+              <Text style={{ fontSize: 13, color: TT.inkSoft, marginTop: 6, textAlign: 'center', lineHeight: 19 }}>{tr.emptyBody}</Text>
             </View>
           ) : (
             <View style={{ gap: 10 }}>
               {items.map((s) => {
                 const st = STATUS_STYLE[s.status] ?? STATUS_STYLE.scheduled;
                 return (
-                  <View key={s.id} style={{ backgroundColor: EDA.card, borderWidth: 1, borderColor: EDA.line, borderRadius: 18, padding: 15, paddingRight: 14, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                  <View key={s.id} style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, borderRadius: 18, padding: 15, paddingRight: 14, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
                     <View style={{ width: 46, alignItems: 'center' }}>
-                      <MonoLabel color={EDA.green} size={9.5}>{monthShort(s.scheduledAt, locale)}</MonoLabel>
-                      <Text style={{ fontSize: 20, fontWeight: '800', color: EDA.ink, lineHeight: 24 }}>{dayNum(s.scheduledAt)}</Text>
+                      <MonoLabel color={TT.accent} size={9.5}>{monthShort(s.scheduledAt, locale)}</MonoLabel>
+                      <Text style={{ fontSize: 20, fontWeight: '800', color: TT.ink, lineHeight: 24 }}>{dayNum(s.scheduledAt)}</Text>
                     </View>
-                    <View style={{ width: 1, height: 32, backgroundColor: EDA.line }} />
+                    <View style={{ width: 1, height: 32, backgroundColor: TT.line }} />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: EDA.ink }}>{clock(s.scheduledAt)} · {fmtFormat(s.sessionFormat, tr)}</Text>
-                      <Text style={{ fontSize: 12, color: EDA.inkSoft, marginTop: 1 }}>{s.durationMinutes} min</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: TT.ink }}>{clock(s.scheduledAt)} · {fmtFormat(s.sessionFormat, tr)}</Text>
+                      <Text style={{ fontSize: 12, color: TT.inkSoft, marginTop: 1 }}>{s.durationMinutes} min</Text>
                     </View>
                     <View style={{ backgroundColor: st.bg, borderRadius: 11, paddingVertical: 4, paddingHorizontal: 10 }}>
                       <Text style={{ fontSize: 11.5, fontWeight: '700', color: st.color }}>{tr[st.labelKey]}</Text>

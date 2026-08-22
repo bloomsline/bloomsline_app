@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { EDA, EdHeader, EdCard, EdPill, EdSection, FadeIn } from '@/src/ui/editorial';
+import { EdHeader, EdCard, EdPill, EdSection, FadeIn } from '@/src/ui/editorial';
 import { MonthCalendar } from '@/src/ui/MonthCalendar';
 import { notify } from '@/src/ui/alert';
 import { useI18n } from '@/src/i18n';
 import { fetchPatients, fetchBookingOptions, rescheduleSession, type PatientListItem, type SessionTypeOption, type NextAvailableDay } from '@/src/api/practitioner';
+import { useTheme } from '@/src/ui/theme-mode';
 
 // Book a session: who, what kind, which day, which slot.
 //
@@ -39,6 +40,7 @@ const T = {
 const fill = (s: string, vars: Record<string, string>) => s.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
 
 export default function Book() {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale] ?? T.en;
@@ -194,7 +196,7 @@ export default function Book() {
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/(practitioner)/home' as never));
 
   return (
-    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+    <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         <EdHeader kicker={moveId ? tr.moveKicker : tr.kicker} title={moveId ? tr.moveTitle : tr.title} onBack={back} />
@@ -204,8 +206,8 @@ export default function Book() {
               would invite changing them by accident on the way past. */}
           {moveId ? (
             <EdCard style={{ marginBottom: 22 }}>
-              <Text style={{ fontSize: 15, fontWeight: '700', color: EDA.ink }}>{params.name ?? ''}</Text>
-              <Text style={{ fontSize: 12.5, color: EDA.faint, marginTop: 2 }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: TT.ink }}>{params.name ?? ''}</Text>
+              <Text style={{ fontSize: 12.5, color: TT.faint, marginTop: 2 }}>
                 {params.sessionType ? `${params.sessionType} · ` : ''}{moveDuration} min
               </Text>
             </EdCard>
@@ -214,17 +216,17 @@ export default function Book() {
           <EdSection label={tr.who} />
           {!patient ? (
             <>
-              {patients.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.noPatients}</Text>}
+              {patients.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.noPatients}</Text>}
               {patients.map((p) => (
                 <EdCard key={p.id} onPress={() => setPatient(p)} style={{ marginBottom: 10 }}>
-                  <Text style={{ fontSize: 15, fontWeight: '600', color: EDA.ink }}>{p.name}</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: TT.ink }}>{p.name}</Text>
                 </EdCard>
               ))}
             </>
           ) : (
             <EdCard onPress={() => setPatient(null)} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 22 }}>
-              <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: EDA.ink }}>{patient.name}</Text>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: EDA.green }}>{tr.change}</Text>
+              <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: TT.ink }}>{patient.name}</Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: TT.accent }}>{tr.change}</Text>
             </EdCard>
           )}
 
@@ -238,10 +240,10 @@ export default function Book() {
                     <Pressable
                       key={t.id}
                       onPress={() => setType(t)}
-                      style={{ borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: on ? EDA.greenTint : EDA.card, borderWidth: 1.5, borderColor: on ? EDA.green : EDA.line }}
+                      style={{ borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: on ? TT.accentTint : TT.card, borderWidth: 1.5, borderColor: on ? TT.accent : TT.line }}
                     >
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: on ? EDA.greenDeep : EDA.inkSoft }}>{t.label}</Text>
-                      <Text style={{ fontSize: 11.5, color: EDA.faint, marginTop: 1 }}>{t.durationMinutes} min</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: on ? TT.accentDeep : TT.inkSoft }}>{t.label}</Text>
+                      <Text style={{ fontSize: 11.5, color: TT.faint, marginTop: 1 }}>{t.durationMinutes} min</Text>
                     </Pressable>
                   );
                 })}
@@ -270,12 +272,12 @@ export default function Book() {
                         <Pressable
                           key={d.date}
                           onPress={() => setDate(d.date)}
-                          style={{ borderRadius: 16, paddingHorizontal: 13, paddingVertical: 10, backgroundColor: EDA.card, borderWidth: 1.5, borderColor: d.date === date ? EDA.green : EDA.line }}
+                          style={{ borderRadius: 16, paddingHorizontal: 13, paddingVertical: 10, backgroundColor: TT.card, borderWidth: 1.5, borderColor: d.date === date ? TT.accent : TT.line }}
                         >
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: EDA.ink }}>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: TT.ink }}>
                             {new Date(`${d.date}T00:00:00`).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
                           </Text>
-                          <Text style={{ fontSize: 11.5, color: EDA.green, marginTop: 1 }}>
+                          <Text style={{ fontSize: 11.5, color: TT.accent, marginTop: 1 }}>
                             {d.slots.length} {d.slots.length === 1 ? tr.slotOne : tr.slotMany}
                           </Text>
                         </Pressable>
@@ -292,11 +294,11 @@ export default function Book() {
             <>
               <EdSection label={tr.slot} />
               {(slotsLoading || moving) && <ActivityIndicator />}
-              {!slotsLoading && slots.length === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.noSlots}</Text>}
+              {!slotsLoading && slots.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.noSlots}</Text>}
               {/* Say so when the tapped time was not itself free, rather than
                   quietly substituting the nearest one. */}
               {fromTap && chosen && !exact && !slotsLoading && (
-                <Text style={{ fontSize: 13, color: EDA.inkSoft, marginBottom: 10, lineHeight: 19 }}>
+                <Text style={{ fontSize: 13, color: TT.inkSoft, marginBottom: 10, lineHeight: 19 }}>
                   {fill(tr.nearestNote, { asked: params.initialTime as string, got: time(chosen) })}
                 </Text>
               )}
@@ -313,9 +315,9 @@ export default function Book() {
                       // worked and the one people know.
                       onPress={() => (moveId ? move(s) : fromTap ? setPicked(s) : review(s))}
                       disabled={moving}
-                      style={{ borderRadius: 18, paddingHorizontal: 16, paddingVertical: 11, backgroundColor: on ? EDA.green : EDA.card, borderWidth: 1.5, borderColor: on ? EDA.green : EDA.line, opacity: moving ? 0.5 : 1 }}
+                      style={{ borderRadius: 18, paddingHorizontal: 16, paddingVertical: 11, backgroundColor: on ? TT.accent : TT.card, borderWidth: 1.5, borderColor: on ? TT.accent : TT.line, opacity: moving ? 0.5 : 1 }}
                     >
-                      <Text style={{ fontSize: 14.5, fontWeight: '700', color: on ? '#fff' : EDA.ink }}>{time(s)}</Text>
+                      <Text style={{ fontSize: 14.5, fontWeight: '700', color: on ? '#fff' : TT.ink }}>{time(s)}</Text>
                     </Pressable>
                   );
                 })}

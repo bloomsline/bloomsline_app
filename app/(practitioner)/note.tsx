@@ -9,6 +9,7 @@ import { useNoteDraft } from '@/src/notes/draft';
 import { NoteEditor } from '@/src/notes/NoteEditor';
 import { fetchNoteWorkspace, createNote, fetchNoteDraft, type NoteWorkspace, type UpcomingSession } from '@/src/api/practitioner';
 import { useConfirm } from '@/src/ui/confirm';
+import { useTheme } from '@/src/ui/theme-mode';
 
 // Take a note. Opens on the sessions still to happen — a note is about a session
 // you are heading into or have just had — with a toggle to browse by patient
@@ -37,6 +38,7 @@ const T = {
 } as const;
 
 export default function TakeNote() {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale] ?? T.en;
@@ -120,11 +122,11 @@ export default function TakeNote() {
 
   if (draft) {
     return (
-      <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+      <View style={{ flex: 1, backgroundColor: TT.bg }}>
         <StatusBar style="dark" />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={{ padding: 22, paddingTop: 60 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            <Text style={{ fontSize: 12.5, color: EDA.faint, marginBottom: 4 }}>{draft.who} · {draft.when}</Text>
+            <Text style={{ fontSize: 12.5, color: TT.faint, marginBottom: 4 }}>{draft.who} · {draft.when}</Text>
             <NoteEditor
               header={tr.sessionNote}
               title={draft.title}
@@ -159,7 +161,7 @@ export default function TakeNote() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+    <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         <EdHeader kicker={tr.kicker} title={tr.title} onBack={() => router.back()} />
@@ -171,15 +173,15 @@ export default function TakeNote() {
           </View>
 
           {!loaded && <ActivityIndicator />}
-          {loaded && (ws?.sessions.length ?? 0) === 0 && <Text style={{ fontSize: 14, color: EDA.inkSoft }}>{tr.none}</Text>}
+          {loaded && (ws?.sessions.length ?? 0) === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.none}</Text>}
 
           {mode === 'upcoming' && (ws?.sessions ?? []).map((s) => (
             <EdCard key={s.id} onPress={() => { void start(s); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 }}>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 15.5, fontWeight: '700', color: EDA.ink }}>{s.who}</Text>
-                <Text style={{ fontSize: 12.5, color: EDA.inkSoft, marginTop: 2 }}>{when(s.scheduledAt)} · {s.durationMinutes} min</Text>
+                <Text style={{ fontSize: 15.5, fontWeight: '700', color: TT.ink }}>{s.who}</Text>
+                <Text style={{ fontSize: 12.5, color: TT.inkSoft, marginTop: 2 }}>{when(s.scheduledAt)} · {s.durationMinutes} min</Text>
               </View>
-              <ChevronRight size={16} color={EDA.line} />
+              <ChevronRight size={16} color={TT.line} />
             </EdCard>
           ))}
 
@@ -188,8 +190,8 @@ export default function TakeNote() {
               <EdSection label={group.who} />
               {group.items.map((s) => (
                 <EdCard key={s.id} onPress={() => { void start(s); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                  <Text style={{ flex: 1, fontSize: 14.5, color: EDA.ink }}>{when(s.scheduledAt)}</Text>
-                  <ChevronRight size={16} color={EDA.line} />
+                  <Text style={{ flex: 1, fontSize: 14.5, color: TT.ink }}>{when(s.scheduledAt)}</Text>
+                  <ChevronRight size={16} color={TT.line} />
                 </EdCard>
               ))}
             </View>
@@ -201,12 +203,13 @@ export default function TakeNote() {
 }
 
 function Toggle({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
+  const { t: TT } = useTheme();
   return (
     <Pressable
       onPress={onPress}
-      style={{ flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 14, backgroundColor: on ? EDA.ink : EDA.card, borderWidth: 1, borderColor: on ? EDA.ink : EDA.line }}
+      style={{ flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 14, backgroundColor: on ? TT.ink : TT.card, borderWidth: 1, borderColor: on ? TT.ink : TT.line }}
     >
-      <Text style={{ fontSize: 14, fontWeight: '700', color: on ? '#fff' : EDA.inkSoft }}>{label}</Text>
+      <Text style={{ fontSize: 14, fontWeight: '700', color: on ? '#fff' : TT.inkSoft }}>{label}</Text>
     </Pressable>
   );
 }

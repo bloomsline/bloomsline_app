@@ -6,11 +6,12 @@ import { Platform, ScrollView, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Info, Video } from 'lucide-react-native';
-import { EDA, EdHeader, EdCard, EdPill, FadeIn } from '@/src/ui/editorial';
+import { EdHeader, EdCard, EdPill, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useOnboarding } from '@/src/onboarding/context';
 import { createBooking, rescheduleSession } from '@/src/api/booking';
 import { useI18n, type Locale } from '@/src/i18n';
+import { useTheme } from '@/src/ui/theme-mode';
 
 const T = {
   en: {
@@ -50,6 +51,7 @@ const T = {
 } as const;
 
 export default function BookConfirm() {
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale];
@@ -102,29 +104,29 @@ export default function BookConfirm() {
   const kicker = (start ? longDate(start, locale) : tr.confirmTitle).toUpperCase();
 
   return (
-    <View style={{ flex: 1, backgroundColor: EDA.canvas }}>
+    <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
         <EdHeader kicker={kicker} title={tr.confirmTitle} source={ONBOARDING_IMAGES.final} onBack={() => router.back()} />
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {/* Summary */}
           <EdCard style={{ padding: 24, alignItems: 'center' }}>
-            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: EDA.green, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: TT.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
               <Text style={{ color: '#fff', fontWeight: '700', fontSize: 22 }}>{initial}</Text>
             </View>
-            <Text style={{ fontSize: 22, fontWeight: '800', color: EDA.ink, letterSpacing: -0.3, textAlign: 'center' }}>{start ? longDate(start, locale) : '—'}</Text>
-            <Text style={{ fontSize: 15, color: EDA.inkSoft, marginTop: 4, textAlign: 'center' }}>{start && end ? `${clock(start)} – ${clock(end)}` : ''} {tr.withName(name)}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, backgroundColor: EDA.greenTint, borderRadius: 14, paddingVertical: 7, paddingHorizontal: 14 }}>
-              <Video size={14} color={EDA.green} strokeWidth={2} />
-              <Text style={{ fontSize: 13, fontWeight: '700', color: EDA.green }}>{format === 'video' ? tr.videoSession : format === 'phone' ? tr.phoneSession : tr.inPersonSession}</Text>
+            <Text style={{ fontSize: 22, fontWeight: '800', color: TT.ink, letterSpacing: -0.3, textAlign: 'center' }}>{start ? longDate(start, locale) : '—'}</Text>
+            <Text style={{ fontSize: 15, color: TT.inkSoft, marginTop: 4, textAlign: 'center' }}>{start && end ? `${clock(start)} – ${clock(end)}` : ''} {tr.withName(name)}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, backgroundColor: TT.accentTint, borderRadius: 14, paddingVertical: 7, paddingHorizontal: 14 }}>
+              <Video size={14} color={TT.accent} strokeWidth={2} />
+              <Text style={{ fontSize: 13, fontWeight: '700', color: TT.accent }}>{format === 'video' ? tr.videoSession : format === 'phone' ? tr.phoneSession : tr.inPersonSession}</Text>
             </View>
           </EdCard>
 
           {/* Cancellation policy */}
           <EdCard style={{ marginTop: 14, padding: 16, flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
-            <Info size={16} color={EDA.green} strokeWidth={2} />
-            <Text style={{ flex: 1, fontSize: 13.5, color: EDA.inkSoft, lineHeight: 21 }}>
-              {tr.policyPre}<Text style={{ color: EDA.ink, fontWeight: '700' }}>{tr.policyBold}</Text>{tr.policyPost}
+            <Info size={16} color={TT.accent} strokeWidth={2} />
+            <Text style={{ flex: 1, fontSize: 13.5, color: TT.inkSoft, lineHeight: 21 }}>
+              {tr.policyPre}<Text style={{ color: TT.ink, fontWeight: '700' }}>{tr.policyBold}</Text>{tr.policyPost}
             </Text>
           </EdCard>
 
