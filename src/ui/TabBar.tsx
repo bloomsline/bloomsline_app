@@ -65,14 +65,20 @@ export function TabBar({ active, tone }: { active: TabId; tone?: 'light' | 'dark
             );
           })}
         </View>
-        <Pressable
-          accessibilityLabel="Capture a moment"
-          className="h-[46px] w-[46px] items-center justify-center rounded-[23px]"
-          style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine }}
-          onPress={() => router.navigate('/capture' as never)}
-        >
-          <Plus size={22} color={TT.ink} strokeWidth={2.2} />
-        </Pressable>
+        {/* Capture belongs to Moments. It wrote a moment regardless of which
+            tab you were on, so on My Care and For You it was an action with no
+            relationship to what was on screen. Gone there; the pill just sits
+            on its own. */}
+        {active === 'moments' && (
+          <Pressable
+            accessibilityLabel="Capture a moment"
+            className="h-[46px] w-[46px] items-center justify-center rounded-[23px]"
+            style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine }}
+            onPress={() => router.navigate('/capture' as never)}
+          >
+            <Plus size={22} color={TT.ink} strokeWidth={2.2} />
+          </Pressable>
+        )}
       </View>
     );
   }
@@ -100,14 +106,16 @@ export function TabBar({ active, tone }: { active: TabId; tone?: 'light' | 'dark
           );
         })}
       </View>
-      <Pressable
-        accessibilityLabel="Capture a moment"
-        className="h-[54px] w-[54px] items-center justify-center rounded-[27px]"
-        style={{ backgroundColor: TT.ctaBg, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}
-        onPress={() => router.navigate('/capture' as never)}
-      >
-        <Plus size={24} color={TT.ctaFg} strokeWidth={2.4} />
-      </Pressable>
+      {active === 'moments' && (
+        <Pressable
+          accessibilityLabel="Capture a moment"
+          className="h-[54px] w-[54px] items-center justify-center rounded-[27px]"
+          style={{ backgroundColor: TT.ctaBg, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}
+          onPress={() => router.navigate('/capture' as never)}
+        >
+          <Plus size={24} color={TT.ctaFg} strokeWidth={2.4} />
+        </Pressable>
+      )}
     </View>
   );
 }
