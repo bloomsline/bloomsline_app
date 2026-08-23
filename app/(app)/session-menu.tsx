@@ -7,7 +7,7 @@ import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Info } from 'lucide-react-native';
-import { EdPill, Kicker } from '@/src/ui/editorial';
+import { EdPill, HEADER_TOP, Kicker } from '@/src/ui/editorial';
 import { useOnboarding } from '@/src/onboarding/context';
 import { cancelSession } from '@/src/api/booking';
 import { useConfirm } from '@/src/ui/confirm';
@@ -110,7 +110,7 @@ export default function SessionMenu() {
     <View style={{ flex: 1, backgroundColor: 'rgba(20,20,20,0.4)', justifyContent: 'flex-end' }}>
       <Pressable style={{ flex: 1 }} onPress={close} />
       <SafeAreaView edges={['bottom']} style={{ backgroundColor: TT.card, borderTopLeftRadius: 28, borderTopRightRadius: 28 }}>
-        <View style={{ paddingHorizontal: 24, paddingTop: 14, paddingBottom: 8 }}>
+        <View style={{ paddingHorizontal: 24, paddingTop: HEADER_TOP, paddingBottom: 8 }}>
           <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: TT.line, alignSelf: 'center', marginBottom: 18 }} />
 
           <Kicker color={TT.faint} style={{ marginBottom: 12 }}>{tr.session}</Kicker>

@@ -28,6 +28,16 @@ export function FadeIn({ delay = 0, y = 12, duration = 600, style, children }: {
 }
 
 /**
+ * How far a screen's header sits below the safe-area edge.
+ *
+ * Shared so the top of every screen agrees, and so this is one number to
+ * change. Screens used to pick their own — 6, 8, 12, 14 — which put the first
+ * line of type almost on the status bar and made each screen's top edge sit at
+ * a slightly different height as you moved between tabs.
+ */
+export const HEADER_TOP = 36;
+
+/**
  * The small label above a title — a section name, a state, a category.
  *
  * Was `Kicker`: IBM Plex Mono, uppercase, 2px tracking. That reads as a
@@ -85,7 +95,7 @@ export function EdHeader({
   // kicker reads level with the icon instead of below it.
   return (
     <View style={{ paddingTop: insets.top, backgroundColor: TT.bg }}>
-      <View style={{ paddingHorizontal: 22, paddingTop: 12, paddingBottom: 4 }}>
+      <View style={{ paddingHorizontal: 22, paddingTop: HEADER_TOP, paddingBottom: 4 }}>
         {onBack ? (
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <Pressable onPress={onBack} style={circle}>

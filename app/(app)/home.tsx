@@ -14,7 +14,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { ChevronRight, Plus, Ellipsis, RotateCcw, FileText, MapPin, Settings, type LucideIcon } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
 import { TabIntro } from '@/src/ui/TabIntro';
-import { EdCard, FadeIn, Kicker } from '@/src/ui/editorial';
+import { EdCard, FadeIn, HEADER_TOP, Kicker } from '@/src/ui/editorial';
 import { useLanding } from '@/src/prefs/landing';
 import { useI18n, fmt } from '@/src/i18n';
 import { useOnboarding } from '@/src/onboarding/context';
@@ -70,7 +70,7 @@ export default function MyCare() {
   const headerTitle = greetHere ? (pretty ? `${greeting},\n${pretty}.` : `${greeting}.`) : t.care.title;
 
   const header = (
-    <View style={{ paddingHorizontal: 22, paddingTop: 22, paddingBottom: 18 }}>
+    <View style={{ paddingHorizontal: 22, paddingTop: HEADER_TOP, paddingBottom: 18 }}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 27, fontWeight: '800', color: TT.ink, letterSpacing: -0.9, lineHeight: 31 }}>{headerTitle}</Text>
@@ -95,7 +95,7 @@ export default function MyCare() {
         <StatusBar style="dark" />
         <SafeAreaView edges={['top']} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={{ paddingBottom: 180 }} showsVerticalScrollIndicator={false}>
-            <View style={{ paddingHorizontal: 22, paddingTop: 24 }}>
+            <View style={{ paddingHorizontal: 22, paddingTop: HEADER_TOP }}>
               <Text style={{ fontSize: 27, fontWeight: '800', color: TT.ink, letterSpacing: -0.9, lineHeight: 31 }}>{headerTitle}</Text>
             </View>
             <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>

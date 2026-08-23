@@ -32,6 +32,7 @@ import { pickMedia, captureMedia, cameraAvailable, uploadMedia, type PreparedMed
 import { useOnboarding } from '@/src/onboarding/context';
 import { useI18n, fmt } from '@/src/i18n';
 import { notify } from '@/src/ui/alert';
+import { HEADER_TOP } from '@/src/ui/editorial';
 import { useTheme } from '@/src/ui/theme-mode';
 import { KNOB, veil } from '@/src/ui/tokens';
 
@@ -282,7 +283,7 @@ export default function Capture() {
 function Header({ step, tr, onClose, onBack }: { step: Step; tr: Cap; onClose: () => void; onBack: () => void }) {
   const { t: TT } = useTheme();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, paddingTop: 8, paddingBottom: 16 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, paddingTop: HEADER_TOP, paddingBottom: 16 }}>
       <Pressable
         onPress={step === 'write' ? onClose : onBack}
         // The circular affordance inverts by theme on purpose — the point of it

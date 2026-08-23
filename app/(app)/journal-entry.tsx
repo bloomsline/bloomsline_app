@@ -17,7 +17,7 @@ import {
   Megaphone, Link2, Image as ImageIcon, Video as VideoIcon, Mic, Play, ChevronUp, ChevronDown, X,
   Pencil, MoreHorizontal, RotateCw, GripVertical,
 } from 'lucide-react-native';
-import { Kicker } from '@/src/ui/editorial';
+import { HEADER_TOP, Kicker } from '@/src/ui/editorial';
 import { ShareChip } from '@/src/journal/ShareChip';
 import { AnchoredMenu, useAnchoredMenu } from '@/src/ui/AnchoredMenu';
 import { AudioRow, MediaViewer, type ViewerItem } from '@/src/ui/MediaViewer';
@@ -299,7 +299,7 @@ export default function JournalEntry() {
         {/* The bar. Dark and imageless, like the list it came from — and where
             the share state lives, because a state belongs with the chrome and
             not under the writing. */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 18, paddingVertical: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 18, paddingTop: HEADER_TOP, paddingBottom: 12 }}>
           <TouchableOpacity onPress={back} activeOpacity={0.7} style={[circleBtn, { backgroundColor: veil(theme, 0.10) }]}><ChevronLeft size={18} color={TT.ink} strokeWidth={2} /></TouchableOpacity>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             {mode === 'edit' && status === 'saved' && <Check size={13} color={TT.accent} strokeWidth={2.5} />}
