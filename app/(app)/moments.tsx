@@ -142,6 +142,8 @@ export default function Moments() {
    */
   const bottomGap = useRef(0);
   const cursorRef = useRef<string | null>(null);
+  // The id half of the keyset cursor; see listMoments.
+  const cursorIdRef = useRef<string | null>(null);
 
   // Where the reader is, 0 at the oldest thing loaded and 1 at today. An
   // Animated.Value and NOT state on purpose: the rail follows the thumb, and a
@@ -165,6 +167,7 @@ export default function Moments() {
       if (g !== gen.current) return;
       setMoments(page.moments);
       cursorRef.current = page.nextCursor;
+      cursorIdRef.current = page.nextCursorId ?? null;
       setCursor(page.nextCursor);
       // A fresh first page puts the reader back at the foot of the line: today
       // is where a person starts, and after a refresh it is what they asked to
@@ -185,15 +188,16 @@ export default function Moments() {
   }, []);
 
   /** The next page back. Keyset, not offset: the cursor is the oldest
-   *  `capturedAt` we hold, so moments captured while someone reads cannot shift
-   *  a page boundary and make the line skip or repeat itself. */
+   *  `(capturedAt, id)` we hold, so moments captured while someone reads cannot
+   *  shift a page boundary — and two captured in the same instant cannot
+   *  straddle one and lose the second. */
   const loadOlder = useCallback(async () => {
     if (fetching.current || !cursorRef.current) return;
     const g = gen.current;
     fetching.current = true;
     setLoadingOlder(true);
     try {
-      const page = await listMoments({ before: cursorRef.current, limit: PAGE });
+      const page = await listMoments({ before: cursorRef.current, beforeId: cursorIdRef.current, limit: PAGE });
       if (g !== gen.current) return;
       setMoments((prev) => {
         // The cursor is a timestamp, so a moment sharing the boundary instant
@@ -204,6 +208,7 @@ export default function Moments() {
         return fresh.length > 0 ? [...prev, ...fresh] : prev;
       });
       cursorRef.current = page.nextCursor;
+      cursorIdRef.current = page.nextCursorId ?? null;
       setCursor(page.nextCursor);
     } catch {
       // Leave the cursor exactly where it is. A failed page must not be mistaken

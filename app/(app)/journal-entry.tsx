@@ -70,7 +70,7 @@ export default function JournalEntry() {
   const { locale } = useI18n();
   const confirm = useConfirm();
   const tr = T[locale];
-  const { id: paramId } = useLocalSearchParams<{ id?: string }>();
+  const { id: paramId, fresh } = useLocalSearchParams<{ id?: string; fresh?: string }>();
 
   const [title, setTitle] = useState('');
   const [blocks, setBlocks] = useState<JournalBlock[]>([{ ...newBlock('text') }]);
@@ -90,7 +90,10 @@ export default function JournalEntry() {
   const [writtenAt, setWrittenAt] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   // Existing entries open READ-ONLY (tap Edit to change); new ones open in edit.
-  const [mode, setMode] = useState<'read' | 'edit'>(typeof paramId === 'string' ? 'read' : 'edit');
+  // `fresh` marks a page created a moment ago by the journal list, which has to
+  // open in edit: it has an id like any other page, so the id alone cannot tell
+  // "opened to read" apart from "just made, start writing".
+  const [mode, setMode] = useState<'read' | 'edit'>(typeof paramId === 'string' && fresh !== '1' ? 'read' : 'edit');
 
   // How to redo a failed upload, kept per block. The picked asset never reaches
   // the block model — only the finished storage key does — so without this a

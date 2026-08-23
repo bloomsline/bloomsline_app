@@ -29,13 +29,26 @@ export interface MomentDTO {
 export interface MomentPage {
   moments: MomentDTO[];
   nextCursor: string | null;
+  /** The id half of the cursor. Absent from servers that predate it, in which
+   *  case paging falls back to `capturedAt` alone — see listMoments. */
+  nextCursorId?: string | null;
 }
 
-/** The patient's own timeline, newest first. `before` = keyset cursor (an ISO
- *  capturedAt from a previous page's nextCursor). */
-export async function listMoments(params: { before?: string; limit?: number } = {}): Promise<MomentPage> {
+/**
+ * The patient's own timeline, newest first.
+ *
+ * The cursor is the PAIR `(before, beforeId)`, because the server sorts by
+ * `(capturedAt, id)`. Sending only the timestamp made a page boundary that fell
+ * between two moments captured in the same instant skip past both, losing one
+ * of them from every page. Send back whatever the last page gave.
+ *
+ * `beforeId` is omitted when the server did not supply one, so a new build
+ * talking to an older API pages exactly as it used to rather than erroring.
+ */
+export async function listMoments(params: { before?: string; beforeId?: string | null; limit?: number } = {}): Promise<MomentPage> {
   const q = new URLSearchParams();
   if (params.before) q.set('before', params.before);
+  if (params.before && params.beforeId) q.set('beforeId', params.beforeId);
   if (params.limit) q.set('limit', String(params.limit));
   const qs = q.toString();
   const res = await apiFetch(`/api/moments${qs ? `?${qs}` : ''}`);

@@ -83,6 +83,18 @@ export interface Palette {
   onDanger: string;
   /** Scrim behind a sheet. */
   scrim: string;
+  /** The journal's head band, with the "paper" scrolling up over it on rounded
+   *  corners. Dark in BOTH themes, like `slot`: the screen's whole idea is that
+   *  writing happens on paper and the paper is the LIGHTER world, which only
+   *  reads if the head stays the darker one.
+   *
+   *  It exists because the theme migration mapped the head's `EDD.ground` and
+   *  the paper's `EDA.canvas` both onto `bg` — the two-tone collapsed into one
+   *  flat colour and the design was gone, while the comments above them still
+   *  said "the head: dark". Same trap module 23 names: `EDD` was not "the dark
+   *  theme", it was a second set of fixed colours that had to vary. */
+  headBg: string;
+  headInk: string;
   /** A deliberately dark surface: media placeholders, a poster with no image.
    *  Stays dark in BOTH themes — it stands in for a photograph, and a pale
    *  placeholder reads as an empty box rather than a missing picture. */
@@ -114,6 +126,8 @@ export const LIGHT: Palette = {
   amber: '#B4750F',
   danger: '#B3261E',
   onDanger: '#FFFFFF',
+  headBg: '#0E1512',
+  headInk: '#FFFFFF',
   scrim: 'rgba(20,20,20,0.35)',
   slot: '#101210',
 };
@@ -148,6 +162,8 @@ export const DARK: Palette = {
   danger: '#E5837B',
   // The salmon is a LIGHT colour; what sits on it has to be dark.
   onDanger: '#0E1512',
+  headBg: '#080C0A',
+  headInk: '#FFFFFF',
   scrim: 'rgba(0,0,0,0.55)',
   slot: '#0A0F0D',
 };
