@@ -51,7 +51,7 @@ export default function Documents() {
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-        <EdHeader kicker="DOCUMENTS" title={tr.title} onBack={() => router.back()} />
+        <EdHeader kicker="Documents" title={tr.title} onBack={() => router.back()} />
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {items === null ? (
             <View style={{ paddingTop: 40, alignItems: 'center' }}><ActivityIndicator color={TT.accent} /></View>

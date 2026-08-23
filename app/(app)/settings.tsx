@@ -7,7 +7,7 @@ import { Linking, Platform, ScrollView, Text, TouchableOpacity, View } from 'rea
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { MessageCircle, MessageCircleQuestionMark, LogOut, ChevronRight, User, Heart, Check, Languages, type LucideIcon, Sun, Moon, SunMoon} from 'lucide-react-native';
-import { EdHeader, EdCard, EdSection, FadeIn, MonoLabel } from '@/src/ui/editorial';
+import { EdHeader, EdCard, EdSection, FadeIn, Kicker } from '@/src/ui/editorial';
 import { useTheme } from '@/src/ui/theme-mode';
 import { useAuth } from '@/src/auth/auth-context';
 import { useOnboarding } from '@/src/onboarding/context';
@@ -64,7 +64,7 @@ export default function Settings() {
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-        <EdHeader kicker="SETTINGS" title={t.settings.title} onBack={back} />
+        <EdHeader kicker="Settings" title={t.settings.title} onBack={back} />
 
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {/* Profile card */}
@@ -80,7 +80,7 @@ export default function Settings() {
 
           {/* Appearance — first, because changing it re-renders everything below
               it, so the effect of the tap is visible in the same glance. */}
-          <MonoLabel color={TT.faint} style={{ marginBottom: 6 }}>{t.settings.appearance}</MonoLabel>
+          <Kicker color={TT.faint} style={{ marginBottom: 6 }}>{t.settings.appearance}</Kicker>
           <Text style={{ fontSize: 13, color: TT.inkSoft, marginBottom: 12, lineHeight: 18 }}>{t.settings.appearanceSub}</Text>
           <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
             <ToggleOption Icon={SunMoon} label={t.settings.themeSystem} selected={choice === 'system'} onPress={() => setChoice('system')} />
@@ -89,7 +89,7 @@ export default function Settings() {
           </View>
 
           {/* Home screen — which tab you open to, and where the greeting shows. */}
-          <MonoLabel color={TT.faint} style={{ marginBottom: 6 }}>{t.settings.homeScreen}</MonoLabel>
+          <Kicker color={TT.faint} style={{ marginBottom: 6 }}>{t.settings.homeScreen}</Kicker>
           <Text style={{ fontSize: 13, color: TT.inkSoft, marginBottom: 12, lineHeight: 18 }}>{t.settings.homeScreenSub}</Text>
           <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
             <ToggleOption Icon={User} label={t.tabs.care} selected={landing === 'care'} onPress={() => setLanding('care')} />
@@ -97,7 +97,7 @@ export default function Settings() {
           </View>
 
           {/* Language */}
-          <MonoLabel color={TT.faint} style={{ marginBottom: 6 }}>{t.settings.language}</MonoLabel>
+          <Kicker color={TT.faint} style={{ marginBottom: 6 }}>{t.settings.language}</Kicker>
           <Text style={{ fontSize: 13, color: TT.inkSoft, marginBottom: 12, lineHeight: 18 }}>{t.settings.languageSub}</Text>
           <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
             <ToggleOption Icon={Languages} label={t.settings.english} selected={locale === 'en'} onPress={() => changeLocale('en')} />

@@ -113,7 +113,7 @@ function Pill({ label, tone }: { label: string; tone: ToneName }) {
 
 function Label({ children }: { children: string }) {
   const { t: TT } = useTheme();
-  return <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: TT.faint, marginBottom: 8 }}>{children}</Text>;
+  return <Text style={{ fontSize: 12.5, fontWeight: '700', letterSpacing: 0.2, color: TT.faint, marginBottom: 8 }}>{children}</Text>;
 }
 
 /** Outlined action, the sheet's secondary button. */

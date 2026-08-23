@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ChevronLeft, Lock, Search, PenLine, Plus, ChevronRight, MessageCircle, Sparkles, CalendarDays, type LucideIcon } from 'lucide-react-native';
-import { MonoLabel } from '@/src/ui/editorial';
+import { Kicker } from '@/src/ui/editorial';
 import { useOnboarding } from '@/src/onboarding/context';
 import { useI18n } from '@/src/i18n';
 import { listJournal, createJournal, type JournalEntry } from '@/src/api/journal';
@@ -98,7 +98,7 @@ export default function Journal() {
               <Lock size={16} color={veil('dark', 0.72)} strokeWidth={2} />
             </View>
           </View>
-          <MonoLabel color={veil('dark', 0.55)} size={10.5} style={{ marginBottom: 8 }}>{tr.kicker}</MonoLabel>
+          <Kicker color={veil('dark', 0.55)} size={10.5} style={{ marginBottom: 8 }}>{tr.kicker}</Kicker>
           <Text style={{ fontSize: 30, fontWeight: '800', color: TT.headInk, letterSpacing: -1 }}>{tr.title}</Text>
           <Text style={{ marginTop: 8, fontSize: 13.5, color: veil('dark', 0.72), lineHeight: 20, maxWidth: 300 }}>{tr.subtitle}</Text>
         </View>

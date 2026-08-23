@@ -11,7 +11,7 @@ import { useCallback, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { EdHeader, EdCard, EdSection, EdPill, FadeIn, MonoLabel } from '@/src/ui/editorial';
+import { EdHeader, EdCard, EdSection, EdPill, FadeIn, Kicker } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useOnboarding } from '@/src/onboarding/context';
 import { fetchCare, type CarePractitioner } from '@/src/api/care';
@@ -85,7 +85,7 @@ export default function Practitioner() {
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         <EdHeader
-          kicker="YOUR PRACTITIONER"
+          kicker="Your practitioner"
           title={name ?? tr.yourPractitioner}
           subtitle={headline ?? undefined}
           onBack={() => router.back()}
@@ -130,7 +130,7 @@ function FactCard({ label, value }: { label: string; value: string }) {
   const { t: TT } = useTheme();
   return (
     <View style={{ flex: 1, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, borderRadius: 16, padding: 14, alignItems: 'center' }}>
-      <MonoLabel color={TT.faint} size={9.5}>{label}</MonoLabel>
+      <Kicker color={TT.faint} size={9.5}>{label}</Kicker>
       <Text style={{ fontSize: 13.5, color: TT.ink, fontWeight: '600', marginTop: 6, textAlign: 'center' }}>{value}</Text>
     </View>
   );

@@ -1,6 +1,11 @@
-// Editorial typography — Manrope (display/body) + IBM Plex Mono (kickers,
-// counters). Loaded once at the root; `text-global` makes Manrope the app-wide
-// default with correct per-weight faces.
+// Editorial typography — Manrope, for everything. Loaded once at the root;
+// `text-global` makes it the app-wide default with correct per-weight faces.
+//
+// IBM Plex Mono used to load here for the kickers. Those became sentence-case
+// Manrope on 2026-08-23 (uppercase mono reads as a system stamp, which is the
+// wrong voice for an app about putting words to feelings), which left two font
+// files downloading on every cold start for nothing. Put it back if a real
+// monospace need turns up — a counter, tabular figures — not for labels.
 import {
   Manrope_400Regular,
   Manrope_500Medium,
@@ -8,7 +13,6 @@ import {
   Manrope_700Bold,
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
-import { IBMPlexMono_400Regular, IBMPlexMono_500Medium } from '@expo-google-fonts/ibm-plex-mono';
 
 // Passed to useFonts(); keys become the fontFamily names.
 export const FONT_ASSETS = {
@@ -17,12 +21,7 @@ export const FONT_ASSETS = {
   Manrope_600SemiBold,
   Manrope_700Bold,
   Manrope_800ExtraBold,
-  IBMPlexMono_400Regular,
-  IBMPlexMono_500Medium,
 };
-
-export const MONO = 'IBMPlexMono_400Regular';
-export const MONO_MEDIUM = 'IBMPlexMono_500Medium';
 
 /** Map a CSS-ish fontWeight to the matching Manrope face. */
 export function manropeFor(weight?: string | number | null): string {

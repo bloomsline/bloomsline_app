@@ -14,7 +14,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { ChevronRight, Plus, Ellipsis, RotateCcw, FileText, MapPin, Settings, type LucideIcon } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
 import { TabIntro } from '@/src/ui/TabIntro';
-import { EdCard, FadeIn, MonoLabel } from '@/src/ui/editorial';
+import { EdCard, FadeIn, Kicker } from '@/src/ui/editorial';
 import { useLanding } from '@/src/prefs/landing';
 import { useI18n, fmt } from '@/src/i18n';
 import { useOnboarding } from '@/src/onboarding/context';
@@ -68,13 +68,11 @@ export default function MyCare() {
   const pretty = name ? name.charAt(0).toUpperCase() + name.slice(1) : preview ? 'Sofia' : '';
   const greeting = new Date().getHours() < 12 ? t.greeting.morning : new Date().getHours() < 18 ? t.greeting.afternoon : t.greeting.evening;
   const headerTitle = greetHere ? (pretty ? `${greeting},\n${pretty}.` : `${greeting}.`) : t.care.title;
-  const dateKicker = new Date().toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'short', day: 'numeric', month: 'short' });
 
   const header = (
-    <View style={{ paddingHorizontal: 22, paddingTop: 8, paddingBottom: 18 }}>
+    <View style={{ paddingHorizontal: 22, paddingTop: 22, paddingBottom: 18 }}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
         <View style={{ flex: 1 }}>
-          <MonoLabel color={TT.faint} size={10.5} style={{ marginBottom: 10 }}>{dateKicker}</MonoLabel>
           <Text style={{ fontSize: 27, fontWeight: '800', color: TT.ink, letterSpacing: -0.9, lineHeight: 31 }}>{headerTitle}</Text>
         </View>
         <TouchableOpacity
@@ -97,8 +95,7 @@ export default function MyCare() {
         <StatusBar style="dark" />
         <SafeAreaView edges={['top']} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={{ paddingBottom: 180 }} showsVerticalScrollIndicator={false}>
-            <View style={{ paddingHorizontal: 22, paddingTop: 12 }}>
-              <MonoLabel color={TT.faint} size={10.5} style={{ marginBottom: 10 }}>{dateKicker}</MonoLabel>
+            <View style={{ paddingHorizontal: 22, paddingTop: 24 }}>
               <Text style={{ fontSize: 27, fontWeight: '800', color: TT.ink, letterSpacing: -0.9, lineHeight: 31 }}>{headerTitle}</Text>
             </View>
             <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
@@ -332,7 +329,7 @@ function SessionCard({
         <Ellipsis size={17} color={TT.ink} strokeWidth={2.5} />
       </TouchableOpacity>
 
-      <MonoLabel color={TT.faint} size={10} style={{ marginBottom: 8 }}>{first ? t.care.nextSession : t.care.then}</MonoLabel>
+      <Kicker color={TT.faint} size={10} style={{ marginBottom: 8 }}>{first ? t.care.nextSession : t.care.then}</Kicker>
       <Text style={{ fontSize: 19, fontWeight: '800', color: TT.ink, letterSpacing: -0.4 }}>{longDate(session.scheduledAt, locale)}</Text>
       <Text style={{ fontSize: 13, color: TT.inkSoft, marginTop: 4 }}>
         {clock(session.scheduledAt, locale)}  ·  {fmtFormat(session.sessionFormat, locale)}{first ? '' : ` · ${session.durationMinutes} min`}
@@ -379,7 +376,7 @@ function SectionRule({ label, action, onAction }: { label: string; action?: stri
   const { t: TT } = useTheme();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 22, marginTop: 28, marginBottom: 12 }}>
-      <MonoLabel color={TT.faint} size={10}>{label}</MonoLabel>
+      <Kicker color={TT.faint} size={10}>{label}</Kicker>
       <View style={{ flex: 1, height: 1, backgroundColor: TT.cardLine }} />
       {action ? (
         <TouchableOpacity onPress={onAction} activeOpacity={0.7}>

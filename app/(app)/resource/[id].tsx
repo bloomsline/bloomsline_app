@@ -247,7 +247,7 @@ function ResultView({ title, score, onDone, tr }: { title: string; score: Patien
 
         {score && (
           <View style={{ marginTop: 24, alignSelf: 'stretch', backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, borderRadius: 20, padding: 22, alignItems: 'center' }}>
-            <Text style={{ fontSize: 12, fontWeight: '600', color: TT.faint, textTransform: 'uppercase', letterSpacing: 0.5 }}>{tr.yourScore}</Text>
+            <Text style={{ fontSize: 12, fontWeight: '600', color: TT.faint, letterSpacing: 0.2 }}>{tr.yourScore}</Text>
             <Text style={{ fontSize: 40, fontWeight: '800', color: TT.accent, marginTop: 6 }}>{score.total}<Text style={{ fontSize: 20, color: TT.faint, fontWeight: '700' }}> / {score.maxScore}</Text></Text>
             {score.interpretation && <Text style={{ fontSize: 15, fontWeight: '700', color: TT.ink, marginTop: 8 }}>{score.interpretation.label}</Text>}
             {score.interpretation?.note && <Text style={{ fontSize: 13, color: TT.inkSoft, textAlign: 'center', marginTop: 4, lineHeight: 19 }}>{score.interpretation.note}</Text>}

@@ -5,7 +5,6 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { Animated, Easing, Pressable, Text, View, type ImageSourcePropType, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, type LucideIcon } from 'lucide-react-native';
-import { MONO } from '@/src/ui/fonts';
 import { useTheme } from './theme-mode';
 
 // EDA and EDD now live in `tokens.ts`, where each key carries BOTH a light and
@@ -28,14 +27,26 @@ export function FadeIn({ delay = 0, y = 12, duration = 600, style, children }: {
   return <Animated.View style={[style, { opacity: a, transform: [{ translateY: a.interpolate({ inputRange: [0, 1], outputRange: [y, 0] }) }] }]}>{children}</Animated.View>;
 }
 
-/** Monospaced editorial label / kicker. */
-export function MonoLabel({ children, color, size = 10.5, style }: { children: ReactNode; color?: string; size?: number; style?: ViewStyle }) {
+/**
+ * The small label above a title — a section name, a state, a category.
+ *
+ * Was `Kicker`: IBM Plex Mono, uppercase, 2px tracking. That reads as a
+ * system stamp rather than as writing, which is the wrong voice for an app
+ * whose whole job is a person putting words to how they feel. Sentence case in
+ * the app's own sans says the same thing in the app's own voice.
+ *
+ * `size` is bumped inside the component rather than at the ~37 call sites,
+ * because the values they pass (9.5–11) were chosen for tracked uppercase mono,
+ * which occupies far more width and reads larger than sentence-case sans at the
+ * same pixel size.
+ */
+export function Kicker({ children, color, size = 11, style }: { children: ReactNode; color?: string; size?: number; style?: ViewStyle }) {
   const { t: TT } = useTheme();
   // Resolved in the body, not as a default parameter: defaults evaluate before
   // the hook runs, so `color = TT.accent` is a reference to a value that does
   // not exist yet.
   const tone = color ?? TT.accent;
-  return <Text style={[{ fontFamily: MONO, fontSize: size, letterSpacing: 2, textTransform: 'uppercase', color: tone }, style]}>{children}</Text>;
+  return <Text style={[{ fontSize: size + 2, fontWeight: '700', letterSpacing: 0.2, color: tone }, style]}>{children}</Text>;
 }
 
 /** Clean light screen header — a mono kicker + oversized title on the canvas,
@@ -85,7 +96,7 @@ export function EdHeader({
         ) : null}
         <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
           <View style={{ flex: 1 }}>
-            <MonoLabel color={TT.accent} style={{ marginBottom: 8 }}>{kicker}</MonoLabel>
+            <Kicker color={TT.accent} style={{ marginBottom: 8 }}>{kicker}</Kicker>
             <Text style={{ fontSize: 30, fontWeight: '800', color: TT.ink, letterSpacing: -0.9, lineHeight: 34 }}>{title}</Text>
             {subtitle ? <Text style={{ fontSize: 14.5, color: TT.inkSoft, lineHeight: 21, marginTop: 8, maxWidth: 320 }}>{subtitle}</Text> : null}
           </View>
@@ -108,7 +119,7 @@ export function EdSection({ label, action, onAction }: { label: string; action?:
   const { t: TT } = useTheme();
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-      <MonoLabel color={TT.faint}>{label}</MonoLabel>
+      <Kicker color={TT.faint}>{label}</Kicker>
       {action && onAction ? (
         <Pressable onPress={onAction}>
           <Text style={{ fontSize: 12.5, fontWeight: '700', color: TT.accent }}>{action}</Text>

@@ -102,7 +102,7 @@ export default function SubmissionScreen() {
 
               {view.practitionerNote ? (
                 <View style={{ marginTop: 22 }}>
-                  <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: TT.faint, marginBottom: 8 }}>{tr.note}</Text>
+                  <Text style={{ fontSize: 12.5, fontWeight: '700', letterSpacing: 0.2, color: TT.faint, marginBottom: 8 }}>{tr.note}</Text>
                   <EdCard>
                     <Text style={{ fontSize: 14.5, lineHeight: 21, color: TT.ink }}>{view.practitionerNote}</Text>
                   </EdCard>

@@ -115,7 +115,7 @@ function ResItem({
           </View>
         )}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 5 }}>
-          <Text style={{ fontSize: 11, fontWeight: '700', color: TT.faint, textTransform: 'uppercase', letterSpacing: 0.4 }}>{tag}</Text>
+          <Text style={{ fontSize: 11, fontWeight: '700', color: TT.faint, letterSpacing: 0.2 }}>{tag}</Text>
           <View style={{ width: 3, height: 3, borderRadius: 2, backgroundColor: TT.line }} />
           {done ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>

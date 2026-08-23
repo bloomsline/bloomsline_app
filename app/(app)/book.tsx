@@ -190,7 +190,7 @@ export default function Book() {
   };
 
   const title = isReschedule ? tr.reschedule : tr.bookTitle;
-  const kicker = title.toUpperCase();
+  const kicker = title;
 
   if (loading) {
     return (

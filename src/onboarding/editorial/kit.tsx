@@ -3,7 +3,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Animated, Easing, ImageBackground, Pressable, Text, View, type ImageSourcePropType, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { MONO } from '@/src/ui/fonts';
 
 export const ED = {
   ink: '#141414',
@@ -72,9 +71,11 @@ export function RiseIn({ delay = 0, y = 18, duration = 1100, children, style }: 
   );
 }
 
-/** Monospaced editorial kicker (IBM Plex Mono, wide tracking, uppercase). */
-export function MonoKicker({ children, color = 'rgba(255,255,255,0.6)', size = 10.5, style }: { children: ReactNode; color?: string; size?: number; style?: ViewStyle }) {
-  return <Text style={[{ fontFamily: MONO, fontSize: size, letterSpacing: 2.5, textTransform: 'uppercase', color }, style]}>{children}</Text>;
+/** The onboarding flow's kicker. Same move as `Kicker` in `src/ui/editorial`:
+ *  out of uppercase mono and into the app's own sans, so the first screens a
+ *  patient sees are written rather than stamped. */
+export function MonoKicker({ children, color = 'rgba(255,255,255,0.72)', size = 10.5, style }: { children: ReactNode; color?: string; size?: number; style?: ViewStyle }) {
+  return <Text style={[{ fontSize: size + 2, fontWeight: '700', letterSpacing: 0.2, color }, style]}>{children}</Text>;
 }
 
 /** Fully-rounded pill button. white = primary, outline = secondary on dark,
