@@ -32,6 +32,7 @@ import { pickMedia, captureMedia, cameraAvailable, uploadMedia, type PreparedMed
 import { useOnboarding } from '@/src/onboarding/context';
 import { useI18n, fmt } from '@/src/i18n';
 import { notify } from '@/src/ui/alert';
+import { HEADER_TOP } from '@/src/ui/editorial';
 import { useTheme } from '@/src/ui/theme-mode';
 import { KNOB, veil } from '@/src/ui/tokens';
 
@@ -282,7 +283,7 @@ export default function Capture() {
 function Header({ step, tr, onClose, onBack }: { step: Step; tr: Cap; onClose: () => void; onBack: () => void }) {
   const { t: TT } = useTheme();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, paddingTop: 8, paddingBottom: 16 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 22, paddingTop: HEADER_TOP, paddingBottom: 16 }}>
       <Pressable
         onPress={step === 'write' ? onClose : onBack}
         // The circular affordance inverts by theme on purpose — the point of it
@@ -292,8 +293,8 @@ function Header({ step, tr, onClose, onBack }: { step: Step; tr: Cap; onClose: (
       >
         {step === 'write' ? <X size={17} color={TT.circleFg} strokeWidth={2} /> : <ChevronLeft size={18} color={TT.circleFg} strokeWidth={2} />}
       </Pressable>
-      <Text style={{ flex: 1, textAlign: 'center', fontSize: 10.5, letterSpacing: 1.6, color: TT.faint }}>
-        {(step === 'preview' ? tr.preview : tr.newMoment).toUpperCase()}
+      <Text style={{ flex: 1, textAlign: 'center', fontSize: 12.5, fontWeight: '700', letterSpacing: 0.2, color: TT.faint }}>
+        {step === 'preview' ? tr.preview : tr.newMoment}
       </Text>
       <View style={{ width: 34, alignItems: 'flex-end' }}>
         {step === 'write' ? <Text style={{ fontSize: 11, color: TT.faint }}>1/2</Text> : null}
@@ -338,7 +339,7 @@ function FeelSheet({
       }}
     >
       <View style={{ alignSelf: 'center', width: 38, height: 3, borderRadius: 2, backgroundColor: veil(mode, 0.22), marginBottom: 14 }} />
-      <Text style={{ fontSize: 10.5, letterSpacing: 1.4, color: TT.faint, marginBottom: 14 }}>{tr.step2.toUpperCase()}</Text>
+      <Text style={{ fontSize: 12.5, fontWeight: '700', letterSpacing: 0.2, color: TT.faint, marginBottom: 14 }}>{tr.step2}</Text>
 
       {/* The question sits ABOVE the pills, and is replaced by the second one
           below them once a choice is made — the sheet grows rather than swapping
@@ -540,8 +541,8 @@ function PickerSheet({
         }}
       >
         <View style={{ alignSelf: 'center', width: 38, height: 3, borderRadius: 2, backgroundColor: veil(mode, 0.22), marginBottom: 14 }} />
-        <Text style={{ fontSize: 10.5, letterSpacing: 1.4, color: TT.faint, marginBottom: 8, paddingHorizontal: 4 }}>
-          {(which === 'visual' ? tr.photoOrVideo : tr.voice).toUpperCase()}
+        <Text style={{ fontSize: 12.5, fontWeight: '700', letterSpacing: 0.2, color: TT.faint, marginBottom: 8, paddingHorizontal: 4 }}>
+          {which === 'visual' ? tr.photoOrVideo : tr.voice}
         </Text>
         {rows.map((r) => (
           <Pressable

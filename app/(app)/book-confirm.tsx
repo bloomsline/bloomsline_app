@@ -101,7 +101,7 @@ export default function BookConfirm() {
     }
   };
 
-  const kicker = (start ? longDate(start, locale) : tr.confirmTitle).toUpperCase();
+  const kicker = start ? longDate(start, locale) : tr.confirmTitle;
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>

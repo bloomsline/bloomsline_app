@@ -7,7 +7,7 @@ import { ActivityIndicator, Platform, ScrollView, Text, TouchableOpacity, View }
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Lock } from 'lucide-react-native';
-import { EdHeader, EdCard, FadeIn, MonoLabel } from '@/src/ui/editorial';
+import { EdHeader, EdCard, FadeIn, Kicker } from '@/src/ui/editorial';
 import { useOnboarding } from '@/src/onboarding/context';
 import { fetchSharing, type SharedItem } from '@/src/api/care';
 import { shareMoment } from '@/src/api/moments';
@@ -70,13 +70,13 @@ export default function Sharing() {
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-        <EdHeader kicker="SHARING" title={fmt(tr.titleCanSee, { name: first })} onBack={() => router.back()} />
+        <EdHeader kicker="Sharing" title={fmt(tr.titleCanSee, { name: first })} onBack={() => router.back()} />
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {items === null ? (
             <View style={{ paddingTop: 40, alignItems: 'center' }}><ActivityIndicator color={TT.accent} /></View>
           ) : (
             <>
-              <MonoLabel color={TT.faint} style={{ marginBottom: 12 }}>{fmt(tr.sharedWith, { name: first, count: items.length })}</MonoLabel>
+              <Kicker color={TT.faint} style={{ marginBottom: 12 }}>{fmt(tr.sharedWith, { name: first, count: items.length })}</Kicker>
 
               {items.length === 0 ? (
                 <EdCard style={{ alignItems: 'center', padding: 20, marginBottom: 18 }}>

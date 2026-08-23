@@ -12,7 +12,7 @@ import { ConfirmLayer, useConfirm } from '@/src/ui/confirm';
 import { AudioRow, MediaViewer } from '@/src/ui/MediaViewer';
 import { useI18n, fmt } from '@/src/i18n';
 import { useOnboarding } from '@/src/onboarding/context';
-import { MonoLabel } from '@/src/ui/editorial';
+import { Kicker } from '@/src/ui/editorial';
 import { useTheme } from '@/src/ui/theme-mode';
 import { OVER_MEDIA } from '@/src/ui/tokens';
 
@@ -190,7 +190,7 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
               )}
 
               {/* Time */}
-              <MonoLabel color={TT.faint} size={10.5}>{timeLabel}</MonoLabel>
+              <Kicker color={TT.faint} size={10.5}>{timeLabel}</Kicker>
 
               {/* Share to practitioner */}
               <TouchableOpacity

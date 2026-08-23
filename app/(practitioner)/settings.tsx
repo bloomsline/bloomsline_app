@@ -3,7 +3,7 @@ import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Check, Languages, LogOut, type LucideIcon } from 'lucide-react-native';
-import { EdHeader, EdCard, EdSection, FadeIn, MonoLabel } from '@/src/ui/editorial';
+import { EdHeader, EdCard, EdSection, FadeIn, Kicker } from '@/src/ui/editorial';
 import { useAuth } from '@/src/auth/auth-context';
 import { useConfirm } from '@/src/ui/confirm';
 import { useI18n, type Locale } from '@/src/i18n';
@@ -66,7 +66,7 @@ export default function PractitionerSettings() {
             </View>
           </EdCard>
 
-          <MonoLabel color={TT.faint} style={{ marginBottom: 6 }}>{tr.language}</MonoLabel>
+          <Kicker color={TT.faint} style={{ marginBottom: 6 }}>{tr.language}</Kicker>
           <Text style={{ fontSize: 13, color: TT.inkSoft, marginBottom: 12, lineHeight: 18 }}>{tr.languageSub}</Text>
           <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
             <ToggleOption Icon={Languages} label={tr.english} selected={locale === 'en'} onPress={() => changeLocale('en')} />

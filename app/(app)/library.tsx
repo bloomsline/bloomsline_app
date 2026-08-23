@@ -5,7 +5,7 @@ import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'rea
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Search, ChevronRight } from 'lucide-react-native';
-import { EdHeader, EdCard, FadeIn, MonoLabel } from '@/src/ui/editorial';
+import { EdHeader, EdCard, FadeIn, Kicker } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { resourceTypeMeta } from '@/src/care/resources';
 import { listLibrary, type LibraryItem } from '@/src/api/library';
@@ -66,7 +66,7 @@ export default function Library() {
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-        <EdHeader source={ONBOARDING_IMAGES.card1} kicker="LIBRARY" title={tr.explore} subtitle={tr.subtitle} onBack={back} />
+        <EdHeader source={ONBOARDING_IMAGES.card1} kicker="Library" title={tr.explore} subtitle={tr.subtitle} onBack={back} />
 
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {items === null ? (
@@ -90,7 +90,7 @@ export default function Library() {
                   actually means "flip against the page". */}
               {featured && (
                 <TouchableOpacity onPress={() => open(featured.id)} activeOpacity={0.9} style={{ backgroundColor: TT.ctaBg, borderRadius: 20, padding: 20, marginBottom: 18 }}>
-                  <MonoLabel color={onCta(mode, 0.6)} style={{ marginBottom: 8 }}>{tr.featured}</MonoLabel>
+                  <Kicker color={onCta(mode, 0.6)} style={{ marginBottom: 8 }}>{tr.featured}</Kicker>
                   <Text style={{ fontSize: 19, fontWeight: '800', color: TT.ctaFg, letterSpacing: -0.3 }}>{featured.title}</Text>
                   {featured.description ? <Text style={{ fontSize: 13, color: onCta(mode, 0.72), lineHeight: 20, marginTop: 4 }} numberOfLines={2}>{featured.description}</Text> : null}
                 </TouchableOpacity>

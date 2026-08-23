@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
-import { EdHeader, MonoLabel, FadeIn } from '@/src/ui/editorial';
+import { EdHeader, Kicker, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { fetchHistory, type CareSession } from '@/src/api/care';
 import { useI18n, type Locale } from '@/src/i18n';
@@ -75,7 +75,7 @@ export default function SessionHistory() {
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-        <EdHeader source={ONBOARDING_IMAGES.final} kicker="SESSION HISTORY" title={tr.title} onBack={back} />
+        <EdHeader source={ONBOARDING_IMAGES.final} kicker="Session history" title={tr.title} onBack={back} />
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {items === null ? (
             <View style={{ paddingTop: 40, alignItems: 'center' }}><ActivityIndicator color={TT.accent} /></View>
@@ -91,7 +91,7 @@ export default function SessionHistory() {
                 return (
                   <View key={s.id} style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, borderRadius: 18, padding: 15, paddingRight: 14, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
                     <View style={{ width: 46, alignItems: 'center' }}>
-                      <MonoLabel color={TT.accent} size={9.5}>{monthShort(s.scheduledAt, locale)}</MonoLabel>
+                      <Kicker color={TT.accent} size={9.5}>{monthShort(s.scheduledAt, locale)}</Kicker>
                       <Text style={{ fontSize: 20, fontWeight: '800', color: TT.ink, lineHeight: 24 }}>{dayNum(s.scheduledAt)}</Text>
                     </View>
                     <View style={{ width: 1, height: 32, backgroundColor: TT.line }} />

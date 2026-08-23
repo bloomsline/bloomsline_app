@@ -1,6 +1,6 @@
 import { Image, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { X } from 'lucide-react-native';
-import { MonoLabel } from '@/src/ui/editorial';
+import { Kicker } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 import type { CarePractitioner } from '@/src/api/care';
 import { useTheme } from '@/src/ui/theme-mode';
@@ -65,7 +65,7 @@ export function PractitionerSheet({
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginTop: 20 }}>
                 {facts.map((f) => (
                   <View key={f.label} style={{ backgroundColor: TT.bg, borderWidth: 1, borderColor: TT.line, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14, minWidth: 96, alignItems: 'center' }}>
-                    <MonoLabel color={TT.faint} size={9.5}>{f.label}</MonoLabel>
+                    <Kicker color={TT.faint} size={9.5}>{f.label}</Kicker>
                     <Text style={{ fontSize: 13.5, color: TT.ink, fontWeight: '600', marginTop: 5, textAlign: 'center' }}>{f.value}</Text>
                   </View>
                 ))}
@@ -74,7 +74,7 @@ export function PractitionerSheet({
 
             {p?.bio ? (
               <View style={{ marginTop: 22 }}>
-                <MonoLabel color={TT.faint} style={{ marginBottom: 8 }}>{t.profile.about}</MonoLabel>
+                <Kicker color={TT.faint} style={{ marginBottom: 8 }}>{t.profile.about}</Kicker>
                 <Text style={{ fontSize: 13.5, color: TT.inkSoft, lineHeight: 21 }}>{p.bio}</Text>
               </View>
             ) : null}

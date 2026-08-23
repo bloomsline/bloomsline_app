@@ -124,7 +124,7 @@ export function PulseSheet({ memberId, who, onClose }: { memberId: string | null
                 <Sparkles size={16} color={TT.accentDeep} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: TT.faint }}>{tr.kicker}</Text>
+                <Text style={{ fontSize: 12.5, fontWeight: '700', letterSpacing: 0.2, color: TT.faint }}>{tr.kicker}</Text>
                 <Text style={{ fontSize: 17.5, fontWeight: '800', color: TT.ink, marginTop: 2 }}>{who}</Text>
               </View>
               <Pressable onPress={onClose} hitSlop={8} style={{ height: 30, width: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: TT.bg }}>
@@ -165,7 +165,7 @@ export function PulseSheet({ memberId, who, onClose }: { memberId: string | null
 
                 {pulse.content.signals?.length > 0 && (
                   <View style={{ marginTop: 20 }}>
-                    <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: TT.faint, marginBottom: 9 }}>{tr.signals}</Text>
+                    <Text style={{ fontSize: 12.5, fontWeight: '700', letterSpacing: 0.2, color: TT.faint, marginBottom: 9 }}>{tr.signals}</Text>
                     {pulse.content.signals.map((sig, i) => {
                       const c = KIND[mode][sig.kind] ?? { bg: TT.bg, fg: TT.inkSoft };
                       return (
@@ -180,7 +180,7 @@ export function PulseSheet({ memberId, who, onClose }: { memberId: string | null
 
                 {pulse.content.nextSteps?.length > 0 && (
                   <View style={{ marginTop: 20 }}>
-                    <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: TT.faint, marginBottom: 9 }}>{tr.next}</Text>
+                    <Text style={{ fontSize: 12.5, fontWeight: '700', letterSpacing: 0.2, color: TT.faint, marginBottom: 9 }}>{tr.next}</Text>
                     {pulse.content.nextSteps.map((n, i) => (
                       <View key={i} style={{ borderRadius: 14, backgroundColor: TT.accentTint, padding: 12, marginBottom: 7 }}>
                         <Text style={{ fontSize: 14.5, lineHeight: 21, color: TT.accentDeep }}>{n}</Text>
@@ -191,7 +191,7 @@ export function PulseSheet({ memberId, who, onClose }: { memberId: string | null
 
                 {pulse.content.themes?.length > 0 && (
                   <View style={{ marginTop: 20 }}>
-                    <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: TT.faint, marginBottom: 9 }}>{tr.themes}</Text>
+                    <Text style={{ fontSize: 12.5, fontWeight: '700', letterSpacing: 0.2, color: TT.faint, marginBottom: 9 }}>{tr.themes}</Text>
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>
                       {pulse.content.themes.map((t, i) => (
                         <View key={i} style={{ borderRadius: 12, backgroundColor: TT.bg, paddingHorizontal: 10, paddingVertical: 5 }}>

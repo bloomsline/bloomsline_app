@@ -12,7 +12,7 @@ import { useRouter } from 'expo-router';
 import { PenLine, Sprout, Settings, ChevronRight, type LucideIcon } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
 import { TabIntro } from '@/src/ui/TabIntro';
-import { FadeIn, MonoLabel } from '@/src/ui/editorial';
+import { FadeIn, HEADER_TOP, Kicker } from '@/src/ui/editorial';
 import { Ground } from '@/src/ui/Ground';
 import { useI18n } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
@@ -53,9 +53,9 @@ export default function ForYou() {
     <Ground>
       <StatusBar style="light" />
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
-        <View style={{ paddingHorizontal: 22, paddingTop: 8, paddingBottom: 18, flexDirection: 'row', alignItems: 'flex-start' }}>
+        <View style={{ paddingHorizontal: 22, paddingTop: HEADER_TOP, paddingBottom: 18, flexDirection: 'row', alignItems: 'flex-start' }}>
           <View style={{ flex: 1 }}>
-            <MonoLabel color={TT.faint} size={10.5} style={{ marginBottom: 10 }}>{tr.kicker}</MonoLabel>
+            <Kicker color={TT.faint} size={10.5} style={{ marginBottom: 10 }}>{tr.kicker}</Kicker>
             <Text style={{ fontSize: 27, fontWeight: '800', color: TT.ink, letterSpacing: -0.9, lineHeight: 31 }}>{tr.title}</Text>
             <Text style={{ marginTop: 8, fontSize: 14, color: TT.inkSoft, lineHeight: 21 }}>{tr.subtitle}</Text>
           </View>

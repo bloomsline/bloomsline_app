@@ -7,7 +7,7 @@ import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Info } from 'lucide-react-native';
-import { EdPill, MonoLabel } from '@/src/ui/editorial';
+import { EdPill, HEADER_TOP, Kicker } from '@/src/ui/editorial';
 import { useOnboarding } from '@/src/onboarding/context';
 import { cancelSession } from '@/src/api/booking';
 import { useConfirm } from '@/src/ui/confirm';
@@ -110,10 +110,10 @@ export default function SessionMenu() {
     <View style={{ flex: 1, backgroundColor: 'rgba(20,20,20,0.4)', justifyContent: 'flex-end' }}>
       <Pressable style={{ flex: 1 }} onPress={close} />
       <SafeAreaView edges={['bottom']} style={{ backgroundColor: TT.card, borderTopLeftRadius: 28, borderTopRightRadius: 28 }}>
-        <View style={{ paddingHorizontal: 24, paddingTop: 14, paddingBottom: 8 }}>
+        <View style={{ paddingHorizontal: 24, paddingTop: HEADER_TOP, paddingBottom: 8 }}>
           <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: TT.line, alignSelf: 'center', marginBottom: 18 }} />
 
-          <MonoLabel color={TT.faint} style={{ marginBottom: 12 }}>{tr.session}</MonoLabel>
+          <Kicker color={TT.faint} style={{ marginBottom: 12 }}>{tr.session}</Kicker>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: TT.line }}>
             <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: TT.accent, alignItems: 'center', justifyContent: 'center' }}>
@@ -165,7 +165,7 @@ function MiniFact({ label, value }: { label: string; value: string }) {
   const { t: TT } = useTheme();
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg, borderWidth: 1, borderColor: TT.line, borderRadius: 14, padding: 12, alignItems: 'center' }}>
-      <MonoLabel color={TT.faint} size={9.5}>{label}</MonoLabel>
+      <Kicker color={TT.faint} size={9.5}>{label}</Kicker>
       <Text style={{ fontSize: 14, color: TT.ink, fontWeight: '700', marginTop: 5 }}>{value}</Text>
     </View>
   );

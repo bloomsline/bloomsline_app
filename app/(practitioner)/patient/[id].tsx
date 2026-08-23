@@ -270,7 +270,7 @@ export default function PatientDetailScreen() {
               {data.overview.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.noOverview}</Text>}
               {data.overview.map((s) => (
                 <EdCard key={s.id} style={{ marginBottom: 10 }}>
-                  <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: TT.faint, marginBottom: 6 }}>{s.title.toUpperCase()}</Text>
+                  <Text style={{ fontSize: 12.5, fontWeight: '700', letterSpacing: 0.2, color: TT.faint, marginBottom: 6 }}>{s.title.toUpperCase()}</Text>
                   {Array.isArray(s.value) ? (
                     s.value.map((v, i) => (
                       <View key={i} style={{ flexDirection: 'row', gap: 8, marginTop: i ? 5 : 0 }}>
@@ -323,7 +323,7 @@ export default function PatientDetailScreen() {
                         {s.source && tr.sources[s.source as keyof typeof tr.sources]
                           ? <Row label={tr.origin} value={tr.sources[s.source as keyof typeof tr.sources]} /> : null}
 
-                        <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: TT.faint, marginTop: 15, marginBottom: 7 }}>
+                        <Text style={{ fontSize: 12.5, fontWeight: '700', letterSpacing: 0.2, color: TT.faint, marginTop: 15, marginBottom: 7 }}>
                           {tr.sessionNote}
                         </Text>
                         {s.note ? (
@@ -481,7 +481,7 @@ export default function PatientDetailScreen() {
                   below, and the reason this tab looked empty for a patient who
                   plainly had one. */}
               {(data.files ?? []).length > 0 && (
-                <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: TT.faint, marginBottom: 8 }}>{tr.uploaded}</Text>
+                <Text style={{ fontSize: 12.5, fontWeight: '700', letterSpacing: 0.2, color: TT.faint, marginBottom: 8 }}>{tr.uploaded}</Text>
               )}
               {(data.files ?? []).map((f) => (
                 <EdCard key={f.id} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 11, marginBottom: 10 }}>
@@ -496,7 +496,7 @@ export default function PatientDetailScreen() {
               ))}
 
               {data.documents.length > 0 && (
-                <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1, color: TT.faint, marginTop: (data.files ?? []).length ? 14 : 0, marginBottom: 8 }}>{tr.forSignature}</Text>
+                <Text style={{ fontSize: 12.5, fontWeight: '700', letterSpacing: 0.2, color: TT.faint, marginTop: (data.files ?? []).length ? 14 : 0, marginBottom: 8 }}>{tr.forSignature}</Text>
               )}
               {data.documents.map((d) => (
                 <EdCard key={d.id} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 11, marginBottom: 10 }}>
