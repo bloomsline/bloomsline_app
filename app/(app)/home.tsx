@@ -24,6 +24,7 @@ import { resourceTypeMeta, statusLabel } from '@/src/care/resources';
 import { notify } from '@/src/ui/alert';
 import { Ground } from '@/src/ui/Ground';
 import { useTheme } from '@/src/ui/theme-mode';
+import { veil } from '@/src/ui/tokens';
 
 const PREVIEW_NEXT: CareSession = { id: 'preview', scheduledAt: inDays(5, 9), durationMinutes: 50, sessionFormat: 'video', sessionType: 'session', status: 'scheduled', meetLink: null, paymentStatus: null };
 const PREVIEW_UPCOMING: CareSession[] = [
@@ -249,7 +250,7 @@ function SessionCarousel({
   onJoin: (s: CareSession) => void;
   onMaps: () => void;
 }) {
-  const { t: TT } = useTheme();
+  const { t: TT, mode } = useTheme();
   const { width } = useWindowDimensions();
   const [index, setIndex] = useState(0);
   const scroller = useRef<ScrollView>(null);
@@ -295,7 +296,7 @@ function SessionCarousel({
           {sessions.map((s, i) => (
             <View
               key={s.id}
-              style={{ height: 2, width: i === index ? 16 : 6, borderRadius: 1, backgroundColor: i === index ? TT.ink : 'rgba(255,255,255,0.25)' }}
+              style={{ height: 2, width: i === index ? 16 : 6, borderRadius: 1, backgroundColor: i === index ? TT.ink : veil(mode, 0.25) }}
             />
           ))}
         </View>
@@ -318,7 +319,7 @@ function SessionCard({
   onJoin: () => void;
   onMaps: () => void;
 }) {
-  const { t: TT } = useTheme();
+  const { t: TT, mode } = useTheme();
   const inPerson = session.sessionFormat === 'in_person';
   const pay = session.paymentStatus;
   return (
@@ -326,7 +327,7 @@ function SessionCard({
       <TouchableOpacity
         onPress={onOpen}
         activeOpacity={0.7}
-        style={{ position: 'absolute', top: 12, right: 12, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' }}
+        style={{ position: 'absolute', top: 12, right: 12, width: 32, height: 32, borderRadius: 16, backgroundColor: veil(mode, 0.08), alignItems: 'center', justifyContent: 'center' }}
       >
         <Ellipsis size={17} color={TT.ink} strokeWidth={2.5} />
       </TouchableOpacity>
@@ -354,13 +355,13 @@ function SessionCard({
                           → else nothing. A button that opens nothing is worse
                             than no button. */}
       {first && !inPerson ? (
-        <TouchableOpacity onPress={onJoin} activeOpacity={0.85} style={{ height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginTop: 16 }}>
-          <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#141414' }}>{t.care.join}</Text>
+        <TouchableOpacity onPress={onJoin} activeOpacity={0.85} style={{ height: 44, borderRadius: 22, backgroundColor: TT.ctaBg, alignItems: 'center', justifyContent: 'center', marginTop: 16 }}>
+          <Text style={{ fontSize: 14.5, fontWeight: '700', color: TT.ctaFg }}>{t.care.join}</Text>
         </TouchableOpacity>
       ) : first && inPerson && mapsUrl ? (
-        <TouchableOpacity onPress={onMaps} activeOpacity={0.85} style={{ height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginTop: 16, flexDirection: 'row', gap: 7 }}>
-          <MapPin size={16} color="#141414" strokeWidth={2.2} />
-          <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#141414' }}>{t.care.openInMaps}</Text>
+        <TouchableOpacity onPress={onMaps} activeOpacity={0.85} style={{ height: 44, borderRadius: 22, backgroundColor: TT.ctaBg, alignItems: 'center', justifyContent: 'center', marginTop: 16, flexDirection: 'row', gap: 7 }}>
+          <MapPin size={16} color={TT.ctaFg} strokeWidth={2.2} />
+          <Text style={{ fontSize: 14.5, fontWeight: '700', color: TT.ctaFg }}>{t.care.openInMaps}</Text>
         </TouchableOpacity>
       ) : first && inPerson && address ? (
         <View style={{ flexDirection: 'row', gap: 7, marginTop: 14, alignItems: 'flex-start' }}>

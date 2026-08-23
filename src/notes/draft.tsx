@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { PenLine, X } from 'lucide-react-native';
 import { saveNoteDraft, discardNoteDraft, type NoteRange } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
+import { onCta } from '@/src/ui/tokens';
 
 // A note being written, held above the screen that is writing it.
 //
@@ -183,7 +184,7 @@ export function useNoteDraft(): DraftContext {
  *  again. Deliberately small and always reachable — a draft you cannot see is a
  *  draft you will lose. */
 function MinimizedNote() {
-  const { t: TT } = useTheme();
+  const { t: TT, mode } = useTheme();
   const router = useRouter();
   const ctx = useContext(Ctx);
   if (!ctx?.draft || !ctx.minimized) return null;
@@ -202,11 +203,11 @@ function MinimizedNote() {
       >
         <PenLine size={16} color={TT.ctaFg} strokeWidth={2.2} />
         <View style={{ flex: 1 }}>
-          <Text numberOfLines={1} style={{ fontSize: 13.5, fontWeight: '700', color: '#fff' }}>{preview}</Text>
-          <Text style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.7)' }}>{draft.who}</Text>
+          <Text numberOfLines={1} style={{ fontSize: 13.5, fontWeight: '700', color: TT.ctaFg }}>{preview}</Text>
+          <Text style={{ fontSize: 11.5, color: onCta(mode, 0.7) }}>{draft.who}</Text>
         </View>
         <Pressable onPress={discard} hitSlop={10} accessibilityLabel="Discard draft">
-          <X size={16} color="rgba(255,255,255,0.7)" />
+          <X size={16} color={onCta(mode, 0.7)} />
         </Pressable>
       </Pressable>
     </View>

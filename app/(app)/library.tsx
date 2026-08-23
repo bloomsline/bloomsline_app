@@ -11,6 +11,7 @@ import { resourceTypeMeta } from '@/src/care/resources';
 import { listLibrary, type LibraryItem } from '@/src/api/library';
 import { useI18n } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
+import { onCta } from '@/src/ui/tokens';
 
 const T = {
   en: {
@@ -42,7 +43,7 @@ const T = {
 } as const;
 
 export default function Library() {
-  const { t: TT } = useTheme();
+  const { t: TT, mode } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale];
@@ -83,12 +84,15 @@ export default function Library() {
                 <Text style={{ color: TT.faint, fontSize: 14 }}>{tr.search}</Text>
               </View>
 
-              {/* Featured — the one dark accent block */}
+              {/* Featured — the one INVERTED block. It used to be `TT.ink`, which is
+                  near-black on cream and WHITE on the ground: in dark mode it was a
+                  white slab carrying white text. `ctaBg`/`ctaFg` is the pair that
+                  actually means "flip against the page". */}
               {featured && (
-                <TouchableOpacity onPress={() => open(featured.id)} activeOpacity={0.9} style={{ backgroundColor: TT.ink, borderRadius: 20, padding: 20, marginBottom: 18 }}>
-                  <MonoLabel color="rgba(255,255,255,0.6)" style={{ marginBottom: 8 }}>{tr.featured}</MonoLabel>
-                  <Text style={{ fontSize: 19, fontWeight: '800', color: '#fff', letterSpacing: -0.3 }}>{featured.title}</Text>
-                  {featured.description ? <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.72)', lineHeight: 20, marginTop: 4 }} numberOfLines={2}>{featured.description}</Text> : null}
+                <TouchableOpacity onPress={() => open(featured.id)} activeOpacity={0.9} style={{ backgroundColor: TT.ctaBg, borderRadius: 20, padding: 20, marginBottom: 18 }}>
+                  <MonoLabel color={onCta(mode, 0.6)} style={{ marginBottom: 8 }}>{tr.featured}</MonoLabel>
+                  <Text style={{ fontSize: 19, fontWeight: '800', color: TT.ctaFg, letterSpacing: -0.3 }}>{featured.title}</Text>
+                  {featured.description ? <Text style={{ fontSize: 13, color: onCta(mode, 0.72), lineHeight: 20, marginTop: 4 }} numberOfLines={2}>{featured.description}</Text> : null}
                 </TouchableOpacity>
               )}
 

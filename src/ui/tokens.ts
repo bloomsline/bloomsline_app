@@ -48,6 +48,14 @@ export interface Palette {
   accentDeep: string;
   /** A wash of the accent, for tinted surfaces. */
   accentTint: string;
+  /** Text and glyphs sitting ON the accent — never `#fff`.
+   *
+   *  This token exists because that mistake was made four separate times: the
+   *  journal's new-page button, the shared-with avatar, the practitioner tabs
+   *  and the session sheet's actions all drew white on `accent`. It is right on
+   *  the deep green and 1.7:1 on the mint, so all four vanished in dark mode.
+   *  Naming the relationship is what stops it happening a fifth time. */
+  onAccent: string;
   /** The circular affordance — solid fill and the glyph on it. */
   circleBg: string;
   circleFg: string;
@@ -79,6 +87,7 @@ export const LIGHT: Palette = {
   accent: '#128069',
   accentDeep: '#0C5B4B',
   accentTint: '#E7F0EC',
+  onAccent: '#FFFFFF',
   circleBg: '#1D1D1D',
   circleFg: '#FFFFFF',
   ctaBg: '#141414',
@@ -101,6 +110,9 @@ export const DARK: Palette = {
   accent: '#7FD9C0',
   accentDeep: '#5FC6AA',
   accentTint: 'rgba(127,217,192,0.14)',
+  // The mint is a LIGHT colour. What sits on it has to be dark, which is the
+  // whole reason this token is not just white.
+  onAccent: '#0E1512',
   // Inverted from light on purpose. The point of the circle is that it is the
   // highest-contrast thing on the screen; on a dark ground that is a pale disc,
   // not a darker one.
@@ -130,6 +142,17 @@ export const PALETTES: Record<Mode, Palette> = { light: LIGHT, dark: DARK };
  */
 export const veil = (mode: Mode, alpha: number): string =>
   mode === 'dark' ? `rgba(255,255,255,${alpha})` : `rgba(20,20,20,${alpha})`;
+
+/**
+ * `veil`'s mirror, for the secondary text ON a `ctaBg` surface.
+ *
+ * `ctaBg` is the one surface that flips AGAINST the page — dark on cream, pale
+ * on the ground — so the ink over it flips against the theme too. Reaching for
+ * `veil` here gets it backwards in both themes at once, which is exactly the
+ * mistake the library's featured block was making with a plain white literal.
+ */
+export const onCta = (mode: Mode, alpha: number): string =>
+  mode === 'dark' ? `rgba(20,20,20,${alpha})` : `rgba(255,255,255,${alpha})`;
 
 /**
  * Icon tiles — a pale tint carrying a saturated glyph of the same hue.

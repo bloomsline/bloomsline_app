@@ -295,7 +295,9 @@ function SessionBlock({ session: s, top, timeLabel, pendingLabel, onPress }: {
   const ink = off ? (mode === 'dark' ? 'rgba(255,255,255,0.72)' : '#6E6C64')
     : pending ? '#4A3208'
     : mode === 'dark' ? DARK.bg : '#FFFFFF';
-  const dim = off ? '#8C8A82' : pending ? 'rgba(74,50,8,0.72)' : 'rgba(255,255,255,0.82)';
+  // Mirrors `ink` above: a booked cell is filled with the accent, and the mint
+  // needs dark text on it just as much as the deep green needs light.
+  const dim = off ? '#8C8A82' : pending ? 'rgba(74,50,8,0.72)' : mode === 'dark' ? 'rgba(14,21,18,0.78)' : 'rgba(255,255,255,0.82)';
   // 34px is where a second line stops being cramped: a 45-minute session lands
   // just above it, a 30-minute one just below.
   const roomy = height >= 34;

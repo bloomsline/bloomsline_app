@@ -341,8 +341,8 @@ export function SessionSheet({
                       onPress={() => { void Linking.openURL(s.meetLink as string); }}
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 20, backgroundColor: TT.accent, paddingHorizontal: 16, paddingVertical: 10 }}
                     >
-                      <Video size={15} color="#fff" />
-                      <Text style={{ fontSize: 13.5, fontWeight: '800', color: '#fff' }}>{tr.join}</Text>
+                      <Video size={15} color={TT.onAccent} />
+                      <Text style={{ fontSize: 13.5, fontWeight: '800', color: TT.onAccent }}>{tr.join}</Text>
                     </Pressable>
                   ) : null}
                   {canManage && isActive && <Outline Icon={NotebookPen} label={tr.notes} onPress={goNote} />}
@@ -359,8 +359,8 @@ export function SessionSheet({
                       disabled={busy}
                       style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 22, backgroundColor: TT.accent, paddingVertical: 12, opacity: busy ? 0.6 : 1 }}
                     >
-                      <CheckCircle2 size={16} color="#fff" />
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: '#fff' }}>{tr.approve}</Text>
+                      <CheckCircle2 size={16} color={TT.onAccent} />
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: TT.onAccent }}>{tr.approve}</Text>
                     </Pressable>
                     <Pressable
                       onPress={doDecline}
@@ -468,7 +468,7 @@ export function SessionSheet({
                     disabled={busy}
                     style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: TT.accent, paddingVertical: 13, opacity: busy ? 0.6 : 1 }}
                   >
-                    {busy ? <ActivityIndicator color="#fff" /> : <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#fff' }}>{tr.save}</Text>}
+                    {busy ? <ActivityIndicator color={TT.onAccent} /> : <Text style={{ fontSize: 14.5, fontWeight: '800', color: TT.onAccent }}>{tr.save}</Text>}
                   </Pressable>
                 </View>
               </View>
@@ -490,7 +490,7 @@ export function SessionSheet({
                     all three are offered rather than one being guessed at. */}
                 <View style={{ gap: 9, marginTop: 18 }}>
                   <Pressable onPress={() => doCancel('this')} disabled={busy} style={{ alignItems: 'center', borderRadius: 22, backgroundColor: '#DC2626', paddingVertical: 13, opacity: busy ? 0.6 : 1 }}>
-                    <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#fff' }}>{tr.thisOne}</Text>
+                    <Text style={{ fontSize: 14.5, fontWeight: '800', color: TT.onAccent }}>{tr.thisOne}</Text>
                   </Pressable>
                   {s.seriesId ? (
                     <>

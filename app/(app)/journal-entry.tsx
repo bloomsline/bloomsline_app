@@ -29,6 +29,7 @@ import { pickImage, pickVideo, uploadImage, uploadVideo, uploadVoice } from '@/s
 import { useConfirm } from '@/src/ui/confirm';
 import { useI18n } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
+import { veil } from '@/src/ui/tokens';
 
 /** A LINK is not media: it belongs in a browser, and always did. */
 const openLink = (url: string) =>
@@ -64,7 +65,7 @@ const T = {
 const fmtDur = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
 
 export default function JournalEntry() {
-  const { t: TT } = useTheme();
+  const { t: TT, mode: theme } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
   const confirm = useConfirm();
@@ -296,7 +297,7 @@ export default function JournalEntry() {
             the share state lives, because a state belongs with the chrome and
             not under the writing. */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 18, paddingVertical: 12 }}>
-          <TouchableOpacity onPress={back} activeOpacity={0.7} style={darkCircleBtn}><ChevronLeft size={18} color="#fff" strokeWidth={2} /></TouchableOpacity>
+          <TouchableOpacity onPress={back} activeOpacity={0.7} style={[circleBtn, { backgroundColor: veil(theme, 0.10) }]}><ChevronLeft size={18} color={TT.ink} strokeWidth={2} /></TouchableOpacity>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             {mode === 'edit' && status === 'saved' && <Check size={13} color={TT.accent} strokeWidth={2.5} />}
             {mode === 'edit' && status !== 'idle' ? <MonoLabel color={TT.faint} size={9.5}>{status === 'saving' ? tr.saving : tr.saved.replace('{time}', savedAtLabel)}</MonoLabel> : null}
@@ -310,9 +311,9 @@ export default function JournalEntry() {
             />
           )}
           {mode === 'read' && (
-            <TouchableOpacity onPress={() => setMode('edit')} activeOpacity={0.7} style={darkCircleBtn}><Pencil size={16} color="#fff" strokeWidth={2} /></TouchableOpacity>
+            <TouchableOpacity onPress={() => setMode('edit')} activeOpacity={0.7} style={[circleBtn, { backgroundColor: veil(theme, 0.10) }]}><Pencil size={16} color={TT.ink} strokeWidth={2} /></TouchableOpacity>
           )}
-          <TouchableOpacity onPress={confirmDelete} activeOpacity={0.7} style={darkCircleBtn}><Trash2 size={16} color={TT.inkSoft} strokeWidth={2} /></TouchableOpacity>
+          <TouchableOpacity onPress={confirmDelete} activeOpacity={0.7} style={[circleBtn, { backgroundColor: veil(theme, 0.10) }]}><Trash2 size={16} color={TT.inkSoft} strokeWidth={2} /></TouchableOpacity>
         </View>
 
         {/* The paper. */}
@@ -400,7 +401,10 @@ export default function JournalEntry() {
   );
 }
 
-const darkCircleBtn = { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' } as const;
+// Was `darkCircleBtn` with a baked-in white wash — a white disc on cream. The
+// circular affordance inverts by theme, so the colour comes from the palette and
+// only the geometry lives here.
+const circleBtn = { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' } as const;
 
 
 type Tr = { [K in keyof (typeof T)['en']]: string };
