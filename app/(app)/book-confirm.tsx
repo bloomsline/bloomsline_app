@@ -11,6 +11,7 @@ import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useOnboarding } from '@/src/onboarding/context';
 import { createBooking, rescheduleSession } from '@/src/api/booking';
 import { useI18n, type Locale } from '@/src/i18n';
+import { PractitionerAvatar } from '@/src/care/PractitionerAvatar';
 import { useTheme } from '@/src/ui/theme-mode';
 
 const T = {
@@ -59,7 +60,6 @@ export default function BookConfirm() {
   const rescheduleId = typeof params.rescheduleId === 'string' ? params.rescheduleId : '';
   const { practitionerName } = useOnboarding();
   const name = practitionerName ?? tr.yourPractitioner;
-  const initial = name.replace(/^dr\.?\s*/i, '').charAt(0).toUpperCase() || 'M';
 
   const slotIso = typeof params.slotIso === 'string' ? params.slotIso : '';
   const durationMinutes = Number(params.durationMinutes) || 50;
@@ -111,9 +111,7 @@ export default function BookConfirm() {
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {/* Summary */}
           <EdCard style={{ padding: 24, alignItems: 'center' }}>
-            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: TT.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-              <Text style={{ color: TT.onAccent, fontWeight: '700', fontSize: 22 }}>{initial}</Text>
-            </View>
+            <PractitionerAvatar size={56} name={name} tone="solid" style={{ marginBottom: 16 }} />
             <Text style={{ fontSize: 22, fontWeight: '800', color: TT.ink, letterSpacing: -0.3, textAlign: 'center' }}>{start ? longDate(start, locale) : '—'}</Text>
             <Text style={{ fontSize: 15, color: TT.inkSoft, marginTop: 4, textAlign: 'center' }}>{start && end ? `${clock(start)} – ${clock(end)}` : ''} {tr.withName(name)}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, backgroundColor: TT.accentTint, borderRadius: 14, paddingVertical: 7, paddingHorizontal: 14 }}>
