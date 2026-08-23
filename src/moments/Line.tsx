@@ -8,7 +8,7 @@
 // The horizontal position is DERIVED from the feelings a patient picked — the
 // mean of their MOOD_SCORES — which is why capture never had to ask for it or
 // store it. A moment with no feelings sits on the centre line.
-import { memo, useMemo, useState } from 'react';
+import { memo, useMemo, useRef, useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 import Svg, { Path, Circle, Defs, ClipPath, Image as SvgImage } from 'react-native-svg';
 import { Quote, ImageOff, AudioLines, Video, Play } from 'lucide-react-native';
@@ -157,6 +157,10 @@ function stemPath(nodes: LineNode[], todayY: number, todayX: number): string {
  * arbitrary path and the photograph has to be CLIPPED to it — a picture in a
  * square behind a shaped ring would read as a mistake.
  */
+/** Ever-increasing, so no two mounted nodes can share a clipPath id — not even
+ *  the same moment rendered twice. See `clipId` below for why that matters. */
+let clipSeq = 0;
+
 function NodeFace({ node, onPress }: { node: LineNode; onPress: () => void }) {
   const { mode } = useTheme();
   const [broken, setBroken] = useState(false);
@@ -165,7 +169,24 @@ function NodeFace({ node, onPress }: { node: LineNode; onPress: () => void }) {
 
   // Leave a pixel for the stroke, or the outermost spikes get shaved.
   const d = shapePath(node.shape, NODE / 2, NODE / 2, NODE / 2 - 1);
-  const clipId = `m${node.moment.id.replace(/[^A-Za-z0-9]/g, '')}`;
+  // Unique per MOUNT, not per moment.
+  //
+  // Reported on Android: a photograph is clipped to its shape on first load and
+  // comes back an unclipped SQUARE after switching tabs and returning. Deriving
+  // the id from the moment id means the outgoing and incoming Moments screens
+  // are briefly mounted together holding the SAME clipPath id, and
+  // react-native-svg keeps its clip definitions in a registry keyed by that id —
+  // so the survivor can end up pointing at a definition that has been torn down.
+  //
+  // NOT REPRODUCED ON WEB: the same tab round-trip leaves every reference intact
+  // there, because RNSVG resolves through the DOM instead. So this is a reasoned
+  // fix for a known RNSVG-on-native id-collision, and it needs confirming on a
+  // device. If a square still comes back, the mechanism is something else and
+  // the next thing to try is dropping clipPath entirely for a mask.
+  //
+  // `useId` would not do: it is derived from tree position, so remounting the
+  // same tree hands back the same value. A counter cannot collide.
+  const clipId = useRef(`mclip${(clipSeq += 1)}`).current;
 
   return (
     <Pressable
