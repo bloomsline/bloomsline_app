@@ -29,7 +29,7 @@ const PROMPTS: { key: 'session' | 'good' | 'mind'; Icon: LucideIcon }[] = [
 ];
 
 export default function Journal() {
-  const { t: TT, mode } = useTheme();
+  const { t: TT } = useTheme();
   const router = useRouter();
   const { t, locale } = useI18n();
   const { practitionerName } = useOnboarding();
@@ -55,13 +55,18 @@ export default function Journal() {
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   const open = (id: string) => router.navigate({ pathname: '/journal-entry', params: { id } } as never);
+  // A page we just created opens straight in EDIT. The entry screen decided
+  // read-vs-edit from "is there an id?", which is true the moment a page is
+  // created — so a brand new blank page opened read-only and you had to find
+  // the pencil before you could write the thing you had just asked for.
+  const openFresh = (id: string) => router.navigate({ pathname: '/journal-entry', params: { id, fresh: '1' } } as never);
 
   const startPage = async (title: string | null) => {
     if (creating) return;
     setCreating(true);
     try {
       const made = await createJournal({ title, blocks: [] });
-      if (made) open(made.id);
+      if (made) openFresh(made.id);
     } finally {
       setCreating(false);
     }
@@ -75,26 +80,27 @@ export default function Journal() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: TT.bg }}>
+    <View style={{ flex: 1, backgroundColor: TT.headBg }}>
       <StatusBar style="light" />
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
-        {/* The head: dark, and pointedly without an image. */}
-        <View style={{ paddingHorizontal: 22, paddingTop: 6, paddingBottom: 20 }}>
+        {/* The head: dark, and pointedly without an image. Dark in BOTH themes —
+            its ink is therefore the dark-mode ink whatever the page is doing. */}
+        <View style={{ paddingHorizontal: 22, paddingTop: 6, paddingBottom: 20, backgroundColor: TT.headBg }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 18 }}>
             <TouchableOpacity
               onPress={() => (router.canGoBack() ? router.back() : router.navigate('/for-you' as never))}
-              style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: veil(mode, 0.10), alignItems: 'center', justifyContent: 'center' }}
+              style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: veil('dark', 0.12), alignItems: 'center', justifyContent: 'center' }}
             >
-              <ChevronLeft size={18} color={TT.ink} strokeWidth={2} />
+              <ChevronLeft size={18} color={TT.headInk} strokeWidth={2} />
             </TouchableOpacity>
             <View style={{ flex: 1 }} />
-            <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: veil(mode, 0.10), alignItems: 'center', justifyContent: 'center' }}>
-              <Lock size={16} color={TT.inkSoft} strokeWidth={2} />
+            <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: veil('dark', 0.12), alignItems: 'center', justifyContent: 'center' }}>
+              <Lock size={16} color={veil('dark', 0.72)} strokeWidth={2} />
             </View>
           </View>
-          <MonoLabel color={TT.faint} size={10.5} style={{ marginBottom: 8 }}>{tr.kicker}</MonoLabel>
-          <Text style={{ fontSize: 30, fontWeight: '800', color: TT.ink, letterSpacing: -1 }}>{tr.title}</Text>
-          <Text style={{ marginTop: 8, fontSize: 13.5, color: TT.inkSoft, lineHeight: 20, maxWidth: 300 }}>{tr.subtitle}</Text>
+          <MonoLabel color={veil('dark', 0.55)} size={10.5} style={{ marginBottom: 8 }}>{tr.kicker}</MonoLabel>
+          <Text style={{ fontSize: 30, fontWeight: '800', color: TT.headInk, letterSpacing: -1 }}>{tr.title}</Text>
+          <Text style={{ marginTop: 8, fontSize: 13.5, color: veil('dark', 0.72), lineHeight: 20, maxWidth: 300 }}>{tr.subtitle}</Text>
         </View>
 
         {/* The paper. */}
