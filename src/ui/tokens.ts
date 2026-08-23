@@ -27,10 +27,16 @@ export interface Palette {
   bg: string;
   /** Raised surface — cards, rows. */
   card: string;
-  /** A sheet that rises OVER content. Distinct from `card` because it has to
-   *  carry its own weight: `card` on dark is a 5% white wash, which is a lift on
-   *  the page but transparent enough to read the writing straight through a
-   *  sheet laid on top of it. */
+  /** A sheet or dialog that rises OVER content, and therefore has to HIDE it.
+   *
+   *  Distinct from `card`, which is a surface lying on the page: on dark `card`
+   *  is a 5% white wash, so a panel built from it is see-through and the page
+   *  reads straight through the writing.
+   *
+   *  Fully opaque, and that is the point. This was 0.96 first, on the reasoning
+   *  that a sheet is glass over what it covers — but 4% of a bright tab bar is
+   *  still legible behind a delete button, which reads as a rendering fault
+   *  rather than as depth. Depth comes from the scrim and the radius. */
   sheet: string;
   /** Card border. Hairline on light; a lift on dark, where shadows do nothing. */
   cardLine: string;
@@ -38,7 +44,11 @@ export interface Palette {
   ink: string;
   /** Secondary text. */
   inkSoft: string;
-  /** Tertiary text, captions, timestamps. */
+  /** Tertiary text, captions, timestamps.
+   *
+   *  The quietest tier that is still TEXT, which is the constraint people
+   *  forget: quiet is a tone, not a licence to fall under the contrast floor.
+   *  Both values clear 4.5:1 on their own page. */
   faint: string;
   /** Divider. */
   line: string;
@@ -78,11 +88,16 @@ export interface Palette {
 export const LIGHT: Palette = {
   bg: '#F5F2EB',
   card: '#FFFFFF',
-  sheet: 'rgba(255,255,255,0.97)',
+  sheet: '#FFFFFF',
   cardLine: '#ECE8DF',
   ink: '#141414',
   inkSoft: '#5A5A52',
-  faint: '#9A9A90',
+  // Was #9A9A90 — 2.54:1 on cream, under the floor even for large text, and
+  // this is the tier every timestamp, caption and placeholder is written in.
+  // #6F6F68 is the LIGHTEST value that clears 4.5:1 on the page (4.53:1; 5.06
+  // on a card), chosen that way to keep as much of the intended softness as the
+  // bar allows. Still clearly above inkSoft's 6.22:1, so the three tiers hold.
+  faint: '#6F6F68',
   line: '#EAE8E2',
   accent: '#128069',
   accentDeep: '#0C5B4B',
@@ -101,11 +116,15 @@ export const LIGHT: Palette = {
 export const DARK: Palette = {
   bg: '#0E1512',
   card: 'rgba(255,255,255,0.055)',
-  sheet: 'rgba(20,26,23,0.96)',
+  sheet: '#141A17',
   cardLine: 'rgba(255,255,255,0.10)',
   ink: '#FFFFFF',
   inkSoft: 'rgba(255,255,255,0.68)',
-  faint: 'rgba(255,255,255,0.40)',
+  // Raised from 0.40 for the same reason as the light value: 3.82:1 on the
+  // ground, 3.75:1 on a card. A floor that only holds in one theme is not a
+  // floor. 0.47 is the least that clears 4.5:1 on all three surfaces, and stays
+  // well under inkSoft's 8.88:1.
+  faint: 'rgba(255,255,255,0.47)',
   line: 'rgba(255,255,255,0.10)',
   accent: '#7FD9C0',
   accentDeep: '#5FC6AA',

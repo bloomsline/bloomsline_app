@@ -130,10 +130,10 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' }}>
+      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: TT.scrim, justifyContent: 'flex-end' }}>
         <Pressable
           onPress={() => {}}
-          style={{ backgroundColor: TT.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingBottom: insets.bottom + 16, maxHeight: '82%' }}
+          style={{ backgroundColor: TT.sheet, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingBottom: insets.bottom + 16, maxHeight: '82%' }}
         >
           <View style={{ alignItems: 'center', paddingVertical: 12 }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: TT.line }} />
