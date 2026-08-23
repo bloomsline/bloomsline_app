@@ -16,7 +16,7 @@ import { Fragment, useMemo, useState } from 'react';
 import { Modal, Pressable, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, Ellipse, G, Polygon, Rect, Text as SvgText } from 'react-native-svg';
 import { Plus, X } from 'lucide-react-native';
-import { CARE } from '@/src/care/theme';
+import { useCare } from '@/src/care/theme';
 import { useI18n } from '@/src/i18n';
 import { labelSlots, labelAnchor, shapeBox, wrapLabel, zoneLabel, type CanvasEntry, type CanvasZone, type ZoneShape } from '@/src/resources/canvas';
 
@@ -64,6 +64,7 @@ export function ZonedCanvasField({
   onChange: (v: unknown) => void;
   readOnly?: boolean;
 }) {
+  const C = useCare();
   const { locale } = useI18n();
   const t = COPY[locale] ?? COPY.en;
   const size = canvas ?? { width: 800, height: 600 };
@@ -118,7 +119,7 @@ export function ZonedCanvasField({
 
   return (
     <View style={{ gap: 12 }}>
-      <View style={{ borderWidth: 1, borderColor: CARE.border, borderRadius: 14, backgroundColor: '#fff', padding: 6 }}>
+      <View style={{ borderWidth: 1, borderColor: C.border, borderRadius: 14, backgroundColor: C.card, padding: 6 }}>
         {/* aspectRatio keeps the canvas in proportion at any phone width. */}
         <Svg width="100%" height="100%" viewBox={`0 0 ${size.width} ${size.height}`} style={{ aspectRatio: size.width / size.height }}>
           {drawOrder(zones).map((z) => {
@@ -187,23 +188,23 @@ export function ZonedCanvasField({
       <Modal visible={open !== null} transparent animationType="fade" onRequestClose={() => setOpen(null)}>
         <Pressable
           onPress={() => setOpen(null)}
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 28 }}
+          style={{ flex: 1, backgroundColor: C.scrim, alignItems: 'center', justifyContent: 'center', padding: 28 }}
         >
           {/* Stops a tap inside the card from closing it. */}
-          <Pressable onPress={() => {}} style={{ width: '100%', maxWidth: 420, backgroundColor: '#fff', borderRadius: 20, padding: 20, gap: 14 }}>
+          <Pressable onPress={() => {}} style={{ width: '100%', maxWidth: 420, backgroundColor: C.sheet, borderRadius: 20, padding: 20, gap: 14 }}>
             {open && (
               <>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                   <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: accentOf(open.zone.accent).chip, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff' }}>{open.n}</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: C.onTeal }}>{open.n}</Text>
                   </View>
                   <Text style={{ flex: 1, fontSize: 13, fontWeight: '700', color: accentOf(open.zone.accent).text }}>
                     {zoneLabel(open.zone.label)}
                   </Text>
                 </View>
-                <Text style={{ fontSize: 17, color: CARE.ink, lineHeight: 25 }}>{open.entry.text}</Text>
+                <Text style={{ fontSize: 17, color: C.ink, lineHeight: 25 }}>{open.entry.text}</Text>
                 <TouchableOpacity onPress={() => setOpen(null)} style={{ alignSelf: 'flex-end' }} hitSlop={8}>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: CARE.teal }}>{t.close}</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: C.teal }}>{t.close}</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -239,6 +240,7 @@ function ZonePanel({
   onMove: (entry: CanvasEntry, to: string) => void;
   onOpen: (entry: CanvasEntry, n: number) => void;
 }) {
+  const C = useCare();
   const { locale } = useI18n();
   const t = COPY[locale] ?? COPY.en;
   const [draft, setDraft] = useState('');
@@ -253,7 +255,7 @@ function ZonePanel({
   };
 
   return (
-    <View style={{ borderWidth: 1, borderColor: CARE.border, borderRadius: 14, backgroundColor: '#fff', padding: 12, gap: 10 }}>
+    <View style={{ borderWidth: 1, borderColor: C.border, borderRadius: 14, backgroundColor: C.card, padding: 12, gap: 10 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: a.chip }} />
         <Text style={{ fontSize: 14, fontWeight: '700', color: a.text, flex: 1 }}>{zoneLabel(zone.label)}</Text>
@@ -270,9 +272,9 @@ function ZonePanel({
                   readable in full without truncating the list. */}
               <TouchableOpacity onPress={() => onOpen(e, n)} activeOpacity={0.7} style={{ flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
                 <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: a.chip, alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#fff' }}>{n}</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: C.onTeal }}>{n}</Text>
                 </View>
-                <Text numberOfLines={2} style={{ flex: 1, fontSize: 15, color: CARE.ink, lineHeight: 21 }}>{e.text}</Text>
+                <Text numberOfLines={2} style={{ flex: 1, fontSize: 15, color: C.ink, lineHeight: 21 }}>{e.text}</Text>
               </TouchableOpacity>
               {!readOnly && others.length > 0 && (
                 // One tap cycles to the next zone. A picker for two zones is more
@@ -282,7 +284,7 @@ function ZonePanel({
                   hitSlop={8}
                   accessibilityLabel={t.move}
                 >
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: CARE.teal }}>{t.move}</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: C.teal }}>{t.move}</Text>
                 </TouchableOpacity>
               )}
               {!readOnly && (
@@ -297,7 +299,7 @@ function ZonePanel({
 
       {!readOnly && (
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <View style={{ flex: 1, borderWidth: 1, borderColor: CARE.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 }}>
+        <View style={{ flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 }}>
           <TextInput
             value={draft}
             onChangeText={setDraft}
@@ -305,7 +307,7 @@ function ZonePanel({
             returnKeyType="done"
             placeholder={t.placeholder}
             placeholderTextColor="#BBB"
-            style={{ fontSize: 15, color: CARE.ink }}
+            style={{ fontSize: 15, color: C.ink }}
           />
         </View>
         <TouchableOpacity
@@ -314,8 +316,8 @@ function ZonePanel({
           activeOpacity={0.8}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: draft.trim() ? 1 : 0.4 }}
         >
-          <Plus size={16} color={CARE.teal} />
-          <Text style={{ fontSize: 14, fontWeight: '700', color: CARE.teal }}>{t.add}</Text>
+          <Plus size={16} color={C.teal} />
+          <Text style={{ fontSize: 14, fontWeight: '700', color: C.teal }}>{t.add}</Text>
         </TouchableOpacity>
       </View>
       )}

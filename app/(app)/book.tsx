@@ -298,7 +298,7 @@ export default function Book() {
                         const on = pick === sl;
                         return (
                           <TouchableOpacity key={sl} onPress={() => setPick(sl)} activeOpacity={0.8} style={{ paddingVertical: 11, paddingHorizontal: 18, borderRadius: 14, backgroundColor: on ? TT.accent : TT.card, borderWidth: 1, borderColor: on ? TT.accent : TT.line }}>
-                            <Text style={{ fontSize: 14, fontWeight: '700', color: on ? '#fff' : TT.ink }}>{slotTime(sl)}</Text>
+                            <Text style={{ fontSize: 14, fontWeight: '700', color: on ? TT.onAccent : TT.ink }}>{slotTime(sl)}</Text>
                           </TouchableOpacity>
                         );
                       })}

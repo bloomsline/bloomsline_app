@@ -317,7 +317,7 @@ export default function Book() {
                       disabled={moving}
                       style={{ borderRadius: 18, paddingHorizontal: 16, paddingVertical: 11, backgroundColor: on ? TT.accent : TT.card, borderWidth: 1.5, borderColor: on ? TT.accent : TT.line, opacity: moving ? 0.5 : 1 }}
                     >
-                      <Text style={{ fontSize: 14.5, fontWeight: '700', color: on ? '#fff' : TT.ink }}>{time(s)}</Text>
+                      <Text style={{ fontSize: 14.5, fontWeight: '700', color: on ? TT.onAccent : TT.ink }}>{time(s)}</Text>
                     </Pressable>
                   );
                 })}

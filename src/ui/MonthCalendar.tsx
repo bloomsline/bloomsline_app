@@ -78,7 +78,7 @@ export function MonthCalendar({
               style={{ width: `${100 / 7}%`, height: 42, alignItems: 'center', justifyContent: 'center' }}
             >
               <View style={{ height: 34, width: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? TT.accent : 'transparent' }}>
-                <Text style={{ fontSize: 14.5, fontWeight: on ? '800' : '500', color: on ? '#fff' : past ? TT.line : TT.ink }}>{d.getDate()}</Text>
+                <Text style={{ fontSize: 14.5, fontWeight: on ? '800' : '500', color: on ? TT.onAccent : past ? TT.line : TT.ink }}>{d.getDate()}</Text>
               </View>
               {marked && !on ? <View style={{ position: 'absolute', bottom: 4, height: 4, width: 4, borderRadius: 2, backgroundColor: TT.accent }} /> : null}
             </Pressable>

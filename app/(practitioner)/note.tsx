@@ -209,7 +209,7 @@ function Toggle({ label, on, onPress }: { label: string; on: boolean; onPress: (
       onPress={onPress}
       style={{ flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 14, backgroundColor: on ? TT.ink : TT.card, borderWidth: 1, borderColor: on ? TT.ink : TT.line }}
     >
-      <Text style={{ fontSize: 14, fontWeight: '700', color: on ? '#fff' : TT.inkSoft }}>{label}</Text>
+      <Text style={{ fontSize: 14, fontWeight: '700', color: on ? TT.ctaFg : TT.inkSoft }}>{label}</Text>
     </Pressable>
   );
 }

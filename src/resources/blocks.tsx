@@ -7,12 +7,15 @@ import { ActivityIndicator, Image, Linking, Modal, Platform, Pressable, ScrollVi
 import * as ImagePicker from 'expo-image-picker';
 import * as WebBrowser from 'expo-web-browser';
 import { Check, ExternalLink, FileText, Minus, Paperclip, Play, Plus, Upload, X } from 'lucide-react-native';
-import { CARE } from '@/src/care/theme';
 import { useI18n } from '@/src/i18n';
 import { htmlToPlainText, parseRichText, type Span } from '@/src/resources/html';
 import { ZonedCanvasField } from '@/src/resources/zoned-canvas-field';
 import { uploadResponseFile, type PatientBlock, type UploadedFile } from '@/src/api/resources';
+import { useCare } from '@/src/care/theme';
 import { useTheme } from '@/src/ui/theme-mode';
+import { OVER_MEDIA } from '@/src/ui/tokens';
+
+
 
 export const INTERACTIVE = new Set(['short_text', 'long_text', 'single_choice', 'multi_choice', 'scale', 'yes_no', 'number', 'date', 'table', 'file_upload', 'zoned_canvas']);
 
@@ -30,12 +33,13 @@ const QUOTES = { en: ['\u201c', '\u201d'], fr: ['\u00ab\u00a0', '\u00a0\u00bb'] 
 // is the screen half of the rule the server enforces — a submitted response
 // belongs to the practitioner until they hand it back.
 export function Block({ block, value, onChange, missing, readOnly = false, mediaUrl }: { block: PatientBlock; value: unknown; onChange: (v: unknown) => void; missing: boolean; readOnly?: boolean; mediaUrl?: string }) {
+  const C = useCare();
   const b = block;
   switch (b.type) {
     case 'heading':
       // Sections are the handholds in a long read: more air above than below, so
       // a heading reads as belonging to what follows it.
-      return <Text style={{ fontSize: 19, fontWeight: '700', color: CARE.ink, marginTop: 22, marginBottom: 10 }}>{htmlToPlainText(b.text ?? '')}</Text>;
+      return <Text style={{ fontSize: 19, fontWeight: '700', color: C.ink, marginTop: 22, marginBottom: 10 }}>{htmlToPlainText(b.text ?? '')}</Text>;
     case 'rich_text':
       return <RichText html={b.text ?? ''} />;
     case 'divider':
@@ -119,8 +123,8 @@ export function Block({ block, value, onChange, missing, readOnly = false, media
         <Field label={b.label} required={b.required} missing={missing}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {vals.map((n) => (
-              <TouchableOpacity key={n} onPress={() => (readOnly ? undefined : onChange(n))} disabled={readOnly} activeOpacity={0.8} style={{ minWidth: 44, height: 44, paddingHorizontal: 10, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: value === n ? CARE.teal : '#fff', borderWidth: 1, borderColor: value === n ? CARE.teal : CARE.border }}>
-                <Text style={{ fontSize: 15, fontWeight: '600', color: value === n ? '#fff' : CARE.ink }}>{n}</Text>
+              <TouchableOpacity key={n} onPress={() => (readOnly ? undefined : onChange(n))} disabled={readOnly} activeOpacity={0.8} style={{ minWidth: 44, height: 44, paddingHorizontal: 10, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: value === n ? C.teal : C.card, borderWidth: 1, borderColor: value === n ? C.teal : C.border }}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: value === n ? C.onTeal : C.ink }}>{n}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -160,6 +164,7 @@ export function ResourceIntro({ text }: { text: string | null | undefined }) {
 // with air between them, list items as a marker column beside flexed text so
 // wrapped lines hang-indent instead of sliding under the bullet.
 export function RichText({ html }: { html: string }) {
+  const C = useCare();
   const { locale } = useI18n();
   const quotes = QUOTES[locale] ?? QUOTES.en;
   const blocks = useMemo(() => parseRichText(html, { quotes }), [html, quotes]);
@@ -180,7 +185,7 @@ export function RichText({ html }: { html: string }) {
         }
         if (b.kind === 'quote') {
           return (
-            <View key={i} style={{ borderLeftWidth: 3, borderLeftColor: CARE.border, paddingLeft: 12, marginBottom: last ? 0 : PARAGRAPH_GAP }}>
+            <View key={i} style={{ borderLeftWidth: 3, borderLeftColor: C.border, paddingLeft: 12, marginBottom: last ? 0 : PARAGRAPH_GAP }}>
               <Text style={[BODY, { fontStyle: 'italic' }]}><Spans spans={b.spans} /></Text>
             </View>
           );
@@ -198,6 +203,7 @@ export function RichText({ html }: { html: string }) {
 // Nested <Text> inherits from its parent, so each span only carries what it
 // changes.
 function Spans({ spans }: { spans: Span[] }) {
+  const C = useCare();
   return (
     <>
       {spans.map((s, i) => (
@@ -207,8 +213,8 @@ function Spans({ spans }: { spans: Span[] }) {
             fontWeight: s.bold ? '700' : undefined,
             fontStyle: s.italic ? 'italic' : undefined,
             textDecorationLine: decoration(s),
-            backgroundColor: s.mark ? CARE.mint : undefined,
-            color: s.mark ? CARE.mintInk : s.href ? CARE.teal : undefined,
+            backgroundColor: s.mark ? C.mint : undefined,
+            color: s.mark ? C.mintInk : s.href ? C.teal : undefined,
           }}
           onPress={s.href ? () => { void Linking.openURL(s.href as string); } : undefined}
         >
@@ -282,14 +288,14 @@ function ZoomableImage({ url, ratio, name }: { url: string; ratio: number; name?
 
           <View style={{ position: 'absolute', top: 44, left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <TouchableOpacity onPress={close} hitSlop={10} accessibilityLabel="Close" style={pill}>
-              <X size={18} color="#fff" />
+              <X size={18} color={OVER_MEDIA.ink} />
             </TouchableOpacity>
             <View style={{ flex: 1 }} />
             <TouchableOpacity onPress={() => setZoom((z) => Math.max(1, z - 1))} disabled={zoom <= 1} hitSlop={10} accessibilityLabel="Zoom out" style={[pill, { opacity: zoom <= 1 ? 0.4 : 1 }]}>
-              <Minus size={18} color="#fff" />
+              <Minus size={18} color={OVER_MEDIA.ink} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setZoom((z) => Math.min(3, z + 1))} disabled={zoom >= 3} hitSlop={10} accessibilityLabel="Zoom in" style={[pill, { opacity: zoom >= 3 ? 0.4 : 1 }]}>
-              <Plus size={18} color="#fff" />
+              <Plus size={18} color={OVER_MEDIA.ink} />
             </TouchableOpacity>
           </View>
         </View>
@@ -298,7 +304,7 @@ function ZoomableImage({ url, ratio, name }: { url: string; ratio: number; name?
   );
 }
 
-const pill = { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' } as const;
+const pill = { width: 40, height: 40, borderRadius: 20, backgroundColor: OVER_MEDIA.control, alignItems: 'center', justifyContent: 'center' } as const;
 
 // A practitioner's image, video or audio. The URL is signed server-side (the
 // app cannot sign anything itself), so no url means there is nothing to show.
@@ -354,6 +360,7 @@ function MediaBlock({ kind, url, name }: { kind?: string; url?: string; name?: s
 // the web build gets a real modal with the PDF inside it. Same promise either
 // way: it opens over the exercise and closes back onto it.
 function PdfBlock({ url, name }: { url: string; name?: string }) {
+  const C = useCare();
   const [open, setOpen] = useState(false);
   const title = name && !looksLikeStorageKey(name) ? name : 'PDF';
 
@@ -365,10 +372,10 @@ function PdfBlock({ url, name }: { url: string; name?: string }) {
     <>
       <MediaCard icon="pdf" name={name || 'PDF'} action="Open PDF" onPress={() => setOpen(true)} />
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', padding: 16 }}>
-          <View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden', maxWidth: 900, width: '100%', alignSelf: 'center' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: CARE.border }}>
-              <Text numberOfLines={1} style={{ flex: 1, fontSize: 15, fontWeight: '700', color: CARE.ink }}>{title}</Text>
+        <View style={{ flex: 1, backgroundColor: C.scrim, padding: 16 }}>
+          <View style={{ flex: 1, backgroundColor: C.sheet, borderRadius: 16, overflow: 'hidden', maxWidth: 900, width: '100%', alignSelf: 'center' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.border }}>
+              <Text numberOfLines={1} style={{ flex: 1, fontSize: 15, fontWeight: '700', color: C.ink }}>{title}</Text>
               <TouchableOpacity onPress={() => setOpen(false)} hitSlop={10} accessibilityLabel="Close">
                 <X size={18} color="#6A6A6A" />
               </TouchableOpacity>
@@ -396,19 +403,20 @@ const looksLikeStorageKey = (name: string): boolean => /^[0-9a-f]{8,}|\d{6,}/i.t
 // name is the title only when the practitioner gave it one — a storage filename
 // like "69dd9f6420bec4.884_Guide_….pdf" is not a thing to show a patient.
 function MediaCard({ icon, name, action, onPress }: { icon: 'pdf' | 'play'; name: string; action: string; onPress: () => void }) {
+  const C = useCare();
   const looksLikeStorageName = looksLikeStorageKey(name);
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.85}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: CARE.border, borderRadius: 14, backgroundColor: '#fff', padding: 14, marginBottom: 16 }}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: C.border, borderRadius: 14, backgroundColor: C.card, padding: 14, marginBottom: 16 }}
     >
-      <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: icon === 'pdf' ? '#FDECEC' : CARE.mint, alignItems: 'center', justifyContent: 'center' }}>
-        {icon === 'pdf' ? <FileText size={16} color="#C0392B" /> : <Play size={16} color={CARE.teal} />}
+      <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: icon === 'pdf' ? '#FDECEC' : C.mint, alignItems: 'center', justifyContent: 'center' }}>
+        {icon === 'pdf' ? <FileText size={16} color="#C0392B" /> : <Play size={16} color={C.teal} />}
       </View>
       <View style={{ flex: 1 }}>
-        {!looksLikeStorageName && <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '600', color: CARE.ink }}>{name}</Text>}
-        <Text style={{ fontSize: looksLikeStorageName ? 15 : 12.5, fontWeight: looksLikeStorageName ? '600' : '400', color: looksLikeStorageName ? CARE.ink : '#9A9A9A' }}>
+        {!looksLikeStorageName && <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '600', color: C.ink }}>{name}</Text>}
+        <Text style={{ fontSize: looksLikeStorageName ? 15 : 12.5, fontWeight: looksLikeStorageName ? '600' : '400', color: looksLikeStorageName ? C.ink : '#9A9A9A' }}>
           {action}
         </Text>
       </View>
@@ -418,16 +426,17 @@ function MediaCard({ icon, name, action, onPress }: { icon: 'pdf' | 'play'; name
 }
 
 export function Field({ label, required, missing, children }: { label?: string; required?: boolean; missing: boolean; children: React.ReactNode }) {
+  const C = useCare();
   return (
     <View style={{ marginBottom: 20 }}>
       {label ? (
-        <Text style={{ fontSize: 15, fontWeight: '600', color: missing ? CARE.danger : CARE.ink, marginBottom: 10 }}>
+        <Text style={{ fontSize: 15, fontWeight: '600', color: missing ? C.danger : C.ink, marginBottom: 10 }}>
           {label}
-          {required ? <Text style={{ color: CARE.danger }}> *</Text> : null}
+          {required ? <Text style={{ color: C.danger }}> *</Text> : null}
         </Text>
       ) : null}
       {children}
-      {missing ? <Text style={{ fontSize: 12, color: CARE.danger, marginTop: 6 }}>This one is required.</Text> : null}
+      {missing ? <Text style={{ fontSize: 12, color: C.danger, marginTop: 6 }}>This one is required.</Text> : null}
     </View>
   );
 }
@@ -451,6 +460,7 @@ async function byteSize(uri: string): Promise<number> {
 // web and native), uploads straight to storage, and stores the { key, ... }
 // descriptor the server expects. Video covers the common "film yourself" case.
 function FileUploadField({ value, onChange, readOnly }: { value: UploadedFile | undefined; onChange: (v: unknown) => void; readOnly?: boolean }) {
+  const C = useCare();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -477,8 +487,8 @@ function FileUploadField({ value, onChange, readOnly }: { value: UploadedFile | 
 
   if (busy) {
     return (
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: CARE.border, borderRadius: 14, backgroundColor: '#fff', padding: 14 }}>
-        <ActivityIndicator color={CARE.teal} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: C.border, borderRadius: 14, backgroundColor: C.card, padding: 14 }}>
+        <ActivityIndicator color={C.teal} />
         <Text style={{ fontSize: 14, color: '#6A6A6A' }}>Uploading…</Text>
       </View>
     );
@@ -487,10 +497,10 @@ function FileUploadField({ value, onChange, readOnly }: { value: UploadedFile | 
   if (value?.key) {
     return (
       <View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: CARE.teal, borderRadius: 14, backgroundColor: `${CARE.teal}0F`, padding: 14 }}>
-          <Paperclip size={16} color={CARE.teal} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: C.teal, borderRadius: 14, backgroundColor: `${C.teal}0F`, padding: 14 }}>
+          <Paperclip size={16} color={C.teal} />
           <View style={{ flex: 1 }}>
-            <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '600', color: CARE.ink }}>{value.name}</Text>
+            <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '600', color: C.ink }}>{value.name}</Text>
             {value.size ? <Text style={{ fontSize: 12, color: '#9A9A9A', marginTop: 2 }}>{humanSize(value.size)}</Text> : null}
           </View>
           {!readOnly && (
@@ -501,10 +511,10 @@ function FileUploadField({ value, onChange, readOnly }: { value: UploadedFile | 
         </View>
         {!readOnly && (
           <TouchableOpacity onPress={pick} activeOpacity={0.8} style={{ marginTop: 8 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: CARE.teal }}>Replace</Text>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: C.teal }}>Replace</Text>
           </TouchableOpacity>
         )}
-        {error ? <Text style={{ fontSize: 12, color: CARE.danger, marginTop: 6 }}>{error}</Text> : null}
+        {error ? <Text style={{ fontSize: 12, color: C.danger, marginTop: 6 }}>{error}</Text> : null}
       </View>
     );
   }
@@ -519,11 +529,11 @@ function FileUploadField({ value, onChange, readOnly }: { value: UploadedFile | 
 
   return (
     <View>
-      <TouchableOpacity onPress={pick} activeOpacity={0.85} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1.5, borderColor: CARE.border, borderStyle: 'dashed', borderRadius: 14, backgroundColor: '#fff', paddingVertical: 18 }}>
-        <Upload size={18} color={CARE.teal} />
-        <Text style={{ fontSize: 15, fontWeight: '600', color: CARE.ink }}>Upload a photo or video</Text>
+      <TouchableOpacity onPress={pick} activeOpacity={0.85} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1.5, borderColor: C.border, borderStyle: 'dashed', borderRadius: 14, backgroundColor: C.card, paddingVertical: 18 }}>
+        <Upload size={18} color={C.teal} />
+        <Text style={{ fontSize: 15, fontWeight: '600', color: C.ink }}>Upload a photo or video</Text>
       </TouchableOpacity>
-      {error ? <Text style={{ fontSize: 12, color: CARE.danger, marginTop: 6 }}>{error}</Text> : null}
+      {error ? <Text style={{ fontSize: 12, color: C.danger, marginTop: 6 }}>{error}</Text> : null}
     </View>
   );
 }
@@ -554,6 +564,7 @@ const TABLE_COPY = {
  * browser, and one started on the web can be finished on the phone.
  */
 function TableField({ columns, value, onChange, readOnly }: { columns: TableColumn[]; value: unknown; onChange: (v: unknown) => void; readOnly?: boolean }) {
+  const C = useCare();
   const { locale } = useI18n();
   const t = TABLE_COPY[locale] ?? TABLE_COPY.en;
   const rows: TableRow[] = Array.isArray(value) ? (value as TableRow[]) : [];
@@ -592,7 +603,7 @@ function TableField({ columns, value, onChange, readOnly }: { columns: TableColu
       {rows.length === 0 && <Text style={{ fontSize: 13, color: '#9A9A9A' }}>{t.empty}</Text>}
 
       {rows.map((row, i) => (
-        <View key={i} style={{ borderWidth: 1, borderColor: CARE.border, borderRadius: 14, backgroundColor: '#fff', padding: 12, gap: 10 }}>
+        <View key={i} style={{ borderWidth: 1, borderColor: C.border, borderRadius: 14, backgroundColor: C.card, padding: 12, gap: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text style={{ fontSize: 12, fontWeight: '700', color: '#9A9A9A' }}>{t.row} {i + 1}</Text>
             {!readOnly && (
@@ -603,7 +614,7 @@ function TableField({ columns, value, onChange, readOnly }: { columns: TableColu
           </View>
           {columns.map((c) => (
             <View key={c.id} style={{ gap: 6 }}>
-              <Text style={{ fontSize: 13, fontWeight: '600', color: CARE.ink }}>{c.label}</Text>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: C.ink }}>{c.label}</Text>
               <Input
                 value={row[c.id] != null ? String(row[c.id]) : ''}
                 onChangeText={(text) => setCell(i, c, text)}
@@ -620,10 +631,10 @@ function TableField({ columns, value, onChange, readOnly }: { columns: TableColu
         <TouchableOpacity
           onPress={() => onChange([...rows, {}])}
           activeOpacity={0.8}
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: CARE.border, borderStyle: 'dashed', borderRadius: 14, paddingVertical: 14 }}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1.5, borderColor: C.border, borderStyle: 'dashed', borderRadius: 14, paddingVertical: 14 }}
         >
-          <Plus size={16} color={CARE.teal} />
-          <Text style={{ fontSize: 14.5, fontWeight: '600', color: CARE.ink }}>{t.addRow}</Text>
+          <Plus size={16} color={C.teal} />
+          <Text style={{ fontSize: 14.5, fontWeight: '600', color: C.ink }}>{t.addRow}</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -631,8 +642,9 @@ function TableField({ columns, value, onChange, readOnly }: { columns: TableColu
 }
 
 function Input({ value, onChangeText, placeholder, multiline, keyboardType, readOnly }: { value: string; onChangeText: (t: string) => void; placeholder?: string; multiline?: boolean; keyboardType?: 'default' | 'numeric'; readOnly?: boolean }) {
+  const C = useCare();
   return (
-    <View style={{ borderWidth: 1, borderColor: CARE.border, borderRadius: 14, backgroundColor: '#fff', paddingHorizontal: 14, paddingVertical: 12 }}>
+    <View style={{ borderWidth: 1, borderColor: C.border, borderRadius: 14, backgroundColor: C.card, paddingHorizontal: 14, paddingVertical: 12 }}>
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -641,26 +653,27 @@ function Input({ value, onChangeText, placeholder, multiline, keyboardType, read
         multiline={multiline}
         keyboardType={keyboardType}
         editable={!readOnly}
-        style={[{ fontSize: 15, color: CARE.ink, lineHeight: 22, minHeight: multiline ? 96 : undefined, textAlignVertical: multiline ? 'top' : 'center' }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
+        style={[{ fontSize: 15, color: C.ink, lineHeight: 22, minHeight: multiline ? 96 : undefined, textAlignVertical: multiline ? 'top' : 'center' }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
       />
     </View>
   );
 }
 
 function Choice({ label, on, onPress, radio, checkbox, flex, readOnly }: { label: string; on: boolean; onPress: () => void; radio?: boolean; checkbox?: boolean; flex?: boolean; readOnly?: boolean }) {
+  const C = useCare();
   return (
     <TouchableOpacity
       onPress={readOnly ? undefined : onPress}
       disabled={readOnly}
       activeOpacity={0.8}
-      style={{ flex: flex ? 1 : undefined, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: on ? `${CARE.teal}0F` : '#fff', borderWidth: 1.5, borderColor: on ? CARE.teal : CARE.border, borderRadius: 14, paddingVertical: 13, paddingHorizontal: 15, justifyContent: flex ? 'center' : 'flex-start' }}
+      style={{ flex: flex ? 1 : undefined, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: on ? `${C.teal}0F` : C.card, borderWidth: 1.5, borderColor: on ? C.teal : C.border, borderRadius: 14, paddingVertical: 13, paddingHorizontal: 15, justifyContent: flex ? 'center' : 'flex-start' }}
     >
       {(radio || checkbox) && (
-        <View style={{ width: 20, height: 20, borderRadius: checkbox ? 6 : 10, borderWidth: 2, borderColor: on ? CARE.teal : '#CCC', alignItems: 'center', justifyContent: 'center', backgroundColor: on ? CARE.teal : 'transparent' }}>
-          {on && <Check size={12} color="#fff" strokeWidth={3} />}
+        <View style={{ width: 20, height: 20, borderRadius: checkbox ? 6 : 10, borderWidth: 2, borderColor: on ? C.teal : '#CCC', alignItems: 'center', justifyContent: 'center', backgroundColor: on ? C.teal : 'transparent' }}>
+          {on && <Check size={12} color={C.onTeal} strokeWidth={3} />}
         </View>
       )}
-      <Text style={{ fontSize: 15, fontWeight: '600', color: on ? CARE.teal : CARE.ink }}>{label}</Text>
+      <Text style={{ fontSize: 15, fontWeight: '600', color: on ? C.teal : C.ink }}>{label}</Text>
     </TouchableOpacity>
   );
 }

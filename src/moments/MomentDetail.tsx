@@ -8,9 +8,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Send, CircleCheckBig, Trash2, Play, Mic } from 'lucide-react-native';
 import { MOOD_COLORS, moodLabel } from './moods';
 import { deleteMoment, shareMoment, type MomentDTO, type MomentMediaDTO } from '@/src/api/moments';
-import { useConfirm } from '@/src/ui/confirm';
+import { ConfirmLayer, useConfirm } from '@/src/ui/confirm';
 import { AudioRow, MediaViewer } from '@/src/ui/MediaViewer';
-import { useI18n } from '@/src/i18n';
+import { useI18n, fmt } from '@/src/i18n';
+import { useOnboarding } from '@/src/onboarding/context';
 import { MonoLabel } from '@/src/ui/editorial';
 import { useTheme } from '@/src/ui/theme-mode';
 import { OVER_MEDIA } from '@/src/ui/tokens';
@@ -25,14 +26,17 @@ const T = {
     delete: 'Delete',
     sharedTap: 'Shared · Tap to stop sharing',
     sendToPractitioner: 'Send to my practitioner',
+    sendToNamed: 'Send to {name}',
     deleteMoment: 'Delete moment',
     voiceNote: 'Voice note',
     voice: 'Voice',
     shareTitle: 'Share moment',
     shareBody: 'Share this moment with your practitioner? They’ll be able to see it.',
+    shareBodyNamed: 'Share this moment with {name}? They’ll be able to see it.',
     share: 'Share',
     stopShareTitle: 'Stop sharing',
     stopShareBody: 'Stop sharing this moment? Your practitioner will no longer see it.',
+    stopShareBodyNamed: 'Stop sharing this moment? {name} will no longer see it.',
     stopSharing: 'Stop sharing',
   },
   fr: {
@@ -44,14 +48,17 @@ const T = {
     delete: 'Supprimer',
     sharedTap: 'Partagé · Appuyez pour arrêter',
     sendToPractitioner: 'Envoyer à mon praticien',
+    sendToNamed: 'Envoyer à {name}',
     deleteMoment: 'Supprimer le moment',
     voiceNote: 'Note vocale',
     voice: 'Vocal',
     shareTitle: 'Partager le moment',
     shareBody: 'Partager ce moment avec votre praticien ? Il pourra le consulter.',
+    shareBodyNamed: 'Partager ce moment avec {name} ? Cette personne pourra le consulter.',
     share: 'Partager',
     stopShareTitle: 'Arrêter le partage',
     stopShareBody: 'Arrêter de partager ce moment ? Votre praticien ne le verra plus.',
+    stopShareBodyNamed: 'Arrêter de partager ce moment ? {name} ne le verra plus.',
     stopSharing: 'Arrêter',
   },
 } as const;
@@ -71,6 +78,12 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
   const { locale, t } = useI18n();
   const confirm = useConfirm();
   const tr = T[locale];
+  // Name the practitioner wherever we know it. "Send to my practitioner" is a
+  // role; "Send to Anna" is the person, which is the thing a patient is
+  // actually deciding about. Same first-name treatment capture already uses.
+  const { practitionerName } = useOnboarding();
+  const pracFirst = (practitionerName ?? '').replace(/^dr\.?\s*/i, '').trim().split(/\s+/)[0] || '';
+  const sendLabel = pracFirst ? fmt(tr.sendToNamed, { name: pracFirst }) : tr.sendToPractitioner;
   const [shared, setShared] = useState(moment.sharedWithPractitioner);
   const [sharing, setSharing] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -86,7 +99,9 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
     const next = !shared;
     const ok = await confirm({
       title: next ? tr.shareTitle : tr.stopShareTitle,
-      message: next ? tr.shareBody : tr.stopShareBody,
+      message: next
+        ? (pracFirst ? fmt(tr.shareBodyNamed, { name: pracFirst }) : tr.shareBody)
+        : (pracFirst ? fmt(tr.stopShareBodyNamed, { name: pracFirst }) : tr.stopShareBody),
       confirmLabel: next ? tr.share : tr.stopSharing,
       cancelLabel: t.common.cancel,
     });
@@ -188,7 +203,7 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
                 }}
               >
                 {sharing ? (
-                  <ActivityIndicator size="small" color={shared ? TT.accent : '#fff'} />
+                  <ActivityIndicator size="small" color={shared ? TT.accent : TT.onAccent} />
                 ) : shared ? (
                   <>
                     <CircleCheckBig size={18} color={TT.accent} strokeWidth={2} />
@@ -197,7 +212,7 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
                 ) : (
                   <>
                     <Send size={16} color={TT.onAccent} strokeWidth={2} />
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: TT.onAccent }}>{tr.sendToPractitioner}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: TT.onAccent }}>{sendLabel}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -239,6 +254,10 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
           onClose={() => setViewing(null)}
         />
       ) : null}
+      {/* Hosts confirmations inside THIS Modal. Two sibling Modals do not stack
+          on Android, so a share or delete dialog raised from here used to open
+          behind the sheet. */}
+      <ConfirmLayer />
     </Modal>
   );
 }

@@ -77,6 +77,10 @@ export interface Palette {
   /** Something went wrong. The salmon that reads on the dark ground is 2.4:1 on
    *  cream, so this splits by theme like the accent does. */
   danger: string;
+  /** Text and glyphs sitting ON `danger` — a destructive button's label. Splits
+   *  for the same reason `onAccent` does: white is right on the deep red and
+   *  2.4:1 on the salmon. */
+  onDanger: string;
   /** Scrim behind a sheet. */
   scrim: string;
   /** A deliberately dark surface: media placeholders, a poster with no image.
@@ -109,6 +113,7 @@ export const LIGHT: Palette = {
   ctaFg: '#FFFFFF',
   amber: '#B4750F',
   danger: '#B3261E',
+  onDanger: '#FFFFFF',
   scrim: 'rgba(20,20,20,0.35)',
   slot: '#101210',
 };
@@ -141,6 +146,8 @@ export const DARK: Palette = {
   ctaFg: '#0E1512',
   amber: '#E9C46A',
   danger: '#E5837B',
+  // The salmon is a LIGHT colour; what sits on it has to be dark.
+  onDanger: '#0E1512',
   scrim: 'rgba(0,0,0,0.55)',
   slot: '#0A0F0D',
 };
@@ -186,6 +193,8 @@ export const onCta = (mode: Mode, alpha: number): string =>
 export const OVER_MEDIA = {
   ink: '#FFFFFF',
   scrim: 'rgba(0,0,0,0.5)',
+  /** A floating control on top of media — a close or zoom button on a viewer. */
+  control: 'rgba(255,255,255,0.16)',
 } as const;
 
 /** Recording in progress. The red is a signal, not a palette colour: it means
