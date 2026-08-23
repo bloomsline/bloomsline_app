@@ -283,7 +283,7 @@ export function SessionSheet({
   return (
     <Modal visible transparent animationType="slide" onRequestClose={() => { reset(); onClose(); }}>
       <Pressable style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(20,20,18,0.45)' }} onPress={() => { reset(); onClose(); }}>
-        <Pressable onPress={() => {}} style={{ maxHeight: '88%', borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: TT.card }}>
+        <Pressable onPress={() => {}} style={{ maxHeight: '88%', borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: TT.sheet }}>
           <View style={{ alignItems: 'center', paddingTop: 10 }}>
             <View style={{ height: 4, width: 40, borderRadius: 2, backgroundColor: TT.line }} />
           </View>

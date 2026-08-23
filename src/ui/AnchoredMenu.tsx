@@ -61,8 +61,8 @@ export function AnchoredMenu({
 
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(22,24,20,0.2)' }} />
-      <View style={{ position: 'absolute', top, left, width, backgroundColor: '#fff', borderWidth: 1, borderColor: TT.line, borderRadius: 16, overflow: 'hidden' }}>
+      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: TT.scrim }} />
+      <View style={{ position: 'absolute', top, left, width, backgroundColor: TT.sheet, borderWidth: 1, borderColor: TT.line, borderRadius: 16, overflow: 'hidden' }}>
         {note ? (
           <Text style={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 10, fontSize: 11.5, color: TT.faint, borderBottomWidth: 1, borderBottomColor: '#F1EFEA' }}>
             {note}

@@ -113,7 +113,7 @@ export function PulseSheet({ memberId, who, onClose }: { memberId: string | null
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(20,20,18,0.45)' }} onPress={onClose}>
-        <Pressable onPress={() => {}} style={{ maxHeight: '88%', borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: TT.card }}>
+        <Pressable onPress={() => {}} style={{ maxHeight: '88%', borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: TT.sheet }}>
           <View style={{ alignItems: 'center', paddingTop: 10 }}>
             <View style={{ height: 4, width: 40, borderRadius: 2, backgroundColor: TT.line }} />
           </View>

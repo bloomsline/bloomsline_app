@@ -40,7 +40,7 @@ export function PractitionerSheet({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable className="flex-1 justify-end bg-black/40" onPress={onClose}>
-        <Pressable className="max-h-[85%] rounded-t-3xl" style={{ backgroundColor: TT.card }} onPress={() => {}}>
+        <Pressable className="max-h-[85%] rounded-t-3xl" style={{ backgroundColor: TT.sheet }} onPress={() => {}}>
           <View className="items-center pt-3">
             <View style={{ height: 4, width: 40, borderRadius: 2, backgroundColor: TT.line }} />
           </View>

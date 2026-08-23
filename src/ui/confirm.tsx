@@ -38,8 +38,8 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   };
 
   const overlay = opts ? (
-    <Pressable onPress={() => close(false)} style={{ flex: 1, backgroundColor: 'rgba(20,20,18,0.45)', alignItems: 'center', justifyContent: 'center', padding: 26 }}>
-      <Pressable onPress={() => {}} style={{ width: '100%', maxWidth: 360, backgroundColor: TT.card, borderRadius: 26, padding: 22, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 8 }}>
+    <Pressable onPress={() => close(false)} style={{ flex: 1, backgroundColor: TT.scrim, alignItems: 'center', justifyContent: 'center', padding: 26 }}>
+      <Pressable onPress={() => {}} style={{ width: '100%', maxWidth: 360, backgroundColor: TT.sheet, borderRadius: 26, padding: 22, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 8 }}>
         <Text style={{ fontSize: 17.5, fontWeight: '800', color: TT.ink, letterSpacing: -0.2, marginBottom: opts.message ? 8 : 18 }}>{opts.title}</Text>
         {opts.message ? <Text style={{ fontSize: 14.5, lineHeight: 22, color: TT.inkSoft, marginBottom: 20 }}>{opts.message}</Text> : null}
         <View style={{ flexDirection: 'row', gap: 10, justifyContent: 'flex-end' }}>
@@ -47,7 +47,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
             <Text style={{ fontSize: 14, fontWeight: '700', color: TT.ink }}>{opts.cancelLabel ?? 'Cancel'}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => close(true)} activeOpacity={0.85} style={{ paddingHorizontal: 18, paddingVertical: 11, borderRadius: 22, backgroundColor: opts.destructive ? '#DC2626' : TT.accent }}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>{opts.confirmLabel ?? 'Confirm'}</Text>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: opts.destructive ? '#FFFFFF' : TT.onAccent }}>{opts.confirmLabel ?? 'Confirm'}</Text>
           </TouchableOpacity>
         </View>
       </Pressable>
@@ -60,7 +60,15 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
       {/* On web, a react-native-web Modal stacks below other later-opened Modals
           (e.g. the MomentDetail bottom sheet), so the confirm renders BEHIND
           them. Use a fixed overlay with a very high z-index there; native Modals
-          stack by present order, so keep Modal on native. */}
+          stack by present order, so keep Modal on native.
+
+          KNOWN, web only: the z-index does not actually decide this. RNW gives
+          every Modal its own fixed root at z-index 9999 directly under <body>,
+          while this overlay lives inside the app tree — a lower stacking
+          context, which no z-index can climb out of. So a sheet's scrim still
+          paints over this dialog and tints it grey. Cosmetic, and unchanged by
+          swapping in a Modal here (measured), so it is left alone rather than
+          churned. Native is unaffected: there the dialog is opaque and on top. */}
       {Platform.OS === 'web'
         ? opts && <View style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 2147483000 } as never}>{overlay}</View>
         : (
