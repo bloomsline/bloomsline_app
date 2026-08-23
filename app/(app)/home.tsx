@@ -23,6 +23,8 @@ import { fetchCare, fetchTodo, type CareSession, type PatientCare, type TodoItem
 import { resourceTypeMeta, statusLabel } from '@/src/care/resources';
 import { notify } from '@/src/ui/alert';
 import { Ground } from '@/src/ui/Ground';
+import { PractitionerAvatar } from '@/src/care/PractitionerAvatar';
+import { primePractitionerFace } from '@/src/care/practitioner-face';
 import { useTheme } from '@/src/ui/theme-mode';
 import { veil } from '@/src/ui/tokens';
 
@@ -51,7 +53,7 @@ export default function MyCare() {
   useFocusEffect(
     useCallback(() => {
       let alive = true;
-      fetchCare().then((c) => { if (alive) { setCare(c); setLoaded(true); } });
+      fetchCare().then((c) => { primePractitionerFace(c); if (alive) { setCare(c); setLoaded(true); } });
       fetchTodo().then((r) => { if (alive) setTodos(r); });
       return () => { alive = false; };
     }, []),
@@ -116,7 +118,6 @@ export default function MyCare() {
 
   const pracName = real?.practitionerName ?? practitionerName ?? (preview ? 'Dr. Maya Laurent' : t.care.yourPractitioner);
   const pracHeadline = real?.practitionerHeadline ?? (preview ? 'Clinical psychologist' : null);
-  const initial = pracName.replace(/^dr\.?\s*/i, '').charAt(0).toUpperCase() || '?';
   const nextSession = real ? real.nextSession : preview ? PREVIEW_NEXT : null;
   const later = real ? real.upcomingSessions.filter((s) => s.id !== real.nextSession?.id) : preview ? PREVIEW_UPCOMING : [];
   const sessions = [...(nextSession ? [nextSession] : []), ...later];
@@ -157,7 +158,7 @@ export default function MyCare() {
                 activeOpacity={0.8}
                 style={{ marginHorizontal: 22, flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 12 }}
               >
-                <Avatar initial={initial} size={44} />
+                <PractitionerAvatar size={44} name={pracName} photoUrl={real?.practitioner?.photoUrl ?? null} />
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 15.5, fontWeight: '700', color: TT.ink }}>{pracName}</Text>
                   {pracHeadline ? <Text style={{ fontSize: 12.5, color: TT.inkSoft, marginTop: 1 }}>{pracHeadline}</Text> : null}
@@ -415,14 +416,7 @@ function firstNameOf(name: string): string {
   return name.replace(/^dr\.?\s*/i, '').trim().split(/\s+/)[0] || 'your practitioner';
 }
 
-function Avatar({ initial, size }: { initial: string; size: number }) {
-  const { t: TT } = useTheme();
-  return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: 'rgba(127,217,192,0.18)', borderWidth: 1, borderColor: TT.cardLine, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ color: TT.accent, fontWeight: '700', fontSize: size * 0.38 }}>{initial}</Text>
-    </View>
-  );
-}
+
 
 function ResourceRow({ Icon, title, sub, onPress }: { Icon: LucideIcon; title: string; sub: string; onPress: () => void }) {
   const { t: TT } = useTheme();

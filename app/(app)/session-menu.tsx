@@ -12,6 +12,7 @@ import { useOnboarding } from '@/src/onboarding/context';
 import { cancelSession } from '@/src/api/booking';
 import { useConfirm } from '@/src/ui/confirm';
 import { fmt, useI18n, type Locale } from '@/src/i18n';
+import { PractitionerAvatar } from '@/src/care/PractitionerAvatar';
 import { useTheme } from '@/src/ui/theme-mode';
 
 // Destructive tone for the cancel action, in an editorial-warm register.
@@ -74,7 +75,6 @@ export default function SessionMenu() {
   const p = useLocalSearchParams<{ id?: string; scheduledAt?: string; durationMinutes?: string; sessionFormat?: string; sessionType?: string; meetLink?: string; demo?: string; canCancel?: string; canReschedule?: string; noticeHours?: string }>();
   const { practitionerName } = useOnboarding();
   const name = practitionerName ?? 'Dr. Maya';
-  const initial = name.replace(/^dr\.?\s*/i, '').charAt(0).toUpperCase() || 'M';
 
   const id = typeof p.id === 'string' ? p.id : '';
   const start = p.scheduledAt ? new Date(p.scheduledAt) : null;
@@ -116,9 +116,7 @@ export default function SessionMenu() {
           <Kicker color={TT.faint} style={{ marginBottom: 12 }}>{tr.session}</Kicker>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: TT.line }}>
-            <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: TT.accent, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: TT.onAccent, fontWeight: '700', fontSize: 18 }}>{initial}</Text>
-            </View>
+            <PractitionerAvatar size={46} name={name} tone="solid" />
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 16, fontWeight: '700', color: TT.ink }}>{start ? `${longDate(start, locale)} · ${clock(start)}` : tr.session}</Text>
               <Text style={{ fontSize: 12.5, color: TT.inkSoft, marginTop: 1 }}>{tr.with} {name} · {duration} min · {fmtFormat(format, tr)}</Text>
