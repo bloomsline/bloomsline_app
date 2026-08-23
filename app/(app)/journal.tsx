@@ -18,6 +18,7 @@ import { useOnboarding } from '@/src/onboarding/context';
 import { useI18n } from '@/src/i18n';
 import { listJournal, createJournal, type JournalEntry } from '@/src/api/journal';
 import { useTheme } from '@/src/ui/theme-mode';
+import { veil } from '@/src/ui/tokens';
 
 /** The three openings offered when there is nothing yet. Each creates a page
  *  titled with the prompt, so the blank screen is never the first thing. */
@@ -28,7 +29,7 @@ const PROMPTS: { key: 'session' | 'good' | 'mind'; Icon: LucideIcon }[] = [
 ];
 
 export default function Journal() {
-  const { t: TT } = useTheme();
+  const { t: TT, mode } = useTheme();
   const router = useRouter();
   const { t, locale } = useI18n();
   const { practitionerName } = useOnboarding();
@@ -82,12 +83,12 @@ export default function Journal() {
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 18 }}>
             <TouchableOpacity
               onPress={() => (router.canGoBack() ? router.back() : router.navigate('/for-you' as never))}
-              style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }}
+              style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: veil(mode, 0.10), alignItems: 'center', justifyContent: 'center' }}
             >
-              <ChevronLeft size={18} color="#fff" strokeWidth={2} />
+              <ChevronLeft size={18} color={TT.ink} strokeWidth={2} />
             </TouchableOpacity>
             <View style={{ flex: 1 }} />
-            <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: veil(mode, 0.10), alignItems: 'center', justifyContent: 'center' }}>
               <Lock size={16} color={TT.inkSoft} strokeWidth={2} />
             </View>
           </View>
@@ -123,7 +124,7 @@ export default function Journal() {
                 keyboardShouldPersistTaps="handled"
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: '#fff', borderWidth: 1, borderColor: TT.line, borderRadius: 14, paddingHorizontal: 14, height: 44, marginBottom: 14 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, borderRadius: 14, paddingHorizontal: 14, height: 44, marginBottom: 14 }}>
                   <Search size={16} color={TT.faint} strokeWidth={2} />
                   <TextInput
                     value={q}
@@ -151,8 +152,8 @@ export default function Journal() {
                 activeOpacity={0.9}
                 style={{ position: 'absolute', right: 18, bottom: 26, flexDirection: 'row', alignItems: 'center', gap: 8, height: 48, paddingHorizontal: 20, borderRadius: 24, backgroundColor: TT.accent, opacity: creating ? 0.6 : 1 }}
               >
-                <PenLine size={16} color="#fff" strokeWidth={2.2} />
-                <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#fff' }}>{tr.newPage}</Text>
+                <PenLine size={16} color={TT.onAccent} strokeWidth={2.2} />
+                <Text style={{ fontSize: 14.5, fontWeight: '700', color: TT.onAccent }}>{tr.newPage}</Text>
               </TouchableOpacity>
             </>
           )}
@@ -177,7 +178,7 @@ function EntryCard({
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.85}
-      style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: TT.line, borderRadius: 16, padding: 16 }}
+      style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, borderRadius: 16, padding: 16 }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
         <Text style={{ flex: 1, fontSize: 11.5, color: TT.faint }}>{whenLabel(entry.updatedAt, locale, tr)}</Text>
@@ -186,7 +187,7 @@ function EntryCard({
         {entry.sharedWithPractitioner ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 4, paddingRight: 10, height: 24, borderRadius: 12, backgroundColor: TT.accentTint }}>
             <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: TT.accent, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 9.5, fontWeight: '800', color: '#fff' }}>{initial}</Text>
+              <Text style={{ fontSize: 9.5, fontWeight: '800', color: TT.onAccent }}>{initial}</Text>
             </View>
             <Text style={{ fontSize: 11, fontWeight: '700', color: TT.accentDeep }}>{tr.shared}</Text>
           </View>
@@ -224,7 +225,7 @@ function EmptyState({
             onPress={() => onPrompt(key)}
             disabled={busy}
             activeOpacity={0.85}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 13, backgroundColor: '#fff', borderWidth: 1, borderColor: TT.line, borderRadius: 14, paddingHorizontal: 14, height: 54 }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 13, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, borderRadius: 14, paddingHorizontal: 14, height: 54 }}
           >
             <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: TT.accentTint, alignItems: 'center', justifyContent: 'center' }}>
               <Icon size={15} color={TT.accent} strokeWidth={2} />

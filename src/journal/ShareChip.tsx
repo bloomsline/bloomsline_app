@@ -14,6 +14,7 @@ import { ChevronDown, EyeOff, Send } from 'lucide-react-native';
 import { AnchoredMenu, useAnchoredMenu } from '@/src/ui/AnchoredMenu';
 import { initialOf, type PractitionerFace } from '@/src/care/practitioner-face';
 import { useTheme } from '@/src/ui/theme-mode';
+import { veil } from '@/src/ui/tokens';
 
 const RED = '#B4443A';
 
@@ -37,7 +38,7 @@ export function ShareChip({
   locale: 'en' | 'fr';
   onToggle: (next: boolean) => void;
 }) {
-  const { t: TT } = useTheme();
+  const { t: TT, mode } = useTheme();
   const name = (face?.name ?? '').replace(/^dr\.?\s*/i, '').trim();
   const label = shared ? copy.canRead.replace('{name}', name || copy.private) : copy.private;
 
@@ -52,7 +53,7 @@ export function ShareChip({
         style={{
           flexDirection: 'row', alignItems: 'center', gap: 6, height: 30, borderRadius: 15,
           paddingLeft: shared ? 3 : 11, paddingRight: 9,
-          backgroundColor: shared ? '#E4F4EC' : 'rgba(255,255,255,0.12)',
+          backgroundColor: shared ? TT.accentTint : veil(mode, 0.10),
         }}
       >
         {busy ? (
@@ -60,10 +61,10 @@ export function ShareChip({
         ) : shared ? (
           <Avatar face={face} />
         ) : null}
-        <Text numberOfLines={1} style={{ fontSize: 11.5, fontWeight: '700', color: shared ? TT.accentDeep : 'rgba(255,255,255,0.72)', maxWidth: 150 }}>
+        <Text numberOfLines={1} style={{ fontSize: 11.5, fontWeight: '700', color: shared ? TT.accentDeep : TT.inkSoft, maxWidth: 150 }}>
           {label}
         </Text>
-        <ChevronDown size={11} color={shared ? TT.accentDeep : 'rgba(255,255,255,0.55)'} strokeWidth={2.6} />
+        <ChevronDown size={11} color={shared ? TT.accentDeep : TT.faint} strokeWidth={2.6} />
       </Pressable>
 
       <AnchoredMenu
@@ -88,7 +89,7 @@ function Avatar({ face }: { face: PractitionerFace | null }) {
   }
   return (
     <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: TT.accent, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: 11, fontWeight: '800', color: '#fff' }}>{initialOf(face?.name)}</Text>
+      <Text style={{ fontSize: 11, fontWeight: '800', color: TT.onAccent }}>{initialOf(face?.name)}</Text>
     </View>
   );
 }

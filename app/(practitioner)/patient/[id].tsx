@@ -244,8 +244,8 @@ export default function PatientDetailScreen() {
                 onPress={() => setTab(t)}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: on ? TT.accent : TT.card, borderWidth: 1, borderColor: on ? TT.accent : TT.line }}
               >
-                <Text style={{ fontSize: 13.5, fontWeight: '700', color: on ? '#fff' : TT.inkSoft }}>{tr.tabs[t]}</Text>
-                {n ? <Text style={{ fontSize: 11.5, fontWeight: '700', color: on ? 'rgba(255,255,255,0.75)' : TT.faint }}>{n}</Text> : null}
+                <Text style={{ fontSize: 13.5, fontWeight: '700', color: on ? TT.onAccent : TT.inkSoft }}>{tr.tabs[t]}</Text>
+                {n ? <Text style={{ fontSize: 11.5, fontWeight: '700', color: on ? TT.onAccent : TT.faint, opacity: on ? 0.75 : 1 }}>{n}</Text> : null}
               </Pressable>
             );
           })}
