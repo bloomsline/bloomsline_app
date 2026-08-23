@@ -34,9 +34,15 @@ const PAINT_ATTRS =
 const MESSAGE =
   'Hardcoded white/black. Use a palette token from useTheme() — or, if this must NOT follow the theme, a named constant (OVER_MEDIA, RECORD, KNOB, slot) so the intent is visible.';
 
+// DESCENDANT, not direct child. The first version of this used `>` and quietly
+// missed every conditional colour — `backgroundColor: selected ? teal : '#fff'`
+// puts the literal inside a ConditionalExpression, so it is a grandchild of the
+// property. That is precisely the selected/unselected pattern this class of bug
+// lives in: it left white-on-white scale buttons in a worksheet while reporting
+// the file clean.
 const noMonoLiterals = [
-  { selector: `Property[key.name=${PAINT_PROPS}] > Literal[value=${MONO}]`, message: MESSAGE },
-  { selector: `JSXAttribute[name.name=${PAINT_ATTRS}] > Literal[value=${MONO}]`, message: MESSAGE },
+  { selector: `Property[key.name=${PAINT_PROPS}] Literal[value=${MONO}]`, message: MESSAGE },
+  { selector: `JSXAttribute[name.name=${PAINT_ATTRS}] Literal[value=${MONO}]`, message: MESSAGE },
 ];
 
 // Surfaces that are fixed by DESIGN, not by oversight. Each one is a place where
@@ -47,8 +53,12 @@ const noMonoLiterals = [
 //                                         its own `ED` palette: white type over
 //                                         imagery behind a scrim, in both themes
 //   MediaViewer                           a lightbox; always dark, like every one
-//   resources/                            renders resource content in the CARE
-//                                         palette to match the care web app
+//
+// `resources/` was on this list and should not have been. It renders resource
+// and worksheet content in the CARE palette — but INSIDE the patient app, on
+// the themed ground, where on dark every heading was near-black on near-black
+// and every input a white slab. Exempted by reasoning, not by looking. It is
+// enforced now, and its palette is mapped onto the theme.
 const BY_DESIGN = [
   'src/ui/tokens.ts',
   'src/ui/theme.ts',
@@ -56,8 +66,6 @@ const BY_DESIGN = [
   'src/ui/MediaViewer.tsx',
   'src/onboarding/**/*.ts',
   'src/onboarding/**/*.tsx',
-  'src/resources/**/*.ts',
-  'src/resources/**/*.tsx',
   'app/auth.tsx',
   'app/(auth)/**/*.tsx',
   'app/(onboarding)/**/*.tsx',

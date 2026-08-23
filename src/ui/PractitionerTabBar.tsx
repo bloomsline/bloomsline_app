@@ -50,7 +50,7 @@ export function PractitionerTabBar({ active }: { active: PractitionerTabId }) {
                   ...(on ? { backgroundColor: TT.accent } : { borderWidth: 1, borderColor: TT.line, backgroundColor: TT.bg }),
                 }}
               >
-                <tab.Icon size={19} color={on ? '#fff' : TT.faint} strokeWidth={on ? 2 : 1.6} />
+                <tab.Icon size={19} color={on ? TT.onAccent : TT.faint} strokeWidth={on ? 2 : 1.6} />
               </View>
               <Text style={{ marginTop: 4, fontSize: 10.5, fontWeight: on ? '700' : '400', color: on ? TT.accent : TT.faint }}>
                 {fr ? tab.fr : tab.en}

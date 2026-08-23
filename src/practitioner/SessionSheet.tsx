@@ -5,7 +5,7 @@ import {
   CalendarClock, CheckCircle2, ChevronDown, Mail, MapPin, MoreHorizontal, NotebookPen, Phone,
   Repeat, Send, Trash2, UserX, Video, X, XCircle,
 } from 'lucide-react-native';
-import { useConfirm } from '@/src/ui/confirm';
+import { ConfirmLayer, useConfirm } from '@/src/ui/confirm';
 import { notify } from '@/src/ui/alert';
 import { useI18n } from '@/src/i18n';
 import { useNoteDraft } from '@/src/notes/draft';
@@ -509,6 +509,9 @@ export function SessionSheet({
           </ScrollView>
         </Pressable>
       </Pressable>
+      {/* Same reason as MomentDetail: delete and decline confirm from inside
+          this Modal, so the dialog has to be hosted in it. */}
+      <ConfirmLayer />
     </Modal>
   );
 }
