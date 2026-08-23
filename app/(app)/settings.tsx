@@ -70,7 +70,7 @@ export default function Settings() {
           {/* Profile card */}
           <EdCard style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 24 }}>
             <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: TT.accent, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 21, fontWeight: '700', color: '#fff' }}>{initial}</Text>
+              <Text style={{ fontSize: 21, fontWeight: '700', color: TT.onAccent }}>{initial}</Text>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 17, fontWeight: '700', color: TT.ink }}>{displayName}</Text>
@@ -142,7 +142,7 @@ function ToggleOption({ Icon, label, selected, onPress }: { Icon: LucideIcon; la
       }}
     >
       <View style={{ position: 'absolute', top: 10, right: 10, width: 18, height: 18, borderRadius: 9, backgroundColor: selected ? TT.accent : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-        {selected ? <Check size={12} color="#fff" strokeWidth={3} /> : null}
+        {selected ? <Check size={12} color={TT.onAccent} strokeWidth={3} /> : null}
       </View>
       <Icon size={24} color={selected ? TT.accent : TT.faint} strokeWidth={2} />
       <Text style={{ fontSize: 14, fontWeight: '600', color: selected ? TT.ink : TT.inkSoft }}>{label}</Text>

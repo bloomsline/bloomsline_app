@@ -154,7 +154,7 @@ export function EmotionalTimeline({
               elements.push(<Circle key={`glow-${i}`} cx={pt.x} cy={pt.y} r={16} fill={color} opacity={0.1} />);
             }
             elements.push(
-              <Circle key={`orb-${i}`} cx={pt.x} cy={pt.y} r={isLatest || glowDots ? 8 : 5} fill={color} stroke="#fff" strokeWidth={isLatest || glowDots ? 3 : 2} />,
+              <Circle key={`orb-${i}`} cx={pt.x} cy={pt.y} r={isLatest || glowDots ? 8 : 5} fill={color} stroke={TT.card} strokeWidth={isLatest || glowDots ? 3 : 2} />,
             );
             return elements;
           })}

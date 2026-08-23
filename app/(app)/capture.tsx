@@ -33,7 +33,7 @@ import { useOnboarding } from '@/src/onboarding/context';
 import { useI18n, fmt } from '@/src/i18n';
 import { notify } from '@/src/ui/alert';
 import { useTheme } from '@/src/ui/theme-mode';
-import { veil } from '@/src/ui/tokens';
+import { KNOB, veil } from '@/src/ui/tokens';
 
 const MAX_MOODS = 3; // the board asks for "up to 3 feelings"
 
@@ -457,7 +457,7 @@ function Preview({
                 the accent when on and a veil when off, and is the one thing here
                 that must read against both of those rather than against the
                 page. A themed knob disappears into one track or the other. */}
-            <View style={{ width: 19, height: 19, borderRadius: 10, backgroundColor: '#FFFFFF' }} />
+            <View style={{ width: 19, height: 19, borderRadius: 10, backgroundColor: KNOB }} />
           </View>
         </Pressable>
       ) : null}

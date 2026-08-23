@@ -174,6 +174,35 @@ export const onCta = (mode: Mode, alpha: number): string =>
   mode === 'dark' ? `rgba(20,20,20,${alpha})` : `rgba(255,255,255,${alpha})`;
 
 /**
+ * Marks that sit on a PHOTOGRAPH, not on the page — a play badge and the disc
+ * behind it, on a poster or a video still.
+ *
+ * Theme-independent on purpose, for the same reason as `slot`: what is behind
+ * them is an image in both themes, so following the palette would be wrong, not
+ * right. They are named rather than written as literals so that the difference
+ * between "deliberately white" and "forgot the theme" is visible in the code —
+ * and so the lint rule can tell them apart.
+ */
+export const OVER_MEDIA = {
+  ink: '#FFFFFF',
+  scrim: 'rgba(0,0,0,0.5)',
+} as const;
+
+/** Recording in progress. The red is a signal, not a palette colour: it means
+ *  the same thing on cream and on the ground, so it does not split by theme —
+ *  and `danger` cannot stand in, because the salmon that reads on dark would
+ *  take white text down to 2.4:1. */
+/** A switch knob. White in both themes because it rides on the accent when on
+ *  and a veil when off, and has to read against both of those rather than
+ *  against the page — a themed knob vanishes into one track or the other. */
+export const KNOB = '#FFFFFF';
+
+export const RECORD = {
+  dot: '#DC2626',
+  ink: '#FFFFFF',
+} as const;
+
+/**
  * Icon tiles — a pale tint carrying a saturated glyph of the same hue.
  *
  * These encode a CATEGORY. Do not reach for them to make a screen colourful: a

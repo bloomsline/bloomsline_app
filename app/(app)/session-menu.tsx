@@ -117,7 +117,7 @@ export default function SessionMenu() {
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: TT.line }}>
             <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: TT.accent, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 18 }}>{initial}</Text>
+              <Text style={{ color: TT.onAccent, fontWeight: '700', fontSize: 18 }}>{initial}</Text>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 16, fontWeight: '700', color: TT.ink }}>{start ? `${longDate(start, locale)} · ${clock(start)}` : tr.session}</Text>

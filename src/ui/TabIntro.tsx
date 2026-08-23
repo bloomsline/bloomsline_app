@@ -65,8 +65,8 @@ export function TabIntro({ tabKey, tone = 'light', onActiveChange }: { tabKey: T
               <Text style={{ marginTop: 4, fontSize: 13, lineHeight: 19, color: TT.inkSoft }}>{copy.body}</Text>
             </View>
           </View>
-          <Pressable onPress={dismiss} style={{ marginTop: 14, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: '#fff' }}>
-            <Text style={{ fontSize: 14.5, fontWeight: '700', color: '#141414' }}>{t.tabIntro.gotIt}</Text>
+          <Pressable onPress={dismiss} style={{ marginTop: 14, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: TT.ctaBg }}>
+            <Text style={{ fontSize: 14.5, fontWeight: '700', color: TT.ctaFg }}>{t.tabIntro.gotIt}</Text>
           </Pressable>
         </View>
       ) : (

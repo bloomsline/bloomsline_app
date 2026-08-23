@@ -29,7 +29,7 @@ import { pickImage, pickVideo, uploadImage, uploadVideo, uploadVoice } from '@/s
 import { useConfirm } from '@/src/ui/confirm';
 import { useI18n } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
-import { veil } from '@/src/ui/tokens';
+import { OVER_MEDIA, RECORD, veil } from '@/src/ui/tokens';
 
 /** A LINK is not media: it belongs in a browser, and always did. */
 const openLink = (url: string) =>
@@ -353,11 +353,11 @@ export default function JournalEntry() {
         {/* Recording bar OR the block toolbar — edit mode only */}
         {mode === 'edit' && (recording ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 12, borderTopWidth: 1, borderTopColor: TT.line }}>
-            <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: '#DC2626' }} />
+            <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: RECORD.dot }} />
             <Text style={{ fontSize: 14, fontWeight: '600', color: TT.ink }}>{tr.recording} {fmtDur(Math.round((recState.durationMillis ?? 0) / 1000))}</Text>
-            <TouchableOpacity onPress={stopVoice} activeOpacity={0.85} style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#DC2626', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 }}>
-              <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: '#fff' }} />
-              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>{tr.stop}</Text>
+            <TouchableOpacity onPress={stopVoice} activeOpacity={0.85} style={{ marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: RECORD.dot, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 }}>
+              <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: RECORD.ink }} />
+              <Text style={{ color: OVER_MEDIA.ink, fontWeight: '700', fontSize: 13 }}>{tr.stop}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -589,7 +589,7 @@ function MediaBlock({ block: b, tr }: { block: JournalBlock; tr: Tr }) {
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: TT.accentTint, borderRadius: 14, padding: 14 }}>
         <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: TT.accent, alignItems: 'center', justifyContent: 'center' }}>
-          {b.uploading ? <ActivityIndicator size="small" color="#fff" /> : <Play size={16} color="#fff" fill="#fff" />}
+          {b.uploading ? <ActivityIndicator size="small" color={OVER_MEDIA.ink} /> : <Play size={16} color={OVER_MEDIA.ink} fill={OVER_MEDIA.ink} />}
         </View>
         <Text style={{ fontSize: 15, fontWeight: '600', color: TT.ink }}>{tr.voiceNote}{b.durationSeconds ? ` · ${fmtDur(b.durationSeconds)}` : ''}</Text>
         {b.failed && <Text style={{ marginLeft: 'auto', fontSize: 12, color: '#DC2626' }}>{tr.uploadFailed}</Text>}
@@ -602,14 +602,14 @@ function MediaBlock({ block: b, tr }: { block: JournalBlock; tr: Tr }) {
       {uri ? <Image source={{ uri }} style={{ width: '100%', height: 200 }} resizeMode="cover" /> : <View style={{ width: '100%', height: 200 }} />}
       {b.type === 'video' && !b.uploading && (
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}><Play size={22} color="#fff" fill="#fff" /></View>
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: OVER_MEDIA.scrim, alignItems: 'center', justifyContent: 'center' }}><Play size={22} color={OVER_MEDIA.ink} fill={OVER_MEDIA.ink} /></View>
         </View>
       )}
       {b.uploading && (
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.25)' }}><ActivityIndicator color="#fff" /></View>
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: OVER_MEDIA.scrim }}><ActivityIndicator color={OVER_MEDIA.ink} /></View>
       )}
       {b.failed && (
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)' }}><Text style={{ color: '#fff', fontSize: 13 }}>{tr.uploadFailed}</Text></View>
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: OVER_MEDIA.scrim }}><Text style={{ color: OVER_MEDIA.ink, fontSize: 13 }}>{tr.uploadFailed}</Text></View>
       )}
     </View>
   );

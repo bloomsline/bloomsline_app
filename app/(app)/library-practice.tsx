@@ -123,8 +123,8 @@ export default function LibraryPractice() {
         </ScrollView>
 
         <View style={{ position: 'absolute', left: 22, right: 22, bottom: 24 }}>
-          <Pressable onPress={save} disabled={saving} style={{ height: 54, borderRadius: 27, backgroundColor: saving ? TT.faint : TT.ink, alignItems: 'center', justifyContent: 'center' }}>
-            {saving ? <ActivityIndicator color="#fff" /> : <Text style={{ fontSize: 15.5, fontWeight: '700', color: '#fff' }}>{hasInteractive ? tr.save : tr.markDone}</Text>}
+          <Pressable onPress={save} disabled={saving} style={{ height: 54, borderRadius: 27, backgroundColor: saving ? TT.faint : TT.ctaBg, alignItems: 'center', justifyContent: 'center' }}>
+            {saving ? <ActivityIndicator color={TT.ctaFg} /> : <Text style={{ fontSize: 15.5, fontWeight: '700', color: TT.ctaFg }}>{hasInteractive ? tr.save : tr.markDone}</Text>}
           </Pressable>
         </View>
       </KeyboardAvoidingView>

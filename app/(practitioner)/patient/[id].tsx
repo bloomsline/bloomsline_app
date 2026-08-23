@@ -104,7 +104,7 @@ function CheckRow({ label, on, onPress }: { label: string; on: boolean; onPress:
   return (
     <Pressable onPress={onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 11 }}>
       <View style={{ height: 19, width: 19, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? TT.accent : 'transparent', borderWidth: 1.5, borderColor: on ? TT.accent : TT.line }}>
-        {on ? <Check size={12} color="#fff" strokeWidth={3} /> : null}
+        {on ? <Check size={12} color={TT.onAccent} strokeWidth={3} /> : null}
       </View>
       <Text style={{ flex: 1, fontSize: 14.5, fontWeight: on ? '700' : '500', color: TT.ink }}>{label}</Text>
     </Pressable>
