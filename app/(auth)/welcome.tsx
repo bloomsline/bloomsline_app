@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Lock } from 'lucide-react-native';
-import { EditorialBg, Scrim, RiseIn, MonoKicker, Pill, LangToggle } from '@/src/onboarding/editorial/kit';
+import { EditorialBg, Scrim, RiseIn, Wordmark, Pill, LangToggle } from '@/src/onboarding/editorial/kit';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useI18n } from '@/src/i18n';
 
@@ -24,7 +24,7 @@ export default function Welcome() {
               <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'flex-start', marginBottom: 18 }}>
                 <LangToggle value={locale} onChange={(v) => setLocale(v as typeof locale)} />
               </View>
-              <MonoKicker>{tr.kicker}</MonoKicker>
+              <Wordmark>{tr.kicker}</Wordmark>
               <Text style={{ marginTop: 12, fontSize: 36, fontWeight: '800', color: '#fff', letterSpacing: -1.2, lineHeight: 42 }}>
                 {tr.headlinePre}
                 <Text style={{ color: '#7FD9C0' }}>{tr.headlineAccent}</Text>

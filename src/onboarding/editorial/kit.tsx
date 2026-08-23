@@ -71,6 +71,18 @@ export function RiseIn({ delay = 0, y = 18, duration = 1100, children, style }: 
   );
 }
 
+/**
+ * The brand, set apart from the kicker on purpose.
+ *
+ * It used to render through `MonoKicker`, so the sentence-case sweep on
+ * 2026-08-23 turned the first thing a new patient sees into "bloomsline" — a
+ * word rather than a mark. A wordmark is not a label: labels became sentence
+ * case because they were shouting, and this one is supposed to.
+ */
+export function Wordmark({ children, color = 'rgba(255,255,255,0.66)', size = 11.5, style }: { children: ReactNode; color?: string; size?: number; style?: ViewStyle }) {
+  return <Text style={[{ fontSize: size, fontWeight: '800', letterSpacing: 2.6, textTransform: 'uppercase', color }, style]}>{children}</Text>;
+}
+
 /** The onboarding flow's kicker. Same move as `Kicker` in `src/ui/editorial`:
  *  out of uppercase mono and into the app's own sans, so the first screens a
  *  patient sees are written rather than stamped. */
