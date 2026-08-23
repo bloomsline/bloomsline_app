@@ -8,7 +8,7 @@
 // The horizontal position is DERIVED from the feelings a patient picked — the
 // mean of their MOOD_SCORES — which is why capture never had to ask for it or
 // store it. A moment with no feelings sits on the centre line.
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { Quote, ImageOff, AudioLines, Video, Play } from 'lucide-react-native';
@@ -178,7 +178,14 @@ function NodeFace({ node, onPress }: { node: LineNode; onPress: () => void }) {
   );
 }
 
-export function Line({
+/**
+ * Memoised, and it matters. The screen re-renders on scroll now that it carries
+ * a position rail and a way back to today; without this, every scroll event
+ * would reconcile a node, a dot and a label for each of a thousand moments.
+ * Every prop is stable across those renders — `labels` and `onCaptureToday` are
+ * memoised at the call site for exactly this reason.
+ */
+export const Line = memo(function Line({
   moments, width, locale, labels, onOpen, onCaptureToday,
 }: {
   moments: MomentDTO[];
@@ -245,4 +252,4 @@ export function Line({
       />
     </View>
   );
-}
+});

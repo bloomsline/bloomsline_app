@@ -14,12 +14,12 @@
 // reader is looking at downward. Every page therefore has to be followed with a
 // matching scroll correction, or the line silently walks them backwards through
 // their own week. See `onContentSize`.
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, Text, TouchableOpacity, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Pressable, RefreshControl, ScrollView, Text, TouchableOpacity, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Settings } from 'lucide-react-native';
+import { ArrowDown, Settings } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
 import { TabIntro } from '@/src/ui/TabIntro';
 import { FadeIn, MonoLabel } from '@/src/ui/editorial';
@@ -48,6 +48,49 @@ const LOAD_AHEAD = 600;
  *  disappears above the viewport moves everything below it, which reads as the
  *  line twitching every time a page starts or finishes. */
 const TOP_SLOT = 52;
+
+/** How far from the foot before the way back appears. Two rows: a nudge should
+ *  not summon chrome onto a screen whose whole point is being quiet. */
+const BACK_AFTER = 260;
+
+/** Ticks in the position rail. Five reads as a rail rather than a countdown,
+ *  which matters — see TravelRail on why this is a position and not a total. */
+const RAIL_TICKS = 5;
+
+/**
+ * How far down the loaded line the reader is, as a travelling highlight over a
+ * few ticks. Deliberately a POSITION and not a progress bar: with paging, the
+ * total is not known until the line has been read all the way back, so a bar
+ * would sit at half and then jump backwards every time a page arrived. Ticks
+ * carry no promise about what is left.
+ *
+ * Every tick interpolates from one shared Animated.Value, so the highlight
+ * travels without a single React render.
+ */
+function TravelRail({ pos }: { pos: Animated.Value }) {
+  const { t: TT } = useTheme();
+  const span = 1 / (RAIL_TICKS - 1);
+  return (
+    <View style={{ position: 'absolute', right: 6, top: 0, bottom: 0, justifyContent: 'center', alignItems: 'flex-end', gap: 7 }}>
+      {Array.from({ length: RAIL_TICKS }, (_, i) => {
+        // Top tick is the oldest end, bottom tick is today — the same direction
+        // the line itself runs.
+        const at = i * span;
+        const range = { inputRange: [at - span, at, at + span], extrapolate: 'clamp' as const };
+        return (
+          <Animated.View
+            key={i}
+            style={{
+              width: 14, height: 1.5, borderRadius: 1, backgroundColor: TT.ink,
+              opacity: pos.interpolate({ ...range, outputRange: [0.25, 1, 0.25] }),
+              transform: [{ scaleX: pos.interpolate({ ...range, outputRange: [0.6, 1, 0.6] }) }],
+            }}
+          />
+        );
+      })}
+    </View>
+  );
+}
 
 export default function Moments() {
   const { t: TT } = useTheme();
@@ -99,6 +142,18 @@ export default function Moments() {
    */
   const bottomGap = useRef(0);
   const cursorRef = useRef<string | null>(null);
+
+  // Where the reader is, 0 at the oldest thing loaded and 1 at today. An
+  // Animated.Value and NOT state on purpose: the rail follows the thumb, and a
+  // setState per scroll event would re-render this screen sixty times a second.
+  // Driven by hand with setValue, so it updates the rail's styles without React
+  // hearing about it at all.
+  const pos = useRef(new Animated.Value(1)).current;
+  // Whether the reader has travelled far enough back to be offered a way home.
+  // This one IS state — it flips rarely, and it gates rendering.
+  const [awayFromFoot, setAwayFromFoot] = useState(false);
+  const awayRef = useRef(false);
+  const chrome = useRef(new Animated.Value(0)).current;
   // Bumped by every first-page load so a slow older-page fetch that resolves
   // after a refresh cannot append to a list it no longer belongs to.
   const gen = useRef(0);
@@ -161,15 +216,38 @@ export default function Moments() {
 
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const { contentOffset, contentSize } = e.nativeEvent;
+      const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
       // Re-measured from the event rather than trusted from the last resize: the
       // gap is only meaningful against the height it was taken from.
       contentH.current = contentSize.height;
       bottomGap.current = contentSize.height - contentOffset.y;
+
+      const runway = Math.max(1, contentSize.height - layoutMeasurement.height);
+      pos.setValue(Math.min(1, Math.max(0, contentOffset.y / runway)));
+
+      const away = contentSize.height - contentOffset.y - layoutMeasurement.height > BACK_AFTER;
+      if (away !== awayRef.current) {
+        awayRef.current = away;
+        setAwayFromFoot(away);
+      }
+
       if (contentOffset.y < LOAD_AHEAD) void loadOlder();
     },
-    [loadOlder],
+    [loadOlder, pos],
   );
+
+  useEffect(() => {
+    Animated.timing(chrome, { toValue: awayFromFoot ? 1 : 0, duration: 180, useNativeDriver: true }).start();
+  }, [awayFromFoot, chrome]);
+
+  /** Straight back to the foot of the line. Animated, because the point is to
+   *  land somewhere recognisable, and a jump cut does not say you moved. */
+  const toToday = useCallback(() => {
+    scroller.current?.scrollToEnd({ animated: true });
+  }, []);
+
+  // Stable so the memoised Line does not re-render behind the rail.
+  const openCapture = useCallback(() => router.navigate('/capture' as never), [router]);
 
   const onContentSize = useCallback((_w: number, h: number) => {
     const changed = h !== contentH.current;
@@ -295,7 +373,7 @@ export default function Moments() {
                     locale={locale}
                     labels={lineLabels}
                     onOpen={setViewing}
-                    onCaptureToday={() => router.navigate('/capture' as never)}
+                    onCaptureToday={openCapture}
                   />
                 </>
               )}
@@ -310,6 +388,32 @@ export default function Moments() {
           ) : null}
         </ScrollView>
       </SafeAreaView>
+
+      {/* Both only exist once the reader has actually gone somewhere. At the
+          foot of the line the screen stays empty, which is the resting state
+          the whole tab is designed around. */}
+      <Animated.View
+        pointerEvents={awayFromFoot ? 'box-none' : 'none'}
+        style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, opacity: chrome }}
+      >
+        <TravelRail pos={pos} />
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 132, alignItems: 'center' }}>
+          <Pressable
+            onPress={toToday}
+            accessibilityRole="button"
+            accessibilityLabel={tr.backToToday}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 7,
+              height: 38, paddingHorizontal: 15, borderRadius: 19,
+              backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine,
+              shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6,
+            }}
+          >
+            <ArrowDown size={15} color={TT.ink} strokeWidth={2.2} />
+            <Text style={{ fontSize: 13, fontWeight: '700', color: TT.ink }}>{tr.today}</Text>
+          </Pressable>
+        </View>
+      </Animated.View>
 
       <TabBar active="moments" tone="dark" />
       {viewing ? <MomentDetail moment={viewing} onClose={() => setViewing(null)} onChanged={applyChange} /> : null}

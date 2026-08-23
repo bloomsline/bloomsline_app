@@ -246,6 +246,7 @@ export const fr: Dict = {
     scrollBack: '↑ remonter',
     loadingOlder: 'Chargement des moments précédents',
     lineStart: 'Le début de votre ligne',
+    backToToday: 'Revenir à aujourd’hui',
     emptyTitle: 'Votre ligne commence ici.',
     emptyBody: 'Capturez un moment et il y prendra sa place. Au fil d’une semaine, vous verrez apparaître une forme.',
     failedTitle: 'Impossible d’accéder à votre ligne.',

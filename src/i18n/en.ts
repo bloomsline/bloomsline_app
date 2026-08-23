@@ -247,6 +247,7 @@ export const en = {
     scrollBack: '↑ scroll back',
     loadingOlder: 'Loading earlier moments',
     lineStart: 'The beginning of your line',
+    backToToday: 'Back to today',
     emptyTitle: 'Your line starts here.',
     emptyBody: 'Capture a moment and it takes its place. Over a week you will start to see the shape of things.',
     failedTitle: 'We could not reach your line.',
