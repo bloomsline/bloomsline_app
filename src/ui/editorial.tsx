@@ -71,7 +71,9 @@ export function EdHeader({
   rightIcon,
   onRight,
 }: {
-  kicker: string;
+  /** The eyebrow above the title. Omitted where it would only repeat the
+   *  title — a page whose kicker and title are the same word says it twice. */
+  kicker?: string;
   title: string;
   subtitle?: string;
   source?: ImageSourcePropType;
@@ -106,7 +108,7 @@ export function EdHeader({
         ) : null}
         <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
           <View style={{ flex: 1 }}>
-            <Kicker color={TT.accent} style={{ marginBottom: 8 }}>{kicker}</Kicker>
+            {kicker ? <Kicker color={TT.accent} style={{ marginBottom: 8 }}>{kicker}</Kicker> : null}
             <Text style={{ fontSize: 30, fontWeight: '800', color: TT.ink, letterSpacing: -0.9, lineHeight: 34 }}>{title}</Text>
             {subtitle ? <Text style={{ fontSize: 14.5, color: TT.inkSoft, lineHeight: 21, marginTop: 8, maxWidth: 320 }}>{subtitle}</Text> : null}
           </View>

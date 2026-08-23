@@ -1,22 +1,35 @@
-// Settings — v2 mobile, hybrid editorial re-skin. A dark photographic header,
-// then light editorial content: profile, home-screen + language toggles, support,
-// and sign out. Only presentation changed — all logic (useLanding, useI18n,
-// setLocale, saveProfile, signOut) is preserved.
+// Settings — grouped rows, not a wall of tiles.
+//
+// This page used to lay every choice out at once: three grids of large tiles,
+// each under a heading and a sentence explaining what the choice meant. Eight
+// tiles and three paragraphs to say three things, none of which anyone was in
+// the middle of changing. Now each setting is one line that states its current
+// value, and tapping it opens the options — so the page reads as a summary of
+// how the app is set up, which is what someone opening Settings is usually
+// checking.
+//
+// Order is deliberate: language first (the setting most likely to be wrong for
+// someone who has just installed the app, and the one that changes every other
+// word on the page), then appearance, then the rest.
 import { useEffect, useState } from 'react';
 import { Linking, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
-import { MessageCircle, MessageCircleQuestionMark, LogOut, ChevronRight, User, Heart, Check, Languages, type LucideIcon, Sun, Moon, SunMoon} from 'lucide-react-native';
-import { EdHeader, EdCard, EdSection, FadeIn, Kicker } from '@/src/ui/editorial';
-import { useTheme } from '@/src/ui/theme-mode';
+import { MessageCircle, MessageCircleQuestionMark, LogOut, ChevronRight, Trash2, Languages, Palette, Home, type LucideIcon } from 'lucide-react-native';
+import { EdHeader, EdCard, FadeIn, Kicker } from '@/src/ui/editorial';
+import { OptionSheet } from '@/src/ui/option-sheet';
+import { useTheme, type ThemeChoice } from '@/src/ui/theme-mode';
 import { useAuth } from '@/src/auth/auth-context';
 import { useOnboarding } from '@/src/onboarding/context';
-import { useLanding } from '@/src/prefs/landing';
+import { useLanding, type LandingTab } from '@/src/prefs/landing';
 import { useI18n, type Locale } from '@/src/i18n';
 import { useConfirm } from '@/src/ui/confirm';
-import { fetchMe, saveProfile } from '@/src/api/me';
+import { fetchMe, requestAccountDeletion, saveProfile } from '@/src/api/me';
 
 const APP_VERSION = 'Bloomsline · v2 (preview)';
+
+/** Which setting's options are open, if any. */
+type Sheet = 'language' | 'appearance' | 'landing' | null;
 
 export default function Settings() {
   const { choice, setChoice, t: TT } = useTheme();
@@ -28,6 +41,8 @@ export default function Settings() {
   const confirm = useConfirm();
   const [name, setName] = useState(`${onboarding.firstName} ${onboarding.lastName}`.trim());
   const [role, setRole] = useState<string | null>(null);
+  const [leavingAt, setLeavingAt] = useState<string | null>(null);
+  const [sheet, setSheet] = useState<Sheet>(null);
 
   const changeLocale = (l: Locale) => {
     setLocale(l);
@@ -42,11 +57,12 @@ export default function Settings() {
       const full = `${me.firstName ?? ''} ${me.lastName ?? ''}`.trim();
       if (full) setName(full);
       setRole(me.role);
+      setLeavingAt(me.deletionRequestedAt);
     });
     return () => { alive = false; };
   }, []);
 
-  const displayName = name || 'Your account';
+  const displayName = name || t.settings.yourAccount;
   const initial = displayName.charAt(0).toUpperCase();
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/home' as never));
 
@@ -60,14 +76,38 @@ export default function Settings() {
     if (await confirm({ title: t.settings.signOutConfirm, confirmLabel: t.settings.signOut, cancelLabel: t.common.cancel, destructive: true })) signOut();
   };
 
+  const doDelete = async () => {
+    const ok = await confirm({
+      title: t.settings.deleteConfirm,
+      message: t.settings.deleteMessage,
+      confirmLabel: t.settings.deleteCta,
+      cancelLabel: t.common.cancel,
+      destructive: true,
+    });
+    if (!ok) return;
+    const res = await requestAccountDeletion();
+    // Silence would read as "nothing happened" on the one action where that is
+    // the wrong thing to believe.
+    if (!res) {
+      await confirm({ title: t.settings.deleteFailed, confirmLabel: t.common.ok, cancelLabel: t.common.cancel });
+      return;
+    }
+    signOut(); // every token is already revoked server-side
+  };
+
+  const themeLabel = choice === 'light' ? t.settings.themeLight : choice === 'dark' ? t.settings.themeDark : t.settings.themeSystem;
+  const localeLabel = locale === 'fr' ? t.settings.french : t.settings.english;
+  const landingLabel = landing === 'moments' ? t.settings.homeMoments : t.settings.homeCare;
+
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-        <EdHeader kicker="Settings" title={t.settings.title} onBack={back} />
+        {/* No kicker: it would say "Settings" above "Settings". */}
+        <EdHeader title={t.settings.title} onBack={back} />
 
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
-          {/* Profile card */}
+          {/* Who you are signed in as */}
           <EdCard style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 24 }}>
             <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: TT.accent, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontSize: 21, fontWeight: '700', color: TT.onAccent }}>{initial}</Text>
@@ -78,88 +118,116 @@ export default function Settings() {
             </View>
           </EdCard>
 
-          {/* Appearance — first, because changing it re-renders everything below
-              it, so the effect of the tap is visible in the same glance. */}
-          <Kicker color={TT.faint} style={{ marginBottom: 6 }}>{t.settings.appearance}</Kicker>
-          <Text style={{ fontSize: 13, color: TT.inkSoft, marginBottom: 12, lineHeight: 18 }}>{t.settings.appearanceSub}</Text>
-          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
-            <ToggleOption Icon={SunMoon} label={t.settings.themeSystem} selected={choice === 'system'} onPress={() => setChoice('system')} />
-            <ToggleOption Icon={Sun} label={t.settings.themeLight} selected={choice === 'light'} onPress={() => setChoice('light')} />
-            <ToggleOption Icon={Moon} label={t.settings.themeDark} selected={choice === 'dark'} onPress={() => setChoice('dark')} />
-          </View>
-
-          {/* Home screen — which tab you open to, and where the greeting shows. */}
-          <Kicker color={TT.faint} style={{ marginBottom: 6 }}>{t.settings.homeScreen}</Kicker>
-          <Text style={{ fontSize: 13, color: TT.inkSoft, marginBottom: 12, lineHeight: 18 }}>{t.settings.homeScreenSub}</Text>
-          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
-            <ToggleOption Icon={User} label={t.tabs.care} selected={landing === 'care'} onPress={() => setLanding('care')} />
-            <ToggleOption Icon={Heart} label={t.tabs.moments} selected={landing === 'moments'} onPress={() => setLanding('moments')} />
-          </View>
-
-          {/* Language */}
-          <Kicker color={TT.faint} style={{ marginBottom: 6 }}>{t.settings.language}</Kicker>
-          <Text style={{ fontSize: 13, color: TT.inkSoft, marginBottom: 12, lineHeight: 18 }}>{t.settings.languageSub}</Text>
-          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
-            <ToggleOption Icon={Languages} label={t.settings.english} selected={locale === 'en'} onPress={() => changeLocale('en')} />
-            <ToggleOption Icon={Languages} label={t.settings.french} selected={locale === 'fr'} onPress={() => changeLocale('fr')} />
-          </View>
-
-          {/* Support */}
-          <EdSection label={t.settings.support} />
+          <Kicker color={TT.faint} style={{ marginBottom: 10 }}>{t.settings.preferences}</Kicker>
           <EdCard style={{ padding: 0, overflow: 'hidden', marginBottom: 24 }}>
-            <Row Icon={MessageCircle} tint={TT.accent} title={t.settings.contactUs} sub={t.settings.contactSub} onPress={contact} divider />
-            <Row Icon={MessageCircleQuestionMark} tint={TT.faint} title={t.settings.help} onPress={() => Platform.OS === 'web' && globalThis.alert?.(t.common.comingSoon)} />
+            <Row Icon={Languages} title={t.settings.language} value={localeLabel} onPress={() => setSheet('language')} divider />
+            <Row Icon={Palette} title={t.settings.appearance} value={themeLabel} onPress={() => setSheet('appearance')} divider />
+            <Row Icon={Home} title={t.settings.homeScreen} value={landingLabel} onPress={() => setSheet('landing')} />
           </EdCard>
 
-          {/* Sign out */}
-          <TouchableOpacity onPress={doSignOut} activeOpacity={0.8} style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, borderRadius: 18, paddingVertical: 16, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <LogOut size={19} color="#C0392B" strokeWidth={2} />
-            <Text style={{ fontSize: 16, fontWeight: '600', color: '#C0392B' }}>{t.settings.signOut}</Text>
-          </TouchableOpacity>
+          <Kicker color={TT.faint} style={{ marginBottom: 10 }}>{t.settings.support}</Kicker>
+          <EdCard style={{ padding: 0, overflow: 'hidden', marginBottom: 24 }}>
+            <Row Icon={MessageCircle} title={t.settings.contactUs} value={t.settings.contactSub} onPress={contact} divider />
+            <Row Icon={MessageCircleQuestionMark} title={t.settings.help} onPress={() => Platform.OS === 'web' && globalThis.alert?.(t.common.comingSoon)} />
+          </EdCard>
+
+          <Kicker color={TT.faint} style={{ marginBottom: 10 }}>{t.settings.accountSection}</Kicker>
+          <EdCard style={{ padding: 0, overflow: 'hidden' }}>
+            <Row Icon={LogOut} title={t.settings.signOut} onPress={doSignOut} divider chevron={false} />
+            {/* A pending deletion replaces the row rather than sitting beside
+                it: the question has been answered, and the useful thing to show
+                is the way back. */}
+            {leavingAt ? (
+              <View style={{ paddingVertical: 15, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <Trash2 size={20} color={TT.danger} strokeWidth={1.9} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, color: TT.danger }}>{t.settings.deletePending}</Text>
+                  <Text style={{ fontSize: 12.5, color: TT.faint, marginTop: 1 }}>
+                    {t.settings.deletePendingSub.replace('{date}', purgeDate(leavingAt, locale))}
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <Row Icon={Trash2} title={t.settings.deleteAccount} onPress={doDelete} tone="danger" chevron={false} />
+            )}
+          </EdCard>
 
           <Text style={{ textAlign: 'center', fontSize: 13, color: TT.faint, marginTop: 28 }}>{APP_VERSION}</Text>
         </FadeIn>
       </ScrollView>
+
+      <OptionSheet
+        visible={sheet === 'language'}
+        title={t.settings.language}
+        options={[
+          { value: 'en', label: t.settings.english },
+          { value: 'fr', label: t.settings.french },
+        ]}
+        selected={locale}
+        onSelect={changeLocale}
+        onClose={() => setSheet(null)}
+      />
+
+      <OptionSheet
+        visible={sheet === 'appearance'}
+        title={t.settings.appearance}
+        options={[
+          { value: 'system', label: t.settings.themeSystem, hint: t.settings.themeSystemHint },
+          { value: 'light', label: t.settings.themeLight },
+          { value: 'dark', label: t.settings.themeDark },
+        ]}
+        selected={choice}
+        onSelect={(v: ThemeChoice) => setChoice(v)}
+        onClose={() => setSheet(null)}
+      />
+
+      <OptionSheet
+        visible={sheet === 'landing'}
+        title={t.settings.homeScreen}
+        options={[
+          { value: 'care', label: t.settings.homeCare },
+          { value: 'moments', label: t.settings.homeMoments },
+        ]}
+        selected={landing}
+        onSelect={(v: LandingTab) => setLanding(v)}
+        onClose={() => setSheet(null)}
+      />
     </View>
   );
 }
 
-function ToggleOption({ Icon, label, selected, onPress }: { Icon: LucideIcon; label: string; selected: boolean; onPress: () => void }) {
+/** The day the account actually goes, in the reader's language. */
+function purgeDate(requestedAt: string, locale: Locale): string {
+  const d = new Date(new Date(requestedAt).getTime() + 30 * 86_400_000);
+  return d.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'long' });
+}
+
+function Row({ Icon, title, value, onPress, divider, tone, chevron = true }: {
+  Icon: LucideIcon;
+  title: string;
+  /** The setting's current value, or a one-line hint for a row that has none. */
+  value?: string;
+  onPress: () => void;
+  divider?: boolean;
+  tone?: 'danger';
+  /** A chevron promises somewhere to go. Sign out and Delete are acts, not
+   *  destinations, so they do not get one. */
+  chevron?: boolean;
+}) {
   const { t: TT } = useTheme();
+  const ink = tone === 'danger' ? TT.danger : TT.ink;
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.8}
-      style={{
-        flex: 1,
-        backgroundColor: selected ? TT.accentTint : TT.card,
-        borderWidth: 1.5,
-        borderColor: selected ? TT.accent : TT.line,
-        borderRadius: 16,
-        paddingVertical: 18,
-        alignItems: 'center',
-        gap: 8,
-      }}
+      style={{ paddingVertical: 15, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: divider ? 1 : 0, borderBottomColor: TT.line }}
     >
-      <View style={{ position: 'absolute', top: 10, right: 10, width: 18, height: 18, borderRadius: 9, backgroundColor: selected ? TT.accent : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-        {selected ? <Check size={12} color={TT.onAccent} strokeWidth={3} /> : null}
-      </View>
-      <Icon size={24} color={selected ? TT.accent : TT.faint} strokeWidth={2} />
-      <Text style={{ fontSize: 14, fontWeight: '600', color: selected ? TT.ink : TT.inkSoft }}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
-function Row({ Icon, tint, title, sub, onPress, divider }: { Icon: typeof MessageCircle; tint: string; title: string; sub?: string; onPress: () => void; divider?: boolean }) {
-  const { t: TT } = useTheme();
-  return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={{ paddingVertical: 15, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: divider ? 1 : 0, borderBottomColor: TT.line }}>
-      <Icon size={20} color={tint} strokeWidth={1.9} />
+      <Icon size={20} color={tone === 'danger' ? TT.danger : TT.accent} strokeWidth={1.9} />
       <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 16, color: TT.ink }}>{title}</Text>
-        {sub ? <Text style={{ fontSize: 12.5, color: TT.faint, marginTop: 1 }}>{sub}</Text> : null}
+        <Text style={{ fontSize: 16, color: ink }}>{title}</Text>
+        {value ? <Text style={{ fontSize: 12.5, color: TT.faint, marginTop: 1 }}>{value}</Text> : null}
       </View>
-      <ChevronRight size={18} color={TT.faint} strokeWidth={2} />
+      {chevron ? <ChevronRight size={18} color={TT.faint} strokeWidth={2} /> : null}
     </TouchableOpacity>
   );
 }
