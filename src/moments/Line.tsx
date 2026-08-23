@@ -18,7 +18,7 @@ import { useTheme } from '@/src/ui/theme-mode';
 // Translucent ink for the timeline's own marks. Lived here first; now shared,
 // because capture needed the same thing and two copies of a theme rule is how
 // one of them ends up wrong.
-import { veil } from '@/src/ui/tokens';
+import { OVER_MEDIA, veil } from '@/src/ui/tokens';
 
 /** 0..1 across the line: 0 is the heaviest edge, 1 the lightest. */
 export function valenceOf(m: { moods: string[] }): number {
@@ -170,8 +170,8 @@ function NodeFace({ node, onPress }: { node: LineNode; onPress: () => void }) {
       {/* A video keeps its play mark even over a poster — the poster is a still,
           and nothing else would say it moves. */}
       {face?.kind === 'video' && showPhoto ? (
-        <View style={{ position: 'absolute', width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
-          <Play size={11} color="#fff" strokeWidth={2.5} fill="#fff" />
+        <View style={{ position: 'absolute', width: 22, height: 22, borderRadius: 11, backgroundColor: OVER_MEDIA.scrim, alignItems: 'center', justifyContent: 'center' }}>
+          <Play size={11} color={OVER_MEDIA.ink} strokeWidth={2.5} fill={OVER_MEDIA.ink} />
         </View>
       ) : null}
     </Pressable>

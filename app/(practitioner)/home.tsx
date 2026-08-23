@@ -143,9 +143,9 @@ export default function Dashboard() {
                     {dayLabel(r.scheduledAt)} · {time(r.scheduledAt)} · {r.durationMinutes} min{r.isGuest ? ` · ${tr.guest}` : ''}
                   </Text>
                   <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-                    <Pressable onPress={() => decide(r, 'approve')} disabled={busyId === r.id} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 44, borderRadius: 22, backgroundColor: TT.ink }}>
-                      {busyId === r.id ? <ActivityIndicator color="#fff" size="small" /> : <Check size={15} color="#fff" strokeWidth={3} />}
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>{tr.approve}</Text>
+                    <Pressable onPress={() => decide(r, 'approve')} disabled={busyId === r.id} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 44, borderRadius: 22, backgroundColor: TT.ctaBg }}>
+                      {busyId === r.id ? <ActivityIndicator color={TT.ctaFg} size="small" /> : <Check size={15} color={TT.ctaFg} strokeWidth={3} />}
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: TT.ctaFg }}>{tr.approve}</Text>
                     </Pressable>
                     <Pressable onPress={() => decide(r, 'decline')} disabled={busyId === r.id} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: TT.line }}>
                       <X size={15} color={TT.inkSoft} strokeWidth={2.5} />
@@ -306,7 +306,7 @@ function Tile({ Icon, label, sub, badge, onPress }: { Icon: LucideIcon; label: s
           </View>
           {badge ? (
             <View style={{ height: 20, minWidth: 20, borderRadius: 10, paddingHorizontal: 6, backgroundColor: TT.accent, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 11, fontWeight: '800', color: '#fff' }}>{badge}</Text>
+              <Text style={{ fontSize: 11, fontWeight: '800', color: TT.onAccent }}>{badge}</Text>
             </View>
           ) : null}
         </View>

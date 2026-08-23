@@ -54,7 +54,7 @@ export function PractitionerSheet({
                 <Image source={{ uri: p.photoUrl }} style={{ width: 84, height: 84, borderRadius: 42, marginBottom: 14 }} accessibilityIgnoresInvertColors />
               ) : (
                 <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: TT.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 32 }}>{initial}</Text>
+                  <Text style={{ color: TT.onAccent, fontWeight: '700', fontSize: 32 }}>{initial}</Text>
                 </View>
               )}
               <Text style={{ fontSize: 22, fontWeight: '700', color: TT.ink, textAlign: 'center' }}>{name ?? 'Your practitioner'}</Text>

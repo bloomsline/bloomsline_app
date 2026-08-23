@@ -13,6 +13,7 @@ import { AudioRow, MediaViewer } from '@/src/ui/MediaViewer';
 import { useI18n } from '@/src/i18n';
 import { MonoLabel } from '@/src/ui/editorial';
 import { useTheme } from '@/src/ui/theme-mode';
+import { OVER_MEDIA } from '@/src/ui/tokens';
 
 const T = {
   en: {
@@ -195,8 +196,8 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
                   </>
                 ) : (
                   <>
-                    <Send size={16} color="#fff" strokeWidth={2} />
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#fff' }}>{tr.sendToPractitioner}</Text>
+                    <Send size={16} color={TT.onAccent} strokeWidth={2} />
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: TT.onAccent }}>{tr.sendToPractitioner}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -264,8 +265,8 @@ function MediaHero({ item, onOpen }: { item: MomentMediaDTO; onOpen: () => void 
       {poster ? <Image source={{ uri: poster }} style={{ width: '100%', height: 260 }} resizeMode="cover" /> : <View style={{ width: '100%', height: 260, backgroundColor: TT.slot }} />}
       {isVideo && (
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-          <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' }}>
-            <Play size={26} color="#fff" fill="#fff" />
+          <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: OVER_MEDIA.scrim, alignItems: 'center', justifyContent: 'center' }}>
+            <Play size={26} color={OVER_MEDIA.ink} fill={OVER_MEDIA.ink} />
           </View>
         </View>
       )}
@@ -291,8 +292,8 @@ function MediaThumb({ item, onOpen }: { item: MomentMediaDTO; onOpen: () => void
     <TouchableOpacity activeOpacity={0.9} onPress={onOpen}>
       {poster ? <Image source={{ uri: poster }} style={{ width: 120, height: 120, borderRadius: 16 }} resizeMode="cover" /> : <View style={{ width: 120, height: 120, borderRadius: 16, backgroundColor: TT.slot }} />}
       {isVideo && (
-        <View style={{ position: 'absolute', top: 44, left: 44, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
-          <Play size={16} color="#fff" fill="#fff" />
+        <View style={{ position: 'absolute', top: 44, left: 44, width: 32, height: 32, borderRadius: 16, backgroundColor: OVER_MEDIA.scrim, alignItems: 'center', justifyContent: 'center' }}>
+          <Play size={16} color={OVER_MEDIA.ink} fill={OVER_MEDIA.ink} />
         </View>
       )}
     </TouchableOpacity>

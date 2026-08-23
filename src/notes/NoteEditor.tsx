@@ -234,7 +234,7 @@ export function NoteEditor({
           disabled={saving || !text.trim()}
           style={{ flex: 1.4, height: 50, borderRadius: 25, backgroundColor: TT.accent, alignItems: 'center', justifyContent: 'center', opacity: saving || !text.trim() ? 0.45 : 1 }}
         >
-          {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>Save note</Text>}
+          {saving ? <ActivityIndicator color={TT.onAccent} size="small" /> : <Text style={{ fontSize: 15, fontWeight: '700', color: TT.onAccent }}>Save note</Text>}
         </Pressable>
       </View>
       {error ? <Text style={{ fontSize: 13.5, color: '#C0392B', marginTop: 12 }}>{error}</Text> : null}

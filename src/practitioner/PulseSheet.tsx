@@ -142,8 +142,8 @@ export function PulseSheet({ memberId, who, onClose }: { memberId: string | null
               <View style={{ marginTop: 18 }}>
                 <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.none}</Text>
                 <Pressable onPress={build} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16, borderRadius: 24, backgroundColor: TT.accent, paddingVertical: 13 }}>
-                  <Sparkles size={16} color="#fff" />
-                  <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#fff' }}>{tr.generate}</Text>
+                  <Sparkles size={16} color={TT.onAccent} />
+                  <Text style={{ fontSize: 14.5, fontWeight: '800', color: TT.onAccent }}>{tr.generate}</Text>
                 </Pressable>
               </View>
             )}

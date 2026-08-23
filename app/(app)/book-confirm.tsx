@@ -112,7 +112,7 @@ export default function BookConfirm() {
           {/* Summary */}
           <EdCard style={{ padding: 24, alignItems: 'center' }}>
             <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: TT.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 22 }}>{initial}</Text>
+              <Text style={{ color: TT.onAccent, fontWeight: '700', fontSize: 22 }}>{initial}</Text>
             </View>
             <Text style={{ fontSize: 22, fontWeight: '800', color: TT.ink, letterSpacing: -0.3, textAlign: 'center' }}>{start ? longDate(start, locale) : '—'}</Text>
             <Text style={{ fontSize: 15, color: TT.inkSoft, marginTop: 4, textAlign: 'center' }}>{start && end ? `${clock(start)} – ${clock(end)}` : ''} {tr.withName(name)}</Text>

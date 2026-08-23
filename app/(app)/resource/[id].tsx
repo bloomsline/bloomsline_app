@@ -223,8 +223,8 @@ export default function ResourceDetail() {
               )}
             </View>
           ) : (
-            <Pressable onPress={submit} disabled={submitting} style={{ height: 54, borderRadius: 27, backgroundColor: submitting ? TT.faint : TT.ink, alignItems: 'center', justifyContent: 'center' }}>
-              {submitting ? <ActivityIndicator color="#fff" /> : <Text style={{ fontSize: 15.5, fontWeight: '700', color: '#fff' }}>{hasInteractive ? tr.submit : tr.markDone}</Text>}
+            <Pressable onPress={submit} disabled={submitting} style={{ height: 54, borderRadius: 27, backgroundColor: submitting ? TT.faint : TT.ctaBg, alignItems: 'center', justifyContent: 'center' }}>
+              {submitting ? <ActivityIndicator color={TT.ctaFg} /> : <Text style={{ fontSize: 15.5, fontWeight: '700', color: TT.ctaFg }}>{hasInteractive ? tr.submit : tr.markDone}</Text>}
             </Pressable>
           )}
         </View>
