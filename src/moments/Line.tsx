@@ -10,9 +10,10 @@
 // store it. A moment with no feelings sits on the centre line.
 import { memo, useMemo, useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
-import Svg, { Path, Circle } from 'react-native-svg';
+import Svg, { Path, Circle, Defs, ClipPath, Image as SvgImage } from 'react-native-svg';
 import { Quote, ImageOff, AudioLines, Video, Play } from 'lucide-react-native';
 import { MOOD_SCORES, moodColor } from '@/src/moments/moods';
+import { shapeFor, shapePath, type MoodShape } from '@/src/moments/shapes';
 import type { MomentDTO } from '@/src/api/moments';
 import { useTheme } from '@/src/ui/theme-mode';
 // Translucent ink for the timeline's own marks. Lived here first; now shared,
@@ -58,6 +59,8 @@ export interface LineNode {
    *  all, which is the one case that shows the words. */
   face: { kind: 'image' | 'video' | 'audio'; uri: string | null } | null;
   color: string;
+  /** The silhouette, blended from every feeling on the moment. */
+  shape: MoodShape;
   dayLabel: string | null; // only on the first node of a day
 }
 
@@ -113,6 +116,7 @@ export function layout(moments: MomentDTO[], width: number, locale: 'en' | 'fr',
       y: TOP_PAD + i * ROW + NODE / 2,
       face: faceOf(m),
       color: m.moods.length > 0 ? moodColor(m.moods[0]) : veil(mode, 0.35),
+      shape: shapeFor(m.moods),
       dayLabel: isNewDay ? dayLabelFor(d, now, locale, dayLabels) : null,
     };
   });
@@ -142,20 +146,55 @@ function stemPath(nodes: LineNode[], todayY: number, todayX: number): string {
  * no longer in the bucket, and an empty circle reads as a bug in the timeline
  * rather than as a missing file. Saying so is kinder and truer than a blank.
  */
+/**
+ * The circle a moment used to be, replaced by the shape of what it FELT like.
+ *
+ * The silhouette comes from the feelings recorded on the moment (see
+ * `shapes.ts`); the colour is the first of them. A moment with no feelings keeps
+ * the plain circle, which is the one form that claims nothing.
+ *
+ * Drawn in SVG rather than as a `borderRadius` View because the shape is an
+ * arbitrary path and the photograph has to be CLIPPED to it — a picture in a
+ * square behind a shaped ring would read as a mistake.
+ */
 function NodeFace({ node, onPress }: { node: LineNode; onPress: () => void }) {
   const { mode } = useTheme();
   const [broken, setBroken] = useState(false);
   const face = node.face;
   const showPhoto = !!face?.uri && !broken;
 
+  // Leave a pixel for the stroke, or the outermost spikes get shaved.
+  const d = shapePath(node.shape, NODE / 2, NODE / 2, NODE / 2 - 1);
+  const clipId = `m${node.moment.id.replace(/[^A-Za-z0-9]/g, '')}`;
+
   return (
     <Pressable
       onPress={onPress}
-      style={{ position: 'absolute', left: node.x - NODE / 2, top: node.y - NODE / 2, width: NODE, height: NODE, borderRadius: NODE / 2, overflow: 'hidden', borderWidth: 1, borderColor: veil(mode, 0.28), alignItems: 'center', justifyContent: 'center', backgroundColor: veil(mode, 0.07) }}
+      style={{ position: 'absolute', left: node.x - NODE / 2, top: node.y - NODE / 2, width: NODE, height: NODE, alignItems: 'center', justifyContent: 'center' }}
     >
-      {showPhoto ? (
-        <Image source={{ uri: face!.uri! }} style={{ width: NODE, height: NODE }} onError={() => setBroken(true)} />
-      ) : face?.kind === 'audio' ? (
+      <Svg width={NODE} height={NODE} style={{ position: 'absolute' }}>
+        <Defs>
+          <ClipPath id={clipId}>
+            <Path d={d} />
+          </ClipPath>
+        </Defs>
+        <Path d={d} fill={showPhoto ? 'transparent' : `${node.color}24`} stroke={node.color} strokeWidth={1.4} strokeLinejoin="round" />
+        {showPhoto ? (
+          <SvgImage href={{ uri: face!.uri! }} x={0} y={0} width={NODE} height={NODE} preserveAspectRatio="xMidYMid slice" clipPath={`url(#${clipId})`} />
+        ) : null}
+        {/* Redrawn over the photograph so the outline is not lost against it. */}
+        {showPhoto ? <Path d={d} fill="none" stroke={node.color} strokeWidth={1.4} strokeLinejoin="round" /> : null}
+      </Svg>
+
+      {/* react-native-svg's Image has onLoad but no onError, and a moment whose
+          object has left the bucket must SAY so rather than render an empty
+          shape. So a 1px RN Image loads the same URI purely to report failure;
+          it is served from the same cache, not a second download. */}
+      {face?.uri && !broken ? (
+        <Image source={{ uri: face.uri }} style={{ width: 1, height: 1, opacity: 0, position: 'absolute' }} onError={() => setBroken(true)} />
+      ) : null}
+
+      {showPhoto ? null : face?.kind === 'audio' ? (
         <AudioLines size={19} color={veil(mode, 0.72)} strokeWidth={2} />
       ) : face && broken ? (
         // The kind is still known even when the file will not load, so say which
@@ -224,10 +263,6 @@ export const Line = memo(function Line({
           ) : null}
 
           <NodeFace node={n} onPress={() => onOpen(n.moment)} />
-
-          {/* The feeling, as a single dot. The whole node cannot be tinted without
-              fighting the photograph underneath it. */}
-          <View style={{ position: 'absolute', left: n.x + NODE / 2 - 12, top: n.y + NODE / 2 - 12, width: 9, height: 9, borderRadius: 5, backgroundColor: n.color, borderWidth: 1, borderColor: 'rgba(14,21,18,0.6)' }} />
 
           {/* A moment with words and no picture says them here — the line would
               otherwise be a row of identical glyphs. */}
