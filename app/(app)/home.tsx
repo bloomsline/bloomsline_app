@@ -192,7 +192,7 @@ export default function MyCare() {
                   activeOpacity={0.85}
                   style={{ marginHorizontal: 22, marginTop: 16, height: 50, borderRadius: 25, borderWidth: 1, borderColor: TT.cardLine, alignItems: 'center', justifyContent: 'center' }}
                 >
-                  <Text style={{ fontSize: 14.5, fontWeight: '700', color: TT.ink }}>{t.care.bookAnother}</Text>
+                  <Text style={{ fontSize: 14.5, fontWeight: '700', color: TT.ink }}>{t.care.bookSession}</Text>
                 </TouchableOpacity>
               ) : (
                 <Text style={{ fontSize: 12.5, color: TT.inkSoft, textAlign: 'center', marginTop: 14, paddingHorizontal: 34 }}>{t.care.bookNote}</Text>

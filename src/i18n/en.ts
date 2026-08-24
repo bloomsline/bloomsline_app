@@ -338,7 +338,6 @@ export const en = {
     todoFrom: 'To do · from {name}',
     yourSessions: 'Your sessions',
     then: 'Then',
-    bookAnother: 'Book another session',
     archive: 'Archive',
     pastSessions: 'Past sessions',
     sharingHistory: 'Sharing history',

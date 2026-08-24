@@ -339,7 +339,6 @@ export const fr: Dict = {
     todoFrom: 'À faire · de {name}',
     yourSessions: 'Vos séances',
     then: 'Ensuite',
-    bookAnother: 'Prendre un autre rendez-vous',
     archive: 'Archives',
     pastSessions: 'Séances passées',
     sharingHistory: 'Historique de partage',
