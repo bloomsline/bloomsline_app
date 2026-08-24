@@ -410,7 +410,7 @@ export default function Moments() {
             style={{
               flexDirection: 'row', alignItems: 'center', gap: 7,
               height: 38, paddingHorizontal: 15, borderRadius: 19,
-              backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine,
+              backgroundColor: TT.floating, borderWidth: 1, borderColor: TT.cardLine,
               shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6,
             }}
           >

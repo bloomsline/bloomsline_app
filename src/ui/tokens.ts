@@ -38,6 +38,20 @@ export interface Palette {
    *  still legible behind a delete button, which reads as a rendering fault
    *  rather than as depth. Depth comes from the scrim and the radius. */
   sheet: string;
+  /** Chrome that FLOATS over scrolling content: the tab pill, the capture
+   *  button, the back-to-today pill.
+   *
+   *  Opaque by contract, for the same reason `sheet` is. `card` is
+   *  `rgba(255,255,255,0.055)` on dark — which reads as a panel when it sits on
+   *  the ground, and as a window when the page scrolls underneath it. A to-do
+   *  card passing behind the tab bar put its title straight through the words
+   *  "Moments" and "For You". The active tab was legible throughout, because
+   *  its inner pill is `bg` and `bg` is opaque; that is the tell.
+   *
+   *  Same value as `sheet` today. Kept separate because they answer to
+   *  different things — a sheet is a modal surface, this is navigation that
+   *  never leaves the screen — and either could move without the other. */
+  floating: string;
   /** Card border. Hairline on light; a lift on dark, where shadows do nothing. */
   cardLine: string;
   /** Primary text. */
@@ -105,6 +119,7 @@ export const LIGHT: Palette = {
   bg: '#F5F2EB',
   card: '#FFFFFF',
   sheet: '#FFFFFF',
+  floating: '#FFFFFF',
   cardLine: '#ECE8DF',
   ink: '#141414',
   inkSoft: '#5A5A52',
@@ -136,6 +151,7 @@ export const DARK: Palette = {
   bg: '#0E1512',
   card: 'rgba(255,255,255,0.055)',
   sheet: '#141A17',
+  floating: '#141A17',
   cardLine: 'rgba(255,255,255,0.10)',
   ink: '#FFFFFF',
   inkSoft: 'rgba(255,255,255,0.68)',

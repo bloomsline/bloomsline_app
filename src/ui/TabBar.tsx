@@ -44,7 +44,7 @@ export function TabBar({ active, tone }: { active: TabId; tone?: 'light' | 'dark
             do and the + stays at the margin. */}
         <View
           className="flex-row items-center self-start rounded-full p-1"
-          style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine }}
+          style={{ backgroundColor: TT.floating, borderWidth: 1, borderColor: TT.cardLine }}
         >
           {order.map((id) => TABS[id]).map((tab) => {
             const on = tab.id === active;
@@ -73,7 +73,7 @@ export function TabBar({ active, tone }: { active: TabId; tone?: 'light' | 'dark
           <Pressable
             accessibilityLabel="Capture a moment"
             className="h-[46px] w-[46px] items-center justify-center rounded-[23px]"
-            style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine }}
+            style={{ backgroundColor: TT.floating, borderWidth: 1, borderColor: TT.cardLine }}
             onPress={() => router.navigate('/capture' as never)}
           >
             <Plus size={22} color={TT.ink} strokeWidth={2.2} />
@@ -87,7 +87,7 @@ export function TabBar({ active, tone }: { active: TabId; tone?: 'light' | 'dark
     <View className="absolute inset-x-6 bottom-8 flex-row items-center gap-3">
       <View
         className="flex-1 flex-row justify-around rounded-[40px] px-4 py-3"
-        style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}
+        style={{ backgroundColor: TT.floating, borderWidth: 1, borderColor: TT.line, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}
       >
         {order.map((id) => TABS[id]).map((tab) => {
           const on = tab.id === active;

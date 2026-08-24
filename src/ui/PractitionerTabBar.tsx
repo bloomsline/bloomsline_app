@@ -35,7 +35,7 @@ export function PractitionerTabBar({ active }: { active: PractitionerTabId }) {
       <View
         style={{
           flex: 1, flexDirection: 'row', justifyContent: 'space-around', borderRadius: 40, paddingHorizontal: 10, paddingVertical: 12,
-          backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line,
+          backgroundColor: TT.floating, borderWidth: 1, borderColor: TT.line,
           shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, shadowOffset: { width: 0, height: 6 }, elevation: 8,
         }}
       >
