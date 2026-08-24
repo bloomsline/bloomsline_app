@@ -59,14 +59,42 @@ export const MOODS: MoodDef[] = [
 
 const MOOD_MAP = new Map(MOODS.map((m) => [m.key, m]));
 
-// French labels (inclusive forms). Covers the 17 current moods + the legacy keys.
+// French labels — VERBATIM from v1 (`lib/i18n/fr.ts`), including the `(e)`
+// parenthesised inclusive form. v2 had rewritten these in the `·e` middot style
+// and changed seven of the words outright; the v1 wording is the one that was
+// settled on with the practitioner, so it is the one that stands.
+//
+// Everything else about a mood already matched v1 exactly — English label,
+// valence (which is what places a moment left or right on the line), colour,
+// and picker order — so this file is the whole of the difference.
+//
+// Two are recorded here because they read oddly and are deliberate, not slips:
+//   playful → "Soulagé(e)" ("relieved"), and
+//   funny   → "Joyeux(se)", which the legacy `joyful` key also carries.
+// Both are what v1 shipped and what was asked for.
 const MOOD_LABELS_FR: Record<string, string> = {
-  peaceful: 'Paisible', calm: 'Calme', grateful: 'Reconnaissant·e', hopeful: 'Optimiste',
-  loved: 'Aimé·e', proud: 'Fier·e', inspired: 'Inspiré·e', funny: 'Amusé·e', playful: 'Joueur·se',
-  tired: 'Fatigué·e', anxious: 'Anxieux·se', sad: 'Triste', lonely: 'Seul·e', overwhelmed: 'Débordé·e',
-  heavy: 'Accablé·e', angry: 'En colère', fear: 'Effrayé·e',
-  // legacy keys
-  joyful: 'Joyeux·se', tender: 'Tendre', restless: 'Agité·e', uncertain: 'Incertain·e',
+  peaceful: 'Paisible',
+  calm: 'Calme',
+  grateful: 'Reconnaissant(e)',
+  hopeful: "Plein(e) d'espoir",
+  loved: 'Aimé(e)',
+  proud: 'Fier(ère)',
+  inspired: 'Inspiré(e)',
+  funny: 'Joyeux(se)',
+  playful: 'Soulagé(e)',
+  tired: 'Fatigué(e)',
+  anxious: 'Anxieux(se)',
+  sad: 'Triste',
+  lonely: 'Seul(e)',
+  overwhelmed: 'Dépassé(e)',
+  heavy: 'Oppressé(e)',
+  angry: 'En colère',
+  fear: 'Effrayé(e)',
+  // legacy keys (older moments still render)
+  joyful: 'Joyeux(se)',
+  tender: 'Attendri(e)',
+  restless: 'Agité(e)',
+  uncertain: 'Incertain(e)',
 };
 
 export const moodColor = (key: string): string => MOOD_COLORS[key] ?? '#666';
