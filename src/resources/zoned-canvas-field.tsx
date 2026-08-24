@@ -95,8 +95,8 @@ export function ZonedCanvasField({
 
   if (zones.length === 0) {
     return (
-      <View style={{ backgroundColor: '#F6F6F4', borderRadius: 12, padding: 14 }}>
-        <Text style={{ fontSize: 13, color: '#9A9A9A' }}>{t.noZones}</Text>
+      <View style={{ backgroundColor: C.card, borderRadius: 12, padding: 14 }}>
+        <Text style={{ fontSize: 13, color: C.muted }}>{t.noZones}</Text>
       </View>
     );
   }
@@ -168,7 +168,7 @@ export function ZonedCanvasField({
       </View>
 
       {numbering.size > 0 && (
-        <Text style={{ fontSize: 12, color: '#9A9A9A', textAlign: 'center' }}>{t.tapHint}</Text>
+        <Text style={{ fontSize: 12, color: C.muted, textAlign: 'center' }}>{t.tapHint}</Text>
       )}
 
       {zones.map((z) => (
@@ -262,7 +262,7 @@ function ZonePanel({
       </View>
 
       {entries.length === 0 ? (
-        <Text style={{ fontSize: 13, color: '#9A9A9A' }}>{t.empty}</Text>
+        <Text style={{ fontSize: 13, color: C.muted }}>{t.empty}</Text>
       ) : (
         entries.map((e) => {
           const n = numbering.get(`${zone.id}::${e.id}`) ?? 0;
