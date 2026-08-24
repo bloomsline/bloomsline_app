@@ -256,8 +256,6 @@ export const en = {
     today: 'Today',
     yesterday: 'Yesterday',
     tapToRead: 'tap to read',
-    weekSoFar: 'Your week so far',
-    scrollBack: '↑ scroll back',
     loadingOlder: 'Loading earlier moments',
     lineStart: 'The beginning of your line',
     backToToday: 'Back to today',

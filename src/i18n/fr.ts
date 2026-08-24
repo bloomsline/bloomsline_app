@@ -255,8 +255,6 @@ export const fr: Dict = {
     today: 'Aujourd’hui',
     yesterday: 'Hier',
     tapToRead: 'appuyez pour lire',
-    weekSoFar: 'Votre semaine jusqu’ici',
-    scrollBack: '↑ remonter',
     loadingOlder: 'Chargement des moments précédents',
     lineStart: 'Le début de votre ligne',
     backToToday: 'Revenir à aujourd’hui',

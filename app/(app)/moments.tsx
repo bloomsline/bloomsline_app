@@ -385,12 +385,6 @@ export default function Moments() {
             </FadeIn>
           )}
 
-          {moments.length > 0 ? (
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 22, marginTop: 12 }}>
-              <Text style={{ fontSize: 11.5, color: TT.faint }}>{tr.weekSoFar}</Text>
-              <Text style={{ fontSize: 11.5, color: TT.faint }}>{tr.scrollBack}</Text>
-            </View>
-          ) : null}
         </ScrollView>
       </SafeAreaView>
 
