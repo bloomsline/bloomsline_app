@@ -256,6 +256,7 @@ export const en = {
     yesterday: 'Yesterday',
     tapToRead: 'tap to read',
     capture: 'Capture a moment',
+    plusMore: (n: number) => `+${n}`,
     loadingOlder: 'Loading earlier moments',
     lineStart: 'The beginning of your line',
     backToToday: 'Back to today',
