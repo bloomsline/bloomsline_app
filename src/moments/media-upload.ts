@@ -79,8 +79,22 @@ export async function captureMedia(mode: 'photo' | 'video'): Promise<PreparedMed
   return prepare(res.assets[0]);
 }
 
-/** True when the device can offer a camera at all — web browsers cannot here. */
-export const cameraAvailable = Platform.OS !== 'web';
+/**
+ * Can this device hold a camera up to something?
+ *
+ * This used to be `Platform.OS !== 'web'`, which was simply wrong: patients use
+ * the web app on their phones, and `launchCameraAsync` IS implemented on web —
+ * it sets `capture` on the file input, which opens the camera on iOS Safari and
+ * Android Chrome. So "Take a photo" was hidden from exactly the people who
+ * could use it, and the sheet offered only the photo library.
+ *
+ * A coarse pointer is the proxy for a hand-held device. On a desktop browser
+ * `capture` is ignored and the row would just re-open the file browser, which
+ * is a second door to the row below it — so desktop keeps the library only.
+ */
+export const cameraAvailable =
+  Platform.OS !== 'web' ||
+  (typeof globalThis.matchMedia === 'function' && globalThis.matchMedia('(pointer: coarse)').matches);
 
 async function putOne(uri: string, contentType: string, sizeBytes: number, thumbnail: boolean): Promise<string> {
   const { key, url, headers } = await presignMedia({ contentType, sizeBytes, thumbnail });
