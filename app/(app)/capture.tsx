@@ -63,6 +63,24 @@ export default function Capture() {
   const initial = typeof emotion === 'string' && MOODS.some((m) => m.key === emotion) ? emotion : null;
 
   const [step, setStep] = useState<Step>('write');
+  const noteRef = useRef<TextInput>(null);
+
+  // Back to writing, with the caret where it was.
+  //
+  // At the feelings step the words stay on screen above the sheet, and the
+  // first thing anyone does when they spot a typo is tap them. The TextInput is
+  // `editable={false}` there, and a non-editable TextInput SWALLOWS the touch —
+  // no edit, no feedback, nothing to learn from. So the text gets a tap target
+  // of its own, and the header chevron routes through here too, since arriving
+  // back at a page you came to fix without a cursor in it is the same problem
+  // one step later.
+  //
+  // The focus is deferred: the input is still `editable={false}` in this tick,
+  // and focusing a disabled input does nothing.
+  const toWrite = () => {
+    setStep('write');
+    setTimeout(() => noteRef.current?.focus(), 60);
+  };
   const [note, setNote] = useState('');
   const [media, setMedia] = useState<PreparedMedia | null>(null);
   const [tone, setTone] = useState<Tone | null>(initial ? (isLighter(initial) ? 'good' : 'hard') : null);
@@ -179,7 +197,7 @@ export default function Capture() {
           step={step}
           tr={tr}
           onClose={() => router.back()}
-          onBack={() => setStep(step === 'preview' ? 'feel' : 'write')}
+          onBack={() => (step === 'preview' ? setStep('feel') : toWrite())}
         />
 
         {step === 'preview' ? (
@@ -202,20 +220,34 @@ export default function Capture() {
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
               <ScrollView contentContainerStyle={{ paddingHorizontal: 26, paddingTop: 6, flexGrow: 1 }} keyboardShouldPersistTaps="handled">
                 <Text style={{ fontSize: 12.5, color: TT.faint, marginBottom: 12 }}>{when}</Text>
-                <TextInput
-                  value={note}
-                  onChangeText={setNote}
-                  placeholder={tr.what}
-                  placeholderTextColor={TT.faint}
-                  multiline
-                  autoFocus={step === 'write'}
-                  editable={step === 'write'}
-                  selectionColor={TT.accent}
-                  style={[
-                    { fontSize: 21, fontWeight: '600', color: TT.ink, lineHeight: 29, minHeight: 90, textAlignVertical: 'top' },
-                    Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null,
-                  ]}
-                />
+                <View>
+                  <TextInput
+                    ref={noteRef}
+                    value={note}
+                    onChangeText={setNote}
+                    placeholder={tr.what}
+                    placeholderTextColor={TT.faint}
+                    multiline
+                    autoFocus={step === 'write'}
+                    editable={step === 'write'}
+                    selectionColor={TT.accent}
+                    style={[
+                      { fontSize: 21, fontWeight: '600', color: TT.ink, lineHeight: 29, minHeight: 90, textAlignVertical: 'top' },
+                      Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null,
+                    ]}
+                  />
+                  {/* An overlay rather than a handler on the input: a disabled
+                      TextInput eats the touch, so the only reliable way to hear
+                      the tap is to sit on top of it. */}
+                  {step !== 'write' ? (
+                    <Pressable
+                      onPress={toWrite}
+                      accessibilityRole="button"
+                      accessibilityLabel={tr.edit}
+                      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                    />
+                  ) : null}
+                </View>
               </ScrollView>
 
               {step === 'write' ? (

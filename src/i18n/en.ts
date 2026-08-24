@@ -250,7 +250,6 @@ export const en = {
     failedBody: 'Check your connection and try again. Nothing you have written is lost.',
   },
   line: {
-    kicker: 'Your line',
     heavier: 'heavier',
     lighter: 'lighter',
     today: 'Today',

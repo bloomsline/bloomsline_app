@@ -249,7 +249,6 @@ export const fr: Dict = {
     failedBody: 'Vérifiez votre connexion et réessayez. Rien de ce que vous avez écrit n’est perdu.',
   },
   line: {
-    kicker: 'Votre ligne',
     heavier: 'plus lourd',
     lighter: 'plus léger',
     today: 'Aujourd’hui',
