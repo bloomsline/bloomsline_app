@@ -3,9 +3,9 @@
 // wired Share-to-practitioner and Delete. Deferred vs v1: the conversation thread
 // (no moment_comments backend yet) and the video/voice player (media storage dark).
 import { useState } from 'react';
-import { ActivityIndicator, Image, Modal, Platform, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, Platform, Pressable, ScrollView, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Send, CircleCheckBig, Trash2, Play, Mic } from 'lucide-react-native';
+import { Send, CircleCheckBig, Trash2, Play } from 'lucide-react-native';
 import { MOOD_COLORS, moodLabel } from './moods';
 import { deleteMoment, shareMoment, type MomentDTO, type MomentMediaDTO } from '@/src/api/moments';
 import { ConfirmLayer, useConfirm } from '@/src/ui/confirm';
@@ -156,8 +156,8 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>
-            {/* Media — first item as a hero */}
-            {moment.media.length > 0 && <MediaHero item={moment.media[0]} onOpen={() => setViewing(0)} />}
+            {/* Media — one slide each, swiped */}
+            {moment.media.length > 0 && <MediaCarousel media={moment.media} onOpen={setViewing} />}
 
             <View style={{ padding: 20 }}>
               {/* Moods */}
@@ -177,17 +177,6 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
               {/* Text + caption */}
               {moment.textContent ? <Text style={{ fontSize: 17, color: TT.ink, lineHeight: 26, marginBottom: 12 }}>{moment.textContent}</Text> : null}
               {moment.caption ? <Text style={{ fontSize: 15, color: TT.inkSoft, lineHeight: 22, marginBottom: 12 }}>{moment.caption}</Text> : null}
-
-              {/* Extra media */}
-              {moment.media.length > 1 && (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    {moment.media.slice(1).map((m, i) => (
-                      <MediaThumb key={m.id} item={m} onOpen={() => setViewing(i + 1)} />
-                    ))}
-                  </View>
-                </ScrollView>
-              )}
 
               {/* Time */}
               <Kicker color={TT.faint} size={10.5}>{timeLabel}</Kicker>
@@ -262,6 +251,53 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
   );
 }
 
+/**
+ * The moment's media, one slide at a time.
+ *
+ * It was the first item as a hero with the others as small thumbnails beneath —
+ * which reads as "this one, plus some attachments", when a moment that holds a
+ * photo and the voice note about it holds two equal things. Swiping gives each
+ * of them the same room.
+ *
+ * The dots are the whole affordance. A count would say how many there are
+ * without saying you can move between them, and arrows on a 5-item strip are
+ * more chrome than the content.
+ */
+function MediaCarousel({ media, onOpen }: { media: MomentMediaDTO[]; onOpen: (i: number) => void }) {
+  const { t: TT } = useTheme();
+  const { width } = useWindowDimensions();
+  const [page, setPage] = useState(0);
+  if (media.length === 1) return <MediaHero item={media[0]} onOpen={() => onOpen(0)} />;
+  return (
+    <View>
+      <ScrollView
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onScroll={(e) => {
+          const i = Math.round(e.nativeEvent.contentOffset.x / Math.max(1, width));
+          if (i !== page) setPage(i);
+        }}
+        scrollEventThrottle={32}
+      >
+        {media.map((m, i) => (
+          <View key={m.id} style={{ width }}>
+            <MediaHero item={m} onOpen={() => onOpen(i)} />
+          </View>
+        ))}
+      </ScrollView>
+      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, paddingTop: 10 }}>
+        {media.map((m, i) => (
+          <View
+            key={m.id}
+            style={{ width: i === page ? 16 : 6, height: 6, borderRadius: 3, backgroundColor: i === page ? TT.accent : TT.line }}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function MediaHero({ item, onOpen }: { item: MomentMediaDTO; onOpen: () => void }) {
   const { t: TT } = useTheme();
   const { locale } = useI18n();
@@ -293,28 +329,3 @@ function MediaHero({ item, onOpen }: { item: MomentMediaDTO; onOpen: () => void 
   );
 }
 
-function MediaThumb({ item, onOpen }: { item: MomentMediaDTO; onOpen: () => void }) {
-  const { t: TT } = useTheme();
-  const { locale } = useI18n();
-  const tr = T[locale];
-  if (item.kind === 'audio') {
-    return (
-      <TouchableOpacity onPress={onOpen} activeOpacity={0.8} style={{ width: 120, height: 120, borderRadius: 16, backgroundColor: TT.accentTint, alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-        <Mic size={22} color={TT.accent} strokeWidth={2} />
-        <Text style={{ fontSize: 11, color: TT.inkSoft }}>{item.durationSeconds ? fmtDur(item.durationSeconds) : tr.voice}</Text>
-      </TouchableOpacity>
-    );
-  }
-  const poster = item.thumbnailUrl ?? (item.kind === 'image' ? item.url : null);
-  const isVideo = item.kind === 'video';
-  return (
-    <TouchableOpacity activeOpacity={0.9} onPress={onOpen}>
-      {poster ? <Image source={{ uri: poster }} style={{ width: 120, height: 120, borderRadius: 16 }} resizeMode="cover" /> : <View style={{ width: 120, height: 120, borderRadius: 16, backgroundColor: TT.slot }} />}
-      {isVideo && (
-        <View style={{ position: 'absolute', top: 44, left: 44, width: 32, height: 32, borderRadius: 16, backgroundColor: OVER_MEDIA.scrim, alignItems: 'center', justifyContent: 'center' }}>
-          <Play size={16} color={OVER_MEDIA.ink} fill={OVER_MEDIA.ink} />
-        </View>
-      )}
-    </TouchableOpacity>
-  );
-}

@@ -11,7 +11,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Image, Platform, Pressable, Text, View } from 'react-native';
 import Svg, { Path, Circle, Defs, ClipPath, Image as SvgImage } from 'react-native-svg';
-import { Quote, ImageOff, AudioLines, Video, Play, Plus } from 'lucide-react-native';
+import { Quote, ImageOff, AudioLines, Video, Play, Plus, Eye } from 'lucide-react-native';
 import { MOOD_SCORES, moodColor } from '@/src/moments/moods';
 import { shapeFor, shapePath, type MoodShape } from '@/src/moments/shapes';
 import type { MomentDTO } from '@/src/api/moments';
@@ -251,7 +251,7 @@ export const Line = memo(function Line({
   moments: MomentDTO[];
   width: number;
   locale: 'en' | 'fr';
-  labels: { heavier: string; lighter: string; today: string; yesterday: string; tapToRead: string; capture: string };
+  labels: { heavier: string; lighter: string; today: string; yesterday: string; tapToRead: string; capture: string; plusMore: (n: number) => string };
   onOpen: (m: MomentDTO) => void;
   onCaptureToday: () => void;
 }) {
@@ -281,6 +281,11 @@ export const Line = memo(function Line({
           ) : null}
 
           <NodeFace node={n} onPress={() => onOpen(n.moment)} />
+
+          {/* Two quiet marks under the node, and only when they are true.
+              Outside the shape rather than on it: several of the shapes reach
+              the full radius, so a corner badge would sit on a spike. */}
+          <NodeMarks node={n} label={labels.plusMore} />
 
           {/* A moment with words and no picture says them here — the line would
               otherwise be a row of identical glyphs. */}
@@ -359,5 +364,35 @@ function TodayNode({ x, y, onPress, label }: { x: number; y: number; onPress: ()
       </Animated.View>
       <Plus size={16} color={TT.faint} strokeWidth={2.2} />
     </Pressable>
+  );
+}
+
+/**
+ * What the shape cannot say: that there is more than one thing here, and that
+ * the practitioner can see it.
+ *
+ * Both are rare enough that most nodes show nothing, which is the point — the
+ * line stays a line. `Eye` is already the app's mark for "your practitioner can
+ * see this" (it is the one on the sharing row in capture), so it means the same
+ * thing in both places.
+ */
+function NodeMarks({ node, label }: { node: LineNode; label: (n: number) => string }) {
+  const { mode } = useTheme();
+  const extra = Math.max(0, node.moment.media.length - 1);
+  const shared = node.moment.sharedWithPractitioner;
+  if (extra === 0 && !shared) return null;
+  return (
+    <View
+      pointerEvents="none"
+      style={{
+        position: 'absolute', top: node.y + NODE / 2 + 5, left: node.x - NODE / 2, width: NODE,
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+      }}
+    >
+      {shared ? <Eye size={11} color={veil(mode, 0.5)} strokeWidth={2.2} /> : null}
+      {extra > 0 ? (
+        <Text style={{ fontSize: 10.5, fontWeight: '700', color: veil(mode, 0.5) }}>{label(extra)}</Text>
+      ) : null}
+    </View>
   );
 }

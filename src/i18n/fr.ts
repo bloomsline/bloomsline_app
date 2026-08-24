@@ -255,6 +255,7 @@ export const fr: Dict = {
     yesterday: 'Hier',
     tapToRead: 'appuyez pour lire',
     capture: 'Capturer un moment',
+    plusMore: (n: number) => `+${n}`,
     loadingOlder: 'Chargement des moments précédents',
     lineStart: 'Le début de votre ligne',
     backToToday: 'Revenir à aujourd’hui',

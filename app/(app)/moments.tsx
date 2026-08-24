@@ -320,7 +320,7 @@ export default function Moments() {
   // identity every render, which re-laid-out every node on every state change —
   // survivable at one screenful, not at a thousand moments.
   const lineLabels = useMemo(
-    () => ({ heavier: tr.heavier, lighter: tr.lighter, today: tr.today, yesterday: tr.yesterday, tapToRead: tr.tapToRead, capture: tr.capture }),
+    () => ({ heavier: tr.heavier, lighter: tr.lighter, today: tr.today, yesterday: tr.yesterday, tapToRead: tr.tapToRead, capture: tr.capture, plusMore: tr.plusMore }),
     [tr],
   );
 
