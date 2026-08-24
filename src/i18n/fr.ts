@@ -326,6 +326,7 @@ export const fr: Dict = {
     connectSub: 'Lorsque votre praticien vous invite, vos séances et ressources partagées apparaissent ici.',
     yourPractitioner: 'Votre praticien',
     nextSession: 'Prochaine séance',
+    sessionOptions: 'Options de la séance',
     noSession: 'Aucune séance réservée',
     noSessionSub: 'Réservez un créneau ci-dessous quand vous êtes prêt·e.',
     join: 'Rejoindre la séance',

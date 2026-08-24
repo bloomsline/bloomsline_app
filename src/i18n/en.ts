@@ -325,6 +325,7 @@ export const en = {
     connectSub: 'When your practitioner invites you, your sessions and shared resources appear here.',
     yourPractitioner: 'Your practitioner',
     nextSession: 'Next session',
+    sessionOptions: 'Session options',
     noSession: 'No session booked yet',
     noSessionSub: "Book a time below whenever you're ready.",
     join: 'Join session',
