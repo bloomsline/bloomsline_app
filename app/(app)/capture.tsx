@@ -25,7 +25,7 @@ import { ActivityIndicator, Animated, Image, KeyboardAvoidingView, Platform, Pre
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { X, ChevronLeft, ImagePlus, Mic, Lock, Eye, Camera, Video, Images, Square, Circle } from 'lucide-react-native';
+import { X, ChevronLeft, ImagePlus, Mic, Lock, Eye, Camera, Video, Images, Square, Circle, Play } from 'lucide-react-native';
 import { MOODS, moodLabel } from '@/src/moments/moods';
 import { createMoment, shareMoment } from '@/src/api/moments';
 import { pickMedia, captureMedia, cameraAvailable, uploadMedia, type PreparedMedia } from '@/src/moments/media-upload';
@@ -34,9 +34,12 @@ import { useI18n, fmt } from '@/src/i18n';
 import { notify } from '@/src/ui/alert';
 import { HEADER_TOP } from '@/src/ui/editorial';
 import { useTheme } from '@/src/ui/theme-mode';
-import { KNOB, veil } from '@/src/ui/tokens';
+import { KNOB, OVER_MEDIA, veil } from '@/src/ui/tokens';
 
 const MAX_MOODS = 3; // the board asks for "up to 3 feelings"
+/** How many things one moment may carry. The server allows 7; five is what a
+ *  moment is, and it keeps the strip readable at a glance. */
+const MAX_MEDIA = 5;
 
 // The valence divider the v1 picker already used: the gap between the heavier
 // and lighter clusters is wide (42 vs 72), so 55 sits cleanly between them.
@@ -82,7 +85,14 @@ export default function Capture() {
     setTimeout(() => noteRef.current?.focus(), 60);
   };
   const [note, setNote] = useState('');
-  const [media, setMedia] = useState<PreparedMedia | null>(null);
+  /**
+   * Everything attached to this moment, in order. **The first is the ground.**
+   *
+   * This was a single slot, so attaching a second thing silently replaced the
+   * first — add a video, then a photo, and the video was simply gone. A moment
+   * is often more than one thing: the picture and the voice note about it.
+   */
+  const [media, setMedia] = useState<PreparedMedia[]>([]);
   const [tone, setTone] = useState<Tone | null>(initial ? (isLighter(initial) ? 'good' : 'hard') : null);
   const [moods, setMoods] = useState<string[]>(initial ? [initial] : []);
   const [share, setShare] = useState(false);
@@ -103,8 +113,13 @@ export default function Capture() {
   const capturedAt = useRef(new Date()).current;
   const when = `${capturedAt.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'long' })}, ${capturedAt.toLocaleTimeString(locale === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}`;
 
-  const hasSomething = (note.trim().length > 0 || media !== null) && !recording;
-  const photoUri = media?.kind === 'image' ? media.uri : media?.kind === 'video' ? media.thumbUri ?? null : null;
+  const hasSomething = (note.trim().length > 0 || media.length > 0) && !recording;
+  const atCap = media.length >= MAX_MEDIA;
+  // The ground is the FIRST item, whatever kind it is. A voice note has no
+  // picture to show, so it gets its own treatment rather than a blank screen.
+  const ground = media[0] ?? null;
+  const photoUri = ground?.kind === 'image' ? ground.uri : ground?.kind === 'video' ? ground.thumbUri ?? null : null;
+  const voiceGround = ground?.kind === 'audio';
 
   const toggleMood = (key: string) =>
     setMoods((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : cur.length >= MAX_MOODS ? cur : [...cur, key]));
@@ -114,7 +129,7 @@ export default function Capture() {
     setError(null);
     try {
       const picked = await fn();
-      if (picked) setMedia(picked);
+      if (picked) setMedia((prev) => (prev.length >= MAX_MEDIA ? prev : [...prev, picked]));
     } catch {
       setError(tr.errAddMedia);
     }
@@ -140,7 +155,7 @@ export default function Capture() {
       const uri = recorder.uri;
       if (uri) {
         const size = (await (await fetch(uri)).blob()).size;
-        setMedia({ kind: 'audio', uri, mime: Platform.OS === 'web' ? 'audio/webm' : 'audio/mp4', size, durationSeconds: seconds });
+        setMedia((prev) => (prev.length >= MAX_MEDIA ? prev : [...prev, { kind: 'audio' as const, uri, mime: Platform.OS === 'web' ? 'audio/webm' : 'audio/mp4', size, durationSeconds: seconds }]));
       }
     } catch {
       setError(tr.errSaveRec);
@@ -151,7 +166,9 @@ export default function Capture() {
     if (busy) return;
     setBusy(true);
     try {
-      const uploaded = media ? [await uploadMedia(media)] : [];
+      // Order is preserved: `Promise.all` resolves in input order, and the
+      // first item is the one the timeline and the detail sheet use as ground.
+      const uploaded = await Promise.all(media.map(uploadMedia));
       const created = await createMoment({
         textContent: note.trim() || null,
         moods,
@@ -190,6 +207,12 @@ export default function Capture() {
           <Image source={{ uri: photoUri }} style={{ position: 'absolute', inset: 0 }} resizeMode="cover" />
           <View style={{ position: 'absolute', inset: 0, backgroundColor: mode === 'dark' ? 'rgba(14,21,18,0.55)' : 'rgba(245,242,235,0.78)' }} />
         </>
+      ) : voiceGround ? (
+        // A voice note has no picture, and a moment that is only a voice note
+        // was a blank dark screen — indistinguishable from one that is only
+        // words. The accent wash gives it a ground of its own, as the design
+        // board has it, without inventing an image nobody took.
+        <View style={{ position: 'absolute', inset: 0, backgroundColor: TT.accentTint }} />
       ) : null}
 
       <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
@@ -257,14 +280,22 @@ export default function Capture() {
                   ) : null}
                   {recording ? (
                     <RecordingBar seconds={Math.round((recState.durationMillis ?? 0) / 1000)} onStop={stopRec} tr={tr} />
-                  ) : media ? (
-                    <MediaBadge media={media} onClear={() => setMedia(null)} tr={tr} />
+                  ) : media.length > 0 ? (
+                    <MediaStrip
+                      media={media}
+                      onPromote={(i) => setMedia((prev) => (i === 0 ? prev : [prev[i], ...prev.filter((_, j) => j !== i)]))}
+                      onRemove={(i) => setMedia((prev) => prev.filter((_, j) => j !== i))}
+                      tr={tr}
+                    />
                   ) : null}
                   <View style={{ height: 1, backgroundColor: TT.cardLine, marginBottom: 14 }} />
                   <View style={{ flexDirection: 'row', gap: 10 }}>
-                    <Chip Icon={ImagePlus} label={tr.photoOrVideo} onPress={() => setPicker('visual')} />
-                    <Chip Icon={Mic} label={tr.voice} onPress={() => setPicker('voice')} />
+                    <Chip Icon={ImagePlus} label={tr.photoOrVideo} onPress={() => !atCap && setPicker('visual')} dim={atCap} />
+                    <Chip Icon={Mic} label={tr.voice} onPress={() => !atCap && setPicker('voice')} dim={atCap} />
                   </View>
+                  {atCap ? (
+                    <Text style={{ fontSize: 12, color: TT.faint, marginTop: 8 }}>{fmt(tr.mediaFull, { n: MAX_MEDIA })}</Text>
+                  ) : null}
 
                   {/* There used to be an "Add a feeling / REQUIRED" row above
                       this button. It opened the same sheet Next does, so it was
@@ -623,37 +654,89 @@ function RecordingBar({ seconds, onStop, tr }: { seconds: number; onStop: () => 
   );
 }
 
-function Chip({ Icon, label, onPress }: { Icon: typeof ImagePlus; label: string; onPress: () => void }) {
+function Chip({ Icon, label, onPress, dim }: { Icon: typeof ImagePlus; label: string; onPress: () => void; dim?: boolean }) {
   const { t: TT, mode } = useTheme();
   return (
     <Pressable
       onPress={onPress}
       style={{ flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 14, height: 38, borderRadius: 19, backgroundColor: veil(mode, 0.06), borderWidth: 1, borderColor: TT.cardLine }}
     >
-      <Icon size={15} color={TT.ink} strokeWidth={2} />
-      <Text style={{ fontSize: 13, fontWeight: '600', color: TT.ink }}>{label}</Text>
+      <Icon size={15} color={dim ? TT.faint : TT.ink} strokeWidth={2} />
+      <Text style={{ fontSize: 13, fontWeight: '600', color: dim ? TT.faint : TT.ink }}>{label}</Text>
     </Pressable>
   );
 }
 
-function MediaBadge({ media, onClear, tr }: { media: PreparedMedia; onClear: () => void; tr: Cap }) {
+/**
+ * Everything attached, in order, with the ground marked.
+ *
+ * A row rather than the single badge it replaced: a moment can hold five things
+ * now, and the patient needs to see what is on it, which one is the ground, and
+ * be able to change their mind about either.
+ *
+ * Tapping a chip promotes it to the ground — the cheapest possible way to
+ * reorder, and the only ordering that matters here is which one is first.
+ */
+function MediaStrip({ media, onPromote, onRemove, tr }: {
+  media: PreparedMedia[];
+  onPromote: (i: number) => void;
+  onRemove: (i: number) => void;
+  tr: Cap;
+}) {
   const { t: TT, mode } = useTheme();
-  const thumb = media.kind === 'image' ? media.uri : media.kind === 'video' ? media.thumbUri ?? null : null;
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-      {thumb ? (
-        <Image source={{ uri: thumb }} style={{ width: 40, height: 40, borderRadius: 10 }} />
-      ) : (
-        <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: veil(mode, 0.10), alignItems: 'center', justifyContent: 'center' }}>
-          <Mic size={17} color={TT.ink} strokeWidth={2} />
-        </View>
-      )}
-      <Text style={{ flex: 1, fontSize: 12.5, color: TT.inkSoft }}>
-        {media.kind === 'image' ? tr.photoAdded : media.kind === 'video' ? tr.videoAdded : tr.voiceAdded}
+    <View style={{ marginBottom: 14 }}>
+      <View style={{ flexDirection: 'row', gap: 10, paddingTop: 5, paddingRight: 5 }}>
+        {media.map((m, i) => {
+          const thumb = m.kind === 'image' ? m.uri : m.kind === 'video' ? m.thumbUri ?? null : null;
+          const isGround = i === 0;
+          return (
+            // The chip and its × are SIBLINGS inside a plain View, not nested.
+            // react-native-web renders every Pressable as a <button>, and a
+            // button inside a button is invalid HTML — React says so at runtime,
+            // and the nested control's behaviour is undefined.
+            <View key={`${m.uri}-${i}`} style={{ width: 52, height: 52 }}>
+              <Pressable
+                onPress={() => onPromote(i)}
+                accessibilityRole="button"
+                accessibilityLabel={isGround ? tr.isBackground : tr.makeBackground}
+                style={{
+                  width: 52, height: 52, borderRadius: 12, overflow: 'hidden',
+                  borderWidth: isGround ? 2 : 1,
+                  borderColor: isGround ? TT.accent : TT.cardLine,
+                  backgroundColor: veil(mode, 0.10),
+                  alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                {thumb ? (
+                  <Image source={{ uri: thumb }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                ) : (
+                  <Mic size={18} color={TT.ink} strokeWidth={2} />
+                )}
+                {m.kind === 'video' ? (
+                  <View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center' }}>
+                    <Play size={16} color={OVER_MEDIA.ink} strokeWidth={2.4} fill={OVER_MEDIA.ink} />
+                  </View>
+                ) : null}
+              </Pressable>
+              <Pressable
+                onPress={() => onRemove(i)}
+                accessibilityRole="button"
+                accessibilityLabel={tr.removeMedia}
+                hitSlop={6}
+                // A badge that overlaps the corner, not a square flush into it: the
+                // chip is rounded, and a square corner sits proud of the curve.
+                style={{ position: 'absolute', top: -5, right: -5, width: 19, height: 19, borderRadius: 10, backgroundColor: OVER_MEDIA.scrim, borderWidth: 1, borderColor: TT.bg, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <X size={11} color={OVER_MEDIA.ink} strokeWidth={2.6} />
+              </Pressable>
+            </View>
+          );
+        })}
+      </View>
+      <Text style={{ fontSize: 11.5, color: TT.faint, marginTop: 6 }}>
+        {media.length > 1 ? tr.tapToSetBackground : tr.isBackgroundHint}
       </Text>
-      <Pressable onPress={onClear} style={{ width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: veil(mode, 0.10) }}>
-        <X size={14} color={TT.ink} strokeWidth={2} />
-      </Pressable>
     </View>
   );
 }
