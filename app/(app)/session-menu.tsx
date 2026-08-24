@@ -109,7 +109,10 @@ export default function SessionMenu() {
   return (
     <View style={{ flex: 1, backgroundColor: 'rgba(20,20,20,0.4)', justifyContent: 'flex-end' }}>
       <Pressable style={{ flex: 1 }} onPress={close} />
-      <SafeAreaView edges={['bottom']} style={{ backgroundColor: TT.card, borderTopLeftRadius: 28, borderTopRightRadius: 28 }}>
+      {/* `sheet`, not `card`: card is rgba(255,255,255,0.055) on dark, so the
+          whole My Care page read straight through this sheet. Every other sheet
+          in the app already uses `sheet` for exactly this reason. */}
+      <SafeAreaView edges={['bottom']} style={{ backgroundColor: TT.sheet, borderTopLeftRadius: 28, borderTopRightRadius: 28 }}>
         <View style={{ paddingHorizontal: 24, paddingTop: HEADER_TOP, paddingBottom: 8 }}>
           <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: TT.line, alignSelf: 'center', marginBottom: 18 }} />
 

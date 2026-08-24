@@ -40,9 +40,35 @@ const MESSAGE =
 // property. That is precisely the selected/unselected pattern this class of bug
 // lives in: it left white-on-white scale buttons in a worksheet while reporting
 // the file clean.
+//
+// The third selector catches the literal that is HOISTED out of the style. Both
+// selectors above look inside a paint property, so
+//
+//   const fg = variant === 'outline' ? TT.ink : '#fff';
+//   ...
+//   <Text style={{ color: fg }}>
+//
+// reported clean for months. By the time the literal reaches `color:` it is a
+// variable, and by the time it is a literal it is in a VariableDeclarator that
+// mentions no colour property at all. That is exactly how EdPill shipped a
+// white label on a `ctaBg` that is pale in dark mode — a blank white pill.
+//
+// Deliberately the DIRECT init only. As a descendant, `VariableDeclarator
+// Literal` matches every literal inside any arrow-function component assigned to
+// a const — it swept up `shadowColor: '#000'` and the mode-branched tone maps
+// the rule is explicitly not about. Direct-child also means the literal cannot
+// be reached through a JSX branch, so `const dialog = open ? (<View .../>) :
+// null` stays clean.
+//
+// A nested ternary hides from this, and that is the accepted edge: the ones in
+// the app today all branch on `mode` and carry the contrast reasoning in a
+// comment beside them, which is the thing the rule is asking for anyway.
 const noMonoLiterals = [
   { selector: `Property[key.name=${PAINT_PROPS}] Literal[value=${MONO}]`, message: MESSAGE },
   { selector: `JSXAttribute[name.name=${PAINT_ATTRS}] Literal[value=${MONO}]`, message: MESSAGE },
+  { selector: `VariableDeclarator > Literal[value=${MONO}]`, message: MESSAGE },
+  { selector: `VariableDeclarator > ConditionalExpression > Literal[value=${MONO}]`, message: MESSAGE },
+  { selector: `VariableDeclarator > LogicalExpression > Literal[value=${MONO}]`, message: MESSAGE },
 ];
 
 // Surfaces that are fixed by DESIGN, not by oversight. Each one is a place where

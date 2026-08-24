@@ -144,8 +144,12 @@ export function EdSection({ label, action, onAction }: { label: string; action?:
 /** Pill button. dark = ink CTA, green = accent, outline = secondary on light. */
 export function EdPill({ label, onPress, variant = 'dark', disabled = false, style }: { label: string; onPress?: () => void; variant?: 'dark' | 'green' | 'outline'; disabled?: boolean; style?: ViewStyle }) {
   const { t: TT } = useTheme();
-  const bg = variant === 'dark' ? TT.ink : variant === 'green' ? TT.accent : 'transparent';
-  const fg = variant === 'outline' ? TT.ink : '#fff';
+  // `ctaBg`/`ctaFg` — the pair built for the one surface that flips AGAINST the
+  // page: dark on cream, pale on dark. This used `ink` with a hardcoded white
+  // on top, which is correct in light and invisible in dark, where `ink` IS
+  // near-white. The Reschedule button was a blank white pill.
+  const bg = variant === 'dark' ? TT.ctaBg : variant === 'green' ? TT.accent : 'transparent';
+  const fg = variant === 'dark' ? TT.ctaFg : variant === 'green' ? TT.onAccent : TT.ink;
   const border = variant === 'outline' ? { borderWidth: 1.5, borderColor: TT.line } : undefined;
   return (
     <Pressable onPress={disabled ? undefined : onPress} style={[{ height: 54, borderRadius: 27, backgroundColor: bg, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.45 : 1 }, border, style]}>
