@@ -173,7 +173,8 @@ function MiniFact({ label, value }: { label: string; value: string }) {
 }
 
 const localeTag = (locale: Locale) => (locale === 'fr' ? 'fr-FR' : 'en-US');
-const longDate = (d: Date, locale: Locale) => `${d.toLocaleDateString(localeTag(locale), { weekday: 'long' })}, ${d.getDate()} ${d.toLocaleDateString(localeTag(locale), { month: 'long' })}`;
+// No comma after the weekday in French. See book.tsx.
+const longDate = (d: Date, locale: Locale) => `${d.toLocaleDateString(localeTag(locale), { weekday: 'long' })}${locale === 'fr' ? ' ' : ', '}${d.getDate()} ${d.toLocaleDateString(localeTag(locale), { month: 'long' })}`;
 const clock = (d: Date) => `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
 const fmtFormat = (f: string, tr: (typeof T)[Locale]) => (f === 'video' ? tr.videoCall : f === 'phone' ? tr.phone : f === 'in_person' ? tr.inPerson : f);
 function startsIn(d: Date, tr: (typeof T)[Locale]): string {

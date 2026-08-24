@@ -192,7 +192,7 @@ export default function MyCare() {
                   activeOpacity={0.85}
                   style={{ marginHorizontal: 22, marginTop: 16, height: 50, borderRadius: 25, borderWidth: 1, borderColor: TT.cardLine, alignItems: 'center', justifyContent: 'center' }}
                 >
-                  <Text style={{ fontSize: 14.5, fontWeight: '700', color: TT.ink }}>{t.care.bookAnother}</Text>
+                  <Text style={{ fontSize: 14.5, fontWeight: '700', color: TT.ink }}>{t.care.bookSession}</Text>
                 </TouchableOpacity>
               ) : (
                 <Text style={{ fontSize: 12.5, color: TT.inkSoft, textAlign: 'center', marginTop: 14, paddingHorizontal: 34 }}>{t.care.bookNote}</Text>
@@ -322,14 +322,6 @@ function SessionCard({
   const pay = session.paymentStatus;
   return (
     <View style={{ width, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine, borderRadius: 20, padding: 18 }}>
-      <TouchableOpacity
-        onPress={onOpen}
-        activeOpacity={0.7}
-        style={{ position: 'absolute', top: 12, right: 12, width: 32, height: 32, borderRadius: 16, backgroundColor: veil(mode, 0.08), alignItems: 'center', justifyContent: 'center' }}
-      >
-        <Ellipsis size={17} color={TT.ink} strokeWidth={2.5} />
-      </TouchableOpacity>
-
       <Kicker color={TT.faint} size={10} style={{ marginBottom: 8 }}>{first ? t.care.nextSession : t.care.then}</Kicker>
       <Text style={{ fontSize: 19, fontWeight: '800', color: TT.ink, letterSpacing: -0.4 }}>{longDate(session.scheduledAt, locale)}</Text>
       <Text style={{ fontSize: 13, color: TT.inkSoft, marginTop: 4 }}>
@@ -369,6 +361,23 @@ function SessionCard({
       ) : (
         <View style={{ height: first ? 16 : 4 }} />
       )}
+      {/* LAST child on purpose. Absolute positioning takes it out of the flow
+          but not out of the paint order, so declared first it sat UNDER its own
+          siblings: the "Next session" kicker's box runs the full width of the
+          card and swallowed a band across the middle of the button. Only the
+          top few pixels and the bottom were live, which reads as "the top half
+          does not work". Last child paints above, so the whole circle is the
+          target — plus hitSlop, because 32px is under the 44px minimum. */}
+      <TouchableOpacity
+        onPress={onOpen}
+        activeOpacity={0.7}
+        hitSlop={6}
+        accessibilityRole="button"
+        accessibilityLabel={t.care.sessionOptions}
+        style={{ position: 'absolute', top: 12, right: 12, width: 32, height: 32, borderRadius: 16, backgroundColor: veil(mode, 0.08), alignItems: 'center', justifyContent: 'center' }}
+      >
+        <Ellipsis size={17} color={TT.ink} strokeWidth={2.5} />
+      </TouchableOpacity>
     </View>
   );
 }

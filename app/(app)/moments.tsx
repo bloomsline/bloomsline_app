@@ -22,7 +22,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowDown, Settings } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
 import { TabIntro } from '@/src/ui/TabIntro';
-import { FadeIn, HEADER_TOP, Kicker } from '@/src/ui/editorial';
+import { FadeIn, HEADER_TOP } from '@/src/ui/editorial';
 import { Line } from '@/src/moments/Line';
 import { MomentDetail, type MomentChange } from '@/src/moments/MomentDetail';
 import { useLanding } from '@/src/prefs/landing';
@@ -306,7 +306,6 @@ export default function Moments() {
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <View style={{ paddingHorizontal: 22, paddingTop: HEADER_TOP, paddingBottom: 10, flexDirection: 'row', alignItems: 'flex-start' }}>
           <View style={{ flex: 1 }}>
-            <Kicker color={TT.faint} size={10.5} style={{ marginBottom: 10 }}>{tr.kicker}</Kicker>
             <Text style={{ fontSize: 27, fontWeight: '800', color: TT.ink, letterSpacing: -0.9, lineHeight: 31 }}>{title}</Text>
           </View>
           <TouchableOpacity
@@ -385,12 +384,6 @@ export default function Moments() {
             </FadeIn>
           )}
 
-          {moments.length > 0 ? (
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 22, marginTop: 12 }}>
-              <Text style={{ fontSize: 11.5, color: TT.faint }}>{tr.weekSoFar}</Text>
-              <Text style={{ fontSize: 11.5, color: TT.faint }}>{tr.scrollBack}</Text>
-            </View>
-          ) : null}
         </ScrollView>
       </SafeAreaView>
 
