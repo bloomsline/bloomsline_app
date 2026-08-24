@@ -21,7 +21,15 @@ export const INTERACTIVE = new Set(['short_text', 'long_text', 'single_choice', 
 
 // Reading material runs long — the practitioner's relaxation script is 14 blocks
 // — so body copy is sized for sustained reading rather than for form labels.
-const BODY = { fontSize: 16, color: '#3A3A3A', lineHeight: 26 } as const;
+//
+// The COLOUR comes from the theme and the rest does not, which is why this is a
+// function rather than a constant: it was `#3A3A3A`, a dark grey that is body
+// copy on white paper and very nearly invisible on the app's dark ground. The
+// reading material was unreadable in dark mode.
+//
+// `ink` rather than `sub`: this is the content of the page, not a caption of
+// it, and it should be the most readable thing on screen.
+const bodyStyle = (ink: string) => ({ fontSize: 16, color: ink, lineHeight: 26 });
 const PARAGRAPH_GAP = 12;
 const ITEM_GAP = 7;
 
@@ -43,7 +51,7 @@ export function Block({ block, value, onChange, missing, readOnly = false, media
     case 'rich_text':
       return <RichText html={b.text ?? ''} />;
     case 'divider':
-      return <View style={{ height: 1, backgroundColor: '#ECECEC', marginVertical: 14 }} />;
+      return <View style={{ height: 1, backgroundColor: C.border, marginVertical: 14 }} />;
     case 'file_upload':
       return (
         <Field label={b.label} required={b.required} missing={missing}>
@@ -130,8 +138,8 @@ export function Block({ block, value, onChange, missing, readOnly = false, media
           </View>
           {(b.scale?.minLabel || b.scale?.maxLabel) && (
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
-              <Text style={{ fontSize: 11.5, color: '#9A9A9A' }}>{b.scale?.minLabel ?? ''}</Text>
-              <Text style={{ fontSize: 11.5, color: '#9A9A9A' }}>{b.scale?.maxLabel ?? ''}</Text>
+              <Text style={{ fontSize: 11.5, color: C.muted }}>{b.scale?.minLabel ?? ''}</Text>
+              <Text style={{ fontSize: 11.5, color: C.muted }}>{b.scale?.maxLabel ?? ''}</Text>
             </View>
           )}
         </Field>
@@ -178,20 +186,20 @@ export function RichText({ html }: { html: string }) {
         if (b.kind === 'item') {
           return (
             <View key={i} style={{ flexDirection: 'row', marginLeft: b.depth * 16, marginBottom: last ? 0 : ITEM_GAP }}>
-              <Text style={[BODY, { minWidth: 20 }]}>{b.marker}</Text>
-              <Text style={[BODY, { flex: 1 }]}><Spans spans={b.spans} /></Text>
+              <Text style={[bodyStyle(C.ink), { minWidth: 20 }]}>{b.marker}</Text>
+              <Text style={[bodyStyle(C.ink), { flex: 1 }]}><Spans spans={b.spans} /></Text>
             </View>
           );
         }
         if (b.kind === 'quote') {
           return (
             <View key={i} style={{ borderLeftWidth: 3, borderLeftColor: C.border, paddingLeft: 12, marginBottom: last ? 0 : PARAGRAPH_GAP }}>
-              <Text style={[BODY, { fontStyle: 'italic' }]}><Spans spans={b.spans} /></Text>
+              <Text style={[bodyStyle(C.ink), { fontStyle: 'italic' }]}><Spans spans={b.spans} /></Text>
             </View>
           );
         }
         return (
-          <Text key={i} style={[BODY, { marginBottom: last ? 0 : PARAGRAPH_GAP }]}>
+          <Text key={i} style={[bodyStyle(C.ink), { marginBottom: last ? 0 : PARAGRAPH_GAP }]}>
             <Spans spans={b.spans} />
           </Text>
         );
@@ -244,6 +252,7 @@ function decoration(s: Span): 'underline' | 'line-through' | 'underline line-thr
 // is reachable without a gesture — proper pinch on Android needs
 // react-native-gesture-handler, which is a native module and a new build.
 function ZoomableImage({ url, ratio, name }: { url: string; ratio: number; name?: string }) {
+  const C = useCare();
   const [open, setOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
   const { width, height } = useWindowDimensions();
@@ -259,7 +268,7 @@ function ZoomableImage({ url, ratio, name }: { url: string; ratio: number; name?
   return (
     <>
       <TouchableOpacity activeOpacity={0.9} onPress={() => setOpen(true)} accessibilityLabel={name || 'Image'} accessibilityHint="Opens larger">
-        <View style={{ marginBottom: 16, borderRadius: 14, overflow: 'hidden', backgroundColor: '#F1F1EF' }}>
+        <View style={{ marginBottom: 16, borderRadius: 14, overflow: 'hidden', backgroundColor: C.card }}>
           <Image source={{ uri: url }} style={{ width: '100%', aspectRatio: ratio }} resizeMode="cover" />
         </View>
       </TouchableOpacity>
@@ -313,6 +322,7 @@ const pill = { width: 40, height: 40, borderRadius: 20, backgroundColor: OVER_ME
 // project ships no video component, and a broken inline player is worse than a
 // button that works.
 function MediaBlock({ kind, url, name }: { kind?: string; url?: string; name?: string }) {
+  const C = useCare();
   const [ratio, setRatio] = useState(16 / 9);
 
   useEffect(() => {
@@ -326,8 +336,8 @@ function MediaBlock({ kind, url, name }: { kind?: string; url?: string; name?: s
 
   if (!url) {
     return (
-      <View style={{ backgroundColor: '#F6F6F4', borderRadius: 12, padding: 14, marginBottom: 16 }}>
-        <Text style={{ fontSize: 13, color: '#9A9A9A' }}>This media could not be loaded.</Text>
+      <View style={{ backgroundColor: C.card, borderRadius: 12, padding: 14, marginBottom: 16 }}>
+        <Text style={{ fontSize: 13, color: C.muted }}>This media could not be loaded.</Text>
       </View>
     );
   }
@@ -416,7 +426,7 @@ function MediaCard({ icon, name, action, onPress }: { icon: 'pdf' | 'play'; name
       </View>
       <View style={{ flex: 1 }}>
         {!looksLikeStorageName && <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '600', color: C.ink }}>{name}</Text>}
-        <Text style={{ fontSize: looksLikeStorageName ? 15 : 12.5, fontWeight: looksLikeStorageName ? '600' : '400', color: looksLikeStorageName ? C.ink : '#9A9A9A' }}>
+        <Text style={{ fontSize: looksLikeStorageName ? 15 : 12.5, fontWeight: looksLikeStorageName ? '600' : '400', color: looksLikeStorageName ? C.ink : C.muted }}>
           {action}
         </Text>
       </View>
@@ -489,7 +499,7 @@ function FileUploadField({ value, onChange, readOnly }: { value: UploadedFile | 
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: C.border, borderRadius: 14, backgroundColor: C.card, padding: 14 }}>
         <ActivityIndicator color={C.teal} />
-        <Text style={{ fontSize: 14, color: '#6A6A6A' }}>Uploading…</Text>
+        <Text style={{ fontSize: 14, color: C.muted }}>Uploading…</Text>
       </View>
     );
   }
@@ -501,7 +511,7 @@ function FileUploadField({ value, onChange, readOnly }: { value: UploadedFile | 
           <Paperclip size={16} color={C.teal} />
           <View style={{ flex: 1 }}>
             <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '600', color: C.ink }}>{value.name}</Text>
-            {value.size ? <Text style={{ fontSize: 12, color: '#9A9A9A', marginTop: 2 }}>{humanSize(value.size)}</Text> : null}
+            {value.size ? <Text style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{humanSize(value.size)}</Text> : null}
           </View>
           {!readOnly && (
             <TouchableOpacity onPress={() => onChange(undefined)} hitSlop={8} accessibilityLabel="Remove file">
@@ -521,8 +531,8 @@ function FileUploadField({ value, onChange, readOnly }: { value: UploadedFile | 
 
   if (readOnly) {
     return (
-      <View style={{ backgroundColor: '#F6F6F4', borderRadius: 12, padding: 14 }}>
-        <Text style={{ fontSize: 13, color: '#9A9A9A' }}>No file.</Text>
+      <View style={{ backgroundColor: C.card, borderRadius: 12, padding: 14 }}>
+        <Text style={{ fontSize: 13, color: C.muted }}>No file.</Text>
       </View>
     );
   }
@@ -571,8 +581,8 @@ function TableField({ columns, value, onChange, readOnly }: { columns: TableColu
 
   if (columns.length === 0) {
     return (
-      <View style={{ backgroundColor: '#F6F6F4', borderRadius: 12, padding: 14 }}>
-        <Text style={{ fontSize: 13, color: '#9A9A9A' }}>{t.noColumns}</Text>
+      <View style={{ backgroundColor: C.card, borderRadius: 12, padding: 14 }}>
+        <Text style={{ fontSize: 13, color: C.muted }}>{t.noColumns}</Text>
       </View>
     );
   }
@@ -600,12 +610,12 @@ function TableField({ columns, value, onChange, readOnly }: { columns: TableColu
 
   return (
     <View style={{ gap: 10 }}>
-      {rows.length === 0 && <Text style={{ fontSize: 13, color: '#9A9A9A' }}>{t.empty}</Text>}
+      {rows.length === 0 && <Text style={{ fontSize: 13, color: C.muted }}>{t.empty}</Text>}
 
       {rows.map((row, i) => (
         <View key={i} style={{ borderWidth: 1, borderColor: C.border, borderRadius: 14, backgroundColor: C.card, padding: 12, gap: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={{ fontSize: 12, fontWeight: '700', color: '#9A9A9A' }}>{t.row} {i + 1}</Text>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: C.muted }}>{t.row} {i + 1}</Text>
             {!readOnly && (
               <TouchableOpacity onPress={() => onChange(rows.filter((_, idx) => idx !== i))} hitSlop={8} accessibilityLabel={t.remove}>
                 <X size={16} color="#9A9A9A" />
@@ -669,7 +679,7 @@ function Choice({ label, on, onPress, radio, checkbox, flex, readOnly }: { label
       style={{ flex: flex ? 1 : undefined, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: on ? `${C.teal}0F` : C.card, borderWidth: 1.5, borderColor: on ? C.teal : C.border, borderRadius: 14, paddingVertical: 13, paddingHorizontal: 15, justifyContent: flex ? 'center' : 'flex-start' }}
     >
       {(radio || checkbox) && (
-        <View style={{ width: 20, height: 20, borderRadius: checkbox ? 6 : 10, borderWidth: 2, borderColor: on ? C.teal : '#CCC', alignItems: 'center', justifyContent: 'center', backgroundColor: on ? C.teal : 'transparent' }}>
+        <View style={{ width: 20, height: 20, borderRadius: checkbox ? 6 : 10, borderWidth: 2, borderColor: on ? C.teal : C.border, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? C.teal : 'transparent' }}>
           {on && <Check size={12} color={C.onTeal} strokeWidth={3} />}
         </View>
       )}
