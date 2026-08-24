@@ -141,7 +141,9 @@ export default function BookConfirm() {
 
 function longDate(d: Date, locale: Locale): string {
   const bcp = locale === 'fr' ? 'fr-FR' : 'en-GB';
-  return `${d.toLocaleDateString(bcp, { weekday: 'long' })}, ${d.getDate()} ${d.toLocaleDateString(bcp, { month: 'long' })}`;
+  // No comma after the weekday in French. See book.tsx.
+  const sep = locale === 'fr' ? ' ' : ', ';
+  return `${d.toLocaleDateString(bcp, { weekday: 'long' })}${sep}${d.getDate()} ${d.toLocaleDateString(bcp, { month: 'long' })}`;
 }
 function clock(d: Date): string {
   return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
