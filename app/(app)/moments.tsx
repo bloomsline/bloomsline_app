@@ -407,15 +407,19 @@ export default function Moments() {
             onPress={toToday}
             accessibilityRole="button"
             accessibilityLabel={tr.backToToday}
+            // Just the arrow, on the accent. The word "Today" was the only
+            // text floating over the line, and it competed with the moments it
+            // was sitting among; the direction is the whole message. The label
+            // survives for screen readers, which is where the word still earns
+            // its place.
             style={{
-              flexDirection: 'row', alignItems: 'center', gap: 7,
-              height: 38, paddingHorizontal: 15, borderRadius: 19,
-              backgroundColor: TT.floating, borderWidth: 1, borderColor: TT.cardLine,
-              shadowColor: '#000', shadowOpacity: 0.14, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6,
+              alignItems: 'center', justifyContent: 'center',
+              width: 44, height: 44, borderRadius: 22,
+              backgroundColor: TT.accent,
+              shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, elevation: 6,
             }}
           >
-            <ArrowDown size={15} color={TT.ink} strokeWidth={2.2} />
-            <Text style={{ fontSize: 13, fontWeight: '700', color: TT.ink }}>{tr.today}</Text>
+            <ArrowDown size={21} color={TT.onAccent} strokeWidth={2.4} />
           </Pressable>
         </View>
       </Animated.View>
