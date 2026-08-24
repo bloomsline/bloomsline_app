@@ -12,7 +12,7 @@
 // someone who has just installed the app, and the one that changes every other
 // word on the page), then appearance, then the rest.
 import { useEffect, useState } from 'react';
-import { Linking, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Linking, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { MessageCircle, MessageCircleQuestionMark, LogOut, ChevronRight, Trash2, Languages, Palette, Home, type LucideIcon } from 'lucide-react-native';
@@ -41,6 +41,7 @@ export default function Settings() {
   const confirm = useConfirm();
   const [name, setName] = useState(`${onboarding.firstName} ${onboarding.lastName}`.trim());
   const [role, setRole] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [leavingAt, setLeavingAt] = useState<string | null>(null);
   const [sheet, setSheet] = useState<Sheet>(null);
 
@@ -57,6 +58,7 @@ export default function Settings() {
       const full = `${me.firstName ?? ''} ${me.lastName ?? ''}`.trim();
       if (full) setName(full);
       setRole(me.role);
+      setAvatarUrl(me.avatarUrl);
       setLeavingAt(me.deletionRequestedAt);
     });
     return () => { alive = false; };
@@ -108,14 +110,29 @@ export default function Settings() {
 
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {/* Who you are signed in as */}
-          <EdCard style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-            <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: TT.accent, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 21, fontWeight: '700', color: TT.onAccent }}>{initial}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 17, fontWeight: '700', color: TT.ink }}>{displayName}</Text>
-              <Text style={{ fontSize: 13, color: TT.faint, marginTop: 1 }}>{role === 'practitioner' ? t.settings.practitioner : t.settings.account}</Text>
-            </View>
+          {/* The card was a statement of who you are; it is the way to change
+              it now. A chevron, because it goes somewhere. */}
+          <EdCard style={{ padding: 0, overflow: 'hidden', marginBottom: 24 }}>
+            <TouchableOpacity
+              onPress={() => router.navigate('/profile' as never)}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={t.profile.yourDetails}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 16, padding: 16 }}
+            >
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 1, borderColor: TT.cardLine }} />
+              ) : (
+                <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: TT.accent, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 21, fontWeight: '700', color: TT.onAccent }}>{initial}</Text>
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 17, fontWeight: '700', color: TT.ink }}>{displayName}</Text>
+                <Text style={{ fontSize: 13, color: TT.faint, marginTop: 1 }}>{role === 'practitioner' ? t.settings.practitioner : t.settings.account}</Text>
+              </View>
+              <ChevronRight size={18} color={TT.faint} strokeWidth={2} />
+            </TouchableOpacity>
           </EdCard>
 
           <Kicker color={TT.faint} style={{ marginBottom: 10 }}>{t.settings.preferences}</Kicker>

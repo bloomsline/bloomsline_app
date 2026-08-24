@@ -16,6 +16,8 @@ export interface MeProfile {
   onboardedAt: string | null;
   locale: 'en' | 'fr';
   dateOfBirth: string | null; // 'YYYY-MM-DD'
+  /** Their own picture, already signed and loadable. Null when unset. */
+  avatarUrl: string | null;
   deletionRequestedAt: string | null; // ISO — set while a deletion is counting down
 }
 
@@ -36,6 +38,9 @@ export async function saveProfile(input: {
   agreedToTerms?: boolean;
   onboarded?: boolean;
   locale?: 'en' | 'fr';
+  /** An object key from `presignAvatar`, or null to remove the picture. The
+   *  server re-checks it belongs to the caller before storing it. */
+  avatarKey?: string | null;
 }): Promise<boolean> {
   try {
     const res = await apiFetch('/api/mobile/me', { method: 'PATCH', body: JSON.stringify(input) });
@@ -61,6 +66,23 @@ export async function requestAccountDeletion(): Promise<{ purgeAfter: string; gr
     const res = await apiFetch('/api/mobile/me/delete', { method: 'POST' });
     if (!res.ok) return null;
     return (await res.json()) as { purgeAfter: string; graceDays: number };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Presign a PUT for the patient's own picture.
+ *
+ * The KEY comes back from the server, derived from the session — the client
+ * never chooses where its own avatar lands. Upload the bytes to `url`, then
+ * send the key on `saveProfile({ avatarKey })`.
+ */
+export async function presignAvatar(contentType: string, sizeBytes: number): Promise<{ key: string; url: string; headers: Record<string, string> } | null> {
+  try {
+    const res = await apiFetch('/api/mobile/me/avatar', { method: 'POST', body: JSON.stringify({ contentType, sizeBytes }) });
+    if (!res.ok) return null;
+    return (await res.json()) as { key: string; url: string; headers: Record<string, string> };
   } catch {
     return null;
   }
