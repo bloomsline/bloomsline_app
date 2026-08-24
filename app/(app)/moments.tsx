@@ -123,6 +123,23 @@ export default function Moments() {
   const viewportH = useRef(0);
   const fetching = useRef(false);   // one page in flight at a time
   /**
+   * True from the moment a page is handed to React until the anchor has put the
+   * reader back. While it is set, `bottomGap` is FROZEN.
+   *
+   * Without this the invariant quietly destroys itself. `onScroll` recomputes
+   * the gap from the event's own `contentSize`, and during a fling a scroll
+   * event lands between the DOM growing and `onContentSizeChange` firing — so
+   * the gap gets measured against the NEW height with the OLD, un-corrected
+   * offset. That is precisely the broken position, and the anchor then restores
+   * it faithfully. Measured: the reader ended 3269px higher up the line than
+   * they should have, which is the "it jumps to the top" report.
+   *
+   * Only a fling is fast enough to slip an event into that window, which is why
+   * it never showed up under slow scrolling, and why it struck the FIRST page
+   * load and not the ones after — by then the reader is no longer near the edge.
+   */
+  const growing = useRef(false);
+  /**
    * Distance from the reader to the FOOT of the line — the one end that holds
    * still, since today is always the bottom and every page arrives above it.
    * Hold this constant across a height change and nothing moves under them.
@@ -199,6 +216,9 @@ export default function Moments() {
     try {
       const page = await listMoments({ before: cursorRef.current, beforeId: cursorIdRef.current, limit: PAGE });
       if (g !== gen.current) return;
+      // From here the content is about to grow: hold the gap that was measured
+      // BEFORE it did, which is the one that describes where the reader is.
+      growing.current = true;
       setMoments((prev) => {
         // The cursor is a timestamp, so a moment sharing the boundary instant
         // could come back twice. Two nodes with one id is a duplicate key and a
@@ -216,6 +236,12 @@ export default function Moments() {
     } finally {
       if (g === gen.current) setLoadingOlder(false);
       fetching.current = false;
+      // Safety net. `growing` is normally lowered by the anchor, but a page of
+      // pure duplicates returns `prev` unchanged, so the content never resizes
+      // and `onContentSize` never runs — and a gap frozen forever would strand
+      // the reader on the next real page. Harmless if the anchor got there
+      // first.
+      setTimeout(() => { growing.current = false; }, 600);
     }
   }, []);
 
@@ -223,9 +249,11 @@ export default function Moments() {
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
       // Re-measured from the event rather than trusted from the last resize: the
-      // gap is only meaningful against the height it was taken from.
+      // gap is only meaningful against the height it was taken from — except
+      // while a page is landing, when the height and the offset belong to
+      // different moments. See `growing`.
       contentH.current = contentSize.height;
-      bottomGap.current = contentSize.height - contentOffset.y;
+      if (!growing.current) bottomGap.current = contentSize.height - contentOffset.y;
 
       const runway = Math.max(1, contentSize.height - layoutMeasurement.height);
       pos.setValue(Math.min(1, Math.max(0, contentOffset.y / runway)));
@@ -265,6 +293,8 @@ export default function Moments() {
     // first page that distance is one viewport, so the same line opens them at
     // today. A gap of zero is clamped past the end and lands there too.
     scroller.current?.scrollTo({ y: Math.max(0, h - bottomGap.current), animated: false });
+    // The reader is where they belong again; scroll events may speak for them.
+    growing.current = false;
   }, []);
 
   useFocusEffect(
