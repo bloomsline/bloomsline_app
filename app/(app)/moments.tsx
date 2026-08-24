@@ -290,7 +290,7 @@ export default function Moments() {
   // identity every render, which re-laid-out every node on every state change —
   // survivable at one screenful, not at a thousand moments.
   const lineLabels = useMemo(
-    () => ({ heavier: tr.heavier, lighter: tr.lighter, today: tr.today, yesterday: tr.yesterday, tapToRead: tr.tapToRead }),
+    () => ({ heavier: tr.heavier, lighter: tr.lighter, today: tr.today, yesterday: tr.yesterday, tapToRead: tr.tapToRead, capture: tr.capture }),
     [tr],
   );
 
@@ -319,7 +319,13 @@ export default function Moments() {
 
         <ScrollView
           ref={scroller}
-          contentContainerStyle={{ paddingBottom: 150, paddingTop: 22 }}
+          // `today` belongs just above the tab bar, however few moments there are.
+        // With a short line the content did not overflow, so it sat top-aligned
+        // and left ~185px of slack underneath — and because it does not
+        // overflow, trimming the padding moves nothing. `flexGrow` +
+        // `justify-end` pushes a short line down to the foot; a long one
+        // scrolls exactly as before.
+        contentContainerStyle={{ paddingBottom: 96, paddingTop: 22, flexGrow: 1, justifyContent: 'flex-end' }}
           showsVerticalScrollIndicator={false}
           onContentSizeChange={onContentSize}
           onLayout={(e) => { viewportH.current = e.nativeEvent.layout.height; }}

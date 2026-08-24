@@ -8,10 +8,10 @@
 // The horizontal position is DERIVED from the feelings a patient picked — the
 // mean of their MOOD_SCORES — which is why capture never had to ask for it or
 // store it. A moment with no feelings sits on the centre line.
-import { memo, useMemo, useRef, useState } from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, Image, Platform, Pressable, Text, View } from 'react-native';
 import Svg, { Path, Circle, Defs, ClipPath, Image as SvgImage } from 'react-native-svg';
-import { Quote, ImageOff, AudioLines, Video, Play } from 'lucide-react-native';
+import { Quote, ImageOff, AudioLines, Video, Play, Plus } from 'lucide-react-native';
 import { MOOD_SCORES, moodColor } from '@/src/moments/moods';
 import { shapeFor, shapePath, type MoodShape } from '@/src/moments/shapes';
 import type { MomentDTO } from '@/src/api/moments';
@@ -251,7 +251,7 @@ export const Line = memo(function Line({
   moments: MomentDTO[];
   width: number;
   locale: 'en' | 'fr';
-  labels: { heavier: string; lighter: string; today: string; yesterday: string; tapToRead: string };
+  labels: { heavier: string; lighter: string; today: string; yesterday: string; tapToRead: string; capture: string };
   onOpen: (m: MomentDTO) => void;
   onCaptureToday: () => void;
 }) {
@@ -272,9 +272,6 @@ export const Line = memo(function Line({
 
       <Svg width={width} height={height + 30} style={{ position: 'absolute' }}>
         {path ? <Path d={path} stroke={veil(mode, 0.22)} strokeWidth={1} fill="none" /> : null}
-        {/* Today: an empty circle waiting to be filled, drawn dashed so it reads
-            as a place for something rather than something already there. */}
-        <Circle cx={todayX} cy={todayY} r={NODE / 2 - 4} stroke={veil(mode, 0.30)} strokeWidth={1.5} strokeDasharray="4 5" fill="none" />
       </Svg>
 
       {nodes.map((n) => (
@@ -302,10 +299,65 @@ export const Line = memo(function Line({
       ))}
 
       <Text style={{ position: 'absolute', left: 14, top: todayY - 8, fontSize: 12, color: TT.inkSoft, fontWeight: '600' }}>{labels.today}</Text>
-      <Pressable
-        onPress={onCaptureToday}
-        style={{ position: 'absolute', left: todayX - NODE / 2, top: todayY - NODE / 2, width: NODE, height: NODE, borderRadius: NODE / 2 }}
-      />
+      <TodayNode x={todayX} y={todayY} onPress={onCaptureToday} label={labels.capture} />
     </View>
   );
 });
+
+/**
+ * Today: the one place on the line with nothing in it yet.
+ *
+ * It was a static dashed circle, and it read as decoration — a gap in the line
+ * rather than the way to fill it. It turns now, slowly, and carries a faint `+`.
+ * The movement is the whole point: on a screen where everything else is still,
+ * the only thing moving is the thing to press.
+ *
+ * Deliberately quiet. 12 seconds a turn is barely perceptible frame to frame and
+ * unmistakable if you look — which is the register the rest of this app is
+ * written in. Anything faster would nag, and nagging someone into recording how
+ * they feel is the opposite of the point.
+ *
+ * The RING rotates, not the `+`: a turning plus reads as a spinner, which means
+ * "wait", which is the wrong word entirely.
+ *
+ * The native driver on native only. react-native-web has no native driver, and
+ * `Animated.loop` given `useNativeDriver: true` there runs ONE pass and stops —
+ * the ring sat parked at 360deg, which is identity, so it looked like the
+ * animation had never started at all. On native it matters: the loop never
+ * touches JS after it starts, and this lives inside a memoised component built
+ * to avoid re-renders while the reader scrolls.
+ */
+function TodayNode({ x, y, onPress, label }: { x: number; y: number; onPress: () => void; label: string }) {
+  const { mode, t: TT } = useTheme();
+  const spin = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(spin, { toValue: 1, duration: 12000, easing: Easing.linear, useNativeDriver: Platform.OS !== 'web' }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [spin]);
+
+  const r = NODE / 2 - 4;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={{ position: 'absolute', left: x - NODE / 2, top: y - NODE / 2, width: NODE, height: NODE, borderRadius: NODE / 2, alignItems: 'center', justifyContent: 'center' }}
+    >
+      <Animated.View
+        style={{
+          position: 'absolute', width: NODE, height: NODE,
+          transform: [{ rotate: spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }],
+        }}
+      >
+        <Svg width={NODE} height={NODE}>
+          <Circle cx={NODE / 2} cy={NODE / 2} r={r} stroke={veil(mode, 0.30)} strokeWidth={1.5} strokeDasharray="4 5" fill="none" />
+        </Svg>
+      </Animated.View>
+      <Plus size={16} color={TT.faint} strokeWidth={2.2} />
+    </Pressable>
+  );
+}

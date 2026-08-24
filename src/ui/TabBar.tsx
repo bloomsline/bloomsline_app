@@ -33,7 +33,7 @@ export function TabBar({ active, tone }: { active: TabId; tone?: 'light' | 'dark
 
   if (tone === 'dark') {
     return (
-      <View className="absolute inset-x-6 bottom-8 flex-row items-center justify-between">
+      <View className="absolute inset-x-6 bottom-8 flex-row items-center justify-center">
         {/* A pill, not bare labels. Bare text has no ground of its own, so the
             page scrolls UNDERNEATH it — the day heading collided with the tab
             row. The container gives the bar a surface; the active tab gets its
@@ -65,20 +65,11 @@ export function TabBar({ active, tone }: { active: TabId; tone?: 'light' | 'dark
             );
           })}
         </View>
-        {/* Capture belongs to Moments. It wrote a moment regardless of which
-            tab you were on, so on My Care and For You it was an action with no
-            relationship to what was on screen. Gone there; the pill just sits
-            on its own. */}
-        {active === 'moments' && (
-          <Pressable
-            accessibilityLabel="Capture a moment"
-            className="h-[46px] w-[46px] items-center justify-center rounded-[23px]"
-            style={{ backgroundColor: TT.floating, borderWidth: 1, borderColor: TT.cardLine }}
-            onPress={() => router.navigate('/capture' as never)}
-          >
-            <Plus size={22} color={TT.ink} strokeWidth={2.2} />
-          </Pressable>
-        )}
+        {/* No capture button here. The dashed "today" node at the foot of the
+            line already opens capture, and it is the better target: it sits
+            exactly where the new moment will land, so the gesture and its
+            result are in the same place. A + in the corner was a second door
+            to the same room, and it pushed the tab pill off centre. */}
       </View>
     );
   }
