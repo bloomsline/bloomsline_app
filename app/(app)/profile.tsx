@@ -19,6 +19,7 @@ import { OptionSheet } from '@/src/ui/option-sheet';
 import { useTheme } from '@/src/ui/theme-mode';
 import { useI18n } from '@/src/i18n';
 import { fetchMe, saveProfile } from '@/src/api/me';
+import { refreshMeFace, setMeFaceLocally } from '@/src/profile/me-face';
 import { pickImage, uploadAvatar, type PickedImage } from '@/src/profile/avatar-upload';
 import { AvatarCropper, type CropRect } from '@/src/profile/AvatarCropper';
 import { cameraAvailable } from '@/src/moments/media-upload';
@@ -35,6 +36,7 @@ export default function Profile() {
   const [first, setFirst] = useState('');
   const [last, setLast] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
   /** The key to send on save. `undefined` = unchanged, `null` = remove. */
   const [avatarKey, setAvatarKey] = useState<string | null | undefined>(undefined);
   const [sheet, setSheet] = useState(false);
@@ -56,6 +58,7 @@ export default function Profile() {
         setFirst(me.firstName ?? '');
         setLast(me.lastName ?? '');
         setAvatarUrl(me.avatarUrl);
+        setEmail(me.email);
       }
       setLoading(false);
     });
@@ -100,6 +103,9 @@ export default function Profile() {
       // which is not a url, so the letter stayed on screen and choosing a photo
       // looked like it had done nothing until the app was restarted.
       setPreview(out.localUri);
+      // Everything showing the face follows immediately, including the corner
+      // button on the tab behind this screen.
+      setMeFaceLocally({ avatarUrl: out.localUri });
       setPhotoDone(true);
     } catch {
       setError(tr.photoFailed);
@@ -119,6 +125,9 @@ export default function Profile() {
     });
     setBusy(false);
     if (!ok) { setError(tr.saveFailed); return; }
+    // The signed url is minted on read, so it does not exist until `/me` is
+    // asked again. Without this the card behind still showed the old picture.
+    await refreshMeFace();
     setSaved(true);
     setTimeout(() => router.back(), 450);
   };
@@ -171,6 +180,20 @@ export default function Profile() {
               <NameField label={tr.firstName} value={first} onChange={setFirst} />
               <View style={{ height: 12 }} />
               <NameField label={tr.lastName} value={last} onChange={setLast} />
+
+              {/* Read-only. The address is the identity the account is keyed on;
+                  moving it is an auth flow with a verification step, not a
+                  profile edit. Shown rather than hidden, because "which address
+                  am I signed in with" is a real question. */}
+              {email ? (
+                <View style={{ marginTop: 12 }}>
+                  <Text style={{ fontSize: 12.5, color: TT.faint, marginBottom: 6 }}>{tr.email}</Text>
+                  <View style={{ height: 52, borderRadius: 16, paddingHorizontal: 16, justifyContent: 'center', backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine }}>
+                    <Text style={{ fontSize: 16, color: TT.faint }} numberOfLines={1}>{email}</Text>
+                  </View>
+                  <Text style={{ fontSize: 12, color: TT.faint, marginTop: 6 }}>{tr.emailFixed}</Text>
+                </View>
+              ) : null}
 
               {error ? (
                 <Text style={{ fontSize: 13, color: TT.danger, marginTop: 14, lineHeight: 19 }}>{error}</Text>

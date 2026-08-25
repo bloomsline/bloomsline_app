@@ -25,6 +25,7 @@ import { useLanding, type LandingTab } from '@/src/prefs/landing';
 import { useI18n, type Locale } from '@/src/i18n';
 import { useConfirm } from '@/src/ui/confirm';
 import { fetchMe, requestAccountDeletion, saveProfile } from '@/src/api/me';
+import { useMeFace } from '@/src/profile/me-face';
 
 const APP_VERSION = 'Bloomsline · v2 (preview)';
 
@@ -41,7 +42,10 @@ export default function Settings() {
   const confirm = useConfirm();
   const [name, setName] = useState(`${onboarding.firstName} ${onboarding.lastName}`.trim());
   const [role, setRole] = useState<string | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  // The shared face, not a local copy. Settings fetched once on mount and never
+  // again, so after changing the photo the old one sat on this card until the
+  // screen was left and re-entered.
+  const face = useMeFace();
   const [leavingAt, setLeavingAt] = useState<string | null>(null);
   const [sheet, setSheet] = useState<Sheet>(null);
 
@@ -58,13 +62,12 @@ export default function Settings() {
       const full = `${me.firstName ?? ''} ${me.lastName ?? ''}`.trim();
       if (full) setName(full);
       setRole(me.role);
-      setAvatarUrl(me.avatarUrl);
       setLeavingAt(me.deletionRequestedAt);
     });
     return () => { alive = false; };
   }, []);
 
-  const displayName = name || t.settings.yourAccount;
+  const displayName = face?.name || name || t.settings.yourAccount;
   const initial = displayName.charAt(0).toUpperCase();
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/home' as never));
 
@@ -120,8 +123,8 @@ export default function Settings() {
               accessibilityLabel={t.profile.yourDetails}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 16, padding: 16 }}
             >
-              {avatarUrl ? (
-                <Image source={{ uri: avatarUrl }} style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 1, borderColor: TT.cardLine }} />
+              {face?.avatarUrl ? (
+                <Image source={{ uri: face.avatarUrl }} style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 1, borderColor: TT.cardLine }} />
               ) : (
                 <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: TT.accent, alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ fontSize: 21, fontWeight: '700', color: TT.onAccent }}>{initial}</Text>

@@ -16,6 +16,9 @@ export interface MeProfile {
   onboardedAt: string | null;
   locale: 'en' | 'fr';
   dateOfBirth: string | null; // 'YYYY-MM-DD'
+  /** Their sign-in address. Shown, never edited: changing it is an auth flow
+   *  with a verification step, not a profile edit. */
+  email: string | null;
   /** Their own picture, already signed and loadable. Null when unset. */
   avatarUrl: string | null;
   deletionRequestedAt: string | null; // ISO — set while a deletion is counting down

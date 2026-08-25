@@ -9,12 +9,13 @@ import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
-import { PenLine, Sprout, Settings, ChevronRight, type LucideIcon } from 'lucide-react-native';
+import { PenLine, Sprout, ChevronRight, type LucideIcon } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
 import { TabIntro } from '@/src/ui/TabIntro';
 import { FadeIn, HEADER_TOP } from '@/src/ui/editorial';
 import { Ground } from '@/src/ui/Ground';
 import { useI18n } from '@/src/i18n';
+import { ProfileButton } from '@/src/profile/ProfileButton';
 import { useTheme } from '@/src/ui/theme-mode';
 
 const T = {
@@ -56,13 +57,7 @@ export default function ForYou() {
             <Text style={{ fontSize: 27, fontWeight: '800', color: TT.ink, letterSpacing: -0.9, lineHeight: 31 }}>{tr.title}</Text>
             <Text style={{ marginTop: 8, fontSize: 14, color: TT.inkSoft, lineHeight: 21 }}>{tr.subtitle}</Text>
           </View>
-          <TouchableOpacity
-            onPress={() => router.navigate('/settings' as never)}
-            activeOpacity={0.8}
-            style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine, alignItems: 'center', justifyContent: 'center' }}
-          >
-            <Settings size={17} color={TT.inkSoft} strokeWidth={2} />
-          </TouchableOpacity>
+          <ProfileButton />
         </View>
 
         <ScrollView contentContainerStyle={{ paddingBottom: 170 }} showsVerticalScrollIndicator={false}>
