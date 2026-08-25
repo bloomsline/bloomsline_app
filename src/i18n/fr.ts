@@ -180,6 +180,8 @@ export const fr: Dict = {
     photoReady: 'Photo prête — appuyez sur Enregistrer',
     firstName: 'Prénom',
     lastName: 'Nom',
+    email: 'E-mail',
+    emailFixed: 'Contactez-nous si vous devez le modifier.',
     save: 'Enregistrer',
     saved: 'Enregistré',
     saveFailed: 'L’enregistrement a échoué. Réessayez.',

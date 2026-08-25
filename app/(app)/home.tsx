@@ -11,7 +11,7 @@ import { Linking, Platform, ScrollView, Text, TouchableOpacity, View, useWindowD
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { ChevronRight, Plus, Ellipsis, RotateCcw, FileText, MapPin, Settings, type LucideIcon } from 'lucide-react-native';
+import { ChevronRight, Plus, Ellipsis, RotateCcw, FileText, MapPin, type LucideIcon } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
 import { TabIntro } from '@/src/ui/TabIntro';
 import { EdCard, FadeIn, HEADER_TOP, Kicker } from '@/src/ui/editorial';
@@ -25,6 +25,7 @@ import { notify } from '@/src/ui/alert';
 import { Ground } from '@/src/ui/Ground';
 import { PractitionerAvatar } from '@/src/care/PractitionerAvatar';
 import { primePractitionerFace } from '@/src/care/practitioner-face';
+import { ProfileButton } from '@/src/profile/ProfileButton';
 import { useTheme } from '@/src/ui/theme-mode';
 import { veil } from '@/src/ui/tokens';
 
@@ -77,13 +78,7 @@ export default function MyCare() {
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 27, fontWeight: '800', color: TT.ink, letterSpacing: -0.9, lineHeight: 31 }}>{headerTitle}</Text>
         </View>
-        <TouchableOpacity
-          onPress={() => router.navigate('/settings' as never)}
-          activeOpacity={0.8}
-          style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine, alignItems: 'center', justifyContent: 'center' }}
-        >
-          <Settings size={17} color={TT.inkSoft} strokeWidth={2} />
-        </TouchableOpacity>
+        <ProfileButton />
       </View>
     </View>
   );

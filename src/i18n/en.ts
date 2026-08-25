@@ -185,6 +185,8 @@ export const en = {
     photoReady: 'Photo ready — press Save',
     firstName: 'First name',
     lastName: 'Last name',
+    email: 'Email',
+    emailFixed: 'Contact us if you need to change this.',
     save: 'Save',
     saved: 'Saved',
     saveFailed: 'That did not save. Try again.',
