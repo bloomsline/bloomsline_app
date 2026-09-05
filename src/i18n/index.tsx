@@ -38,6 +38,22 @@ interface I18nValue {
 
 const Ctx = createContext<I18nValue | null>(null);
 
+/**
+ * The greeting for a time of day.
+ *
+ * Lived twice, inline, in home.tsx and moments.tsx — the same expression copied,
+ * which is how the two screens end up disagreeing about when evening starts.
+ *
+ * Note that a locale may map two slots onto one word: French says Bonjour right
+ * through the afternoon, so `morning` and `afternoon` are the same string there.
+ */
+export function greetingFor(t: Dict, now: Date = new Date()): string {
+  const h = now.getHours();
+  if (h < 12) return t.greeting.morning;
+  if (h < 18) return t.greeting.afternoon;
+  return t.greeting.evening;
+}
+
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>('en');
   const [ready, setReady] = useState(false);

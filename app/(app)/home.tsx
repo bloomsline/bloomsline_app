@@ -16,7 +16,7 @@ import { TabBar } from '@/src/ui/TabBar';
 import { TabIntro } from '@/src/ui/TabIntro';
 import { EdCard, FadeIn, HEADER_TOP, Kicker } from '@/src/ui/editorial';
 import { useLanding } from '@/src/prefs/landing';
-import { useI18n, fmt } from '@/src/i18n';
+import { useI18n, fmt, greetingFor } from '@/src/i18n';
 import { useOnboarding } from '@/src/onboarding/context';
 import { FORCE_CARE_HUB } from '@/src/config';
 import { fetchCare, fetchTodo, type CareSession, type PatientCare, type TodoItem } from '@/src/api/care';
@@ -69,7 +69,7 @@ export default function MyCare() {
 
   const name = (firstName ?? '').trim();
   const pretty = name ? name.charAt(0).toUpperCase() + name.slice(1) : preview ? 'Sofia' : '';
-  const greeting = new Date().getHours() < 12 ? t.greeting.morning : new Date().getHours() < 18 ? t.greeting.afternoon : t.greeting.evening;
+  const greeting = greetingFor(t);
   const headerTitle = greetHere ? (pretty ? `${greeting},\n${pretty}.` : `${greeting}.`) : t.care.title;
 
   const header = (
