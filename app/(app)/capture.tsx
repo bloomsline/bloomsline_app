@@ -118,7 +118,6 @@ export default function Capture() {
   // The ground is the FIRST item, whatever kind it is. A voice note has no
   // picture to show, so it gets its own treatment rather than a blank screen.
   const ground = media[0] ?? null;
-  const photoUri = ground?.kind === 'image' ? ground.uri : ground?.kind === 'video' ? ground.thumbUri ?? null : null;
   const voiceGround = ground?.kind === 'audio';
 
   const toggleMood = (key: string) =>
@@ -196,18 +195,13 @@ export default function Capture() {
       {/* Was always "light", which is the status bar for a dark app. */}
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
 
-      {/* The photograph, when there is one, is the ground for every step — it is
-          the moment, not an attachment to it.
-          The wash over it has to follow the theme along with everything else: a
-          dark scrim under light-mode text put near-black words on a near-black
-          photograph. It is the same wash either way, just the page's own colour
-          instead of an assumed dark one. */}
-      {photoUri ? (
-        <>
-          <Image source={{ uri: photoUri }} style={{ position: 'absolute', inset: 0 }} resizeMode="cover" />
-          <View style={{ position: 'absolute', inset: 0, backgroundColor: mode === 'dark' ? 'rgba(14,21,18,0.55)' : 'rgba(245,242,235,0.78)' }} />
-        </>
-      ) : voiceGround ? (
+      {/* A photograph is NO LONGER the ground.
+          It read well against a considered image and badly against a real one:
+          a screenshot, a document, anything with its own text. No wash makes
+          arbitrary content a safe surface to set type on, and the words are the
+          moment. The picture lives in the thumbnail strip instead, where it can
+          be seen without being read through. */}
+      {voiceGround ? (
         // A voice note has no picture, and a moment that is only a voice note
         // was a blank dark screen — indistinguishable from one that is only
         // words. The accent wash gives it a ground of its own, as the design
@@ -227,6 +221,7 @@ export default function Capture() {
           <Preview
             when={when}
             note={note}
+            media={media}
             moods={moods}
             locale={locale}
             tr={tr}
@@ -283,7 +278,6 @@ export default function Capture() {
                   ) : media.length > 0 ? (
                     <MediaStrip
                       media={media}
-                      onPromote={(i) => setMedia((prev) => (i === 0 ? prev : [prev[i], ...prev.filter((_, j) => j !== i)]))}
                       onRemove={(i) => setMedia((prev) => prev.filter((_, j) => j !== i))}
                       tr={tr}
                     />
@@ -462,10 +456,11 @@ function FeelSheet({
 
 /** Step three. The moment as it will look on the line, not a summary of a form. */
 function Preview({
-  when, note, moods, locale, tr, share, canShare, pracFirst, busy, onToggleShare, onEdit, onCommit,
+  when, note, media, moods, locale, tr, share, canShare, pracFirst, busy, onToggleShare, onEdit, onCommit,
 }: {
   when: string;
   note: string;
+  media: PreparedMedia[];
   moods: string[];
   locale: 'en' | 'fr';
   tr: Cap;
@@ -497,6 +492,11 @@ function Preview({
             );
           })}
         </View>
+        {media.length > 0 ? (
+          <View style={{ marginTop: 18 }}>
+            <MediaStrip media={media} tr={tr} compact />
+          </View>
+        ) : null}
       </ScrollView>
 
       {/* Who sees this. Named, not labelled "private": the question a person has
@@ -677,33 +677,34 @@ function Chip({ Icon, label, onPress, dim }: { Icon: typeof ImagePlus; label: st
  * Tapping a chip promotes it to the ground — the cheapest possible way to
  * reorder, and the only ordering that matters here is which one is first.
  */
-function MediaStrip({ media, onPromote, onRemove, tr }: {
+// The attachments, as small chips. They used to double as a picker for which
+// image became the page background; with no background to choose, tapping one
+// does nothing and the chip is just a chip.
+function MediaStrip({ media, onRemove, tr, compact = false }: {
   media: PreparedMedia[];
-  onPromote: (i: number) => void;
-  onRemove: (i: number) => void;
+  onRemove?: (i: number) => void;
   tr: Cap;
+  /** Preview: show what is attached, without the controls. */
+  compact?: boolean;
 }) {
   const { t: TT, mode } = useTheme();
+  const size = compact ? 44 : 52;
   return (
-    <View style={{ marginBottom: 14 }}>
-      <View style={{ flexDirection: 'row', gap: 10, paddingTop: 5, paddingRight: 5 }}>
+    <View style={{ marginBottom: compact ? 0 : 14 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingTop: 5, paddingRight: 5 }}>
         {media.map((m, i) => {
           const thumb = m.kind === 'image' ? m.uri : m.kind === 'video' ? m.thumbUri ?? null : null;
-          const isGround = i === 0;
           return (
-            // The chip and its × are SIBLINGS inside a plain View, not nested.
+            // The × is a SIBLING of the chip inside a plain View, never nested.
             // react-native-web renders every Pressable as a <button>, and a
             // button inside a button is invalid HTML — React says so at runtime,
             // and the nested control's behaviour is undefined.
-            <View key={`${m.uri}-${i}`} style={{ width: 52, height: 52 }}>
-              <Pressable
-                onPress={() => onPromote(i)}
-                accessibilityRole="button"
-                accessibilityLabel={isGround ? tr.isBackground : tr.makeBackground}
+            <View key={`${m.uri}-${i}`} style={{ width: size, height: size }}>
+              <View
                 style={{
-                  width: 52, height: 52, borderRadius: 12, overflow: 'hidden',
-                  borderWidth: isGround ? 2 : 1,
-                  borderColor: isGround ? TT.accent : TT.cardLine,
+                  width: size, height: size, borderRadius: 12, overflow: 'hidden',
+                  borderWidth: 1,
+                  borderColor: TT.cardLine,
                   backgroundColor: veil(mode, 0.10),
                   alignItems: 'center', justifyContent: 'center',
                 }}
@@ -718,7 +719,8 @@ function MediaStrip({ media, onPromote, onRemove, tr }: {
                     <Play size={16} color={OVER_MEDIA.ink} strokeWidth={2.4} fill={OVER_MEDIA.ink} />
                   </View>
                 ) : null}
-              </Pressable>
+              </View>
+              {onRemove ? (
               <Pressable
                 onPress={() => onRemove(i)}
                 accessibilityRole="button"
@@ -730,13 +732,11 @@ function MediaStrip({ media, onPromote, onRemove, tr }: {
               >
                 <X size={11} color={OVER_MEDIA.ink} strokeWidth={2.6} />
               </Pressable>
+              ) : null}
             </View>
           );
         })}
       </View>
-      <Text style={{ fontSize: 11.5, color: TT.faint, marginTop: 6 }}>
-        {media.length > 1 ? tr.tapToSetBackground : tr.isBackgroundHint}
-      </Text>
     </View>
   );
 }
