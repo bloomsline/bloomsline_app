@@ -24,9 +24,21 @@ export const GOOGLE = {
 
 export const googleConfigured = Boolean(GOOGLE.webClientId || GOOGLE.iosClientId || GOOGLE.androidClientId);
 
-// Microsoft (Entra ID). `tenant` is a directory GUID / domain (pin it — the
-// backend only trusts a pinned tenant), or 'common'. clientId = the native app
-// registration. The backend must trust it via AUTH_MICROSOFT_MOBILE_IDS.
+// Microsoft (Entra ID). `tenant` should be 'common'.
+//
+// The advice here used to be "pin it — the backend only trusts a pinned tenant",
+// and it was followed: .env.production carried our directory GUID. That sends
+// the authorize request to our own directory's endpoint, so Microsoft demands
+// the user exist THERE and refuses every personal account (hotmail, outlook,
+// live) with AADSTS50020 — before any token is issued, so nothing on our side
+// ever sees it.
+//
+// The backend has not needed a pinned tenant for some time: its issuer is
+// `common`, and microsoftEmailTrusted() accepts either an `xms_edov` assertion
+// or Microsoft's own consumer tenant, read from the signature-verified `tid`.
+//
+// clientId = the native app registration; the backend must trust it via
+// AUTH_MICROSOFT_MOBILE_IDS.
 export const MICROSOFT = {
   clientId: process.env.EXPO_PUBLIC_MICROSOFT_CLIENT_ID ?? '',
   tenant: process.env.EXPO_PUBLIC_MICROSOFT_TENANT ?? 'common',
