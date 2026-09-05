@@ -370,7 +370,7 @@ export default function Moments() {
               <ActivityIndicator color={TT.faint} />
             </View>
           ) : (
-            <FadeIn style={{ opacity: introActive ? 0.3 : 1 }}>
+            <FadeIn style={{ opacity: introActive ? 0.55 : 1 }}>
               {moments.length === 0 ? (
                 <View style={{ paddingHorizontal: 34, paddingTop: 40, alignItems: 'center' }}>
                   <Text style={{ fontSize: 19, fontWeight: '700', color: TT.ink, textAlign: 'center', lineHeight: 26 }}>

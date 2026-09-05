@@ -23,12 +23,16 @@ export function TabIntro({ tabKey, tone = 'light', onActiveChange }: { tabKey: T
 
   useEffect(() => {
     let alive = true;
-    storageGet(key).then((v) => {
-      if (alive && !v) {
-        setShow(true);
-        onActiveChange?.(true);
-      }
-    });
+    storageGet(key)
+      .then((v) => {
+        if (alive && !v) {
+          setShow(true);
+          onActiveChange?.(true);
+        }
+      })
+      // Unreadable storage means we cannot tell whether this was dismissed.
+      // Staying quiet is the kinder miss: a skipped explainer, not a repeated one.
+      .catch(() => {});
     return () => {
       alive = false;
     };
