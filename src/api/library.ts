@@ -1,4 +1,4 @@
-// Library ("Small activities") API — browse + do self-guided activities. Runs
+// Library ("My guides" / "Mes repères") API — browse + do self-guided activities. Runs
 // are private to the patient. Reuses the block/score types from the resources client.
 import { apiFetch } from '../auth/api';
 import type { PatientBlock, PatientScore } from './resources';

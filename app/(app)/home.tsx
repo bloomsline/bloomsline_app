@@ -146,7 +146,9 @@ export default function MyCare() {
               <TabIntro tabKey="care" tone="dark" onActiveChange={setIntroActive} />
             </View>
 
-            <View style={{ opacity: introActive ? 0.3 : 1 }} pointerEvents={introActive ? 'none' : 'auto'}>
+            {/* Dim, but never block: the inline intro must not make the tab
+                look broken to a first-time visitor (see for-you.tsx). */}
+            <View style={{ opacity: introActive ? 0.55 : 1 }}>
               {/* Practitioner — a row, not a card: it names a person, it is not a thing to do. */}
               <TouchableOpacity
                 onPress={() => router.navigate('/practitioner' as never)}
