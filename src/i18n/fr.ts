@@ -21,7 +21,11 @@ export const fr: Dict = {
   },
   greeting: {
     morning: 'Bonjour',
-    afternoon: 'Bon après-midi',
+    // French has no afternoon greeting in ordinary use: it is Bonjour until the
+    // evening, then Bonsoir. "Bon après-midi" is a parting phrase — you say it
+    // to someone who is leaving — so it read as a goodbye at the top of the
+    // patient's own screen.
+    afternoon: 'Bonjour',
     evening: 'Bonsoir',
   },
   invite: {

@@ -28,7 +28,7 @@ import { MomentDetail, type MomentChange } from '@/src/moments/MomentDetail';
 import { useLanding } from '@/src/prefs/landing';
 import { useOnboarding } from '@/src/onboarding/context';
 import { Ground } from '@/src/ui/Ground';
-import { useI18n } from '@/src/i18n';
+import { useI18n, greetingFor } from '@/src/i18n';
 import { listMoments, type MomentDTO } from '@/src/api/moments';
 import { ProfileButton } from '@/src/profile/ProfileButton';
 import { useTheme } from '@/src/ui/theme-mode';
@@ -328,7 +328,7 @@ export default function Moments() {
   const greetHere = landing === 'moments';
   const name = (firstName ?? '').trim();
   const pretty = name ? name.charAt(0).toUpperCase() + name.slice(1) : '';
-  const greeting = new Date().getHours() < 12 ? t.greeting.morning : new Date().getHours() < 18 ? t.greeting.afternoon : t.greeting.evening;
+  const greeting = greetingFor(t);
   const title = greetHere ? (pretty ? `${greeting},\n${pretty}.` : `${greeting}.`) : t.tabs.moments;
 
   return (
