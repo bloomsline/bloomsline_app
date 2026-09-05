@@ -16,7 +16,23 @@ WebBrowser.maybeCompleteAuthSession();
 export function useMicrosoftSignIn(onError?: (message: string) => void) {
   const { signInWithMicrosoftIdToken } = useAuth();
   const discovery = AuthSession.useAutoDiscovery(`https://login.microsoftonline.com/${MICROSOFT.tenant}/v2.0`);
-  const redirectUri = AuthSession.makeRedirectUri({ scheme: 'bloomsline' });
+  // `native` is used ONLY by standalone/bare builds; web falls through to
+  // Linking.createURL(''), which stays `https://app.bloomsline.com`.
+  //
+  // The path is not decoration. Azure refuses to register a bare `bloomsline://`
+  // ("Must be a valid URI"), so the native redirect needs a path — and giving it
+  // one here, rather than via `path`, keeps the WEB uri unchanged. Passing
+  // `path: 'auth'` would have moved web to `https://app.bloomsline.com/auth`,
+  // which is the MAGIC-LINK handler (`/auth?token=…`) — pointing the OAuth
+  // redirect at it would land two different sign-in flows on one screen.
+  //
+  // Register in the app registration:
+  //   Single-page application     https://app.bloomsline.com
+  //   Mobile and desktop apps     bloomsline://auth
+  const redirectUri = AuthSession.makeRedirectUri({
+    scheme: 'bloomsline',
+    native: 'bloomsline://auth',
+  });
 
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
     {
