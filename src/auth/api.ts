@@ -5,7 +5,14 @@
 import { API_URL } from '../config';
 import { clearTokens, getAccessToken, getRefreshToken, saveTokens } from './token-store';
 
-let refreshing: Promise<boolean> | null = null;
+/**
+ * Why three outcomes and not a boolean: a refresh that is REJECTED means the
+ * session is over, but a refresh that could not be SENT means nothing at all.
+ * Collapsing the two signed people out on a dropped connection.
+ */
+type RefreshResult = 'ok' | 'rejected' | 'unreachable';
+
+let refreshing: Promise<RefreshResult> | null = null;
 let onSignOut: (() => void) | null = null;
 
 /** The auth context registers here so a hard 401 can flip the UI to signed-out. */
@@ -13,27 +20,30 @@ export function setOnSignOut(cb: (() => void) | null): void {
   onSignOut = cb;
 }
 
-async function doRefresh(): Promise<boolean> {
+async function doRefresh(): Promise<RefreshResult> {
   const refreshToken = await getRefreshToken();
-  if (!refreshToken) return false;
+  if (!refreshToken) return 'rejected';
   try {
     const res = await fetch(`${API_URL}/api/mobile/auth/refresh`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
     });
+    // 5xx is the SERVER having a moment, not a verdict on this token. Clearing
+    // tokens there signs everyone out for the length of a bad deploy.
+    if (res.status >= 500) return 'unreachable';
     if (!res.ok) {
       await clearTokens();
-      return false;
+      return 'rejected';
     }
     await saveTokens(await res.json());
-    return true;
+    return 'ok';
   } catch {
-    return false; // network blip — keep tokens, let the caller surface the error
+    return 'unreachable'; // network blip — keep tokens, let the caller surface the error
   }
 }
 
-function refreshOnce(): Promise<boolean> {
+function refreshOnce(): Promise<RefreshResult> {
   if (!refreshing) {
     refreshing = doRefresh().finally(() => {
       refreshing = null;
@@ -52,9 +62,11 @@ export async function apiFetch(path: string, init: RequestInit = {}, allowRetry 
   const res = await fetch(`${API_URL}${path}`, { ...init, headers });
 
   if (res.status === 401 && allowRetry && (await getRefreshToken())) {
-    const ok = await refreshOnce();
-    if (ok) return apiFetch(path, init, false);
-    onSignOut?.(); // refresh genuinely failed → signed out
+    const result = await refreshOnce();
+    if (result === 'ok') return apiFetch(path, init, false);
+    // Only a REJECTED refresh means signed out. An unreachable one leaves the
+    // session intact and lets the caller handle the failed request.
+    if (result === 'rejected') onSignOut?.();
   }
   return res;
 }

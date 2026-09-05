@@ -15,6 +15,21 @@ const mockPair = () => ({ accessToken: 'mock-access', refreshToken: `mock-refres
 
 type Status = 'loading' | 'anon' | 'practitioner' | 'onboarding' | 'authed';
 const ONBOARDED_KEY = 'bl_onboarded';
+/**
+ * The last status the SERVER actually confirmed, cached across launches.
+ *
+ * `/me` is how we learn who someone is, and it can fail for reasons that say
+ * nothing about them: no signal, a timeout, a 502 while the API redeploys.
+ * Without a memory of the last real answer, an unreachable `/me` was read as an
+ * answer — and an onboarded patient opening the app on a bad connection was
+ * shown the signup form. Anything the server has confirmed is written here, and
+ * an unreachable `/me` falls back to it instead of guessing downwards.
+ */
+const SESSION_KEY = 'bl_session';
+type CachedStatus = 'practitioner' | 'authed' | 'onboarding';
+/** Storage is a string bucket; only these three mean anything as a status. */
+const isCachedStatus = (v: string | null): v is CachedStatus =>
+  v === 'practitioner' || v === 'authed' || v === 'onboarding';
 
 interface AuthValue {
   status: Status;
@@ -43,7 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     const refreshToken = await getRefreshToken();
     if (refreshToken) postJson('/api/mobile/auth/logout', { refreshToken }).catch(() => {});
-    await Promise.all([clearTokens(), storageDelete(ONBOARDED_KEY)]);
+    await Promise.all([clearTokens(), storageDelete(ONBOARDED_KEY), storageDelete(SESSION_KEY)]);
     setStatus('anon');
   }, []);
 
@@ -61,10 +76,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (MOCK_ROLE === 'practitioner') return setStatus('practitioner');
       return setStatus(onboardedLocal ? 'authed' : 'onboarding');
     }
-    const me = await fetchMe();
-    if (!me) return setStatus(onboardedLocal ? 'authed' : 'onboarding'); // /me not available yet
-    if (me.role === 'practitioner') return setStatus('practitioner');
-    return setStatus(me.onboardedAt || onboardedLocal ? 'authed' : 'onboarding');
+    // A launch is the one moment a blip is most likely (cold radio, resumed
+    // app) and most expensive to get wrong, so give it more than one chance.
+    let me = await fetchMe();
+    for (let i = 0; !me && i < 2; i++) {
+      await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+      me = await fetchMe();
+    }
+
+    if (me) {
+      const next: CachedStatus =
+        me.role === 'practitioner' ? 'practitioner' : me.onboardedAt || onboardedLocal ? 'authed' : 'onboarding';
+      // Remember what the server said, so the next launch survives a bad
+      // connection. `onboardedAt` is the server's own record; mirroring it into
+      // the local flag is what was missing — completeOnboarding() was the only
+      // writer, so a user who onboarded on another device (or before a
+      // reinstall) never had one.
+      await storageSet(SESSION_KEY, next);
+      if (next === 'authed') await storageSet(ONBOARDED_KEY, '1');
+      return setStatus(next);
+    }
+
+    // `/me` is unreachable. Trust the last confirmed answer rather than demote
+    // someone to signup: we still hold a refresh token, so they were signed in.
+    const cached = await storageGet(SESSION_KEY);
+    if (isCachedStatus(cached)) return setStatus(cached);
+    return setStatus(onboardedLocal ? 'authed' : 'onboarding');
   }, []);
 
   // After an EXPLICIT sign-in, drop any onboarding flag left in this browser by a
@@ -73,7 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // onboarding. Cold-start (app reopened as the same user) keeps its flag — only
   // a fresh sign-in resets it, so the SERVER's onboardedAt decides for the new user.
   const afterSignIn = useCallback(async () => {
-    await storageDelete(ONBOARDED_KEY);
+    await Promise.all([storageDelete(ONBOARDED_KEY), storageDelete(SESSION_KEY)]);
     await resolveSession();
   }, [resolveSession]);
 
@@ -127,7 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const completeOnboarding = useCallback(async () => {
     await saveProfile({ onboarded: true }).catch(() => {}); // record server-side (best-effort)
-    await storageSet(ONBOARDED_KEY, '1');
+    await Promise.all([storageSet(ONBOARDED_KEY, '1'), storageSet(SESSION_KEY, 'authed')]);
     setStatus('authed');
   }, []);
 
