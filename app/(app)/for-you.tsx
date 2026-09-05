@@ -20,23 +20,23 @@ import { useTheme } from '@/src/ui/theme-mode';
 
 const T = {
   en: {
-    title: 'For you',
-    subtitle: 'Take what helps, whenever it suits you.',
+    title: 'Activities',
+    subtitle: 'Feel-good activities, whenever you want them.',
     journal: 'Journal',
-    journalDesc: 'A private place to write freely. Only you can read this.',
+    journalDesc: 'A space to put words to your thoughts and see them more clearly.',
     openJournal: 'Open journal',
-    activities: 'Small activities',
-    activitiesDesc: 'Short practices made by practitioners, always open, never assigned.',
+    activities: 'My guides',
+    activitiesDesc: 'Practices to do whenever you like, take what helps.',
     browse: 'Browse activities',
   },
   fr: {
-    title: 'Pour vous',
-    subtitle: 'Prenez ce qui vous fait du bien, quand cela vous convient.',
+    title: 'Activités',
+    subtitle: 'Des activités qui font du bien, disponibles à tout moment.',
     journal: 'Journal',
-    journalDesc: 'Un espace privé pour écrire librement. Vous seul pouvez le lire.',
+    journalDesc: 'Un espace pour mettre des mots sur vos pensées et y voir plus clair.',
     openJournal: 'Ouvrir le journal',
-    activities: 'Petites activités',
-    activitiesDesc: 'De courtes pratiques créées par les praticiens, toujours accessibles, jamais imposées.',
+    activities: 'Mes repères',
+    activitiesDesc: 'Des pratiques à faire quand vous le souhaitez, prenez ce qui vous aide.',
     browse: 'Voir les activités',
   },
 } as const;
@@ -65,8 +65,13 @@ export default function ForYou() {
             <TabIntro tabKey="foryou" tone="dark" onActiveChange={setIntroActive} />
           </View>
 
-          <FadeIn style={{ paddingHorizontal: 22, opacity: introActive ? 0.3 : 1 }}>
-            <View pointerEvents={introActive ? 'none' : 'auto'} style={{ gap: 12 }}>
+          {/* The intro is an inline card, not a modal, so it must never take the
+              content away. It used to set pointerEvents 'none' here: on a first
+              visit both doors were dead until "Got it" was tapped, and nothing
+              on screen said so — taps just did nothing. Dim to draw the eye to
+              the intro; stay tappable. */}
+          <FadeIn style={{ paddingHorizontal: 22, opacity: introActive ? 0.55 : 1 }}>
+            <View style={{ gap: 12 }}>
               <DoorCard
                 Icon={PenLine}
                 title={tr.journal}

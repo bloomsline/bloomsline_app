@@ -17,7 +17,7 @@ export const fr: Dict = {
   tabs: {
     care: 'Mon Suivi',
     moments: 'Moments',
-    forYou: 'Pour Vous',
+    forYou: 'Activités',
   },
   greeting: {
     morning: 'Bonjour',
@@ -202,7 +202,7 @@ export const fr: Dict = {
       body: 'Capturez ce que vous ressentez, quand ça vient. Un fil privé de vos journées, rien que pour vous.',
     },
     foryou: {
-      title: 'Pour vous',
+      title: 'Activités',
       body: 'Des pratiques douces et de petites choses, choisies pour vous soutenir entre les séances.',
     },
   },
@@ -244,11 +244,11 @@ export const fr: Dict = {
   journal: {
     kicker: 'Privé',
     title: 'Journal',
-    // Aligned with the English promise. The board's French offered sharing here
-    // ("ou partagez-le avec Marie"), which contradicts the one screen whose
-    // whole design says private before the word does. Sharing is offered on the
-    // page itself, where it is actually done.
-    subtitle: 'Un endroit calme pour écrire librement. Vous seul pouvez le lire.',
+    // Kept aligned with the English. Sharing is deliberately not offered here:
+    // it is done on the page itself, where the entry's own status says whether
+    // it is private or shared — which is truer than a blanket promise, since
+    // entries can be shared one by one.
+    subtitle: 'Un espace pour mettre des mots sur vos pensées et y voir plus clair.',
     find: 'Trouver une page',
     today: 'Aujourd’hui',
     yesterday: 'Hier',
@@ -291,9 +291,10 @@ export const fr: Dict = {
     next: 'Suivant',
     step2: 'Étape 2 sur 2',
     wasMore: 'Ce moment était plutôt…',
-    // "Mitigé", not "Neutre": mixed means good AND hard at once, neutral
-    // means neither. The two send a patient to different feelings.
-    tone: { good: 'Agréable', hard: 'Difficile', mixed: 'Mitigé' },
+    // "Mitigé(e)", not "Neutre": mixed means good AND hard at once, neutral
+    // means neither. The two send a patient to different feelings. The (e) is
+    // there because the word agrees with the person, not with "moment".
+    tone: { good: 'Apaisant', hard: 'Difficile', mixed: 'Mitigé(e)' },
     howFeel: 'Qu’avez-vous ressenti ?',
     pickUpTo: 'Choisissez jusqu’à {n} émotions.',
     seeMyMoment: 'Voir mon moment',

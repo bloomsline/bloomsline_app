@@ -16,7 +16,7 @@ export const en = {
   tabs: {
     care: 'My Care',
     moments: 'Moments',
-    forYou: 'For You',
+    forYou: 'Activities',
   },
   greeting: {
     morning: 'Good morning',
@@ -207,7 +207,7 @@ export const en = {
       body: 'Capture how you feel, whenever it strikes. A private timeline of your days, just for you.',
     },
     foryou: {
-      title: 'For you',
+      title: 'Activities',
       body: 'Gentle practices and little things, picked to support you between sessions.',
     },
   },
@@ -249,7 +249,7 @@ export const en = {
   journal: {
     kicker: 'Private',
     title: 'Journal',
-    subtitle: 'A quiet place to write freely. Only you can read this.',
+    subtitle: 'A space to put words to your thoughts and see them more clearly.',
     find: 'Find a page',
     today: 'Today',
     yesterday: 'Yesterday',
@@ -292,7 +292,7 @@ export const en = {
     next: 'Next',
     step2: 'Step 2 of 2',
     wasMore: 'This moment was more…',
-    tone: { good: 'Good', hard: 'Hard', mixed: 'Mixed' },
+    tone: { good: 'Good', hard: 'Difficult', mixed: 'Mixed' },
     howFeel: 'How did it feel?',
     pickUpTo: 'Pick up to {n} feelings.',
     seeMyMoment: 'See my moment',

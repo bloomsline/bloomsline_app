@@ -1,4 +1,5 @@
-// e3 — Library "Explore". Self-guided activities from the patient's practitioner(s),
+// e3 — "My guides" / "Mes repères" (route + API still say library).
+// Self-guided activities from the patient's practitioner(s),
 // always open, never assigned. Wired to GET /api/mobile/library.
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
@@ -15,7 +16,7 @@ import { onCta } from '@/src/ui/tokens';
 
 const T = {
   en: {
-    explore: 'Explore',
+    title: 'My guides',
     subtitle: 'Practices you can do anytime — take what helps.',
     emptyTitle: 'Nothing here yet',
     emptyBody: 'Self-guided practices your practitioner shares will appear here.',
@@ -28,7 +29,7 @@ const T = {
     } as Record<string, string>,
   },
   fr: {
-    explore: 'Explorer',
+    title: 'Mes repères',
     subtitle: 'Des pratiques à faire quand vous le souhaitez, prenez ce qui vous aide.',
     emptyTitle: 'Rien ici pour le moment',
     emptyBody: 'Les pratiques en autonomie que votre praticien partage apparaîtront ici.',
@@ -66,7 +67,7 @@ export default function Library() {
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-        <EdHeader source={ONBOARDING_IMAGES.card1} kicker="Library" title={tr.explore} subtitle={tr.subtitle} onBack={back} />
+        <EdHeader source={ONBOARDING_IMAGES.card1} title={tr.title} subtitle={tr.subtitle} onBack={back} />
 
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {items === null ? (
