@@ -33,6 +33,35 @@ export interface CarePractitioner {
    *  practitioner may have given a Maps link, an address, both, or neither. */
   address: string | null;
   mapsUrl: string | null;
+
+  /* The rest of the public profile at /p/[slug]. Controlled-vocab terms arrive
+   * as LABELS in the app's language, already resolved by the server: the
+   * taxonomy lives in @bloomsline/shared, which this repo cannot import, and
+   * these used to render as raw ids ("stress_anxiety") at the patient. */
+  approaches: string[];
+  agesServed: string[];
+  credentials: string[];
+  education: { degree: string; institution?: string; year?: string }[];
+  licenses: { title: string; region?: string }[];
+  certifications: { name: string; issuer?: string }[];
+  publications: { type: string; title: string; description?: string; url?: string }[];
+  yearsExperience: number | null;
+  offersTelehealth: boolean;
+  offersInPerson: boolean;
+  acceptanceStatus: 'accepting' | 'waitlist' | 'not_accepting';
+  isVerified: boolean;
+  introVideoUrl: string | null;
+  /** Formatted by the server, in this locale and their currency. */
+  feeRange: string | null;
+  slidingScale: boolean;
+  insurance: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  website: string | null;
+  linkedin: string | null;
+  instagram: string | null;
+  facebook: string | null;
+  twitter: string | null;
 }
 
 /** What the practitioner lets this patient do to their own sessions. The server
@@ -55,9 +84,11 @@ export interface PatientCare {
   upcomingSessions: CareSession[];
 }
 
-export async function fetchCare(): Promise<PatientCare | null> {
+/** `locale` decides the language of the profile's vocabulary terms. Omitted by
+ *  callers that only want the practitioner's photo or name. */
+export async function fetchCare(locale?: 'en' | 'fr'): Promise<PatientCare | null> {
   try {
-    const res = await apiFetch('/api/mobile/care');
+    const res = await apiFetch(`/api/mobile/care${locale ? `?locale=${locale}` : ''}`);
     if (!res.ok) return null;
     return (await res.json()) as PatientCare;
   } catch {

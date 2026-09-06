@@ -26,6 +26,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { X, ChevronLeft, ImagePlus, Mic, Lock, Eye, Camera, Video, Images, Square, Circle, Play } from 'lucide-react-native';
+import { MediaViewer, type ViewerItem } from '@/src/ui/MediaViewer';
 import { MOODS, moodLabel } from '@/src/moments/moods';
 import { createMoment, shareMoment } from '@/src/api/moments';
 import { pickMedia, captureMedia, cameraAvailable, uploadMedia, type PreparedMedia } from '@/src/moments/media-upload';
@@ -689,6 +690,21 @@ function MediaStrip({ media, onRemove, tr, compact = false }: {
 }) {
   const { t: TT, mode } = useTheme();
   const size = compact ? 44 : 52;
+  // Which attachment is open full screen. Held HERE rather than in the two
+  // callers so the preview step gets the same behaviour for free: a 44pt chip
+  // is a receipt that something is attached, not a look at it, and the one
+  // moment a patient wants to check the photo is before they commit to it.
+  const [viewing, setViewing] = useState<number | null>(null);
+
+  // `MediaViewer` takes urls; these are local files that have not been uploaded
+  // yet, and a file:// uri works the same everywhere it is used.
+  const items: ViewerItem[] = media.map((m) => ({
+    kind: m.kind,
+    url: m.uri,
+    thumbnailUrl: m.kind === 'audio' ? null : m.thumbUri,
+    durationSeconds: m.kind === 'image' ? null : m.durationSeconds,
+  }));
+
   return (
     <View style={{ marginBottom: compact ? 0 : 14 }}>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingTop: 5, paddingRight: 5 }}>
@@ -700,7 +716,11 @@ function MediaStrip({ media, onRemove, tr, compact = false }: {
             // button inside a button is invalid HTML — React says so at runtime,
             // and the nested control's behaviour is undefined.
             <View key={`${m.uri}-${i}`} style={{ width: size, height: size }}>
-              <View
+              {/* Still a sibling of the ×, so the two buttons never nest. */}
+              <Pressable
+                onPress={() => setViewing(i)}
+                accessibilityRole="button"
+                accessibilityLabel={tr.viewMedia}
                 style={{
                   width: size, height: size, borderRadius: 12, overflow: 'hidden',
                   borderWidth: 1,
@@ -719,7 +739,7 @@ function MediaStrip({ media, onRemove, tr, compact = false }: {
                     <Play size={16} color={OVER_MEDIA.ink} strokeWidth={2.4} fill={OVER_MEDIA.ink} />
                   </View>
                 ) : null}
-              </View>
+              </Pressable>
               {onRemove ? (
               <Pressable
                 onPress={() => onRemove(i)}
@@ -737,6 +757,13 @@ function MediaStrip({ media, onRemove, tr, compact = false }: {
           );
         })}
       </View>
+
+      {/* The same viewer the moment sheet uses, so an attachment looks the same
+          before it is committed as it does afterwards. Images zoom, a voice note
+          plays where it sits, and closing it returns to the form. */}
+      {viewing !== null ? (
+        <MediaViewer items={items} index={viewing} onIndex={setViewing} onClose={() => setViewing(null)} />
+      ) : null}
     </View>
   );
 }

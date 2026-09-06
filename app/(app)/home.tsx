@@ -54,10 +54,10 @@ export default function MyCare() {
   useFocusEffect(
     useCallback(() => {
       let alive = true;
-      fetchCare().then((c) => { primePractitionerFace(c); if (alive) { setCare(c); setLoaded(true); } });
+      fetchCare(locale).then((c) => { primePractitionerFace(c); if (alive) { setCare(c); setLoaded(true); } });
       fetchTodo().then((r) => { if (alive) setTodos(r); });
       return () => { alive = false; };
-    }, []),
+    }, [locale]),
   );
 
   const soon = () => notify(t.common.comingSoon);

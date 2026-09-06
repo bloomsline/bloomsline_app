@@ -8,7 +8,7 @@
 // a patient looking at their actual clinician. A sparse profile is honest; an
 // invented one is not.
 import { useCallback, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { EdHeader, EdCard, EdSection, EdPill, FadeIn, Kicker } from '@/src/ui/editorial';
@@ -52,7 +52,7 @@ export default function Practitioner() {
   useFocusEffect(
     useCallback(() => {
       let alive = true;
-      fetchCare().then((c) => {
+      fetchCare(locale).then((c) => {
         if (!alive) return;
         setP(c?.practitioner ?? null);
         // Default to allowing when the block is absent (older backend), so we
@@ -63,7 +63,7 @@ export default function Practitioner() {
       return () => {
         alive = false;
       };
-    }, []),
+    }, [locale]),
   );
 
   // Fall back to the name we already knew rather than showing nothing while the
@@ -80,12 +80,35 @@ export default function Practitioner() {
     languages ? { label: t.profile.languages, value: languages } : null,
   ].filter((f): f is { label: string; value: string } => f !== null);
 
+  // Standing and format, as words rather than sections. "Accepting patients" is
+  // left off on purpose: this patient is already in their care, so it answers a
+  // question they are not asking. The other two states DO matter, because they
+  // explain a booking screen that may turn them away.
+  const pills = [
+    p?.isVerified ? t.profile.verified : null,
+    p?.acceptanceStatus === 'waitlist' ? t.profile.waitlist : null,
+    p?.acceptanceStatus === 'not_accepting' ? t.profile.notAccepting : null,
+    p?.offersTelehealth ? t.profile.online : null,
+    p?.offersInPerson ? t.profile.inPerson : null,
+    p?.yearsExperience != null ? fmt(t.profile.yearsExperience, { n: p.yearsExperience }) : null,
+  ].filter((v): v is string => v !== null);
+
+  const contacts = [
+    p?.contactEmail ? { label: p.contactEmail, url: `mailto:${p.contactEmail}` } : null,
+    p?.contactPhone ? { label: p.contactPhone, url: `tel:${p.contactPhone.replace(/\s+/g, '')}` } : null,
+    p?.website ? { label: t.profile.website, url: p.website } : null,
+    p?.linkedin ? { label: 'LinkedIn', url: p.linkedin } : null,
+    p?.instagram ? { label: 'Instagram', url: p.instagram } : null,
+    p?.facebook ? { label: 'Facebook', url: p.facebook } : null,
+    p?.twitter ? { label: 'X', url: p.twitter } : null,
+  ].filter((c): c is { label: string; url: string } => c !== null);
+
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         <EdHeader
-          kicker="Your practitioner"
+          kicker={tr.yourPractitioner}
           title={name ?? tr.yourPractitioner}
           subtitle={headline ?? undefined}
           onBack={() => router.back()}
@@ -93,6 +116,19 @@ export default function Practitioner() {
         />
 
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
+          {/* Standing, before detail: whether they are taking anyone on, and
+              whether we have checked who they are. Both are single words and
+              both change how the rest of the page reads. */}
+          {pills.length > 0 && (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 14 }}>
+              {pills.map((label) => (
+                <View key={label} style={{ backgroundColor: TT.accentTint, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 }}>
+                  <Text style={{ fontSize: 11.5, fontWeight: '600', color: TT.accent }}>{label}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
           {facts.length > 0 && (
             <View style={{ flexDirection: 'row', gap: 12, marginBottom: 14 }}>
               {facts.map((f) => (
@@ -102,26 +138,161 @@ export default function Practitioner() {
           )}
 
           {p?.bio ? (
-            <EdCard style={{ marginTop: facts.length > 0 ? 0 : 6, marginBottom: 14 }}>
+            <EdCard style={{ marginBottom: 14 }}>
               <EdSection label={t.profile.about} />
               <Text style={{ fontSize: 14, color: TT.inkSoft, lineHeight: 22 }}>{p.bio}</Text>
             </EdCard>
           ) : null}
+
+          {p?.introVideoUrl ? (
+            <EdCard style={{ marginBottom: 14 }} onPress={() => open(p.introVideoUrl)}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: TT.accent }}>{t.profile.introVideo}</Text>
+            </EdCard>
+          ) : null}
+
+          <Chips label={t.profile.specialties} items={p?.specialties ?? []} />
+          <Chips label={t.profile.approaches} items={p?.approaches ?? []} />
+          <Chips label={t.profile.agesServed} items={p?.agesServed ?? []} />
+
+          {/* Qualifications, in the order the public profile lists them. The
+              free-text credentials read as chips; the three structured lists
+              are lines, because "MSc, Université de Paris, 2014" is a sentence
+              and a chip would break it in the middle. */}
+          {(p?.credentials.length || p?.education.length || p?.licenses.length || p?.certifications.length) ? (
+            <EdCard style={{ marginBottom: 14 }}>
+              <EdSection label={t.profile.credentials} />
+              {p.credentials.length > 0 ? (
+                <Text style={{ fontSize: 14, color: TT.ink, fontWeight: '600', marginBottom: p.education.length || p.licenses.length || p.certifications.length ? 12 : 0 }}>
+                  {p.credentials.join(' · ')}
+                </Text>
+              ) : null}
+              <Group label={t.profile.education} lines={p.education.map((e) => joinOrNull([e.degree, e.institution, e.year], ' · ')).filter(Boolean) as string[]} />
+              <Group label={t.profile.licenses} lines={p.licenses.map((l) => joinOrNull([l.title, l.region], ' · ')).filter(Boolean) as string[]} />
+              <Group label={t.profile.certifications} lines={p.certifications.map((c) => joinOrNull([c.name, c.issuer], ' · ')).filter(Boolean) as string[]} />
+            </EdCard>
+          ) : null}
+
+          {p?.publications.length ? (
+            <EdCard style={{ marginBottom: 14 }}>
+              <EdSection label={t.profile.publications} />
+              {p.publications.map((pub, i) => (
+                <Pressable
+                  key={`${pub.title}-${i}`}
+                  onPress={() => open(pub.url)}
+                  disabled={!pub.url}
+                  style={{ marginTop: i === 0 ? 0 : 12 }}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: pub.url ? TT.accent : TT.ink, lineHeight: 20 }}>{pub.title}</Text>
+                  {joinOrNull([pub.type, pub.description], ' · ') ? (
+                    <Text style={{ fontSize: 12.5, color: TT.inkSoft, marginTop: 2, lineHeight: 18 }}>
+                      {joinOrNull([pub.type, pub.description], ' · ')}
+                    </Text>
+                  ) : null}
+                </Pressable>
+              ))}
+            </EdCard>
+          ) : null}
+
+          {/* The address was already in the payload and had never been drawn.
+              The Maps link wins when both exist: an address alone does not
+              always find a side entrance. */}
+          {p?.address || p?.mapsUrl ? (
+            <EdCard style={{ marginBottom: 14 }} onPress={p.mapsUrl ? () => open(p.mapsUrl) : undefined}>
+              <EdSection label={t.profile.location} />
+              {p.address ? <Text style={{ fontSize: 14, color: TT.inkSoft, lineHeight: 21 }}>{p.address}</Text> : null}
+              {p.mapsUrl ? (
+                <Text style={{ fontSize: 13.5, fontWeight: '700', color: TT.accent, marginTop: p.address ? 8 : 0 }}>{t.care.openInMaps}</Text>
+              ) : null}
+            </EdCard>
+          ) : null}
+
+          {p?.feeRange || p?.slidingScale || p?.insurance ? (
+            <EdCard style={{ marginBottom: 14 }}>
+              <EdSection label={t.profile.fees} />
+              {p.feeRange ? (
+                <Text style={{ fontSize: 15, fontWeight: '700', color: TT.ink }}>
+                  {p.feeRange}
+                  <Text style={{ fontSize: 12.5, fontWeight: '400', color: TT.faint }}>{`  ${t.profile.perSession}`}</Text>
+                </Text>
+              ) : null}
+              {p.slidingScale ? (
+                <Text style={{ fontSize: 13.5, color: TT.inkSoft, marginTop: p.feeRange ? 6 : 0 }}>{t.profile.slidingScale}</Text>
+              ) : null}
+              {p.insurance ? <Group label={t.profile.insurance} lines={[p.insurance]} /> : null}
+            </EdCard>
+          ) : null}
+
+          {contacts.length > 0 && (
+            <EdCard style={{ marginBottom: 14 }}>
+              <EdSection label={t.profile.contact} />
+              {contacts.map((c, i) => (
+                <Pressable key={c.label} onPress={() => open(c.url)} style={{ marginTop: i === 0 ? 0 : 10 }}>
+                  <Text style={{ fontSize: 14, color: TT.accent, fontWeight: '600' }}>{c.label}</Text>
+                </Pressable>
+              ))}
+            </EdCard>
+          )}
 
           {canBook ? (
             <EdPill
               label={tr.book}
               variant="green"
               onPress={() => router.navigate('/book' as never)}
-              style={{ marginTop: facts.length === 0 && !p?.bio ? 14 : 6 }}
+              style={{ marginTop: 6 }}
             />
           ) : (
-            <Text style={{ fontSize: 12.5, color: TT.inkSoft, textAlign: 'center', marginTop: facts.length === 0 && !p?.bio ? 20 : 6, lineHeight: 18 }}>
+            <Text style={{ fontSize: 12.5, color: TT.inkSoft, textAlign: 'center', marginTop: 6, lineHeight: 18 }}>
               {name ? fmt(tr.arranges, { name }) : tr.arrangesGeneric}
             </Text>
           )}
         </FadeIn>
       </ScrollView>
+    </View>
+  );
+}
+
+/**
+ * Anything the practitioner may have written as a link, opened safely.
+ *
+ * A profile is free text: `website` is whatever they typed, which is often
+ * "cabinet-grey.fr" with no scheme, and `Linking.openURL` refuses that
+ * silently. Assume https when no scheme is given, and never throw at a patient
+ * for a link they did not write.
+ */
+function open(url: string | null | undefined): void {
+  if (!url) return;
+  const href = /^[a-z][a-z0-9+.-]*:/i.test(url) ? url : `https://${url}`;
+  void Linking.openURL(href).catch(() => {});
+}
+
+/** One vocabulary list, as chips. Renders nothing at all when empty. */
+function Chips({ label, items }: { label: string; items: string[] }) {
+  const { t: TT } = useTheme();
+  if (items.length === 0) return null;
+  return (
+    <EdCard style={{ marginBottom: 14 }}>
+      <EdSection label={label} />
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>
+        {items.map((it) => (
+          <View key={it} style={{ backgroundColor: TT.bg, borderWidth: 1, borderColor: TT.line, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6 }}>
+            <Text style={{ fontSize: 12.5, color: TT.ink }}>{it}</Text>
+          </View>
+        ))}
+      </View>
+    </EdCard>
+  );
+}
+
+/** A titled run of lines inside a card, for the credential groups. */
+function Group({ label, lines }: { label: string; lines: string[] }) {
+  const { t: TT } = useTheme();
+  if (lines.length === 0) return null;
+  return (
+    <View style={{ marginTop: 12 }}>
+      <Kicker color={TT.faint} size={9.5} style={{ marginBottom: 5 }}>{label}</Kicker>
+      {lines.map((l, i) => (
+        <Text key={`${l}-${i}`} style={{ fontSize: 13.5, color: TT.inkSoft, lineHeight: 20 }}>{l}</Text>
+      ))}
     </View>
   );
 }
