@@ -194,6 +194,31 @@ export const fr: Dict = {
     location: 'Lieu',
     sessions: 'Séances',
     languages: 'Langues',
+    // The rest of the public profile, mirroring the section names at /p/[slug]
+    // so a patient who has seen the web page recognises this one.
+    specialties: 'Spécialités',
+    approaches: 'Approches',
+    sessionInfo: 'Informations séance',
+    agesServed: 'Publics reçus',
+    credentials: 'Qualifications',
+    education: 'Formation',
+    licenses: 'Agréments',
+    certifications: 'Certifications',
+    publications: 'Publications',
+    fees: 'Tarifs',
+    perSession: 'par séance',
+    slidingScale: 'Tarif dégressif possible',
+    insurance: 'Assurance',
+    contact: 'Contact',
+    website: 'Site web',
+    introVideo: 'Voir sa présentation',
+    online: 'En ligne',
+    inPerson: 'En cabinet',
+    verified: 'Vérifié',
+    yearsExperience: '{n}+ ans',
+    accepting: 'Accepte de nouveaux patients',
+    waitlist: "Liste d'attente",
+    notAccepting: 'N’accepte pas de nouveaux patients',
   },
   tabIntro: {
     gotIt: 'C’est compris',
@@ -295,10 +320,11 @@ export const fr: Dict = {
     next: 'Suivant',
     step2: 'Étape 2 sur 2',
     wasMore: 'Ce moment était plutôt…',
-    // "Mitigé(e)", not "Neutre": mixed means good AND hard at once, neutral
-    // means neither. The two send a patient to different feelings. The (e) is
-    // there because the word agrees with the person, not with "moment".
-    tone: { good: 'Apaisant', hard: 'Difficile', mixed: 'Mitigé(e)' },
+    // "Mitigé", not "Neutre": mixed means good AND hard at once, neutral means
+    // neither. The two send a patient to different feelings. No "(e)": the
+    // question is "Ce moment était plutôt…", so the word agrees with "moment",
+    // which is masculine. It is never describing the person.
+    tone: { good: 'Apaisant', hard: 'Difficile', mixed: 'Mitigé' },
     howFeel: 'Qu’avez-vous ressenti ?',
     pickUpTo: 'Choisissez jusqu’à {n} émotions.',
     seeMyMoment: 'Voir mon moment',
@@ -312,6 +338,7 @@ export const fr: Dict = {
     videoAdded: 'Vidéo ajoutée',
     voiceAdded: 'Note vocale ajoutée',
     mediaFull: 'Un moment contient jusqu’à {n} éléments.',
+    viewMedia: 'Voir en grand',
     removeMedia: 'Retirer',
     errAddMedia: 'Impossible d’ajouter ce fichier. Essayez-en un autre.',
     errSave: 'Enregistrement impossible. Veuillez réessayer.',
