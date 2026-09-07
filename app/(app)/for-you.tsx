@@ -4,17 +4,18 @@
 //
 // Content is deliberately unchanged: this screen is not on the design board, so
 // restyling it is a faithful move and redesigning it would be an invented one.
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
-import { PenLine, Sprout, ChevronRight, type LucideIcon } from 'lucide-react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { PenLine, Sprout, BookOpen, ChevronRight, type LucideIcon } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
 import { TabIntro } from '@/src/ui/TabIntro';
 import { FadeIn, HEADER_TOP } from '@/src/ui/editorial';
 import { Ground } from '@/src/ui/Ground';
 import { useI18n } from '@/src/i18n';
+import { listArticles } from '@/src/api/articles';
 import { ProfileButton } from '@/src/profile/ProfileButton';
 import { useTheme } from '@/src/ui/theme-mode';
 
@@ -28,6 +29,9 @@ const T = {
     activities: 'My guides',
     activitiesDesc: 'Practices to do whenever you like, take what helps.',
     browse: 'Browse activities',
+    articles: 'Articles',
+    articlesDesc: 'Pieces your practitioner has written, to read whenever you like.',
+    browseArticles: 'Browse articles',
   },
   fr: {
     title: 'Activités',
@@ -38,6 +42,9 @@ const T = {
     activities: 'Mes repères',
     activitiesDesc: 'Des pratiques à faire quand vous le souhaitez, prenez ce qui vous aide.',
     browse: 'Voir les activités',
+    articles: 'Articles',
+    articlesDesc: 'Des textes écrits par votre praticien, à lire quand vous le souhaitez.',
+    browseArticles: 'Voir les articles',
   },
 } as const;
 
@@ -47,6 +54,23 @@ export default function ForYou() {
   const { locale } = useI18n();
   const tr = T[locale];
   const [introActive, setIntroActive] = useState(false);
+  // Whether this patient's practitioner has published anything.
+  //
+  // `null` until we know, and the card is not rendered until then — a door that
+  // appears a second late is better than one that opens onto an empty room. A
+  // practitioner who has never written should not have this section at all.
+  //
+  // An empty list and a FAILED request are different things: on failure the card
+  // stays hidden rather than promising articles we could not fetch.
+  const [hasArticles, setHasArticles] = useState<boolean | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      listArticles(locale).then((l) => { if (alive) setHasArticles(l != null && l.length > 0); });
+      return () => { alive = false; };
+    }, [locale]),
+  );
 
   return (
     <Ground>
@@ -86,6 +110,15 @@ export default function ForYou() {
                 action={tr.browse}
                 onPress={() => router.navigate('/library' as never)}
               />
+              {hasArticles && (
+                <DoorCard
+                  Icon={BookOpen}
+                  title={tr.articles}
+                  body={tr.articlesDesc}
+                  action={tr.browseArticles}
+                  onPress={() => router.navigate('/articles' as never)}
+                />
+              )}
             </View>
           </FadeIn>
         </ScrollView>
