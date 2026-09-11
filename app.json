@@ -79,6 +79,12 @@
         "projectId": "ae8084e5-4c1d-41dd-a7d7-9f731b33c288"
       }
     },
-    "owner": "bloomsline"
+    "owner": "bloomsline",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/ae8084e5-4c1d-41dd-a7d7-9f731b33c288"
+    }
   }
 }
