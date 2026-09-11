@@ -92,9 +92,10 @@ export default function MyCare() {
         <StatusBar style="dark" />
         <SafeAreaView edges={['top']} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={{ paddingBottom: 180 }} showsVerticalScrollIndicator={false}>
-            <View style={{ paddingHorizontal: 22, paddingTop: HEADER_TOP }}>
-              <Text style={{ fontSize: 27, fontWeight: '800', color: TT.ink, letterSpacing: -0.9, lineHeight: 31 }}>{headerTitle}</Text>
-            </View>
+            {/* The same header as the hub, so it carries ProfileButton: this
+                branch used to draw its own title row without it, and a patient
+                with no practitioner yet had no way into Settings from here. */}
+            {header}
             <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
               <EdCard style={{ alignItems: 'center', padding: 24 }}>
                 <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: TT.accentTint, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>

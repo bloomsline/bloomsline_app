@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import Svg, { Path } from 'react-native-svg';
 import { router, useLocalSearchParams } from 'expo-router';
 import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,7 +11,6 @@ import { useAuth } from '@/src/auth/auth-context';
 import { useGoogleSignIn } from '@/src/auth/google';
 import { useMicrosoftSignIn } from '@/src/auth/microsoft';
 import { useAppleSignIn } from '@/src/auth/apple';
-import * as AppleAuthentication from 'expo-apple-authentication';
 import { googleConfigured, microsoftConfigured, MOCK_AUTH } from '@/src/config';
 import { notify } from '@/src/ui/alert';
 import { useI18n, fmt } from '@/src/i18n';
@@ -39,31 +39,28 @@ function OutlookMark() {
   );
 }
 
-// Editorial pill for the OAuth providers. dark = ink filled, light = white outline.
-function EdAuthButton({ label, leading, onPress, tone }: { label: string; leading: ReactNode; onPress?: () => void; tone: 'dark' | 'light' }) {
-  const dark = tone === 'dark';
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{ height: 54, borderRadius: 27, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: dark ? ED.ink : '#fff', borderWidth: dark ? 0 : 1.5, borderColor: '#E7E6DF' }}
-    >
-      {leading}
-      <Text style={{ fontSize: 15, fontWeight: '700', color: dark ? '#fff' : '#33352F' }}>{label}</Text>
-    </Pressable>
-  );
-}
 
 // The Google auth hook (expo-auth-session) throws on web when no client id is
 // set, so it's isolated in a component that's only mounted when configured.
 function GoogleAuthButton() {
   const tr = useI18n().t.signUp;
   const google = useGoogleSignIn((m) => notify(tr.kickerSignIn, m));
-  return <EdAuthButton tone="dark" label={tr.continueGoogle} leading={<GoogleMark />} onPress={() => google.signIn()} />;
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={tr.continueGoogle}
+      style={[ROUND, { backgroundColor: '#fff', borderColor: '#E7E6DF' }]} onPress={() => google.signIn()}>
+      <GoogleMark />
+    </Pressable>
+  );
 }
 function MicrosoftAuthButton() {
   const tr = useI18n().t.signUp;
   const ms = useMicrosoftSignIn((m) => notify(tr.kickerSignIn, m));
-  return <EdAuthButton tone="light" label={tr.continueOutlook} leading={<OutlookMark />} onPress={() => ms.signIn()} />;
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={tr.continueOutlook}
+      style={[ROUND, { backgroundColor: '#fff', borderColor: '#E7E6DF' }]} onPress={() => ms.signIn()}>
+      <OutlookMark />
+    </Pressable>
+  );
 }
 
 // Sign in with Apple, on iOS only. Apple's own button, not a restyled pill:
@@ -75,19 +72,41 @@ function AppleAuthButton() {
   const apple = useAppleSignIn();
   if (!apple.available) return null;
   return (
-    <AppleAuthentication.AppleAuthenticationButton
-      buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-      buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-      cornerRadius={27}
-      style={{ height: 54, width: '100%' }}
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={tr.continueApple}
+      style={[ROUND, { backgroundColor: '#000', borderColor: '#000' }]}
       onPress={async () => {
         const r = await apple.signIn();
         // null: they closed the sheet. On success the auth gate takes over.
         if (r && !r.ok) notify(tr.kickerSignIn, r.message ?? tr.appleFailed);
         else if (r?.ok) router.replace('/');
       }}
-    />
+    >
+      <AppleMark />
+    </Pressable>
   );
+}
+
+// The three ways in, as one row of icons rather than three stacked bars. Each
+// keeps an accessibility label, since the words are gone. A provider that is
+// not configured for THIS platform is not drawn at all: a button that cannot
+// work is worse than a missing one, and App Review treats it as a defect.
+const ROUND = { width: 64, height: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 } as const;
+
+function AppleMark({ color = '#fff', size = 22 }: { color?: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        fill={color}
+        d="M16.365 1.43c0 1.14-.42 2.2-1.12 3.02-.85.99-2.24 1.76-3.38 1.67-.13-1.1.43-2.26 1.1-3.02.77-.88 2.17-1.6 3.4-1.67zM20.5 17.1c-.55 1.27-.82 1.84-1.53 2.96-.99 1.56-2.39 3.5-4.12 3.51-1.54.02-1.94-1-4.03-.99-2.09.01-2.53 1.01-4.07.99-1.73-.02-3.05-1.77-4.04-3.33C-.02 16.9-.31 11.8 1.4 9.1c1.2-1.92 3.1-3.04 4.89-3.04 1.82 0 2.96 1 4.46 1 1.46 0 2.35-1 4.45-1 1.59 0 3.27.87 4.47 2.36-3.93 2.16-3.29 7.78 1.83 8.68z"
+      />
+    </Svg>
+  );
+}
+
+function ProviderRow({ children }: { children: ReactNode }) {
+  return <View style={{ flexDirection: 'row', gap: 10, justifyContent: 'center' }}>{children}</View>;
 }
 
 export default function SignUp() {
@@ -254,22 +273,30 @@ export default function SignUp() {
                 )}
 
                 <View style={{ marginTop: 22, gap: 10 }}>
-                  {Platform.OS === 'ios' && <AppleAuthButton />}
+                  <ProviderRow>
+                    {Platform.OS === 'ios' ? <AppleAuthButton /> : null}
                   {/* A provider that is not configured on THIS platform is not
                       shown. It used to render anyway and answer a tap with
                       "isn't configured yet", which on a store build is a
                       button that does nothing, and a rejection. The mock
                       stand-ins remain for local work without a backend. */}
-                  {googleConfigured ? (
-                    <GoogleAuthButton />
-                  ) : MOCK_AUTH ? (
-                    <EdAuthButton tone="dark" label={tr.continueGoogle} leading={<GoogleMark />} onPress={() => devSignIn()} />
-                  ) : null}
-                  {microsoftConfigured ? (
-                    <MicrosoftAuthButton />
-                  ) : MOCK_AUTH ? (
-                    <EdAuthButton tone="light" label={tr.continueOutlook} leading={<OutlookMark />} onPress={() => devSignIn()} />
-                  ) : null}
+                    {googleConfigured ? (
+                      <GoogleAuthButton />
+                    ) : MOCK_AUTH ? (
+                      <Pressable accessibilityRole="button" accessibilityLabel={tr.continueGoogle}
+                        style={[ROUND, { backgroundColor: '#fff', borderColor: '#E7E6DF' }]} onPress={() => devSignIn()}>
+                        <GoogleMark />
+                      </Pressable>
+                    ) : null}
+                    {microsoftConfigured ? (
+                      <MicrosoftAuthButton />
+                    ) : MOCK_AUTH ? (
+                      <Pressable accessibilityRole="button" accessibilityLabel={tr.continueOutlook}
+                        style={[ROUND, { backgroundColor: '#fff', borderColor: '#E7E6DF' }]} onPress={() => devSignIn()}>
+                        <OutlookMark />
+                      </Pressable>
+                    ) : null}
+                  </ProviderRow>
 
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 4 }}>
                     <View style={{ height: 1, flex: 1, backgroundColor: '#E7E6DF' }} />

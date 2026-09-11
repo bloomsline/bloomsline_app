@@ -58,6 +58,7 @@ export const en = {
     headingSignIn: 'Welcome back.',
     invitedPre: 'Your invitation was sent to ',
     invitedNote: 'Use this address whichever way you sign in, so your practitioner can find you.',
+    continueApple: 'Continue with Apple',
     continueGoogle: 'Continue with Google',
     continueOutlook: 'Continue with Outlook',
     orUseEmail: 'or use your email',
