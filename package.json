@@ -45,8 +45,7 @@
     "react-native-screens": "^4.24.0",
     "react-native-svg": "15.15.3",
     "react-native-web": "^0.21.0",
-    "serve": "^14.2.6",
-    "undefined": "/private/tmp/claude-501/-Users-adityachanne-lauchpad/d773fc84-fae8-449d-9c11-ce925a2bdb36/scratchpad/npm-cache"
+    "serve": "^14.2.6"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
