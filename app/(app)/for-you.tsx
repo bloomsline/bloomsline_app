@@ -124,7 +124,7 @@ export default function ForYou() {
         </ScrollView>
       </SafeAreaView>
 
-      <TabBar active="foryou" tone="dark" />
+      <TabBar active="foryou" />
     </Ground>
   );
 }

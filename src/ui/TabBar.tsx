@@ -1,6 +1,5 @@
 import { Platform, Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { User, Heart, HandHeart, Plus, type LucideIcon } from 'lucide-react-native';
 import { useLanding } from '@/src/prefs/landing';
 import { useI18n } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
@@ -9,104 +8,69 @@ export type TabId = 'care' | 'moments' | 'foryou';
 
 const TAB_LABEL: Record<TabId, 'care' | 'moments' | 'forYou'> = { care: 'care', moments: 'moments', foryou: 'forYou' };
 
-const TABS: Record<TabId, { id: TabId; Icon: LucideIcon; href: string }> = {
-  care: { id: 'care', Icon: User, href: '/home' },
-  moments: { id: 'moments', Icon: Heart, href: '/moments' },
-  foryou: { id: 'foryou', Icon: HandHeart, href: '/for-you' },
+const TABS: Record<TabId, { id: TabId; href: string }> = {
+  care: { id: 'care', href: '/home' },
+  moments: { id: 'moments', href: '/moments' },
+  foryou: { id: 'foryou', href: '/for-you' },
 };
 
-// Tab bar + capture FAB. Shared across the app tabs. The FAB opens the capture
-// flow; "For You" is not built yet (kept inert). The landing (home) tab is shown
-// first, so toggling it in Settings reorders the bar too; "For You" always trails.
+// The tab bar. ONE shape everywhere.
 //
-// Two tones. `light` is the v1 floating white pill, still used by the tabs that
-// have not been rebuilt. `dark` is what the v2 board draws on the dark tabs:
-// plain labels straight on the ground, no pill and no icons, so the navigation
-// stops competing with the content. Until every tab is rebuilt the chrome
-// therefore changes shape between tabs — deliberate and temporary.
-export function TabBar({ active, tone }: { active: TabId; tone?: 'light' | 'dark' }) {
+// There were two: a v1 floating white pill with icons and a capture FAB, and
+// the v2 pill of plain labels the rebuilt tabs draw. Only the Care tab's solo
+// state still asked for the v1 one, so the chrome changed shape depending on
+// whether you had a practitioner yet — which is exactly where a patient is
+// least sure the app is working. The v1 variant is gone.
+//
+// Colours come from the theme, so this reads correctly on the light solo
+// screen and on the dark rebuilt tabs without a variant. Capture is reached
+// from the dashed "today" node at the foot of the line, which sits where the
+// new moment will land; the corner + was a second door to the same room.
+export function TabBar({ active }: { active: TabId }) {
   const { t: TT } = useTheme();
   const router = useRouter();
   const { landing } = useLanding();
   const { t } = useI18n();
   const order: TabId[] = landing === 'moments' ? ['moments', 'care', 'foryou'] : ['care', 'moments', 'foryou'];
 
-  if (tone === 'dark') {
-    return (
-      <View className="absolute inset-x-6 bottom-8 flex-row items-center justify-center">
-        {/* A pill, not bare labels. Bare text has no ground of its own, so the
-            page scrolls UNDERNEATH it — the day heading collided with the tab
-            row. The container gives the bar a surface; the active tab gets its
-            own inner pill so selection reads without relying on weight alone.
-            It HUGS its labels — no flex-1. Stretching it to the full width left
-            a dead third after "For You" and pushed its edge into the + button;
-            the row is justify-between instead, so the pill ends where the words
-            do and the + stays at the margin. */}
-        <View
-          className="flex-row items-center self-start rounded-full p-1"
-          style={{ backgroundColor: TT.floating, borderWidth: 1, borderColor: TT.cardLine }}
-        >
-          {order.map((id) => TABS[id]).map((tab) => {
-            const on = tab.id === active;
-            return (
-              <Pressable
-                key={tab.id}
-                disabled={on}
-                onPress={() => router.navigate(tab.href as never)}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: on }}
-                className="rounded-full px-3.5 py-1.5"
-                style={on ? { backgroundColor: TT.bg } : undefined}
-              >
-                <Text style={{ fontSize: 13.5, fontWeight: on ? '700' : '500', color: on ? TT.ink : TT.faint }}>
-                  {t.tabs[TAB_LABEL[tab.id]]}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        {/* No capture button here. The dashed "today" node at the foot of the
-            line already opens capture, and it is the better target: it sits
-            exactly where the new moment will land, so the gesture and its
-            result are in the same place. A + in the corner was a second door
-            to the same room, and it pushed the tab pill off centre. */}
-      </View>
-    );
-  }
-
   return (
-    <View className="absolute inset-x-6 bottom-8 flex-row items-center gap-3">
+    <View className="absolute inset-x-6 bottom-8 flex-row items-center justify-center">
+      {/* A pill, not bare labels. Bare text has no ground of its own, so the
+          page scrolls UNDERNEATH it — the day heading collided with the tab
+          row. The container gives the bar a surface; the active tab gets its
+          own inner pill so selection reads without relying on weight alone.
+          It HUGS its labels — no flex-1. Stretching it to the full width left
+          a dead third after "For You" and pushed its edge into the + button;
+          the row is justify-between instead, so the pill ends where the words
+          do and the + stays at the margin. */}
       <View
-        className="flex-1 flex-row justify-around rounded-[40px] px-4 py-3"
-        style={{ backgroundColor: TT.floating, borderWidth: 1, borderColor: TT.line, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, shadowOffset: { width: 0, height: 6 }, elevation: 8 }}
+        className="flex-row items-center self-start rounded-full p-1"
+        style={{ backgroundColor: TT.floating, borderWidth: 1, borderColor: TT.cardLine }}
       >
         {order.map((id) => TABS[id]).map((tab) => {
           const on = tab.id === active;
           return (
             <Pressable
               key={tab.id}
-              className="items-center"
               disabled={on}
               onPress={() => router.navigate(tab.href as never)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}
+              className="rounded-full px-3.5 py-1.5"
+              style={on ? { backgroundColor: TT.bg } : undefined}
             >
-              <View className="h-[46px] w-[46px] items-center justify-center rounded-full" style={on ? { backgroundColor: TT.accent } : { borderWidth: 1, borderColor: TT.line, backgroundColor: TT.bg }}>
-                <tab.Icon size={20} color={on ? TT.bg : TT.faint} strokeWidth={on ? 2 : 1.6} />
-              </View>
-              <Text className="mt-1 text-[11px]" style={{ fontWeight: on ? '700' : '400', color: on ? TT.accent : TT.faint }}>{t.tabs[TAB_LABEL[tab.id]]}</Text>
+              <Text style={{ fontSize: 13.5, fontWeight: on ? '700' : '500', color: on ? TT.ink : TT.faint }}>
+                {t.tabs[TAB_LABEL[tab.id]]}
+              </Text>
             </Pressable>
           );
         })}
       </View>
-      {active === 'moments' && (
-        <Pressable
-          accessibilityLabel="Capture a moment"
-          className="h-[54px] w-[54px] items-center justify-center rounded-[27px]"
-          style={{ backgroundColor: TT.ctaBg, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}
-          onPress={() => router.navigate('/capture' as never)}
-        >
-          <Plus size={24} color={TT.ctaFg} strokeWidth={2.4} />
-        </Pressable>
-      )}
+      {/* No capture button here. The dashed "today" node at the foot of the
+          line already opens capture, and it is the better target: it sits
+          exactly where the new moment will land, so the gesture and its
+          result are in the same place. A + in the corner was a second door
+          to the same room, and it pushed the tab pill off centre. */}
     </View>
   );
 }
