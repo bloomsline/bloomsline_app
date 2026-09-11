@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "scheme": "bloomsline",
-    "newArchEnabled": true,
     "icon": "./assets/icon.png",
     "description": "Your space for moments, care and reflection with Bloomsline.",
     "ios": {
