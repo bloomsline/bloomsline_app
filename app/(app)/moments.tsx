@@ -448,7 +448,7 @@ export default function Moments() {
         </View>
       </Animated.View>
 
-      <TabBar active="moments" tone="dark" />
+      <TabBar active="moments" />
       {viewing ? <MomentDetail moment={viewing} onClose={() => setViewing(null)} onChanged={applyChange} /> : null}
     </Ground>
   );

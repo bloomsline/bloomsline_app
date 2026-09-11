@@ -225,7 +225,7 @@ export default function MyCare() {
         </ScrollView>
       </SafeAreaView>
 
-      <TabBar active="care" tone="dark" />
+      <TabBar active="care" />
     </Ground>
   );
 }
