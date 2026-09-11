@@ -31,16 +31,38 @@ type CachedStatus = 'practitioner' | 'authed' | 'onboarding';
 const isCachedStatus = (v: string | null): v is CachedStatus =>
   v === 'practitioner' || v === 'authed' || v === 'onboarding';
 
+/** A sign-in that can be refused for a reason the person should read
+ *  (waitlisted, suspended), which only the server knows. */
+export type SignInResult = { ok: true } | { ok: false; message?: string };
+
+export interface AppleSignInPayload {
+  identityToken: string;
+  /** The RAW nonce. Apple was handed its SHA-256; the server checks the match. */
+  nonce: string;
+  authorizationCode: string | null;
+  /** Sent by Apple on the first authorisation only. */
+  givenName: string | null;
+  familyName: string | null;
+}
+
 interface AuthValue {
   status: Status;
-  /** Email a sign-in link. Returns the link in dev (DEV_AUTH) so it can be opened; null otherwise. */
-  startEmailSignIn: (email: string, locale?: 'en' | 'fr') => Promise<string | null>;
+  /**
+   * Email a sign-in link. `devUrl` is the link itself in dev (DEV_AUTH), null
+   * otherwise. `code` is true for the ONE store-review address, which signs in
+   * with a fixed code because the reviewer cannot open our inbox.
+   */
+  startEmailSignIn: (email: string, locale?: 'en' | 'fr') => Promise<{ devUrl: string | null; code: boolean }>;
+  /** The store-review account's code sign-in. Refused for any other address. */
+  signInWithReviewCode: (email: string, code: string) => Promise<SignInResult>;
+  /** Sign in with Apple: the identity token plus what only the device knows. */
+  signInWithApple: (a: AppleSignInPayload) => Promise<SignInResult>;
   /**
    * Exchange a token from an emailed sign-in link for a session. On failure the
    * server's own message comes back, because "expired link" and "you're on the
    * waitlist" are different things to be told and only the server knows which.
    */
-  signInWithLink: (token: string) => Promise<{ ok: true } | { ok: false; message?: string }>;
+  signInWithLink: (token: string) => Promise<SignInResult>;
   signInWithGoogleIdToken: (idToken: string) => Promise<boolean>;
   signInWithMicrosoftIdToken: (idToken: string) => Promise<boolean>;
   /** Dev-only mock sign-in (EXPO_PUBLIC_MOCK_AUTH) → enters onboarding, no backend. */
@@ -124,11 +146,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [resolveSession]);
 
   const startEmailSignIn = useCallback(async (email: string, locale: 'en' | 'fr' = 'en') => {
-    if (MOCK_AUTH) return null; // pretend the link was sent
+    if (MOCK_AUTH) return { devUrl: null, code: false }; // pretend the link was sent
     const res = await postJson('/api/mobile/auth/magic-link/start', { email, locale });
+    // Throwing on a refusal is what the screen's "could not send" relies on.
+    if (!res.ok) throw new Error(`start ${res.status}`);
     const data = await res.json().catch(() => ({}));
-    return typeof data?.devUrl === 'string' ? data.devUrl : null; // dev-only
+    return {
+      devUrl: typeof data?.devUrl === 'string' ? data.devUrl : null, // dev-only
+      code: data?.code === true,
+    };
   }, []);
+
+  /** POST a sign-in, keep the pair on success, and hand back the server's reason on refusal. */
+  const signInVia = useCallback(async (path: string, body: unknown): Promise<SignInResult> => {
+    const res = await postJson(path, body);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return { ok: false, message: typeof data?.error === 'string' ? data.error : undefined };
+    }
+    await saveTokens(await res.json());
+    await afterSignIn();
+    return { ok: true };
+  }, [afterSignIn]);
+
+  const signInWithReviewCode = useCallback(
+    (email: string, code: string) => signInVia('/api/mobile/auth/review', { email, code }),
+    [signInVia],
+  );
+  const signInWithApple = useCallback(
+    (a: AppleSignInPayload) => signInVia('/api/mobile/auth/apple', { ...a, device: 'iOS' }),
+    [signInVia],
+  );
 
   const devSignIn = useCallback(async () => {
     await saveTokens(mockPair());
@@ -169,8 +217,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<AuthValue>(
-    () => ({ status, startEmailSignIn, signInWithLink, signInWithGoogleIdToken, signInWithMicrosoftIdToken, devSignIn, completeOnboarding, signOut }),
-    [status, startEmailSignIn, signInWithLink, signInWithGoogleIdToken, signInWithMicrosoftIdToken, devSignIn, completeOnboarding, signOut],
+    () => ({ status, startEmailSignIn, signInWithLink, signInWithReviewCode, signInWithApple, signInWithGoogleIdToken, signInWithMicrosoftIdToken, devSignIn, completeOnboarding, signOut }),
+    [status, startEmailSignIn, signInWithLink, signInWithReviewCode, signInWithApple, signInWithGoogleIdToken, signInWithMicrosoftIdToken, devSignIn, completeOnboarding, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

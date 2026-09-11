@@ -18,6 +18,7 @@
     "@expo-google-fonts/ibm-plex-mono": "^0.4.1",
     "@expo-google-fonts/manrope": "^0.4.2",
     "expo": "~55.0.4",
+    "expo-apple-authentication": "~55.0.17",
     "expo-audio": "~55.0.16",
     "expo-auth-session": "~55.0.0",
     "expo-constants": "^55.0.14",
@@ -30,6 +31,7 @@
     "expo-linking": "~55.0.0",
     "expo-router": "^55.0.3",
     "expo-secure-store": "^55.0.8",
+    "expo-splash-screen": "~55.0.25",
     "expo-status-bar": "~55.0.4",
     "expo-video-thumbnails": "~55.0.17",
     "expo-web-browser": "^55.0.9",
@@ -43,7 +45,8 @@
     "react-native-screens": "^4.24.0",
     "react-native-svg": "15.15.3",
     "react-native-web": "^0.21.0",
-    "serve": "^14.2.6"
+    "serve": "^14.2.6",
+    "undefined": "/private/tmp/claude-501/-Users-adityachanne-lauchpad/d773fc84-fae8-449d-9c11-ce925a2bdb36/scratchpad/npm-cache"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",

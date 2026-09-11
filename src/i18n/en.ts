@@ -66,6 +66,16 @@ export const en = {
     couldNotSend: 'Could not send the link. Check your connection and try again.',
     googleNotConfigured: 'Google sign-in isn’t configured yet.',
     outlookNotConfigured: 'Outlook sign-in isn’t configured yet.',
+    appleFailed: 'Apple sign-in did not work. Try again, or use your email.',
+  },
+  signUpCode: {
+    kicker: 'Sign in with a code',
+    title: 'Enter your code.',
+    body: '{email} signs in with a code instead of an emailed link.',
+    placeholder: 'Your code',
+    submit: 'Sign in',
+    wrong: 'That code is not valid.',
+    back: 'Use a different address',
   },
   signUpSent: {
     kicker: 'Check your email',

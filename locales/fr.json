@@ -1,0 +1,6 @@
+{
+  "CFBundleDisplayName": "Bloomsline",
+  "NSCameraUsageDescription": "Bloomsline a besoin de l’appareil photo pour que vous puissiez prendre une photo ou filmer une vidéo pour un moment.",
+  "NSMicrophoneUsageDescription": "Bloomsline utilise le micro pour que vous puissiez enregistrer une note vocale dans un moment ou une page de journal.",
+  "NSPhotoLibraryUsageDescription": "Bloomsline a besoin de vos photos pour que vous puissiez en ajouter une à un moment ou à une page de journal."
+}

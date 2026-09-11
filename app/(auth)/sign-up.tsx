@@ -9,6 +9,8 @@ import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useAuth } from '@/src/auth/auth-context';
 import { useGoogleSignIn } from '@/src/auth/google';
 import { useMicrosoftSignIn } from '@/src/auth/microsoft';
+import { useAppleSignIn } from '@/src/auth/apple';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { googleConfigured, microsoftConfigured, MOCK_AUTH } from '@/src/config';
 import { notify } from '@/src/ui/alert';
 import { useI18n, fmt } from '@/src/i18n';
@@ -64,12 +66,37 @@ function MicrosoftAuthButton() {
   return <EdAuthButton tone="light" label={tr.continueOutlook} leading={<OutlookMark />} onPress={() => ms.signIn()} />;
 }
 
+// Sign in with Apple, on iOS only. Apple's own button, not a restyled pill:
+// App Review holds apps to its button guidelines, and the label is localised by
+// the system. First in the list, since 4.8 wants it no less prominent than the
+// others.
+function AppleAuthButton() {
+  const tr = useI18n().t.signUp;
+  const apple = useAppleSignIn();
+  if (!apple.available) return null;
+  return (
+    <AppleAuthentication.AppleAuthenticationButton
+      buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+      buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+      cornerRadius={27}
+      style={{ height: 54, width: '100%' }}
+      onPress={async () => {
+        const r = await apple.signIn();
+        // null: they closed the sheet. On success the auth gate takes over.
+        if (r && !r.ok) notify(tr.kickerSignIn, r.message ?? tr.appleFailed);
+        else if (r?.ok) router.replace('/');
+      }}
+    />
+  );
+}
+
 export default function SignUp() {
   const insets = useSafeAreaInsets();
   const { t, locale } = useI18n();
   const tr = t.signUp;
   const sent = t.signUpSent;
-  const { startEmailSignIn, devSignIn } = useAuth();
+  const { startEmailSignIn, signInWithReviewCode, devSignIn } = useAuth();
+  const tc = t.signUpCode;
   // An invited patient arrives with the address their practitioner used. Seed
   // the field with it: signing up under a different address creates an account
   // that never links to their practitioner, and they would have no way to know.
@@ -89,13 +116,33 @@ export default function SignUp() {
   // screen into a "check your email" state and the journey continues in the
   // inbox — app/auth.tsx is where the link lands.
   const [sentTo, setSentTo] = useState<string | null>(null);
+  // The store-review address signs in with a code; the server says so.
+  const [codeFor, setCodeFor] = useState<string | null>(null);
+  const [code, setCode] = useState('');
+
+  const submitCode = async () => {
+    if (!codeFor || !code.trim() || busy) return;
+    setBusy(true);
+    try {
+      const r = await signInWithReviewCode(codeFor, code.trim());
+      if (r.ok) router.replace('/');
+      else notify(tc.kicker, r.message ?? tc.wrong);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const sendLink = async () => {
     if (!valid || busy) return;
     const addr = email.trim().toLowerCase();
     setBusy(true);
     try {
-      const devUrl = await startEmailSignIn(addr, locale);
+      const { devUrl, code: wantsCode } = await startEmailSignIn(addr, locale);
+      if (wantsCode) {
+        setCode('');
+        setCodeFor(addr);
+        return;
+      }
       setSentTo(addr);
       // DEV_AUTH only: the backend hands the link straight back so a local
       // sign-in needs no mail server. Never populated in a real deployment.
@@ -140,7 +187,36 @@ export default function SignUp() {
 
             <View style={{ flex: 1 }} />
 
-            {sentTo ? (
+            {codeFor ? (
+              <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <RiseIn y={40} duration={700} style={{ backgroundColor: ED.sheet, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 26, paddingTop: 26, paddingBottom: insets.bottom + 22 }}>
+                  <MonoKicker size={10.5} color={ED.green} style={{ marginBottom: 10 }}>{tc.kicker}</MonoKicker>
+                  <Text style={{ fontSize: 28, fontWeight: '800', color: '#141414', letterSpacing: -0.9, lineHeight: 31 }}>{tc.title}</Text>
+                  <Text style={{ marginTop: 10, fontSize: 14.5, color: '#6E6E66', lineHeight: 21 }}>{fmt(tc.body, { email: codeFor })}</Text>
+                  <TextInput
+                    value={code}
+                    onChangeText={setCode}
+                    placeholder={tc.placeholder}
+                    placeholderTextColor="#B5B5AD"
+                    selectionColor={ED.green}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoFocus
+                    textContentType="oneTimeCode"
+                    returnKeyType="go"
+                    onSubmitEditing={submitCode}
+                    accessibilityLabel={tc.placeholder}
+                    style={[{ marginTop: 20, height: 54, borderRadius: 27, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E7E6DF', paddingHorizontal: 18, fontSize: 18, fontWeight: '700', letterSpacing: 2, color: '#141414' }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
+                  />
+                  <Pressable onPress={submitCode} disabled={!code.trim() || busy} style={{ marginTop: 12, height: 54, borderRadius: 27, backgroundColor: ED.ink, alignItems: 'center', justifyContent: 'center', opacity: !code.trim() || busy ? 0.5 : 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: '#fff' }}>{tc.submit}</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setCodeFor(null)} style={{ alignItems: 'center', paddingVertical: 16 }}>
+                    <Text style={{ fontSize: 14.5, fontWeight: '600', color: '#6E6E66' }}>{tc.back}</Text>
+                  </Pressable>
+                </RiseIn>
+              </KeyboardAvoidingView>
+            ) : sentTo ? (
               <RiseIn y={40} duration={700} style={{ backgroundColor: ED.sheet, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 26, paddingTop: 26, paddingBottom: insets.bottom + 22 }}>
                 <MonoKicker size={10.5} color={ED.green} style={{ marginBottom: 10 }}>{sent.kicker}</MonoKicker>
                 <Text style={{ fontSize: 28, fontWeight: '800', color: '#141414', letterSpacing: -0.9, lineHeight: 31 }}>{sent.title}</Text>
@@ -178,16 +254,22 @@ export default function SignUp() {
                 )}
 
                 <View style={{ marginTop: 22, gap: 10 }}>
+                  {Platform.OS === 'ios' && <AppleAuthButton />}
+                  {/* A provider that is not configured on THIS platform is not
+                      shown. It used to render anyway and answer a tap with
+                      "isn't configured yet", which on a store build is a
+                      button that does nothing, and a rejection. The mock
+                      stand-ins remain for local work without a backend. */}
                   {googleConfigured ? (
                     <GoogleAuthButton />
-                  ) : (
-                    <EdAuthButton tone="dark" label={tr.continueGoogle} leading={<GoogleMark />} onPress={() => (MOCK_AUTH ? devSignIn() : notify('Google', tr.googleNotConfigured))} />
-                  )}
+                  ) : MOCK_AUTH ? (
+                    <EdAuthButton tone="dark" label={tr.continueGoogle} leading={<GoogleMark />} onPress={() => devSignIn()} />
+                  ) : null}
                   {microsoftConfigured ? (
                     <MicrosoftAuthButton />
-                  ) : (
-                    <EdAuthButton tone="light" label={tr.continueOutlook} leading={<OutlookMark />} onPress={() => (MOCK_AUTH ? devSignIn() : notify('Outlook', tr.outlookNotConfigured))} />
-                  )}
+                  ) : MOCK_AUTH ? (
+                    <EdAuthButton tone="light" label={tr.continueOutlook} leading={<OutlookMark />} onPress={() => devSignIn()} />
+                  ) : null}
 
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 4 }}>
                     <View style={{ height: 1, flex: 1, backgroundColor: '#E7E6DF' }} />
