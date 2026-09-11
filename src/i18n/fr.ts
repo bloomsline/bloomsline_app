@@ -68,6 +68,16 @@ export const fr: Dict = {
     couldNotSend: 'Impossible d’envoyer le lien. Vérifiez votre connexion et réessayez.',
     googleNotConfigured: 'La connexion avec Google n’est pas encore configurée.',
     outlookNotConfigured: 'La connexion avec Outlook n’est pas encore configurée.',
+    appleFailed: 'La connexion avec Apple n’a pas abouti. Réessayez, ou utilisez votre e-mail.',
+  },
+  signUpCode: {
+    kicker: 'Connexion par code',
+    title: 'Saisissez votre code.',
+    body: '{email} se connecte avec un code plutôt qu’avec un lien par e-mail.',
+    placeholder: 'Votre code',
+    submit: 'Se connecter',
+    wrong: 'Ce code n’est pas valide.',
+    back: 'Utiliser une autre adresse',
   },
   signUpSent: {
     kicker: 'Vérifiez vos e-mails',

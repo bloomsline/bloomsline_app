@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 // Runtime config. Set these in a `.env` (Expo reads EXPO_PUBLIC_* at build time)
 // or via EAS env. Never put secrets here — only the public API base + the Google
 // OAuth *client ids* (which are public identifiers, not secrets).
@@ -22,7 +23,14 @@ export const GOOGLE = {
   androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? '',
 };
 
-export const googleConfigured = Boolean(GOOGLE.webClientId || GOOGLE.iosClientId || GOOGLE.androidClientId);
+// Per PLATFORM, not "any id at all". The Google hook throws on a platform
+// whose own client id is missing, so a web-only id used to mark Google as
+// configured on iOS, where opening the sign-in screen would have crashed on the
+// first real device build.
+export const googleConfigured =
+  Platform.OS === 'ios' ? Boolean(GOOGLE.iosClientId)
+  : Platform.OS === 'android' ? Boolean(GOOGLE.androidClientId)
+  : Boolean(GOOGLE.webClientId);
 
 // Microsoft (Entra ID). `tenant` should be 'common'.
 //

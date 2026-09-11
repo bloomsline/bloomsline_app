@@ -2,16 +2,20 @@
   "expo": {
     "name": "Bloomsline",
     "slug": "bloomsline-mobile-v2",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "scheme": "bloomsline",
     "newArchEnabled": true,
     "icon": "./assets/icon.png",
     "description": "Your space for moments, care and reflection with Bloomsline.",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.bloomsline.app"
+      "bundleIdentifier": "com.bloomsline.app",
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "CFBundleAllowMixedLocalizations": true
+      }
     },
     "android": {
       "package": "com.bloomsline.app",
@@ -37,6 +41,7 @@
       "expo-router",
       "expo-secure-store",
       "expo-web-browser",
+      "expo-apple-authentication",
       [
         "expo-audio",
         {
@@ -49,7 +54,37 @@
           "photosPermission": "Bloomsline needs your photos so you can add one to a moment or a journal page.",
           "cameraPermission": "Bloomsline needs the camera so you can take a photo or record a video for a moment."
         }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/adaptive-icon.png",
+          "imageWidth": 140,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "image": "./assets/adaptive-icon.png",
+            "backgroundColor": "#101210"
+          }
+        }
       ]
-    ]
+    ],
+    "locales": {
+      "en": "./locales/en.json",
+      "fr": "./locales/fr.json"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ae8084e5-4c1d-41dd-a7d7-9f731b33c288"
+      }
+    },
+    "owner": "bloomsline",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/ae8084e5-4c1d-41dd-a7d7-9f731b33c288"
+    }
   }
 }
