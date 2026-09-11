@@ -35,7 +35,10 @@ export function FadeIn({ delay = 0, y = 12, duration = 600, style, children }: {
  * line of type almost on the status bar and made each screen's top edge sit at
  * a slightly different height as you moved between tabs.
  */
-export const HEADER_TOP = 36;
+// The space above a screen's title, ON TOP of the safe-area inset every
+// header already applies. At 36 that was ~95px of nothing before the words
+// on a notched phone, which is what it looked like: a gap, not a margin.
+export const HEADER_TOP = 14;
 
 /**
  * The small label above a title — a section name, a state, a category.

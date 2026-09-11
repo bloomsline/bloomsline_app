@@ -60,6 +60,7 @@ export const fr: Dict = {
     headingSignIn: 'Content de vous revoir.',
     invitedPre: 'Votre invitation a été envoyée à ',
     invitedNote: 'Utilisez cette adresse, quelle que soit la méthode : c’est comme ça que votre praticien vous retrouvera.',
+    continueApple: 'Continuer avec Apple',
     continueGoogle: 'Continuer avec Google',
     continueOutlook: 'Continuer avec Outlook',
     orUseEmail: 'ou avec votre adresse e-mail',

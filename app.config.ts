@@ -19,7 +19,15 @@ function googleIosScheme(): string | null {
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   const gScheme = googleIosScheme();
-  const iosUrlTypes = gScheme ? [{ CFBundleURLSchemes: [gScheme] }] : [];
+  // APPEND, never replace. Setting CFBundleURLTypes here overrides whatever
+  // prebuild would have registered for `scheme`, and the app's own
+  // `bloomsline://` is what the emailed sign-in link opens (app/auth.tsx).
+  // Configuring Google used to silently take it away.
+  const appScheme = typeof config.scheme === 'string' ? config.scheme : 'bloomsline';
+  const iosUrlTypes = [
+    { CFBundleURLSchemes: [appScheme, config.ios?.bundleIdentifier ?? 'com.bloomsline.app'] },
+    ...(gScheme ? [{ CFBundleURLSchemes: [gScheme] }] : []),
+  ];
 
   return {
     ...config,
