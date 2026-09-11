@@ -72,6 +72,13 @@
     "locales": {
       "en": "./locales/en.json",
       "fr": "./locales/fr.json"
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ae8084e5-4c1d-41dd-a7d7-9f731b33c288"
+      }
+    },
+    "owner": "bloomsline"
   }
 }
