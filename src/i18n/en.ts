@@ -319,6 +319,23 @@ export const en = {
     failedTitle: 'We could not reach your line.',
     failedBody: 'Check your connection and try again. Nothing you have captured is lost.',
   },
+  // The Moments introduction. Two screens: the one an empty line shows, and the
+  // one shown once after the first moment is saved.
+  firstRun: {
+    // Under `line.emptyTitle` ("Your line starts here."). Says what a moment can
+    // be, and who can see it — the second half matters most to a patient with no
+    // practitioner, who is told nothing about sharing anywhere else in the app.
+    introBody: 'A few words about how you feel right now. Or a photo, a video, your own voice. Only you see it, unless you choose to show your practitioner.',
+    captureFirst: 'Capture your first moment',
+    closingTitle: 'A week, a season, a year.',
+    closingBody: 'A week starts to show a shape. A season shows it changing. A year of them is your own life, in your own words.',
+    // On the example line. Without it, a year of somebody else's moments reads
+    // as the patient's own, on the screen that is asking them to trust us.
+    exampleYear: 'an example year',
+    // "Build", not "see": at this moment there is nothing to see yet, and the
+    // word is a promise that pressing it makes something.
+    build: 'Build my line',
+  },
   capture: {
     newMoment: 'New moment',
     preview: 'Preview',

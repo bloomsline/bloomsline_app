@@ -322,6 +322,14 @@ export const fr: Dict = {
     failedTitle: 'Impossible d’accéder à votre ligne.',
     failedBody: 'Vérifiez votre connexion et réessayez. Rien de ce que vous avez capturé n’est perdu.',
   },
+  firstRun: {
+    introBody: 'Quelques mots sur ce que vous ressentez, maintenant. Ou une photo, une vidéo, votre voix. Vous seul(e) le voyez, sauf si vous choisissez de le montrer à votre praticien.',
+    captureFirst: 'Capturer mon premier moment',
+    closingTitle: 'Une semaine, une saison, une année.',
+    closingBody: 'Une semaine commence à dessiner une forme. Une saison la montre changer. Une année de moments, c’est votre vie, dans vos mots.',
+    exampleYear: 'une année, par exemple',
+    build: 'Construire ma ligne',
+  },
   capture: {
     newMoment: 'Nouveau moment',
     preview: 'Aperçu',
