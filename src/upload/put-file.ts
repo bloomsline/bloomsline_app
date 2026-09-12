@@ -53,9 +53,11 @@ export async function putFile(
       uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
       headers: { ...headers, 'content-type': contentType },
     });
-    // Storage answers 200 on a successful PUT; anything else carries its reason
-    // in the body, which is worth having in a log rather than swallowing.
-    return res.status >= 200 && res.status < 300;
+    if (res.status >= 200 && res.status < 300) return true;
+    // Storage puts its reason in the body — SignatureDoesNotMatch, EntityTooLarge,
+    // AccessDenied. Swallowing it is what left the last two reports as "it does
+    // not work", so it travels with the failure.
+    throw new Error(`storage ${res.status}: ${String(res.body ?? '').slice(0, 160)}`);
   }
   const blob = await (await fetch(uri)).blob();
   const put = await fetch(url, { method: 'PUT', headers: { ...headers, 'content-type': contentType }, body: blob });

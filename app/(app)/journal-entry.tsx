@@ -7,7 +7,7 @@
 // Sharing lives in that bar as a chip that names WHO can read the page, rather
 // than as a verb under the writing — see ShareChip for why.
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, KeyboardAvoidingView, Linking, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Linking, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -39,7 +39,7 @@ type Status = 'idle' | 'saving' | 'saved';
 
 const T = {
   en: {
-    saving: 'Saving…', saved: 'Saved {time}', titlePlaceholder: 'Title', words: 'words',
+    saving: 'Saving…', saved: 'Saved {time}', save: 'Save', saveError: 'Could not save. Check your connection and try again.', titlePlaceholder: 'Title', words: 'words',
     moveUp: 'Move up', moveDown: 'Move down', retry: 'Try again',
     confirmWeb: 'Delete this entry?', deleteTitle: 'Delete entry', deleteMessage: 'This can’t be undone.', cancel: 'Cancel', delete: 'Delete',
     text: 'Text', heading: 'Heading', list: 'List', quote: 'Quote', callout: 'Callout', video: 'Video', link: 'Link', image: 'Image', voice: 'Voice',
@@ -50,7 +50,7 @@ const T = {
     onlyYou: 'Only you can read this.', stopSharing: 'Stop sharing', shareWith: 'Share with {name}',
   },
   fr: {
-    saving: 'Enregistrement…', saved: 'Enregistré à {time}', titlePlaceholder: 'Titre', words: 'mots',
+    saving: 'Enregistrement…', saved: 'Enregistré à {time}', save: 'Enregistrer', saveError: 'Enregistrement impossible. Vérifiez votre connexion et réessayez.', titlePlaceholder: 'Titre', words: 'mots',
     moveUp: 'Monter', moveDown: 'Descendre', retry: 'Réessayer',
     confirmWeb: 'Supprimer cette entrée ?', deleteTitle: 'Supprimer l’entrée', deleteMessage: 'Cette action est irréversible.', cancel: 'Annuler', delete: 'Supprimer',
     text: 'Texte', heading: 'Titre', list: 'Liste', quote: 'Citation', callout: 'Encart', video: 'Vidéo', link: 'Lien', image: 'Image', voice: 'Vocal',
@@ -163,6 +163,27 @@ export default function JournalEntry() {
       setError(tr.shareError);
     } finally {
       setSharing(false);
+    }
+  };
+
+  /**
+   * Save this instant, and say so.
+   *
+   * The page already saves as you go, but a timestamp in the corner is a fact,
+   * not a reassurance — several people read "Enregistré à 15:21" and still went
+   * looking for a save button before leaving the page. So there is one, and it
+   * does exactly what it promises: flush whatever is pending, then hand the
+   * page back in reading mode, which is itself the confirmation that there is
+   * nothing left to type.
+   */
+  const saveNow = async () => {
+    if (timer.current) clearTimeout(timer.current);
+    setStatus('saving');
+    try {
+      await doSave();
+      if (mounted.current) { setMode('read'); Keyboard.dismiss(); }
+    } catch {
+      if (mounted.current) setError(tr.saveError);
     }
   };
 
@@ -312,6 +333,15 @@ export default function JournalEntry() {
               copy={{ canRead: tr.canRead, private: tr.private, sharedOn: tr.sharedOn, onlyYou: tr.onlyYou, stopSharing: tr.stopSharing, shareWith: tr.shareWith }}
               onToggle={toggleShare}
             />
+          )}
+          {mode === 'edit' && !entryIsEmpty(title, blocks) && (
+            <TouchableOpacity
+              onPress={saveNow}
+              activeOpacity={0.85}
+              style={{ height: 34, paddingHorizontal: 16, borderRadius: 17, backgroundColor: TT.ctaBg, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Text style={{ fontSize: 13.5, fontWeight: '700', color: TT.ctaFg }}>{tr.save}</Text>
+            </TouchableOpacity>
           )}
           {mode === 'read' && (
             <TouchableOpacity onPress={() => setMode('edit')} activeOpacity={0.7} style={[circleBtn, { backgroundColor: veil(theme, 0.10) }]}><Pencil size={16} color={TT.ink} strokeWidth={2} /></TouchableOpacity>

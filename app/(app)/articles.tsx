@@ -16,7 +16,7 @@ import { useTheme } from '@/src/ui/theme-mode';
 const T = {
   en: {
     title: 'Articles',
-    subtitle: 'Written by your practitioner, to read whenever you like.',
+    subtitle: 'Writing from your practitioner, to read whenever you like.',
     emptyTitle: 'Nothing here yet',
     emptyBody: 'Articles your practitioner publishes will appear here.',
     inOther: 'In English',
@@ -24,7 +24,7 @@ const T = {
   },
   fr: {
     title: 'Articles',
-    subtitle: 'Écrits par votre praticien, à lire quand vous le souhaitez.',
+    subtitle: 'Des textes rédigés par votre praticien, à lire quand vous le souhaitez.',
     emptyTitle: 'Rien ici pour le moment',
     emptyBody: 'Les articles publiés par votre praticien apparaîtront ici.',
     inOther: 'En anglais',

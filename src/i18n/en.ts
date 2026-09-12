@@ -28,7 +28,7 @@ export const en = {
     bloomsline: 'Bloomsline.',
     invitedBy: '{prac} invited you to',
     invited: "You're invited to",
-    tagline: 'Your days have a shape. Here you can see it.',
+    tagline: 'Your days have a shape. Here, it becomes visible.',
     invitedAs: 'You were invited as',
     // A dead or expired token falls back to the ordinary welcome headline.
     fallbackPre: 'What matters to you\n',
@@ -102,7 +102,7 @@ export const en = {
     kicker: 'bloomsline',
     headlinePre: 'What matters to you\n',
     headlineAccent: 'belongs here.',
-    tagline: 'Your days have a shape. Here you can see it.',
+    tagline: 'Your days have a shape. Here, it becomes visible.',
     private: 'Private by default. Yours alone.',
     createProfile: 'Create my profile',
     haveAccount: 'I already have an account',

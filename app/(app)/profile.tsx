@@ -82,8 +82,8 @@ export default function Profile() {
       // Null is "they cancelled" as often as "it failed", and the picker cannot
       // tell us which — so no message, and nothing changes.
       if (picked) setCropping(picked);
-    } catch {
-      setError(tr.photoFailed);
+    } catch (e) {
+      setError(`${tr.photoFailed} (${String(e).slice(0, 120)})`);
     } finally {
       setBusy(false);
     }
@@ -98,6 +98,7 @@ export default function Profile() {
     try {
       const out = await uploadAvatar(picked, crop);
       if (!out) { setError(tr.photoFailed); return; }
+
       setAvatarKey(out.key);
       // Show it AT ONCE. The previous version set the state to the storage key,
       // which is not a url, so the letter stayed on screen and choosing a photo
@@ -107,8 +108,9 @@ export default function Profile() {
       // button on the tab behind this screen.
       setMeFaceLocally({ avatarUrl: out.localUri });
       setPhotoDone(true);
-    } catch {
-      setError(tr.photoFailed);
+    } catch (e) {
+      // The step that failed travels with the message — see `avatar-upload`.
+      setError(`${tr.photoFailed} (${String(e).replace('Error: ', '').slice(0, 160)})`);
     } finally {
       setBusy(false);
     }

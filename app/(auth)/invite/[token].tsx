@@ -79,7 +79,13 @@ export default function InviteLanding() {
                 </>
               ) : (
                 <>
-                  <Text style={{ marginTop: 12, fontSize: 34, fontWeight: '800', color: '#fff', letterSpacing: -1.1, lineHeight: 40 }}>
+                  {/* Two lines, always — see welcome.tsx. */}
+                  <Text
+                    numberOfLines={2}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.78}
+                    style={{ marginTop: 12, fontSize: 34, fontWeight: '800', color: '#fff', letterSpacing: -1.1, lineHeight: 40 }}
+                  >
                     {t.invite.fallbackPre}
                     <Text style={{ color: '#7FD9C0' }}>{t.invite.fallbackAccent}</Text>
                   </Text>

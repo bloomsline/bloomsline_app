@@ -51,6 +51,9 @@ const asAnswer = (value: unknown): CanvasAnswer =>
 const drawOrder = (zones: CanvasZone[]): CanvasZone[] =>
   [...zones].sort((a, b) => Number(Boolean(a.parentZoneId)) - Number(Boolean(b.parentZoneId)));
 
+/** The one size the zone labels are wrapped AND drawn at. */
+const LABEL_SIZE = 17;
+
 export function ZonedCanvasField({
   zones,
   canvas,
@@ -124,7 +127,12 @@ export function ZonedCanvasField({
     <View style={{ gap: 12 }}>
       <View
         onLayout={(e) => setBoxWidth(e.nativeEvent.layout.width)}
-        style={{ borderWidth: 1, borderColor: C.border, borderRadius: 14, backgroundColor: C.card, padding: 6 }}
+        // NO BORDER. The zones are shapes the practitioner drew, and the
+        // outermost of them is usually a rounded rectangle — so a bordered card
+        // around the canvas put our frame a few pixels outside theirs and read
+        // as two boxes, one of which nobody meant. The surface stays, because
+        // the canvas needs a ground to sit on; the outline goes.
+        style={{ borderRadius: 14, backgroundColor: C.card, padding: 6 }}
       >
         {/* MEASURED, not percentages.
         
@@ -147,8 +155,13 @@ export function ZonedCanvasField({
                 <ZoneOutline shape={z.shape} stroke={a.stroke} fill={a.fill} />
                 {/* SVG text does not wrap, and a practitioner's label can be a
                     whole sentence. The full text is always in the panel below. */}
-                {wrapLabel(zoneLabel(z.label), shapeBox(z.shape).w - 24).map((line, li) => (
-                  <SvgText key={li} x={anchor.x} y={anchor.y + li * 22} textAnchor="middle" fontSize={20} fontWeight="700" fill={a.text}>
+                {/* WRAPPED AND DRAWN AT THE SAME SIZE. `wrapLabel` measures at
+                    17 by default and this drew at 20, so every line it worked
+                    out to fit was a sixth too wide for the box it was drawn in —
+                    a practitioner's sentence ran straight out of its own zone
+                    and across the canvas. One constant for both. */}
+                {wrapLabel(zoneLabel(z.label), shapeBox(z.shape).w - 24, LABEL_SIZE).map((line, li) => (
+                  <SvgText key={li} x={anchor.x} y={anchor.y + li * (LABEL_SIZE + 3)} textAnchor="middle" fontSize={LABEL_SIZE} fontWeight="700" fill={a.text}>
                     {line}
                   </SvgText>
                 ))}

@@ -100,9 +100,17 @@ export function EdHeader({
   // kicker reads level with the icon instead of below it.
   return (
     <View style={{ paddingTop: insets.top, backgroundColor: TT.bg }}>
-      <View style={{ paddingHorizontal: 22, paddingTop: HEADER_TOP, paddingBottom: 4 }}>
+      {/* A BACK ROW IS ITS OWN BREATHING SPACE.
+      
+          `HEADER_TOP` exists so a title does not start on the status bar. With
+          a back button the screen already has 38px of chrome between the inset
+          and the words, and adding the same margin again left a hole above the
+          arrow — about 73px of nothing on a notched phone, which reads as a
+          rendering fault rather than as spacing. Half of it when there is a row,
+          all of it when the title is alone. */}
+      <View style={{ paddingHorizontal: 22, paddingTop: onBack ? 6 : HEADER_TOP, paddingBottom: 4 }}>
         {onBack ? (
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <Pressable onPress={onBack} style={circle}>
               <ChevronLeft size={18} color={TT.ink} strokeWidth={2} />
             </Pressable>
