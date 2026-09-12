@@ -48,19 +48,26 @@ export async function pickImage(fromCamera: boolean): Promise<PickedImage | null
  * cannot distort whatever it is handed — which is the mistake being fixed.
  */
 export async function uploadAvatar(source: PickedImage, crop: CropRect): Promise<{ key: string; localUri: string } | null> {
+  // WHICH STEP FAILED. This returned a bare null for five different failures —
+  // crop, measure, presign, PUT — so "Photo did not upload. Try again." was the
+  // only thing anyone could report, on a screen where the picture never appears
+  // and there is nothing else to look at. Each step now throws with its own
+  // name, and the screen shows it.
   const out = await ImageManipulator.manipulateAsync(
     source.uri,
     [{ crop }, { resize: { width: SIZE } }],
     { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
-  );
-  const size = await byteSize(out.uri);
+  ).catch((e: unknown) => { throw new Error(`crop: ${String(e)}`); });
+
+  const size = await byteSize(out.uri).catch((e: unknown) => { throw new Error(`size: ${String(e)}`); });
+  if (!size) throw new Error('size: 0 bytes');
 
   const signed = await presignAvatar('image/jpeg', size);
-  if (!signed) return null;
+  if (!signed) throw new Error(`presign refused (${size} bytes)`);
 
-  // See `upload/put-file`. This is why "Take photo" answered "photo did not
-  // upload" on an iPhone while the same picture went up fine from a browser.
-  if (!(await putFile(signed.url, out.uri, 'image/jpeg', signed.headers))) return null;
+  const ok = await putFile(signed.url, out.uri, 'image/jpeg', signed.headers)
+    .catch((e: unknown) => { throw new Error(`put threw: ${String(e)}`); });
+  if (!ok) throw new Error('storage refused the upload');
 
   return { key: signed.key, localUri: out.uri };
 }
