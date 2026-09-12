@@ -27,7 +27,6 @@ import {
 } from 'react-native';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useEvent } from 'expo';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Minus, Pause, Play, Plus, X } from 'lucide-react-native';
 
@@ -324,23 +323,26 @@ function ImageStage({
  * again" button if anything about that handoff failed.
  */
 /**
- * A video, at the size it actually is.
+ * A video, filling the stage it is given.
  *
- * THE BUG THIS REPLACES: the stage was a box of `aspectRatio: 16/9` with the
- * video contained inside it. Every video taken on a phone is PORTRAIT, so a
- * 9:16 picture was fitted into a 16:9 hole and came out as a small strip in the
- * middle of the screen with black either side — a quarter of the height the web
- * app gives it. The web build never had a forced ratio (`<video>` uses the
- * file's own), which is the whole of "it is bigger on the web".
+ * THE HISTORY, because this is the third shape and the first two both shipped
+ * looking wrong. It began as a box of `aspectRatio: 16/9` with the video
+ * contained inside it — and every video taken on a phone is PORTRAIT, so a 9:16
+ * picture was fitted into a 16:9 hole and came out a small strip in the middle
+ * of the screen. Then it measured the stage, read the track's real size from
+ * `sourceLoad`, and sized a box to match; that reasoned correctly and was still
+ * reported small, and reading the code again did not say why.
  *
- * So the shape comes from the FILE. `sourceLoad` reports the track's real size;
- * the box is then the largest rectangle of that shape which fits the stage, so
- * a portrait video fills the height and a landscape one fills the width. Until
- * the size is known the video simply fills the stage, which is already the
- * right answer and merely un-rounded — so there is no wrong-shaped first frame.
+ * So it does the simplest thing that cannot be small: the player IS the stage,
+ * and `contentFit="contain"` fits the picture inside it at the largest size it
+ * goes. A portrait video fills the height, a landscape one the width. No
+ * measurement, no layout event, nothing to arrive late or not at all — which is
+ * what the web build has always done, and the web build was never the one being
+ * complained about.
  *
- * Fitting the box to the picture is also what makes the corners mean anything:
- * a radius on a full-bleed black rectangle rounds the background, not the film.
+ * The cost is the corners: the rounding is on the stage, so it follows the black
+ * ground rather than the picture. That is a real loss and it is the right trade
+ * at this point.
  */
 function VideoStage({ url, poster, full }: { url: string; poster: string | null; full: boolean }) {
   const web = Platform.OS === 'web';
@@ -352,13 +354,6 @@ function VideoStage({ url, poster, full }: { url: string; poster: string | null;
     // Plays on arrival: opening a video IS the intent of the tap that got here.
     p.play();
   });
-
-  // The stage, measured rather than assumed: it is what is left after the bar
-  // and the stepper, and both of them come and go with full screen.
-  const [stage, setStage] = useState({ w: 0, h: 0 });
-  const loaded = useEvent(player, 'sourceLoad', null);
-  const size = loaded?.availableVideoTracks?.[0]?.size ?? null;
-  const ratio = size && size.width > 0 && size.height > 0 ? size.width / size.height : null;
 
   if (web) {
     return (
@@ -375,19 +370,13 @@ function VideoStage({ url, poster, full }: { url: string; poster: string | null;
     );
   }
 
-  // The largest box of the video's own shape that fits. Both fall back to the
-  // whole stage before the size is known.
-  const boxW = ratio && stage.w && stage.h ? Math.min(stage.w, stage.h * ratio) : stage.w || undefined;
-  const boxH = ratio && stage.w && stage.h ? Math.min(stage.h, stage.w / ratio) : stage.h || undefined;
-
   return (
-    <View
-      style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: full ? 0 : 12 }}
-      onLayout={(e) => setStage({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
-    >
+    // No `alignItems: center` on this one: a centred child is sized by its
+    // content, and the whole point is that the child takes the room.
+    <View style={{ flex: 1, paddingHorizontal: full ? 0 : 10, paddingVertical: full ? 0 : 6 }}>
       <VideoView
         player={player}
-        style={{ width: boxW, height: boxH, borderRadius: full ? 0 : 10, backgroundColor: '#000' }}
+        style={{ flex: 1, borderRadius: full ? 0 : 10, backgroundColor: '#000' }}
         contentFit="contain"
         nativeControls
       />
