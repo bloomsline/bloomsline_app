@@ -18,12 +18,39 @@ import { useI18n, fmt } from '@/src/i18n';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 
-// A tiny Google "G" mark.
-function GoogleMark() {
+/**
+ * Google's own four-colour G, drawn as its four paths.
+ *
+ * It was a capital G in the app's font, in Google blue, on a white square: a
+ * letter, not a mark. Next to Microsoft's real four-square logo it read as a
+ * placeholder somebody forgot to replace — which is roughly what it was.
+ *
+ * Using the official artwork is not a liberty here, it is the requirement:
+ * Google's Sign-In branding guidelines say the button carries their mark, drawn
+ * to their proportions and never recoloured or re-lettered. The four paths are
+ * the standard 48×48 asset, which is why the numbers look arbitrary — they are
+ * theirs, not ours, and should not be "tidied".
+ */
+function GoogleMark({ size = 20 }: { size?: number }) {
   return (
-    <View style={{ width: 22, height: 22, borderRadius: 6, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: 14, fontWeight: '800', color: '#4285F4' }}>G</Text>
-    </View>
+    <Svg width={size} height={size} viewBox="0 0 48 48">
+      <Path
+        fill="#4285F4"
+        d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"
+      />
+      <Path
+        fill="#34A853"
+        d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"
+      />
+      <Path
+        fill="#FBBC05"
+        d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24s.85 6.91 2.34 9.88l7.35-5.7z"
+      />
+      <Path
+        fill="#EA4335"
+        d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"
+      />
+    </Svg>
   );
 }
 // Outlook 2×2 colored squares.
@@ -273,13 +300,23 @@ export default function SignUp() {
                 )}
 
                 <View style={{ marginTop: 22, gap: 10 }}>
+                  {/* ORDER IS BY PLATFORM, not by preference.
+                      
+                      On iOS Apple comes first: guideline 4.8 asks that Sign in
+                      with Apple sit no lower than the other options, and on an
+                      iPhone it is also the one most people will reach for.
+                      Everywhere else it goes last, because Google is the
+                      habitual first choice on Android and on the web, and a
+                      leading Apple button there reads as an app that thinks it
+                      is still on an iPhone.
+                      
+                      A provider that is not configured on THIS platform is not
+                      drawn at all. It used to render anyway and answer a tap
+                      with "isn't configured yet", which on a store build is a
+                      button that does nothing — and a rejection. The mock
+                      stand-ins remain for local work without a backend. */}
                   <ProviderRow>
                     {Platform.OS === 'ios' ? <AppleAuthButton /> : null}
-                  {/* A provider that is not configured on THIS platform is not
-                      shown. It used to render anyway and answer a tap with
-                      "isn't configured yet", which on a store build is a
-                      button that does nothing, and a rejection. The mock
-                      stand-ins remain for local work without a backend. */}
                     {googleConfigured ? (
                       <GoogleAuthButton />
                     ) : MOCK_AUTH ? (
@@ -296,6 +333,12 @@ export default function SignUp() {
                         <OutlookMark />
                       </Pressable>
                     ) : null}
+                    {/* Apple LAST off iOS — and only once the web flow exists.
+                        `expo-apple-authentication` is an iOS-only native sheet,
+                        so there is nothing to mount here yet: Apple on Android
+                        and on the web needs their OAuth redirect flow against a
+                        Services ID, which is not built. Drawing the button now
+                        would be the exact defect the comment above describes. */}
                   </ProviderRow>
 
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 4 }}>
