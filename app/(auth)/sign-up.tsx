@@ -9,6 +9,7 @@ import { EditorialBg, RiseIn, MonoKicker, ED } from '@/src/onboarding/editorial/
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useAuth } from '@/src/auth/auth-context';
 import { useGoogleSignIn } from '@/src/auth/google';
+import { googleWebSignIn } from '@/src/auth/google-web';
 import { useMicrosoftSignIn } from '@/src/auth/microsoft';
 import { useAppleSignIn } from '@/src/auth/apple';
 import { appleWebSignIn } from '@/src/auth/apple-web';
@@ -70,7 +71,7 @@ function OutlookMark() {
 
 // The Google auth hook (expo-auth-session) throws on web when no client id is
 // set, so it's isolated in a component that's only mounted when configured.
-function GoogleAuthButton() {
+function GoogleNativeButton() {
   const tr = useI18n().t.signUp;
   const google = useGoogleSignIn((m) => notify(tr.kickerSignIn, m));
   return (
@@ -80,6 +81,22 @@ function GoogleAuthButton() {
     </Pressable>
   );
 }
+/** Android's, which leaves for our own server rather than building the request
+ *  on the device. `google-web.ts` explains why it has to. */
+function GoogleServerButton() {
+  const tr = useI18n().t.signUp;
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={tr.continueGoogle}
+      style={[ROUND, { backgroundColor: '#fff', borderColor: '#E7E6DF' }]} onPress={() => void googleWebSignIn()}>
+      <GoogleMark />
+    </Pressable>
+  );
+}
+// Chosen ONCE, here, and not inside the component: the two buttons call
+// different hooks, and picking between them mid-render would be a conditional
+// hook. The platform cannot change while the app is running, so a constant is
+// both correct and the honest shape of the decision.
+const GoogleAuthButton = Platform.OS === 'android' ? GoogleServerButton : GoogleNativeButton;
 function MicrosoftAuthButton() {
   const tr = useI18n().t.signUp;
   const ms = useMicrosoftSignIn((m) => notify(tr.kickerSignIn, m));

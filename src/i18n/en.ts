@@ -46,14 +46,17 @@ export const en = {
     failedTitle: 'This link has\nexpired.',
     failedBody: 'Sign-in links last 15 minutes and work once. Ask for a fresh one and it will be with you in a moment.',
     startOver: 'Send me a new link',
-    appleReturn: {
-      // Not an error: they closed Apple's page. It should not read as one.
-      cancelled: 'No problem — nothing was signed in. You can try again, or use your email instead.',
+    // Shared by every sign-in that finishes in a browser and lands back here:
+    // Apple wherever it has no native sheet, and Google on Android.
+    providerReturn: {
+      // Not an error: they closed the provider's page. It should not read as one.
+      cancelled: 'No problem, nothing was signed in. You can try again, or use your email instead.',
       apple: 'Apple sign-in did not complete. Try again, or use your email instead.',
+      google: 'Google sign-in did not complete. Try again, or use your email instead.',
       // Apple can withhold the address on a returning sign-in when the account
       // was never linked here.
       'no-email': 'Apple did not share an email address, so we could not find your account. Try signing in with your email instead.',
-      unverified: 'That Apple account has an unverified email address. Verify it with Apple, or sign in with your email.',
+      unverified: 'That email address has not been verified yet. Verify it with the account you signed in with, or use your email instead.',
       waitlisted: "You're on the list. Your practitioner will invite you when your space is ready.",
       suspended: 'This account is not active. Contact us and we will look into it.',
     },

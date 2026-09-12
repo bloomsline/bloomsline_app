@@ -50,11 +50,12 @@ export const fr: Dict = {
     failedTitle: 'Ce lien a\nexpiré.',
     failedBody: 'Les liens de connexion sont valables 15 minutes et ne servent qu’une fois. Demandez-en un nouveau, il arrive tout de suite.',
     startOver: 'Envoyer un nouveau lien',
-    appleReturn: {
+    providerReturn: {
       cancelled: 'Pas de souci, rien n’a été connecté. Vous pouvez réessayer, ou utiliser votre e-mail.',
       apple: 'La connexion avec Apple n’a pas abouti. Réessayez, ou utilisez votre e-mail.',
+      google: 'La connexion avec Google n’a pas abouti. Réessayez, ou utilisez votre e-mail.',
       'no-email': 'Apple n’a pas communiqué d’adresse e-mail, nous n’avons donc pas retrouvé votre compte. Essayez de vous connecter avec votre e-mail.',
-      unverified: 'L’adresse e-mail de ce compte Apple n’est pas vérifiée. Vérifiez-la chez Apple, ou connectez-vous avec votre e-mail.',
+      unverified: 'Cette adresse e-mail n’est pas encore vérifiée. Vérifiez-la auprès du compte utilisé, ou connectez-vous avec votre e-mail.',
       waitlisted: 'Vous êtes sur la liste. Votre praticien vous invitera dès que votre espace sera prêt.',
       suspended: 'Ce compte n’est pas actif. Contactez-nous et nous regarderons cela.',
     },

@@ -5,6 +5,11 @@
 //
 // Requires the Google OAuth client ids in config (EXPO_PUBLIC_GOOGLE_*). If they
 // are unset, `request` is null and the button should be hidden/disabled.
+//
+// NOT ANDROID. This is the on-device flow, and Google refuses it there with a
+// bare `invalid_request` even against a correctly configured Android client.
+// Android has its own way in — `auth/google-web.ts` — and never reaches this
+// hook, which is why there is no `androidClientId` below to give it.
 import { useEffect } from 'react';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
@@ -19,7 +24,6 @@ export function useGoogleSignIn(onError?: (message: string) => void) {
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: GOOGLE.webClientId || undefined,
     iosClientId: GOOGLE.iosClientId || undefined,
-    androidClientId: GOOGLE.androidClientId || undefined,
   });
 
   useEffect(() => {

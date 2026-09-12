@@ -15,22 +15,30 @@ if (__DEV__ && !API_URL.startsWith('https://') && !isLocal) {
   );
 }
 
-// Google OAuth client ids (from Google Cloud Console). The mobile ids differ
-// from the web one; the backend must trust them via AUTH_GOOGLE_MOBILE_IDS.
+// Google OAuth client ids (from Google Cloud Console). The iOS id differs from
+// the web one; the backend must trust it via AUTH_GOOGLE_MOBILE_IDS.
+//
+// There is no Android id, and that is not an oversight. One was created,
+// correctly — package name plus the signing certificate's SHA-1, redirecting to
+// `com.bloomsline.app:/oauthredirect`, which is Google's own documented shape
+// for an installed app — and Google answered every request with `Error 400:
+// invalid_request` before the consent screen was ever drawn. Android goes
+// through our server instead (`auth/google-web.ts`), which uses the WEB client.
 export const GOOGLE = {
   webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '',
   iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '',
-  androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? '',
 };
 
 // Per PLATFORM, not "any id at all". The Google hook throws on a platform
 // whose own client id is missing, so a web-only id used to mark Google as
 // configured on iOS, where opening the sign-in screen would have crashed on the
 // first real device build.
+//
+// Android asks about the WEB id because that is the client its flow actually
+// uses — the server holds the secret and runs the exchange. The app itself needs
+// no Google id on Android at all.
 export const googleConfigured =
-  Platform.OS === 'ios' ? Boolean(GOOGLE.iosClientId)
-  : Platform.OS === 'android' ? Boolean(GOOGLE.androidClientId)
-  : Boolean(GOOGLE.webClientId);
+  Platform.OS === 'ios' ? Boolean(GOOGLE.iosClientId) : Boolean(GOOGLE.webClientId);
 
 // Microsoft (Entra ID). `tenant` should be 'common'.
 //
