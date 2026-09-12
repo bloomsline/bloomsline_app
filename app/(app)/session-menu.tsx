@@ -3,10 +3,11 @@
 // /api/mobile/care/sessions/[id]/cancel). Demo sessions (FORCE_CARE_HUB preview)
 // don't hit the backend.
 import { useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Info } from 'lucide-react-native';
+import { notify } from '@/src/ui/alert';
 import { EdPill, HEADER_TOP, Kicker } from '@/src/ui/editorial';
 import { useOnboarding } from '@/src/onboarding/context';
 import { cancelSession } from '@/src/api/booking';
@@ -98,11 +99,11 @@ export default function SessionMenu() {
     const res = await cancelSession(id);
     setBusy(false);
     if (res.ok) { close(); return; }
-    if (Platform.OS === 'web') globalThis.alert?.(res.error ?? tr.couldNotCancel);
+    notify(res.error ?? tr.couldNotCancel);
   };
 
   const confirmCancel = async () => {
-    if (isDemo) { if (Platform.OS === 'web') globalThis.alert?.(tr.cancelledDemo); close(); return; }
+    if (isDemo) { notify(tr.cancelledDemo); close(); return; }
     if (await confirm({ title: tr.cancelTitle, message: tr.cancelBody, confirmLabel: tr.cancel, cancelLabel: tr.keepIt, destructive: true })) doCancel();
   };
 

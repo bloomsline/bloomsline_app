@@ -6,6 +6,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollVie
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Lock, CircleCheckBig } from 'lucide-react-native';
+import { notify } from '@/src/ui/alert';
 import { EdHeader, EdPill, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { resourceTypeMeta } from '@/src/care/resources';
@@ -72,7 +73,7 @@ export default function LibraryPractice() {
     const res = await runLibraryActivity(resourceId, answers);
     if (res.ok) { setResult({ score: res.score ?? null }); return; }
     setSaving(false);
-    if (Platform.OS === 'web') globalThis.alert?.(res.error ?? tr.couldNotSave);
+    notify(res.error ?? tr.couldNotSave);
   };
 
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/library' as never));

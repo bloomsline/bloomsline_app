@@ -3,9 +3,10 @@
 // wired Share-to-practitioner and Delete. Deferred vs v1: the conversation thread
 // (no moment_comments backend yet) and the video/voice player (media storage dark).
 import { useState } from 'react';
-import { ActivityIndicator, Image, Modal, Platform, Pressable, ScrollView, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, Pressable, ScrollView, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Send, CircleCheckBig, Trash2, Play } from 'lucide-react-native';
+import { notify } from '@/src/ui/alert';
 import { MOOD_COLORS, moodLabel } from './moods';
 import { deleteMoment, shareMoment, type MomentDTO, type MomentMediaDTO } from '@/src/api/moments';
 import { ConfirmLayer, useConfirm } from '@/src/ui/confirm';
@@ -119,7 +120,7 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
       onChanged({ id: moment.id, shared: confirmed });
     } catch {
       setShared(!next); // revert
-      if (Platform.OS === 'web') globalThis.alert?.(tr.updateSharingError);
+      notify(tr.updateSharingError);
     } finally {
       setSharing(false);
     }
@@ -133,7 +134,7 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
       onClose();
     } catch {
       setDeleting(false);
-      if (Platform.OS === 'web') globalThis.alert?.(tr.deleteError);
+      notify(tr.deleteError);
     }
   };
 
@@ -145,7 +146,7 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
   const timeLabel = `${when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · ${when.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: TT.scrim, justifyContent: 'flex-end' }}>
         <Pressable
           onPress={() => {}}

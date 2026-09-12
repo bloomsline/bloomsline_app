@@ -16,6 +16,7 @@ import { Image, Linking, Platform, ScrollView, Text, TouchableOpacity, View } fr
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { MessageCircle, MessageCircleQuestionMark, LogOut, ChevronRight, ChevronDown, Trash2, Languages, Palette, Home, ShieldCheck, FileText, Database, Lock, type LucideIcon } from 'lucide-react-native';
+import { notify } from '@/src/ui/alert';
 import { EdHeader, EdCard, FadeIn, Kicker } from '@/src/ui/editorial';
 import { OptionSheet } from '@/src/ui/option-sheet';
 import { useTheme, type ThemeChoice } from '@/src/ui/theme-mode';
@@ -167,7 +168,7 @@ export default function Settings() {
           <Kicker color={TT.faint} style={{ marginBottom: 10 }}>{t.settings.support}</Kicker>
           <EdCard style={{ padding: 0, overflow: 'hidden', marginBottom: 24 }}>
             <Row Icon={MessageCircle} title={t.settings.contactUs} value={t.settings.contactSub} onPress={contact} divider />
-            <Row Icon={MessageCircleQuestionMark} title={t.settings.help} onPress={() => Platform.OS === 'web' && globalThis.alert?.(t.common.comingSoon)} />
+            <Row Icon={MessageCircleQuestionMark} title={t.settings.help} onPress={() => notify(t.common.comingSoon)} />
           </EdCard>
 
           {/* Where the promises live. A patient consented to these during

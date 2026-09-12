@@ -111,7 +111,7 @@ export function PulseSheet({ memberId, who, onClose }: { memberId: string | null
   const staleCount = (fresh?.newNotes ?? 0) + (fresh?.newSessions ?? 0);
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <Pressable style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(20,20,18,0.45)' }} onPress={onClose}>
         <Pressable onPress={() => {}} style={{ maxHeight: '88%', borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: TT.sheet }}>
           <View style={{ alignItems: 'center', paddingTop: 10 }}>

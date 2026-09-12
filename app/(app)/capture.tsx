@@ -34,6 +34,7 @@ import { byteSize } from '@/src/upload/put-file';
 import { useOnboarding } from '@/src/onboarding/context';
 import { useI18n, fmt } from '@/src/i18n';
 import { notify } from '@/src/ui/alert';
+import { useAndroidBack } from '@/src/ui/android-back';
 import { HEADER_TOP } from '@/src/ui/editorial';
 import { useTheme } from '@/src/ui/theme-mode';
 import { KNOB, OVER_MEDIA, veil } from '@/src/ui/tokens';
@@ -154,6 +155,18 @@ export default function Capture() {
     Keyboard.dismiss();
     setPicker(which);
   };
+
+  // Android's back button does what the control in the header does, step by
+  // step — because this screen keeps three steps and an open sheet in its own
+  // state, and the system's idea of "back" is to pop the whole route. That
+  // would take the written note, the photograph and the voice note with it.
+  // Only the first step falls through to leaving, which is what the ✕ means.
+  useAndroidBack(() => {
+    if (picker) { setPicker(null); return true; }
+    if (step === 'preview') { setStep('feel'); return true; }
+    if (step === 'feel') { toWrite(); return true; }
+    return false;
+  });
 
   const startRec = async () => {
     setPicker(null);

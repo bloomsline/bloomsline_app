@@ -124,7 +124,7 @@ export function AvatarCropper({ uri, imageW, imageH, onCancel, onDone }: {
   const k = base * zoom;
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onCancel}>
+    <Modal visible transparent animationType="fade" onRequestClose={onCancel} statusBarTranslucent>
       {/* Opaque, not a scrim. A translucent one left the form legible behind
           the crop circle, which read as two screens fighting rather than as an
           editor. A photo editor gets the whole screen, like the lightbox. */}

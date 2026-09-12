@@ -8,7 +8,7 @@
 // The paper below is deliberately the lighter world — writing happens on paper,
 // and the contrast is what makes the page feel like a page.
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Platform, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -143,7 +143,7 @@ export default function Journal() {
                     onChangeText={setQ}
                     placeholder={tr.find}
                     placeholderTextColor={TT.faint}
-                    style={[{ flex: 1, fontSize: 14.5, color: TT.ink, padding: 0 }, { outlineStyle: 'none' } as never]}
+                    style={[{ flex: 1, fontSize: 14.5, color: TT.ink, padding: 0 }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
                   />
                 </View>
 

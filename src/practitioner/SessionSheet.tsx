@@ -281,7 +281,7 @@ export function SessionSheet({
   const Icon = FORMAT_ICON[s.sessionFormat as keyof typeof FORMAT_ICON] ?? MapPin;
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={() => { reset(); onClose(); }}>
+    <Modal visible transparent animationType="slide" onRequestClose={() => { reset(); onClose(); }} statusBarTranslucent>
       <Pressable style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(20,20,18,0.45)' }} onPress={() => { reset(); onClose(); }}>
         <Pressable onPress={() => {}} style={{ maxHeight: '88%', borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: TT.sheet }}>
           <View style={{ alignItems: 'center', paddingTop: 10 }}>

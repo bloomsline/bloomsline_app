@@ -2,10 +2,11 @@
 // /api/mobile/care/documents. Read-only list; signing still happens on the web
 // token link for now, so tapping a pending doc explains that.
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { FileText, Check } from 'lucide-react-native';
+import { notify } from '@/src/ui/alert';
 import { EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { fetchDocuments, type CareDocument } from '@/src/api/care';
@@ -69,7 +70,7 @@ export default function Documents() {
                 <TouchableOpacity
                   key={d.id}
                   activeOpacity={0.8}
-                  onPress={() => !d.signed && Platform.OS === 'web' && globalThis.alert?.(tr.signAlert)}
+                  onPress={() => { if (!d.signed) notify(tr.signAlert); }}
                   style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, borderRadius: 18, padding: 15, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}
                 >
                   <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: TT.accentTint, alignItems: 'center', justifyContent: 'center' }}>

@@ -369,16 +369,35 @@ function MediaBlock({ kind, url, name }: { kind?: string; url?: string; name?: s
 
 // A PDF, opened without leaving the exercise.
 //
-// The two platforms need different machinery for the same result. On native,
-// openBrowserAsync is already an in-app sheet the patient dismisses straight
-// back onto this screen. On WEB it is not — it falls through to window.open and
-// dumps them in a new tab, away from the exercise they were halfway through — so
-// the web build gets a real modal with the PDF inside it. Same promise either
-// way: it opens over the exercise and closes back onto it.
+// The three platforms need different machinery for the same result. On iOS,
+// openBrowserAsync is an SFSafariViewController — an in-app sheet that renders
+// the PDF and that the patient dismisses straight back onto this screen. On WEB
+// it falls through to window.open and dumps them in a new tab, away from the
+// exercise they were halfway through, so the web build gets a real modal with
+// the PDF inside it.
+//
+// ANDROID looks like iOS and is not. openBrowserAsync there is a Chrome Custom
+// Tab, which does not render PDFs at all: it downloads the file, or shows a
+// blank page, and either way the exercise is over. So Android hands the url to
+// the system, which has something that can actually open a PDF (Drive, Files,
+// whichever reader is installed). Same promise every time: the document opens.
 function PdfBlock({ url, name }: { url: string; name?: string }) {
   const C = useCare();
   const [open, setOpen] = useState(false);
   const title = name && !looksLikeStorageKey(name) ? name : 'PDF';
+
+  if (Platform.OS === 'android') {
+    return (
+      <MediaCard
+        icon="pdf"
+        name={name || 'PDF'}
+        action="Open PDF"
+        // If nothing on the phone handles a PDF, fall back to the browser
+        // rather than to nothing at all.
+        onPress={() => { void Linking.openURL(url).catch(() => WebBrowser.openBrowserAsync(url)); }}
+      />
+    );
+  }
 
   if (Platform.OS !== 'web') {
     return <MediaCard icon="pdf" name={name || 'PDF'} action="Open PDF" onPress={() => { void WebBrowser.openBrowserAsync(url); }} />;
@@ -387,7 +406,7 @@ function PdfBlock({ url, name }: { url: string; name?: string }) {
   return (
     <>
       <MediaCard icon="pdf" name={name || 'PDF'} action="Open PDF" onPress={() => setOpen(true)} />
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)} statusBarTranslucent>
         <View style={{ flex: 1, backgroundColor: C.scrim, padding: 16 }}>
           <View style={{ flex: 1, backgroundColor: C.sheet, borderRadius: 16, overflow: 'hidden', maxWidth: 900, width: '100%', alignSelf: 'center' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.border }}>

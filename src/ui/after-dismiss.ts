@@ -25,6 +25,9 @@ export interface AfterDismiss {
  *  hang. Only reached if `onDismiss` never arrives. */
 const SAFETY_MS = 700;
 
+/** A `Modal`'s own slide animation, which Android gives no callback for. */
+const SHEET_MS = 320;
+
 export function useAfterDismiss(): AfterDismiss {
   const pending = useRef<(() => void) | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -39,10 +42,16 @@ export function useAfterDismiss(): AfterDismiss {
   const hold = useCallback(
     (run: () => void) => {
       pending.current = run;
-      // Android and web have no `onDismiss`, and no presentation rule to
-      // satisfy either. One frame after the close is plenty, and keeps both
-      // paths through the same door.
-      if (Platform.OS !== 'ios') { InteractionManager.runAfterInteractions(() => fire()); return; }
+      // Android and web have no `onDismiss` and no presentation rule to satisfy,
+      // so the action would work whenever it ran. It still waits: on Android
+      // `runAfterInteractions` resolves the moment no gesture is pending, which
+      // is while the sheet is still sliding away — the camera then opens over a
+      // half-dismissed sheet and the two animations fight. A sheet's slide is
+      // ~300ms, so the wait is the sheet's own length rather than a frame.
+      if (Platform.OS !== 'ios') {
+        InteractionManager.runAfterInteractions(() => setTimeout(fire, Platform.OS === 'android' ? SHEET_MS : 0));
+        return;
+      }
       // And if `onDismiss` never comes, the tap must still do something. A
       // second `fire` is a no-op, so the two cannot both run the action.
       if (timer.current) clearTimeout(timer.current);
