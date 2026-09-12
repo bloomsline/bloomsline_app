@@ -14,6 +14,7 @@
 // Modal; the provider then renders into the innermost layer instead of at the
 // root, which keeps it to one Modal deep however the sheets are nested.
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useIsFocused } from '@react-navigation/native';
 import { Modal, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '@/src/ui/theme-mode';
 
@@ -116,11 +117,25 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
 export function ConfirmLayer() {
   const { dialog, claim, release, top } = useContext(ConfirmContext);
   const id = useRef(nextLayerId++).current;
+  // ONLY WHILE FOCUSED, and this is load-bearing.
+  //
+  // A claimed layer suppresses the root dialog for the WHOLE app — that is how
+  // the dialog avoids being drawn twice. So a layer that keeps claiming while
+  // its screen is off-stage silently swallows every confirmation raised
+  // anywhere else: the journal's delete, delete account, the practitioner
+  // screens. A route-hosted layer (session-menu) stays mounted after it is
+  // dismissed, which is precisely that case, and it shipped in build 12 as
+  // "the delete button does nothing".
+  //
+  // For a layer inside a sheet this changes nothing — the sheet's own screen is
+  // the focused one — and for a route it hands the dialog back on the way out.
+  const focused = useIsFocused();
 
   useEffect(() => {
+    if (!focused) return;
     claim(id);
     return () => release(id);
-  }, [claim, release, id]);
+  }, [claim, release, id, focused]);
 
   if (top !== id || !dialog) return null;
   return <View style={StyleSheet.absoluteFill}>{dialog}</View>;
