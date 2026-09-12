@@ -12,6 +12,7 @@ import { htmlToPlainText, parseRichText, type Span } from '@/src/resources/html'
 import { ZonedCanvasField } from '@/src/resources/zoned-canvas-field';
 import { uploadResponseFile, type PatientBlock, type UploadedFile } from '@/src/api/resources';
 import { useCare } from '@/src/care/theme';
+import { decodeEntities } from '@/src/resources/html';
 import { byteSize as fileByteSize } from '@/src/upload/put-file';
 import { useTheme } from '@/src/ui/theme-mode';
 import { OVER_MEDIA } from '@/src/ui/tokens';
@@ -159,7 +160,11 @@ export function Block({ block, value, onChange, missing, readOnly = false, media
 // the editorial screens, next to their green chips.
 export function ResourceIntro({ text }: { text: string | null | undefined }) {
   const { t: TT } = useTheme();
-  const body = text?.trim();
+  // A description is stored as sanitised HTML, like the rich_text blocks — so it
+  // arrives carrying `&nbsp;` and `&amp;`, which were printed literally. The
+  // block parser has always decoded these; a plain description never went
+  // through it.
+  const body = text ? decodeEntities(text).trim() : '';
   if (!body) return null;
   return (
     <View style={{ backgroundColor: TT.accentTint, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 22 }}>

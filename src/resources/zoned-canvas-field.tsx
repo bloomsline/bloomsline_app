@@ -51,6 +51,9 @@ const asAnswer = (value: unknown): CanvasAnswer =>
 const drawOrder = (zones: CanvasZone[]): CanvasZone[] =>
   [...zones].sort((a, b) => Number(Boolean(a.parentZoneId)) - Number(Boolean(b.parentZoneId)));
 
+/** The one size the zone labels are wrapped AND drawn at. */
+const LABEL_SIZE = 17;
+
 export function ZonedCanvasField({
   zones,
   canvas,
@@ -147,8 +150,13 @@ export function ZonedCanvasField({
                 <ZoneOutline shape={z.shape} stroke={a.stroke} fill={a.fill} />
                 {/* SVG text does not wrap, and a practitioner's label can be a
                     whole sentence. The full text is always in the panel below. */}
-                {wrapLabel(zoneLabel(z.label), shapeBox(z.shape).w - 24).map((line, li) => (
-                  <SvgText key={li} x={anchor.x} y={anchor.y + li * 22} textAnchor="middle" fontSize={20} fontWeight="700" fill={a.text}>
+                {/* WRAPPED AND DRAWN AT THE SAME SIZE. `wrapLabel` measures at
+                    17 by default and this drew at 20, so every line it worked
+                    out to fit was a sixth too wide for the box it was drawn in —
+                    a practitioner's sentence ran straight out of its own zone
+                    and across the canvas. One constant for both. */}
+                {wrapLabel(zoneLabel(z.label), shapeBox(z.shape).w - 24, LABEL_SIZE).map((line, li) => (
+                  <SvgText key={li} x={anchor.x} y={anchor.y + li * (LABEL_SIZE + 3)} textAnchor="middle" fontSize={LABEL_SIZE} fontWeight="700" fill={a.text}>
                     {line}
                   </SvgText>
                 ))}

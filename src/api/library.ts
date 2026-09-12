@@ -1,6 +1,7 @@
 // Library ("My guides" / "Mes repères") API — browse + do self-guided activities. Runs
 // are private to the patient. Reuses the block/score types from the resources client.
 import { apiFetch } from '../auth/api';
+import { decodeEntities } from '@/src/resources/html';
 import type { PatientBlock, PatientScore } from './resources';
 
 export interface LibraryItem {
@@ -25,7 +26,10 @@ export async function listLibrary(): Promise<LibraryItem[] | null> {
   try {
     const res = await apiFetch('/api/mobile/library');
     if (!res.ok) return null;
-    return (await res.json()).items as LibraryItem[];
+    const items = (await res.json()).items as LibraryItem[];
+    // Same reason as `ResourceIntro`: these are sanitised HTML fields, and the
+    // list printed `&nbsp;` at people.
+    return items.map((it) => ({ ...it, title: decodeEntities(it.title), description: it.description ? decodeEntities(it.description) : null }));
   } catch {
     return null;
   }
@@ -35,7 +39,10 @@ export async function getLibraryResource(id: string): Promise<LibraryResourceVie
   try {
     const res = await apiFetch(`/api/mobile/library/${id}`);
     if (!res.ok) return null;
-    return (await res.json()) as LibraryResourceView;
+    const view = (await res.json()) as LibraryResourceView;
+    // The title and description on the resource itself, for the same reason as
+    // the list. The BLOCKS are decoded by the html parser that lays them out.
+    return { ...view, resource: { ...view.resource, title: decodeEntities(view.resource.title), description: view.resource.description ? decodeEntities(view.resource.description) : null } };
   } catch {
     return null;
   }
