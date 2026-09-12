@@ -10,7 +10,6 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Platform, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ChevronLeft, Lock, Search, PenLine, Plus, ChevronRight, MessageCircle, Sparkles, CalendarDays, type LucideIcon } from 'lucide-react-native';
 import { HEADER_TOP, Kicker } from '@/src/ui/editorial';
@@ -81,7 +80,6 @@ export default function Journal() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.headBg }}>
-      <StatusBar style="light" />
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         {/* The head: dark, and pointedly without an image. Dark in BOTH themes —
             its ink is therefore the dark-mode ink whatever the page is doing. */}

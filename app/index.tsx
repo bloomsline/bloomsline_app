@@ -3,7 +3,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '@/src/auth/auth-context';
 import { hrefForStatus } from '@/src/auth/route';
 import { takeRoute } from '@/src/auth/pending-route';
-import { useLanding, LANDING_HREF } from '@/src/prefs/landing';
+import { useLanding, LANDING_HREF } from '@/src/prefs/app-prefs';
 
 // Entry gate: route by session status (anon / practitioner / onboarding / authed).
 // An authed patient lands on their chosen home tab (My Care or Moments).

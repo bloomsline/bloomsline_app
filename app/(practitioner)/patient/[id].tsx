@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Check, ChevronDown, ChevronRight, ChevronUp, FileSignature, Paperclip, Search, SlidersHorizontal } from 'lucide-react-native';
 import { EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
@@ -221,7 +220,6 @@ export default function PatientDetailScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <EdHeader kicker={tr.kicker} title={data?.patient.name ?? '…'} onBack={back} />
 
       {/* Tabs scroll horizontally: five labels do not fit a phone, and shrinking

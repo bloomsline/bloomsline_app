@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Check, Info, MapPin, Phone, Video } from 'lucide-react-native';
 import { EdHeader, EdCard, EdPill, FadeIn } from '@/src/ui/editorial';
@@ -78,7 +77,6 @@ export default function BookConfirm() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         <EdHeader kicker={tr.kicker} title={done ? tr.done : tr.title} onBack={done ? undefined : () => router.back()} />
 
@@ -113,7 +111,7 @@ export default function BookConfirm() {
               </View>
               <EdPill label={saving ? '…' : tr.confirm} onPress={confirm} disabled={saving} />
               {saving && <ActivityIndicator style={{ marginTop: 12 }} />}
-              {error ? <Text style={{ fontSize: 13.5, color: '#C0392B', marginTop: 12 }}>{error}</Text> : null}
+              {error ? <Text style={{ fontSize: 13.5, color: TT.danger, marginTop: 12 }}>{error}</Text> : null}
             </>
           )}
         </FadeIn>

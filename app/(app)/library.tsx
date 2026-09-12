@@ -3,7 +3,6 @@
 // always open, never assigned. Wired to GET /api/mobile/library.
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Search, ChevronRight, X } from 'lucide-react-native';
 import { EdHeader, EdCard, FadeIn, Kicker } from '@/src/ui/editorial';
@@ -85,7 +84,6 @@ export default function Library() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         <EdHeader source={ONBOARDING_IMAGES.card1} title={tr.title} subtitle={tr.subtitle} onBack={back} />
 

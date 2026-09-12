@@ -9,13 +9,12 @@
 import { useCallback, useRef, useState } from 'react';
 import { Linking, Platform, ScrollView, Text, TouchableOpacity, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ChevronRight, Plus, Ellipsis, RotateCcw, FileText, MapPin, type LucideIcon } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
 import { TabIntro } from '@/src/ui/TabIntro';
 import { EdCard, FadeIn, HEADER_TOP, Kicker } from '@/src/ui/editorial';
-import { useLanding } from '@/src/prefs/landing';
+import { useLanding } from '@/src/prefs/app-prefs';
 import { useI18n, fmt, greetingFor } from '@/src/i18n';
 import { useOnboarding } from '@/src/onboarding/context';
 import { FORCE_CARE_HUB } from '@/src/config';
@@ -49,7 +48,6 @@ export default function MyCare() {
   const [care, setCare] = useState<PatientCare | null>(null);
   const [todos, setTodos] = useState<TodoItem[] | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const [introActive, setIntroActive] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -89,7 +87,6 @@ export default function MyCare() {
   if (loaded && !showHub) {
     return (
       <View style={{ flex: 1, backgroundColor: TT.bg }}>
-        <StatusBar style="dark" />
         <SafeAreaView edges={['top']} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={{ paddingBottom: 180 }} showsVerticalScrollIndicator={false}>
             {/* The same header as the hub, so it carries ProfileButton: this
@@ -138,18 +135,13 @@ export default function MyCare() {
 
   return (
     <Ground>
-      <StatusBar style="light" />
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingBottom: 180 }} showsVerticalScrollIndicator={false}>
           {header}
           <FadeIn>
-            <View style={{ paddingHorizontal: 22 }}>
-              <TabIntro tabKey="care" tone="dark" onActiveChange={setIntroActive} />
-            </View>
-
-            {/* Dim, but never block: the inline intro must not make the tab
-                look broken to a first-time visitor (see for-you.tsx). */}
-            <View style={{ opacity: introActive ? 0.55 : 1 }}>
+            {/* The intro is a popup over the whole screen now; the page below
+                it needs no dimming of its own — see TabIntro. */}
+            <View>
               {/* Practitioner — a row, not a card: it names a person, it is not a thing to do. */}
               <TouchableOpacity
                 onPress={() => router.navigate('/practitioner' as never)}
@@ -226,6 +218,7 @@ export default function MyCare() {
       </SafeAreaView>
 
       <TabBar active="care" />
+      <TabIntro tabKey="care" />
     </Ground>
   );
 }

@@ -202,6 +202,26 @@ export const veil = (mode: Mode, alpha: number): string =>
   mode === 'dark' ? `rgba(255,255,255,${alpha})` : `rgba(20,20,20,${alpha})`;
 
 /**
+ * The same colour, at zero alpha — the honest top end of a fade.
+ *
+ * `'transparent'` is the obvious thing to put at the far end of a gradient and
+ * it is wrong: CSS and Android both read it as rgba(0,0,0,0), so a fade from
+ * `'transparent'` to a pale colour runs through grey, and on the cream theme the
+ * fade arrives visibly dirty. Fading a colour to ITSELF at zero alpha keeps the
+ * hue the whole way down.
+ *
+ * Takes the `#rrggbb` the palette stores. Anything else is handed back
+ * untouched, since an rgba() string is already in the right shape to have its
+ * alpha read as zero by the caller that wrote it.
+ */
+export const clearOf = (hex: string): string => {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const [r, g, b] = [m[1], m[2], m[3]].map((h) => parseInt(h, 16));
+  return `rgba(${r},${g},${b},0)`;
+};
+
+/**
  * `veil`'s mirror, for the secondary text ON a `ctaBg` surface.
  *
  * `ctaBg` is the one surface that flips AGAINST the page — dark on cream, pale

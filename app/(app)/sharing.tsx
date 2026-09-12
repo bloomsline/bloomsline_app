@@ -4,7 +4,6 @@
 // a user-level flag that doesn't exist yet — deferred.)
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Lock } from 'lucide-react-native';
 import { notify } from '@/src/ui/alert';
@@ -69,7 +68,6 @@ export default function Sharing() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         <EdHeader kicker="Sharing" title={fmt(tr.titleCanSee, { name: first })} onBack={() => router.back()} />
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>

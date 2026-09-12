@@ -119,7 +119,7 @@ function Label({ children }: { children: string }) {
 /** Outlined action, the sheet's secondary button. */
 function Outline({ Icon, label, onPress, disabled, tone }: { Icon: typeof Video; label: string; onPress: () => void; disabled?: boolean; tone?: 'rose' }) {
   const { t: TT } = useTheme();
-  const fg = tone === 'rose' ? '#BE123C' : TT.inkSoft;
+  const fg = tone === 'rose' ? TT.danger : TT.inkSoft;
   return (
     <Pressable
       onPress={onPress}
@@ -135,7 +135,7 @@ function Outline({ Icon, label, onPress, disabled, tone }: { Icon: typeof Video;
 /** One row of the "More actions" list. */
 function MenuRow({ Icon, label, onPress, danger }: { Icon: typeof Video; label: string; onPress: () => void; danger?: boolean }) {
   const { t: TT } = useTheme();
-  const fg = danger ? '#BE123C' : TT.inkSoft;
+  const fg = danger ? TT.danger : TT.inkSoft;
   return (
     <Pressable onPress={onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12 }}>
       <Icon size={16} color={fg} />
@@ -367,8 +367,8 @@ export function SessionSheet({
                       disabled={busy}
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 22, borderWidth: 1, borderColor: TT.line, paddingHorizontal: 18, paddingVertical: 12 }}
                     >
-                      <XCircle size={16} color="#BE123C" />
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: '#BE123C' }}>{tr.decline}</Text>
+                      <XCircle size={16} color={TT.danger} />
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: TT.danger }}>{tr.decline}</Text>
                     </Pressable>
                   </View>
                 )}
@@ -489,16 +489,16 @@ export function SessionSheet({
                 {/* A recurring session has three genuinely different answers, so
                     all three are offered rather than one being guessed at. */}
                 <View style={{ gap: 9, marginTop: 18 }}>
-                  <Pressable onPress={() => doCancel('this')} disabled={busy} style={{ alignItems: 'center', borderRadius: 22, backgroundColor: '#DC2626', paddingVertical: 13, opacity: busy ? 0.6 : 1 }}>
-                    <Text style={{ fontSize: 14.5, fontWeight: '800', color: TT.onAccent }}>{tr.thisOne}</Text>
+                  <Pressable onPress={() => doCancel('this')} disabled={busy} style={{ alignItems: 'center', borderRadius: 22, backgroundColor: TT.danger, paddingVertical: 13, opacity: busy ? 0.6 : 1 }}>
+                    <Text style={{ fontSize: 14.5, fontWeight: '800', color: TT.onDanger }}>{tr.thisOne}</Text>
                   </Pressable>
                   {s.seriesId ? (
                     <>
-                      <Pressable onPress={() => doCancel('following')} disabled={busy} style={{ alignItems: 'center', borderRadius: 22, borderWidth: 1.5, borderColor: '#DC2626', paddingVertical: 12, opacity: busy ? 0.6 : 1 }}>
-                        <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#DC2626' }}>{tr.following}</Text>
+                      <Pressable onPress={() => doCancel('following')} disabled={busy} style={{ alignItems: 'center', borderRadius: 22, borderWidth: 1.5, borderColor: TT.danger, paddingVertical: 12, opacity: busy ? 0.6 : 1 }}>
+                        <Text style={{ fontSize: 14.5, fontWeight: '800', color: TT.danger }}>{tr.following}</Text>
                       </Pressable>
-                      <Pressable onPress={() => doCancel('all')} disabled={busy} style={{ alignItems: 'center', borderRadius: 22, borderWidth: 1.5, borderColor: '#DC2626', paddingVertical: 12, opacity: busy ? 0.6 : 1 }}>
-                        <Text style={{ fontSize: 14.5, fontWeight: '800', color: '#DC2626' }}>{tr.whole}</Text>
+                      <Pressable onPress={() => doCancel('all')} disabled={busy} style={{ alignItems: 'center', borderRadius: 22, borderWidth: 1.5, borderColor: TT.danger, paddingVertical: 12, opacity: busy ? 0.6 : 1 }}>
+                        <Text style={{ fontSize: 14.5, fontWeight: '800', color: TT.danger }}>{tr.whole}</Text>
                       </Pressable>
                     </>
                   ) : null}

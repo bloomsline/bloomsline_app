@@ -1,7 +1,6 @@
 // Session history — the patient's past sessions. Wired to GET /api/mobile/care/history.
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { EdHeader, Kicker, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
@@ -73,7 +72,6 @@ export default function SessionHistory() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
         <EdHeader source={ONBOARDING_IMAGES.final} kicker="Session history" title={tr.title} onBack={back} />
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>

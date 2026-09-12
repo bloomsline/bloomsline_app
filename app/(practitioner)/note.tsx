@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ChevronRight } from 'lucide-react-native';
 import { EdHeader, EdCard, EdSection, FadeIn } from '@/src/ui/editorial';
@@ -123,7 +122,6 @@ export default function TakeNote() {
   if (draft) {
     return (
       <View style={{ flex: 1, backgroundColor: TT.bg }}>
-        <StatusBar style="dark" />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={{ padding: 22, paddingTop: 60 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <Text style={{ fontSize: 12.5, color: TT.faint, marginBottom: 4 }}>{draft.who} · {draft.when}</Text>
@@ -162,7 +160,6 @@ export default function TakeNote() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         <EdHeader kicker={tr.kicker} title={tr.title} onBack={() => router.back()} />
 

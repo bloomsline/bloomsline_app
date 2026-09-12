@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { CalendarPlus, ChevronLeft, ChevronRight, MapPin, Phone, Video } from 'lucide-react-native';
 import { EdHeader, FadeIn } from '@/src/ui/editorial';
@@ -164,7 +163,6 @@ export default function DayCalendar() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <EdHeader kicker={tr.kicker} title={isToday ? tr.today : heading} rightIcon={CalendarPlus} onRight={() => router.navigate('/(practitioner)/book' as never)} />
 
       {/* Day stepper — the whole point of a day view is moving between days. */}
@@ -339,13 +337,14 @@ function SessionBlock({ session: s, top, timeLabel, pendingLabel, onPress }: {
 }
 
 function NowLine({ minutesInto, spanMinutes }: { minutesInto: (iso: string) => number; spanMinutes: number }) {
+  const { t: TT } = useTheme();
   const mins = minutesInto(new Date().toISOString());
   // Outside the drawn window there is no honest place to put it, so it is not drawn.
   if (mins < 0 || mins > spanMinutes) return null;
   return (
     <View style={{ position: 'absolute', left: 0, right: 0, top: (mins / 60) * HOUR_HEIGHT, flexDirection: 'row', alignItems: 'center' }}>
-      <View style={{ height: 7, width: 7, borderRadius: 4, backgroundColor: '#C0392B' }} />
-      <View style={{ flex: 1, height: 1, backgroundColor: '#C0392B' }} />
+      <View style={{ height: 7, width: 7, borderRadius: 4, backgroundColor: TT.danger }} />
+      <View style={{ flex: 1, height: 1, backgroundColor: TT.danger }} />
     </View>
   );
 }

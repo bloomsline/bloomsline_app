@@ -3,7 +3,6 @@
 // server validates + scores → shows the result. Reached from My Care "To do".
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Check, CircleCheckBig, MessageCircle } from 'lucide-react-native';
 import { EdHeader, EdPill, FadeIn } from '@/src/ui/editorial';
@@ -138,7 +137,6 @@ export default function ResourceDetail() {
   if (!loaded) {
     return (
       <View style={{ flex: 1, backgroundColor: TT.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <StatusBar style="dark" />
         <ActivityIndicator color={TT.accent} />
       </View>
     );
@@ -146,7 +144,6 @@ export default function ResourceDetail() {
   if (!view) {
     return (
       <View style={{ flex: 1, backgroundColor: TT.bg }}>
-        <StatusBar style="dark" />
         <EdHeader kicker={tr.unavailable} title={tr.unavailable} onBack={back} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <Text style={{ fontSize: 16, fontWeight: '700', color: TT.ink }}>{tr.unavailable}</Text>
@@ -162,7 +159,6 @@ export default function ResourceDetail() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <EdHeader source={ONBOARDING_IMAGES.card2} kicker={kicker} title={view.resource.title} onBack={back} />
@@ -237,7 +233,6 @@ function ResultView({ title, score, onDone, tr }: { title: string; score: Patien
   const { t: TT } = useTheme();
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
         <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: TT.accentTint, alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
           <CircleCheckBig size={34} color={TT.accent} strokeWidth={2} />

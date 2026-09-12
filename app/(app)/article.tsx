@@ -7,7 +7,6 @@
 // the phone.
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Image, Linking, ScrollView, Text, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
@@ -110,7 +109,6 @@ export default function ArticleScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 70 }} showsVerticalScrollIndicator={false}>
         <EdHeader
           source={ONBOARDING_IMAGES.card1}
