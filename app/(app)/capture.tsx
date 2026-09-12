@@ -21,7 +21,7 @@
 // MOOD_SCORES). That is why this needed no migration.
 import { useEffect, useRef, useState } from 'react';
 import { useAudioRecorder, useAudioRecorderState, requestRecordingPermissionsAsync, setAudioModeAsync, RecordingPresets } from 'expo-audio';
-import { ActivityIndicator, Animated, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Animated, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -138,6 +138,21 @@ export default function Capture() {
     } catch {
       setError(tr.errAddMedia);
     }
+  };
+
+  /**
+   * Open the photo or the voice sheet — and DISMISS THE KEYBOARD first.
+   *
+   * `PickerSheet` is not a Modal: it is a view pinned to the bottom of this
+   * screen. The note field autofocuses, so on a phone the keyboard is up and the
+   * sheet opened directly behind it — the scrim dimmed and nothing else
+   * happened, which is what "nothing changes, no options" looks like. On the web
+   * there is no keyboard over the page, which is why it only ever failed on a
+   * device.
+   */
+  const openPicker = (which: 'visual' | 'voice') => {
+    Keyboard.dismiss();
+    setPicker(which);
   };
 
   const startRec = async () => {
@@ -306,8 +321,8 @@ export default function Capture() {
                   ) : null}
                   <View style={{ height: 1, backgroundColor: TT.cardLine, marginBottom: 14 }} />
                   <View style={{ flexDirection: 'row', gap: 10 }}>
-                    <Chip Icon={ImagePlus} label={tr.photoOrVideo} onPress={() => !atCap && setPicker('visual')} dim={atCap} />
-                    <Chip Icon={Mic} label={tr.voice} onPress={() => !atCap && setPicker('voice')} dim={atCap} />
+                    <Chip Icon={ImagePlus} label={tr.photoOrVideo} onPress={() => !atCap && openPicker('visual')} dim={atCap} />
+                    <Chip Icon={Mic} label={tr.voice} onPress={() => !atCap && openPicker('voice')} dim={atCap} />
                   </View>
                   {atCap ? (
                     <Text style={{ fontSize: 12, color: TT.faint, marginTop: 8 }}>{fmt(tr.mediaFull, { n: MAX_MEDIA })}</Text>
@@ -319,7 +334,10 @@ export default function Capture() {
                       to-do left over made the button below look like a separate
                       step you had not earned yet. Next says where it goes. */}
                   <Pressable
-                    onPress={() => hasSomething && setStep('feel')}
+                    // The keyboard goes too. Step two is another sheet pinned to
+                    // the bottom of this screen, so leaving the keyboard up
+                    // covers the feelings the same way it covered the picker.
+                    onPress={() => { if (hasSomething) { Keyboard.dismiss(); setStep('feel'); } }}
                     disabled={!hasSomething}
                     style={{ marginTop: 20, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: hasSomething ? TT.ctaBg : veil(mode, 0.10) }}
                   >
