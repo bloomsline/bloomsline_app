@@ -350,8 +350,8 @@ export const fr: Dict = {
   capture: {
     newMoment: 'Nouveau moment',
     preview: 'Aperçu',
-    what: 'Comment vous sentez-vous, là, maintenant ?',
-    whatHint: 'Écrivez ce que vous voulez. Un mot suffit.',
+    what: 'Que s’est-il passé ?',
+    whatFirst: 'Comment vous sentez-vous, là, maintenant ?',
     photoOrVideo: 'Photo ou vidéo',
     voice: 'Audio',
     next: 'Suivant',

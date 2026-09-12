@@ -10,7 +10,7 @@ import { Info } from 'lucide-react-native';
 import { EdPill, HEADER_TOP, Kicker } from '@/src/ui/editorial';
 import { useOnboarding } from '@/src/onboarding/context';
 import { cancelSession } from '@/src/api/booking';
-import { useConfirm } from '@/src/ui/confirm';
+import { ConfirmLayer, useConfirm } from '@/src/ui/confirm';
 import { fmt, useI18n, type Locale } from '@/src/i18n';
 import { PractitionerAvatar } from '@/src/care/PractitionerAvatar';
 import { useTheme } from '@/src/ui/theme-mode';
@@ -158,6 +158,21 @@ export default function SessionMenu() {
           )}
         </View>
       </SafeAreaView>
+
+      {/* Cancelling did nothing on iOS while working on the web, and this line
+          is the whole difference.
+
+          This screen is a route presented as a `transparentModal`, so on iOS it
+          is already a presented view controller. The confirm provider answers
+          from the ROOT in its own <Modal> — and iOS will not present a second
+          modal from a controller that is already presenting one. The dialog
+          never appeared, the promise never resolved, and the button looked
+          dead. On the web react-native-web falls back to a fixed overlay with a
+          huge z-index, which is why nobody saw it there.
+
+          `ConfirmLayer` makes this screen host the dialog inline instead, the
+          way MomentDetail and SessionSheet already do. */}
+      <ConfirmLayer />
     </View>
   );
 }

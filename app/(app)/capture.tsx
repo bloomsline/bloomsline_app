@@ -20,7 +20,7 @@
 // and the timeline's valence is derived from the feelings actually picked (see
 // MOOD_SCORES). That is why this needed no migration.
 import { useEffect, useRef, useState } from 'react';
-import { useAudioRecorder, useAudioRecorderState, requestRecordingPermissionsAsync, RecordingPresets } from 'expo-audio';
+import { useAudioRecorder, useAudioRecorderState, requestRecordingPermissionsAsync, setAudioModeAsync, RecordingPresets } from 'expo-audio';
 import { ActivityIndicator, Animated, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -30,6 +30,7 @@ import { MediaViewer, type ViewerItem } from '@/src/ui/MediaViewer';
 import { MOODS, moodLabel } from '@/src/moments/moods';
 import { createMoment, shareMoment } from '@/src/api/moments';
 import { pickMedia, captureMedia, cameraAvailable, uploadMedia, type PreparedMedia } from '@/src/moments/media-upload';
+import { byteSize } from '@/src/upload/put-file';
 import { useOnboarding } from '@/src/onboarding/context';
 import { useI18n, fmt } from '@/src/i18n';
 import { notify } from '@/src/ui/alert';
@@ -63,7 +64,11 @@ export default function Capture() {
 
   // A pre-selected feeling from the Moments empty-state shortcut still works: it
   // opens the sheet on the matching tone with that feeling already chosen.
-  const { emotion } = useLocalSearchParams<{ emotion?: string }>();
+  // `first` is set by the Moments introduction, and only there: the very first
+  // moment gets a question that can always be answered, every one after it gets
+  // "What happened?".
+  const { emotion, first } = useLocalSearchParams<{ emotion?: string; first?: string }>();
+  const firstMoment = first === '1';
   const initial = typeof emotion === 'string' && MOODS.some((m) => m.key === emotion) ? emotion : null;
 
   const [step, setStep] = useState<Step>('write');
@@ -141,6 +146,16 @@ export default function Capture() {
     try {
       const { granted } = await requestRecordingPermissionsAsync();
       if (!granted) { setError(tr.errMicNeeded); return; }
+      // iOS will not record until the audio SESSION is put into a mode that
+      // allows it — permission alone is not enough, and without this
+      // `prepareToRecordAsync` throws and the screen said "Could not start
+      // recording" with nothing to act on. A browser has no audio session, which
+      // is why voice notes worked on the web and only on the web.
+      //
+      // `playsInSilentMode` belongs with it: on a phone with the ringer switch
+      // flipped — which is most phones, most of the time — playback of the note
+      // you just recorded would be silent.
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await recorder.prepareToRecordAsync();
       recorder.record();
     } catch {
@@ -152,9 +167,15 @@ export default function Capture() {
     try {
       const seconds = Math.round((recState.durationMillis ?? 0) / 1000);
       await recorder.stop();
+      // Out of recording mode again. Left in it, iOS keeps the session on the
+      // record route and everything played afterwards comes out of the earpiece
+      // at a whisper.
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
       const uri = recorder.uri;
       if (uri) {
-        const size = (await (await fetch(uri)).blob()).size;
+        // Not `fetch(uri).blob()`: see `upload/put-file` — reading a file:// uri
+        // that way is the native trap this app has already hit twice.
+        const size = await byteSize(uri);
         setMedia((prev) => (prev.length >= MAX_MEDIA ? prev : [...prev, { kind: 'audio' as const, uri, mime: Platform.OS === 'web' ? 'audio/webm' : 'audio/mp4', size, durationSeconds: seconds }]));
       }
     } catch {
@@ -244,7 +265,7 @@ export default function Capture() {
                     ref={noteRef}
                     value={note}
                     onChangeText={setNote}
-                    placeholder={tr.what}
+                    placeholder={firstMoment ? tr.whatFirst : tr.what}
                     placeholderTextColor={TT.faint}
                     multiline
                     autoFocus={step === 'write'}
@@ -255,17 +276,6 @@ export default function Capture() {
                       Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null,
                     ]}
                   />
-                  {/* Said out loud, under an EMPTY box only. A placeholder at
-                      21px reads as a heading — people sat under it waiting for
-                      something to happen — and "nothing happened today" is a
-                      perfectly good reason to stall on a question that asks what
-                      did. This says the action is typing and that one word is a
-                      complete answer. It leaves the moment anything is typed,
-                      because by then it is stating the obvious. */}
-                  {step === 'write' && !note ? (
-                    <Text style={{ fontSize: 13, color: TT.faint, marginTop: 10 }}>{tr.whatHint}</Text>
-                  ) : null}
-
                   {/* An overlay rather than a handler on the input: a disabled
                       TextInput eats the touch, so the only reliable way to hear
                       the tap is to sit on top of it. */}

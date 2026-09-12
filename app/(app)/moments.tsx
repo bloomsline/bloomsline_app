@@ -286,6 +286,13 @@ export default function Moments() {
 
   // Stable so the memoised Line does not re-render behind the rail.
   const openCapture = useCallback(() => router.navigate('/capture' as never), [router]);
+  // The introduction's door carries a flag the dashed node does not: the first
+  // moment is asked how they FEEL, because there may be no event to report yet,
+  // and every one after it is asked what happened.
+  const openFirstCapture = useCallback(
+    () => router.navigate({ pathname: '/capture', params: { first: '1' } } as never),
+    [router],
+  );
 
   const onContentSize = useCallback((_w: number, h: number) => {
     const changed = h !== contentH.current;
@@ -362,7 +369,7 @@ export default function Moments() {
             app to someone whose connection dropped would be a lie about their
             own data. */}
         {!loading && firstRun.ready && !failed && moments.length === 0 ? (
-          <MomentsIntro onCapture={openCapture} />
+          <MomentsIntro onCapture={openFirstCapture} />
         ) : !loading && firstRun.ready && !failed && !firstRun.done ? (
           <MomentsClosing onDone={firstRun.complete} />
         ) : (

@@ -68,6 +68,9 @@ export function ZonedCanvasField({
   const { locale } = useI18n();
   const t = COPY[locale] ?? COPY.en;
   const size = canvas ?? { width: 800, height: 600 };
+  // The drawn width, from the layout rather than from a percentage — see the
+  // comment on the <Svg> below.
+  const [boxWidth, setBoxWidth] = useState(0);
   const answer = useMemo(() => asAnswer(value), [value]);
   // A chip is a number, so the text has to live somewhere reachable. Tapping one
   // (on the canvas or in the legend) opens it — the only way to read a long
@@ -119,9 +122,23 @@ export function ZonedCanvasField({
 
   return (
     <View style={{ gap: 12 }}>
-      <View style={{ borderWidth: 1, borderColor: C.border, borderRadius: 14, backgroundColor: C.card, padding: 6 }}>
-        {/* aspectRatio keeps the canvas in proportion at any phone width. */}
-        <Svg width="100%" height="100%" viewBox={`0 0 ${size.width} ${size.height}`} style={{ aspectRatio: size.width / size.height }}>
+      <View
+        onLayout={(e) => setBoxWidth(e.nativeEvent.layout.width)}
+        style={{ borderWidth: 1, borderColor: C.border, borderRadius: 14, backgroundColor: C.card, padding: 6 }}
+      >
+        {/* MEASURED, not percentages.
+        
+            This was `width="100%" height="100%"` with an `aspectRatio` style,
+            which a browser resolves happily — and react-native-svg does not.
+            With no height it can resolve, the viewBox never scaled, so the
+            canvas drew at its authored size (800×600) inside a phone-width box:
+            a zone outline the size of the screen and a label in letters an inch
+            tall, with the rest off the edge.
+        
+            One measurement fixes it for good. Nothing is drawn until the box has
+            a width, because a viewBox scaled against zero is the same bug. */}
+        {boxWidth > 0 ? (
+        <Svg width={boxWidth} height={(boxWidth * size.height) / size.width} viewBox={`0 0 ${size.width} ${size.height}`}>
           {drawOrder(zones).map((z) => {
             const a = accentOf(z.accent);
             const anchor = labelAnchor(z.shape, Boolean(z.parentZoneId));
@@ -165,6 +182,7 @@ export function ZonedCanvasField({
             });
           })}
         </Svg>
+        ) : null}
       </View>
 
       {numbering.size > 0 && (
