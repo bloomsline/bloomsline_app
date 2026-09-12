@@ -11,7 +11,8 @@ import { useAuth } from '@/src/auth/auth-context';
 import { useGoogleSignIn } from '@/src/auth/google';
 import { useMicrosoftSignIn } from '@/src/auth/microsoft';
 import { useAppleSignIn } from '@/src/auth/apple';
-import { googleConfigured, microsoftConfigured, MOCK_AUTH } from '@/src/config';
+import { appleWebSignIn } from '@/src/auth/apple-web';
+import { appleWebConfigured, googleConfigured, microsoftConfigured, MOCK_AUTH } from '@/src/config';
 import { notify } from '@/src/ui/alert';
 import { useI18n, fmt } from '@/src/i18n';
 
@@ -333,12 +334,19 @@ export default function SignUp() {
                         <OutlookMark />
                       </Pressable>
                     ) : null}
-                    {/* Apple LAST off iOS — and only once the web flow exists.
-                        `expo-apple-authentication` is an iOS-only native sheet,
-                        so there is nothing to mount here yet: Apple on Android
-                        and on the web needs their OAuth redirect flow against a
-                        Services ID, which is not built. Drawing the button now
-                        would be the exact defect the comment above describes. */}
+                    {/* Apple LAST off iOS, through the web flow.
+                        `expo-apple-authentication` is an iOS-only sheet, so on
+                        Android and the web this leaves for Apple's own page and
+                        returns through `/auth?token=…`, the same door an
+                        emailed link uses. Gated on `appleWebConfigured`: without
+                        a Services ID and a verified domain the button would
+                        walk someone into a 404 at Apple. */}
+                    {appleWebConfigured ? (
+                      <Pressable accessibilityRole="button" accessibilityLabel={tr.continueApple}
+                        style={[ROUND, { backgroundColor: '#000', borderColor: '#000' }]} onPress={() => void appleWebSignIn()}>
+                        <AppleMark />
+                      </Pressable>
+                    ) : null}
                   </ProviderRow>
 
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 4 }}>
