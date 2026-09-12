@@ -130,14 +130,20 @@ export default function Journal() {
                 keyboardShouldPersistTaps="handled"
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, borderRadius: 14, paddingHorizontal: 14, height: 44, marginBottom: 14 }}>
+                {/* The height comes from the CONTENT, not from a number. At a fixed 44 the
+                    field clipped its own text on a phone: Manrope's line box is
+                    taller than the browser's default at the same size, so the
+                    descenders of "Trouver une page" were cut off by the edge.
+                    Padding gives the same 44 without the clipping, and survives
+                    a larger system text size — which a fixed height does not. */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, minHeight: 44, marginBottom: 14 }}>
                   <Search size={16} color={TT.faint} strokeWidth={2} />
                   <TextInput
                     value={q}
                     onChangeText={setQ}
                     placeholder={tr.find}
                     placeholderTextColor={TT.faint}
-                    style={[{ flex: 1, fontSize: 14.5, color: TT.ink }, { outlineStyle: 'none' } as never]}
+                    style={[{ flex: 1, fontSize: 14.5, color: TT.ink, padding: 0 }, { outlineStyle: 'none' } as never]}
                   />
                 </View>
 
