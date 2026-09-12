@@ -168,11 +168,13 @@ export function MomentsIntro({ onCapture }: { onCapture: () => void }) {
                 width: card.size,
                 height: card.size,
                 opacity: card.opacity,
-                shadowColor: '#000',
-                shadowOpacity: 0.42,
-                shadowRadius: 18,
-                shadowOffset: { width: 0, height: 10 },
-                elevation: 6,
+                // NOTHING paints on this node. It carries the drag and nothing
+                // else: it has no border radius, so a shadow or an elevation
+                // here draws a hard-cornered box behind the rounded card — a
+                // pale square peeking out from under every one of them, which is
+                // exactly how this shipped. The lift belongs to the inner view,
+                // the one that is actually rounded.
+                backgroundColor: 'transparent',
                 transform: [
                   { translateX: Animated.multiply(pan.x, card.drag) },
                   { translateY: Animated.multiply(pan.y, card.drag) },
@@ -182,6 +184,12 @@ export function MomentsIntro({ onCapture }: { onCapture: () => void }) {
               <Animated.View
                 style={{
                   flex: 1,
+                  // The lift lives here, on the rounded, clipped node, so it
+                  // follows the card's own shape instead of boxing it.
+                  shadowColor: '#000',
+                  shadowOpacity: 0.42,
+                  shadowRadius: 18,
+                  shadowOffset: { width: 0, height: 10 },
                   borderRadius: 24,
                   overflow: 'hidden',
                   borderWidth: 1,

@@ -15,7 +15,7 @@ import { useEffect, useState } from 'react';
 import { Image, Linking, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
-import { MessageCircle, MessageCircleQuestionMark, LogOut, ChevronRight, Trash2, Languages, Palette, Home, type LucideIcon } from 'lucide-react-native';
+import { MessageCircle, MessageCircleQuestionMark, LogOut, ChevronRight, ChevronDown, Trash2, Languages, Palette, Home, ShieldCheck, FileText, Database, Lock, type LucideIcon } from 'lucide-react-native';
 import { EdHeader, EdCard, FadeIn, Kicker } from '@/src/ui/editorial';
 import { OptionSheet } from '@/src/ui/option-sheet';
 import { useTheme, type ThemeChoice } from '@/src/ui/theme-mode';
@@ -27,7 +27,9 @@ import { useConfirm } from '@/src/ui/confirm';
 import { fetchMe, requestAccountDeletion, saveProfile } from '@/src/api/me';
 import { useMeFace } from '@/src/profile/me-face';
 
-const APP_VERSION = 'Bloomsline · v2 (preview)';
+// Was "Bloomsline · v2 (preview)". A version string is a note we left for
+// ourselves at the foot of a patient's own settings screen, and "preview" tells
+// someone trusting the app with how they feel that it is not finished yet.
 
 /** Which setting's options are open, if any. */
 type Sheet = 'language' | 'appearance' | 'landing' | null;
@@ -48,6 +50,10 @@ export default function Settings() {
   const face = useMeFace();
   const [leavingAt, setLeavingAt] = useState<string | null>(null);
   const [sheet, setSheet] = useState<Sheet>(null);
+  // Deliberately NOT persisted. Revealing the delete row is a decision about
+  // this visit; a patient who opened it once last month and moved on should not
+  // find it waiting for their thumb the next time they change their language.
+  const [showMore, setShowMore] = useState(false);
 
   const changeLocale = (l: Locale) => {
     setLocale(l);
@@ -70,6 +76,19 @@ export default function Settings() {
   const displayName = face?.name || name || t.settings.yourAccount;
   const initial = displayName.charAt(0).toUpperCase();
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/home' as never));
+
+  /**
+   * The public pages, in the patient's own language.
+   *
+   * Not copies. These same documents are what the site serves, and the one
+   * thing worse than a policy nobody reads is two versions of it that disagree
+   * — so the app links to the source rather than restating it.
+   */
+  const openPublic = (slug: string) => {
+    const url = `https://www.bloomsline.com${locale === 'fr' ? '/fr' : ''}/${slug}`;
+    if (Platform.OS === 'web') globalThis.open?.(url, '_blank');
+    else Linking.openURL(url).catch(() => {});
+  };
 
   const contact = () => {
     const url = 'https://wa.me/33671482004?text=' + encodeURIComponent('Hi Bloomsline 👋');
@@ -151,9 +170,35 @@ export default function Settings() {
             <Row Icon={MessageCircleQuestionMark} title={t.settings.help} onPress={() => Platform.OS === 'web' && globalThis.alert?.(t.common.comingSoon)} />
           </EdCard>
 
+          {/* Where the promises live. A patient consented to these during
+              onboarding and has had no way to read them again since; "what did
+              I agree to" is a fair question at any hour, and it should not
+              require finding the website on a laptop. */}
+          <Kicker color={TT.faint} style={{ marginBottom: 10 }}>{t.settings.legalSection}</Kicker>
+          <EdCard style={{ padding: 0, overflow: 'hidden', marginBottom: 24 }}>
+            <Row Icon={ShieldCheck} title={t.settings.privacyPolicy} onPress={() => openPublic('privacy')} divider />
+            <Row Icon={FileText} title={t.settings.termsOfUse} onPress={() => openPublic('terms')} divider />
+            <Row Icon={Database} title={t.settings.dataProtection} value={t.settings.dataProtectionSub} onPress={() => openPublic('data-protection')} divider />
+            <Row Icon={Lock} title={t.settings.security} value={t.settings.securitySub} onPress={() => openPublic('security')} />
+          </EdCard>
+
           <Kicker color={TT.faint} style={{ marginBottom: 10 }}>{t.settings.accountSection}</Kicker>
           <EdCard style={{ padding: 0, overflow: 'hidden' }}>
-            <Row Icon={LogOut} title={t.settings.signOut} onPress={doSignOut} divider chevron={false} />
+            <Row Icon={LogOut} title={t.settings.signOut} onPress={doSignOut} divider={showMore || !!leavingAt} chevron={false} />
+
+            {/* Deleting an account sat one row under signing out of it, the same
+                size and a thumb's width away, and it was tapped by accident.
+                The confirm caught it — but a destructive action should not be
+                relying on its confirm to be the first line of defence. It is
+                behind a disclosure now: a deliberate press to reveal it, then
+                the confirm, then the seven days it already waits before
+                anything is purged.
+
+                A pending deletion is NOT hidden. That question has been asked
+                and answered, and the useful thing then is the way back. */}
+            {!leavingAt && !showMore ? (
+              <Row Icon={ChevronDown} title={t.settings.moreOptions} onPress={() => setShowMore(true)} chevron={false} />
+            ) : null}
             {/* A pending deletion replaces the row rather than sitting beside
                 it: the question has been answered, and the useful thing to show
                 is the way back. */}
@@ -167,12 +212,12 @@ export default function Settings() {
                   </Text>
                 </View>
               </View>
-            ) : (
+            ) : showMore ? (
               <Row Icon={Trash2} title={t.settings.deleteAccount} onPress={doDelete} tone="danger" chevron={false} />
-            )}
+            ) : null}
           </EdCard>
 
-          <Text style={{ textAlign: 'center', fontSize: 13, color: TT.faint, marginTop: 28 }}>{APP_VERSION}</Text>
+          <Text style={{ textAlign: 'center', fontSize: 13, color: TT.faint, marginTop: 28 }}>{t.settings.madeBy}</Text>
         </FadeIn>
       </ScrollView>
 

@@ -274,7 +274,22 @@ export const en = {
     themeSystemHint: 'Follows your phone',
     homeCare: 'My Care',
     homeMoments: 'Moments',
+    legalSection: 'Privacy & terms',
+    privacyPolicy: 'Privacy policy',
+    termsOfUse: 'Terms of use',
+    dataProtection: 'Your data',
+    // Named rather than initialled. HDS means nothing to a patient, and the
+    // thing they actually want to know is where their data physically sits.
+    dataProtectionSub: 'What we hold, and your rights over it',
+    security: 'Security & hosting',
+    securitySub: 'Health-data certified hosting in France',
     deleteAccount: 'Delete account',
+    // The disclosure that keeps the delete row off the screen until it is asked
+    // for. It was tapped by accident while reaching for Sign out.
+    moreOptions: 'More options',
+    // Replaces the version string that used to sit here. "v2 (preview)" is a
+    // note to ourselves, on a patient's own screen.
+    madeBy: 'Made with care by the Bloomsline team',
     deleteConfirm: 'Delete your account?',
     deleteMessage: 'Your moments, journal and everything else you have written will be erased. You have 30 days to change your mind: sign in again before then and your account comes back exactly as it was.',
     deleteCta: 'Delete',
@@ -339,7 +354,14 @@ export const en = {
   capture: {
     newMoment: 'New moment',
     preview: 'Preview',
-    what: 'What happened?',
+    // Was "What happened?", which asks for an EVENT. Most of the time nothing
+    // happened — that is the ordinary case for a check-in, and a question you
+    // cannot answer reads as a screen you are failing rather than an invitation.
+    // A feeling is always answerable, and the second line says plainly that
+    // typing is the thing to do here, since a placeholder alone is easy to read
+    // as a heading and sit under.
+    what: 'How are you feeling right now?',
+    whatHint: 'Type anything. A word is enough.',
     photoOrVideo: 'Photo or video',
     voice: 'Voice',
     next: 'Next',
