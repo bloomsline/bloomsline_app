@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { apiFetch } from '../auth/api';
+import { byteSize, putFile } from '@/src/upload/put-file';
 
 const MAIN_WIDTH = 1600;
 const THUMB_WIDTH = 400;
@@ -38,16 +39,19 @@ export async function pickVideo(): Promise<PickedVideo | null> {
 }
 
 async function putOne(uri: string, contentType: string, thumbnail = false): Promise<string | null> {
-  const blob = await (await fetch(uri)).blob();
+  // See `upload/put-file`. Reading a file:// uri into a Blob and PUTting it
+  // sends the BLOB's content type, which on native is empty and does not match
+  // what the url was signed with — so storage refused every journal photo,
+  // video and voice note on a phone, and the block said "Upload failed".
+  const sizeBytes = await byteSize(uri);
   const res = await apiFetch('/api/mobile/journal/media', {
     method: 'POST',
-    body: JSON.stringify({ fileName: 'media', contentType, sizeBytes: blob.size, thumbnail }),
+    body: JSON.stringify({ fileName: 'media', contentType, sizeBytes, thumbnail }),
   });
   if (!res.ok) return null;
   const { key, url, headers } = (await res.json()) as { key?: string; url?: string; headers?: Record<string, string> };
   if (!key || !url) return null;
-  const put = await fetch(url, { method: 'PUT', headers: { ...headers, 'content-type': contentType }, body: blob });
-  return put.ok ? key : null;
+  return (await putFile(url, uri, contentType, headers ?? {})) ? key : null;
 }
 
 export async function uploadImage(img: PickedImage): Promise<{ storageKey: string; mime: string; width: number; height: number } | null> {

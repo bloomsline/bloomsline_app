@@ -1,6 +1,7 @@
 // Patient resource (assignment) API — open an assigned resource, render it, and
 // submit answers. Scoring is server-side; the client never receives option scores.
 import { apiFetch } from '../auth/api';
+import { putFile } from '@/src/upload/put-file';
 
 import type { CanvasZone } from '@/src/resources/canvas';
 
@@ -95,8 +96,7 @@ export async function uploadResponseFile(file: { uri: string; name: string; type
   if (!res.ok) return null;
   const { key, url, headers } = (await res.json()) as { key?: string; url?: string; headers?: Record<string, string> };
   if (!key || !url) return null;
-  const blob = await (await fetch(file.uri)).blob();
-  const put = await fetch(url, { method: 'PUT', headers: { ...headers, 'content-type': file.type }, body: blob });
-  if (!put.ok) return null;
+  // Same native trap as every other upload in the app — see `upload/put-file`.
+  if (!(await putFile(url, file.uri, file.type, headers ?? {}))) return null;
   return { key, name: file.name, type: file.type, size: file.size };
 }

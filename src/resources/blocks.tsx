@@ -12,6 +12,7 @@ import { htmlToPlainText, parseRichText, type Span } from '@/src/resources/html'
 import { ZonedCanvasField } from '@/src/resources/zoned-canvas-field';
 import { uploadResponseFile, type PatientBlock, type UploadedFile } from '@/src/api/resources';
 import { useCare } from '@/src/care/theme';
+import { byteSize as fileByteSize } from '@/src/upload/put-file';
 import { useTheme } from '@/src/ui/theme-mode';
 import { OVER_MEDIA } from '@/src/ui/tokens';
 
@@ -460,7 +461,9 @@ function humanSize(bytes: number): string {
 
 async function byteSize(uri: string): Promise<number> {
   try {
-    return (await (await fetch(uri)).blob()).size;
+    // The shared one: on native a file:// uri is measured through the file
+    // system, not by reading it into a Blob.
+    return await fileByteSize(uri);
   } catch {
     return 0;
   }
