@@ -17,6 +17,7 @@ import { Camera } from 'lucide-react-native';
 import { EdHeader, FadeIn } from '@/src/ui/editorial';
 import { OptionSheet } from '@/src/ui/option-sheet';
 import { useTheme } from '@/src/ui/theme-mode';
+import { useAfterDismiss } from '@/src/ui/after-dismiss';
 import { useI18n } from '@/src/i18n';
 import { fetchMe, saveProfile } from '@/src/api/me';
 import { refreshMeFace, setMeFaceLocally } from '@/src/profile/me-face';
@@ -47,6 +48,11 @@ export default function Profile() {
   const [preview, setPreview] = useState<string | null>(null);
   const [photoDone, setPhotoDone] = useState(false);
   const [busy, setBusy] = useState(false);
+  // The photo sheet is a Modal, and iOS will not open the camera or the library
+  // from a screen that is already presenting one — it drops the request, so the
+  // picker never appeared and `busy` sat on "Uploading…" forever. The chosen
+  // action waits until the sheet has actually gone. See `after-dismiss`.
+  const afterSheet = useAfterDismiss();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -76,7 +82,9 @@ export default function Profile() {
       setAvatarKey(null);
       return;
     }
-    setBusy(true);
+    // No "Uploading…" here. Nothing is being uploaded yet — the system picker
+    // is about to cover the screen, and it is its own feedback. Saying it
+    // anyway is what made a dropped picker read as a stuck upload.
     try {
       const picked = await pickImage(action === 'camera');
       // Null is "they cancelled" as often as "it failed", and the picker cannot
@@ -84,8 +92,6 @@ export default function Profile() {
       if (picked) setCropping(picked);
     } catch (e) {
       setError(`${tr.photoFailed} (${String(e).slice(0, 120)})`);
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -236,8 +242,9 @@ export default function Profile() {
         // Nothing is "current" here: these are actions, not a setting, so no
         // value matches and no tick is drawn.
         selected={'none' as PhotoAction}
-        onSelect={(v) => void choosePhoto(v)}
+        onSelect={(v) => { afterSheet.hold(() => void choosePhoto(v)); setSheet(false); }}
         onClose={() => setSheet(false)}
+        onDismissed={afterSheet.fire}
       />
     </View>
   );

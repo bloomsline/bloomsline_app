@@ -23,6 +23,7 @@ export function OptionSheet<T extends string>({
   selected,
   onSelect,
   onClose,
+  onDismissed,
 }: {
   visible: boolean;
   title: string;
@@ -30,11 +31,15 @@ export function OptionSheet<T extends string>({
   selected: T;
   onSelect: (value: T) => void;
   onClose: () => void;
+  /** Fired once the sheet has actually gone (iOS). Anything that presents
+   *  something of its own — a camera, a photo library — has to wait for this;
+   *  see `after-dismiss`. */
+  onDismissed?: () => void;
 }) {
   const { t: TT } = useTheme();
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} onDismiss={onDismissed}>
       <Pressable style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(20,20,20,0.4)' }} onPress={onClose}>
         <Pressable style={{ borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: TT.sheet, paddingBottom: 34 }} onPress={() => {}}>
           <View style={{ alignItems: 'center', paddingTop: 12 }}>
