@@ -12,7 +12,7 @@
 // in-app browser instead, which asked a patient to watch their own journal
 // through a web sheet. `expo-video` closes that hole — it plays here now, with
 // the platform's own controls, on both halves.
-import { createElement, useEffect, useState } from 'react';
+import { createElement, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -215,7 +215,10 @@ export function MediaViewer({
           {item.kind === 'image' ? (
             <ImageStage url={item.url} zoom={zoom} onCycle={() => setZoom((z) => (z >= 3 ? 1 : z + 1))} width={width} height={height} />
           ) : item.kind === 'video' ? (
-            <VideoStage url={item.url} poster={item.thumbnailUrl ?? null} full={full} />
+            // Keyed by POSITION, not by url. Stepping to another item should
+            // build a new player; a url that changes underneath the one playing
+            // should not — see the ref inside.
+            <VideoStage key={index} url={item.url} poster={item.thumbnailUrl ?? null} full={full} />
           ) : (
             <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 20 }}>
               <AudioRow url={item.url} durationSeconds={item.durationSeconds} label="Voice note" tone="dark" />
@@ -346,10 +349,20 @@ function ImageStage({
  */
 function VideoStage({ url, poster, full }: { url: string; poster: string | null; full: boolean }) {
   const web = Platform.OS === 'web';
+  // THE URL THIS STAGE OPENED WITH, and the only one it will ever play.
+  //
+  // In the journal a video is watchable while it is still uploading: it plays
+  // from the file on the phone, and the moment the upload lands the block gains
+  // a remote url. That swap used to reach the player — `useVideoPlayer` keys on
+  // the source, so a new url releases the old player and builds another — and
+  // the video stopped dead mid-playback. Press play, it stops again. Freezing it
+  // here means the swap is invisible to whoever is watching; the next time the
+  // viewer is opened it picks up the uploaded copy.
+  const src = useRef(url).current;
   // `null` on web: the hook still has to run — hooks cannot be conditional —
   // but there is nothing for it to load, and the browser element below does the
   // playing instead.
-  const player = useVideoPlayer(web ? null : { uri: url }, (p) => {
+  const player = useVideoPlayer(web ? null : { uri: src }, (p) => {
     p.loop = false;
     // Plays on arrival: opening a video IS the intent of the tap that got here.
     p.play();

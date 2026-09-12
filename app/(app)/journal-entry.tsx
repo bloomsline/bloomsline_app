@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Linking, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useAudioRecorder, useAudioRecorderState, requestRecordingPermissionsAsync, RecordingPresets } from 'expo-audio';
+import { useAudioRecorder, useAudioRecorderState, requestRecordingPermissionsAsync, setAudioModeAsync, RecordingPresets } from 'expo-audio';
 import {
   ChevronLeft, Check, Trash2, Type, Heading as HeadingIcon, List as ListIcon, Quote as QuoteIcon,
   Megaphone, Link2, Image as ImageIcon, Video as VideoIcon, Mic, Play, ChevronUp, ChevronDown, X,
@@ -274,6 +274,11 @@ export default function JournalEntry() {
     try {
       const { granted } = await requestRecordingPermissionsAsync();
       if (!granted) { setError(tr.micNeeded); return; }
+      // The same two lines Capture needed, and for the same reasons: iOS will
+      // not record until the audio SESSION allows it, and `playsInSilentMode`
+      // is what stops the note you just recorded being silent on a phone with
+      // the ringer switch flipped. The journal was recording without either.
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await recorder.prepareToRecordAsync();
       recorder.record();
     } catch { setError(tr.uploadFailed); }
@@ -282,6 +287,9 @@ export default function JournalEntry() {
     try {
       const seconds = Math.round((recState.durationMillis ?? 0) / 1000);
       await recorder.stop();
+      // Back out of the record route, or everything played afterwards comes out
+      // of the earpiece at a whisper — including the video on this very page.
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
       const uri = recorder.uri;
       if (!uri) return;
       const mime = Platform.OS === 'web' ? 'audio/webm' : 'audio/mp4';
