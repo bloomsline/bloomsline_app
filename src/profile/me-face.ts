@@ -73,3 +73,18 @@ export function useMeFace(): MeFace | null {
   }, []);
   return face;
 }
+
+/**
+ * Forget whose face this is.
+ *
+ * Called on sign-out. Without it the cache is module state that outlives the
+ * session: signing out of a patient account and into a practitioner one showed
+ * the patient's name and picture in settings until the app was killed, which is
+ * exactly how it was reported. `inflight` goes too — a request started for the
+ * previous account must not resolve into the next one's cache.
+ */
+export function clearMeFace(): void {
+  cached = null;
+  inflight = null;
+  listeners.forEach((l) => l(null));
+}

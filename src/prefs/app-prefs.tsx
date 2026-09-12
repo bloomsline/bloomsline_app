@@ -15,13 +15,11 @@
 // cache is simply the last thing we knew, which is the right answer anyway.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { storageGet, storageSet } from '../storage';
+import { INTROS_KEY, LANDING_KEY } from './app-prefs-store';
 import { fetchMe, saveProfile } from '../api/me';
 import { useAuth } from '../auth/auth-context';
 
 export type LandingTab = 'care' | 'moments';
-
-const LANDING_KEY = 'pref.landingTab';
-const INTROS_KEY = 'pref.introsSeen';
 
 /** The route each landing tab opens on. */
 export const LANDING_HREF: Record<LandingTab, string> = {
@@ -76,6 +74,17 @@ export function AppPrefsProvider({ children }: { children: React.ReactNode }) {
     });
     return () => { alive = false; };
   }, []);
+
+  // Signing out forgets the person. The device cache is cleared by
+  // `forgetAccount`, but this provider is not remounted — so without this the
+  // next person to sign in on the same phone inherits the last one's home tab
+  // and their dismissed explainers, which is what was reported.
+  useEffect(() => {
+    if (status !== 'anon') return;
+    fromServer.current = false;
+    setLandingState('care');
+    setSeen(null);
+  }, [status]);
 
   // 2. The account, which is the truth, and which is what survives a reinstall.
   useEffect(() => {

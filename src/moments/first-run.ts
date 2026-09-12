@@ -12,7 +12,7 @@
 // never the authority; when the two disagree, see `reconcile` below.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchMe, saveProfile } from '@/src/api/me';
-import { storageGet, storageSet } from '@/src/storage';
+import { storageDelete, storageGet, storageSet } from '@/src/storage';
 
 const KEY = 'moments.firstRun.v1';
 
@@ -91,4 +91,9 @@ export function useMomentsFirstRun(): FirstRun {
   }, []);
 
   return { ready, done, complete };
+}
+
+/** Forget that THIS account has been through the introduction. Sign-out only. */
+export async function clearMomentsFirstRun(): Promise<void> {
+  await storageDelete(KEY).catch(() => {});
 }

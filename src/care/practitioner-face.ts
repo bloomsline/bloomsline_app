@@ -59,3 +59,9 @@ export function usePractitionerFace(enabled = true): PractitionerFace | null {
 export function initialOf(name: string | null | undefined): string {
   return (name ?? '').replace(/^dr\.?\s*/i, '').trim().charAt(0).toUpperCase() || 'M';
 }
+
+/** Forget the practitioner this device was looking at. See `clearMeFace`. */
+export function clearPractitionerFace(): void {
+  cached = null;
+  inflight = null;
+}

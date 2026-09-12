@@ -153,6 +153,22 @@ export default function Moments() {
    */
   const growing = useRef(true);
   /**
+   * Has a FINGER moved this list yet?
+   *
+   * The opening position used to be inferred: hold the reader's distance from
+   * the foot, start that distance at zero, and the first anchor lands at the
+   * bottom. It reasoned correctly and opened at April anyway — twice — because
+   * it depends on which of `onScroll` and `onContentSizeChange` arrives first,
+   * and Android does not answer that the way iOS does.
+   *
+   * So the opening is no longer inferred from anything. Until someone drags,
+   * every resize pins the line to today; `onScrollBeginDrag` is the one event
+   * that cannot be caused by our own `scrollTo`, so it is the only thing that
+   * hands control over. Paging keeps the gap invariant, which is a different
+   * problem and a sound solution to it.
+   */
+  const touched = useRef(false);
+  /**
    * Distance from the reader to the FOOT of the line — the one end that holds
    * still, since today is always the bottom and every page arrives above it.
    * Hold this constant across a height change and nothing moves under them.
@@ -307,11 +323,17 @@ export default function Moments() {
     contentH.current = h;
     if (!changed) return;
 
-    // Content grew (a page) or shrank (the intro card dismissed, a moment
-    // deleted). Either way it happened ABOVE the reader, so put the foot of the
-    // line back the same distance away and nothing appears to move. On a fresh
-    // first page that distance is one viewport, so the same line opens them at
-    // today. A gap of zero is clamped past the end and lands there too.
+    // Nobody has touched it yet: this is still the opening, however many times
+    // the content has resized on the way there. Straight to today.
+    if (!touched.current) {
+      scroller.current?.scrollToEnd({ animated: false });
+      growing.current = false;
+      return;
+    }
+
+    // Content grew (a page) or shrank (a moment deleted). Either way it happened
+    // ABOVE the reader, so put the foot of the line back the same distance away
+    // and nothing appears to move.
     scroller.current?.scrollTo({ y: Math.max(0, h - bottomGap.current), animated: false });
     // The reader is where they belong again; scroll events may speak for them.
     growing.current = false;
@@ -322,6 +344,9 @@ export default function Moments() {
       // Coming back to the tab resets to the newest page. That is the right call
       // right after a capture, which is the overwhelmingly common way to arrive
       // here — the detail sheet is a modal on this screen and does not refocus.
+      // And it is an OPENING again: pin to today until a finger says otherwise.
+      touched.current = false;
+      growing.current = true;
       void load();
     }, [load]),
   );
@@ -393,6 +418,8 @@ export default function Moments() {
           onContentSizeChange={onContentSize}
           onLayout={(e) => { viewportH.current = e.nativeEvent.layout.height; }}
           onScroll={onScroll}
+          // The only signal that the reader, and not this screen, moved the list.
+          onScrollBeginDrag={() => { touched.current = true; }}
           scrollEventThrottle={16}
           // Reachable only at the true beginning of the line: while pages remain,
           // crossing LOAD_AHEAD fetches one and the anchor puts a screenful back

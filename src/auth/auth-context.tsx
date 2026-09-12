@@ -8,6 +8,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { getRefreshToken, clearTokens, saveTokens } from './token-store';
 import { apiFetch, postJson, setOnSignOut } from './api';
 import { storageGet, storageSet, storageDelete } from '../storage';
+import { forgetAccount } from '@/src/auth/forget-account';
 import { saveProfile, fetchMe } from '../api/me';
 import { MOCK_AUTH, MOCK_ROLE } from '../config';
 
@@ -80,12 +81,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     const refreshToken = await getRefreshToken();
     if (refreshToken) postJson('/api/mobile/auth/logout', { refreshToken }).catch(() => {});
-    await Promise.all([clearTokens(), storageDelete(ONBOARDED_KEY), storageDelete(SESSION_KEY)]);
+    // `forgetAccount` and not two more storageDelete calls here: what a
+    // sign-out has to forget grew past this line and nobody noticed, because
+    // none of it is reachable from the sign-in screen. See that file.
+    await Promise.all([clearTokens(), storageDelete(ONBOARDED_KEY), storageDelete(SESSION_KEY), forgetAccount()]);
     setStatus('anon');
   }, []);
 
   useEffect(() => {
-    setOnSignOut(() => setStatus('anon'));
+    // A token that cannot be refreshed ends the session too, and it has exactly
+    // the same forgetting to do as pressing Sign out — this path used to flip
+    // the status and leave the last person's name in a module variable.
+    setOnSignOut(() => { void forgetAccount(); setStatus('anon'); });
     return () => setOnSignOut(null);
   }, []);
 
