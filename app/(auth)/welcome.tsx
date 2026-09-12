@@ -25,7 +25,18 @@ export default function Welcome() {
                 <LangToggle value={locale} onChange={(v) => setLocale(v as typeof locale)} />
               </View>
               <Wordmark>{tr.kicker}</Wordmark>
-              <Text style={{ marginTop: 12, fontSize: 36, fontWeight: '800', color: '#fff', letterSpacing: -1.2, lineHeight: 42 }}>
+              {/* TWO LINES, always. The break is in the string, but the first
+                  half can still wrap on a narrow phone — and it does in French,
+                  where "Ce qui compte pour vous" is four words longer than the
+                  English — which turns the headline into three ragged lines and
+                  pushes everything under it down. numberOfLines pins the shape
+                  and the type shrinks to fit rather than reflowing. */}
+              <Text
+                numberOfLines={2}
+                adjustsFontSizeToFit
+                minimumFontScale={0.78}
+                style={{ marginTop: 12, fontSize: 36, fontWeight: '800', color: '#fff', letterSpacing: -1.2, lineHeight: 42 }}
+              >
                 {tr.headlinePre}
                 <Text style={{ color: '#7FD9C0' }}>{tr.headlineAccent}</Text>
               </Text>
