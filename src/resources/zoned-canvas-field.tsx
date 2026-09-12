@@ -127,7 +127,12 @@ export function ZonedCanvasField({
     <View style={{ gap: 12 }}>
       <View
         onLayout={(e) => setBoxWidth(e.nativeEvent.layout.width)}
-        style={{ borderWidth: 1, borderColor: C.border, borderRadius: 14, backgroundColor: C.card, padding: 6 }}
+        // NO BORDER. The zones are shapes the practitioner drew, and the
+        // outermost of them is usually a rounded rectangle — so a bordered card
+        // around the canvas put our frame a few pixels outside theirs and read
+        // as two boxes, one of which nobody meant. The surface stays, because
+        // the canvas needs a ground to sit on; the outline goes.
+        style={{ borderRadius: 14, backgroundColor: C.card, padding: 6 }}
       >
         {/* MEASURED, not percentages.
         
