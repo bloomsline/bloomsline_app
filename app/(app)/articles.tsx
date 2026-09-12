@@ -4,7 +4,6 @@
 // GET /api/mobile/blog.
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ChevronRight, BookOpen, Languages } from 'lucide-react-native';
 import { EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
@@ -60,7 +59,6 @@ export default function Articles() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         <EdHeader source={ONBOARDING_IMAGES.card1} title={tr.title} subtitle={tr.subtitle} onBack={back} />
 

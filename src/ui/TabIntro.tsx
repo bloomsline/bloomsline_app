@@ -1,92 +1,93 @@
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Pressable, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Easing, Modal, Pressable, Text, View } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import { Check } from 'lucide-react-native';
-import { storageGet, storageSet } from '@/src/storage';
+import { useTabIntro } from '@/src/prefs/app-prefs';
 import { useI18n } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
 
 type TabKey = 'care' | 'moments' | 'foryou';
 
-// First-visit explainer for a tab. An INLINE card at the top of the tab content
-// (not a popup) that gently fades in, shown once per tab and remembered via
-// storage. Dismissed with "Got it".
+// First-visit explainer for a tab.
 //
-// `tone` follows the tab it sits on: a mint card reads as a highlight on the
-// light tabs and as a hole punched in the page on the dark ones.
-export function TabIntro({ tabKey, tone = 'light', onActiveChange }: { tabKey: TabKey; tone?: 'light' | 'dark'; onActiveChange?: (active: boolean) => void }) {
+// It was an inline card at the top of the tab's content, and it half-worked:
+// people scrolled past it, or tapped the things underneath it and wondered why
+// the page looked faded. It is a POPUP now — over a scrim, above the tab bar,
+// with the page behind it inert — so it is the one thing to deal with, and the
+// tab is whole the moment it is dismissed.
+//
+// Dismissal is remembered ON THE ACCOUNT, not on the phone. See `app-prefs`:
+// the Keychain version came back after every reinstall, which is the reverse of
+// what a "shown once" card is for.
+//
+// There is no `tone` any more. It existed because the card sat ON the tab and
+// had to match a light or a dark page; over a scrim it matches neither, and the
+// theme already knows which way round the app is.
+export function TabIntro({ tabKey }: { tabKey: TabKey }) {
   const { t: TT } = useTheme();
   const { t } = useI18n();
-  const [show, setShow] = useState(false);
+  // Versioned so a reworded explainer can be shown again on purpose.
+  const { show, dismiss } = useTabIntro(`intro.v3.${tabKey}`);
+  // Two tabs both hold one of these and both can be mounted at once, so without
+  // this the tab you are NOT looking at can put its card over the one you are.
+  // The same rule the confirm dialog learned the hard way.
+  const focused = useIsFocused();
+  const visible = show && focused;
+
   const anim = useRef(new Animated.Value(0)).current;
-  // Versioned so a prior dismissal doesn't hide an updated intro during review.
-  const key = `intro.v3.${tabKey}`;
-
   useEffect(() => {
-    let alive = true;
-    storageGet(key)
-      .then((v) => {
-        if (alive && !v) {
-          setShow(true);
-          onActiveChange?.(true);
-        }
-      })
-      // Unreadable storage means we cannot tell whether this was dismissed.
-      // Staying quiet is the kinder miss: a skipped explainer, not a repeated one.
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [key, onActiveChange]);
+    if (!visible) return;
+    anim.setValue(0);
+    Animated.timing(anim, { toValue: 1, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+  }, [visible, anim]);
 
-  useEffect(() => {
-    if (show) Animated.timing(anim, { toValue: 1, duration: 320, useNativeDriver: true }).start();
-  }, [show, anim]);
-
-  const dismiss = () => {
-    void storageSet(key, '1');
-    onActiveChange?.(false);
-    Animated.timing(anim, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => setShow(false));
-  };
-
-  if (!show) return null;
+  if (!visible) return null;
   const copy = t.tabIntro[tabKey];
-  const dark = tone === 'dark';
 
   return (
-    <Animated.View
-      style={{
-        opacity: anim,
-        transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [-6, 0] }) }],
-        marginBottom: 16,
-      }}
-    >
-      {dark ? (
-        <View style={{ borderRadius: 18, padding: 16, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine }}>
-          <View className="flex-row gap-2.5">
-            <Check size={18} color={TT.accent} strokeWidth={2.5} style={{ marginTop: 1 }} />
-            <View className="flex-1">
-              <Text style={{ fontSize: 15, fontWeight: '700', color: TT.ink }}>{copy.title}</Text>
-              <Text style={{ marginTop: 4, fontSize: 13, lineHeight: 19, color: TT.inkSoft }}>{copy.body}</Text>
+    // No `onRequestClose` that dismisses: Android's back button must not put
+    // this away silently, because "put away" is a decision we remember for good.
+    // It closes one way, through the button that says so.
+    <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(8,10,9,0.72)', justifyContent: 'center', paddingHorizontal: 22 }}>
+        <Animated.View
+          style={{
+            opacity: anim,
+            transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
+          }}
+        >
+          <View
+            style={{
+              borderRadius: 22,
+              padding: 20,
+              backgroundColor: TT.sheet,
+              borderWidth: 1,
+              borderColor: TT.cardLine,
+              // It is lifted off the page it covers, on both platforms.
+              shadowColor: '#000',
+              shadowOpacity: 0.4,
+              shadowRadius: 26,
+              shadowOffset: { width: 0, height: 14 },
+              elevation: 12,
+            }}
+          >
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <Check size={19} color={TT.accent} strokeWidth={2.5} style={{ marginTop: 1 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 17, fontWeight: '800', letterSpacing: -0.2, color: TT.ink }}>{copy.title}</Text>
+                <Text style={{ marginTop: 7, fontSize: 14.5, lineHeight: 21, color: TT.inkSoft }}>{copy.body}</Text>
+              </View>
             </View>
+            <Pressable
+              onPress={dismiss}
+              accessibilityRole="button"
+              style={{ marginTop: 18, height: 50, alignItems: 'center', justifyContent: 'center', borderRadius: 25, backgroundColor: TT.ctaBg }}
+            >
+              <Text style={{ fontSize: 15, fontWeight: '700', color: TT.ctaFg }}>{t.tabIntro.gotIt}</Text>
+            </Pressable>
           </View>
-          <Pressable onPress={dismiss} style={{ marginTop: 14, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: TT.ctaBg }}>
-            <Text style={{ fontSize: 14.5, fontWeight: '700', color: TT.ctaFg }}>{t.tabIntro.gotIt}</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <View className="rounded-2xl bg-brand-tint p-4">
-          <View className="flex-row gap-2.5">
-            <Check size={18} color="#2F6E5F" strokeWidth={2.5} style={{ marginTop: 1 }} />
-            <View className="flex-1">
-              <Text className="text-[15px] font-bold text-ink">{copy.title}</Text>
-              <Text className="mt-1 text-[13px] leading-[19px] text-[#57736A]">{copy.body}</Text>
-            </View>
-          </View>
-          <Pressable onPress={dismiss} className="mt-3.5 h-[46px] items-center justify-center rounded-full bg-brand">
-            <Text className="text-[15px] font-semibold text-white">{t.tabIntro.gotIt}</Text>
-          </Pressable>
-        </View>
-      )}
-    </Animated.View>
+        </Animated.View>
+      </View>
+    </Modal>
   );
 }

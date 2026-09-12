@@ -3,7 +3,7 @@ import { Redirect, Stack, usePathname, useRouter } from 'expo-router';
 import { useAuth } from '@/src/auth/auth-context';
 import { rememberRoute } from '@/src/auth/pending-route';
 import { hrefForStatus } from '@/src/auth/route';
-import { useLanding, LANDING_HREF } from '@/src/prefs/landing';
+import { useLanding, LANDING_HREF } from '@/src/prefs/app-prefs';
 
 /** The three tab routes. Only these are subject to the landing preference — a
  *  resource link, a journal entry or a session sheet is somewhere the patient

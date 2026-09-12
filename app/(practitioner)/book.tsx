@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { EdHeader, EdCard, EdPill, EdSection, FadeIn } from '@/src/ui/editorial';
 import { MonthCalendar } from '@/src/ui/MonthCalendar';
@@ -197,7 +196,6 @@ export default function Book() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         <EdHeader kicker={moveId ? tr.moveKicker : tr.kicker} title={moveId ? tr.moveTitle : tr.title} onBack={back} />
 

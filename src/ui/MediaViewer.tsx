@@ -26,8 +26,10 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useEvent } from 'expo';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { ChevronLeft, ChevronRight, Minus, Pause, Play, Plus, X } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Minus, Pause, Play, Plus, X } from 'lucide-react-native';
 
 export interface ViewerItem {
   kind: 'image' | 'video' | 'audio';
@@ -154,18 +156,37 @@ export function MediaViewer({
   const item = items[index];
   const { width, height } = useWindowDimensions();
   const [zoom, setZoom] = useState(1);
+  // Video only: the chrome steps out of the way and the picture takes the whole
+  // screen. It is a mode and not a separate screen, so leaving it puts
+  // everything back exactly as it was.
+  const [full, setFull] = useState(false);
+  // 46 and 34 were an iPhone's notch and home indicator, written down as
+  // numbers. This modal is `statusBarTranslucent`, so on Android it draws under
+  // both system bars and those two numbers were the only thing keeping the
+  // close button off the clock and the stepper off the navigation bar.
+  const insets = useSafeAreaInsets();
+  const topInset = Math.max(insets.top + 8, 20);
+  const bottomInset = Math.max(insets.bottom + 10, 20);
 
   // A new item starts at its own scale rather than inheriting the last one's.
   useEffect(() => setZoom(1), [index]);
+  // And never inherits the last one's full screen: stepping from a video to a
+  // photograph with the chrome hidden leaves no way back.
+  useEffect(() => setFull(false), [index]);
 
   if (!item) return null;
   const many = items.length > 1;
+  const video = item.kind === 'video';
+  const showChrome = !full;
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+    // Android's back button steps OUT of full screen before it closes the
+    // viewer, which is what "back" means to someone who just expanded a video.
+    <Modal visible transparent animationType="fade" onRequestClose={() => (full ? setFull(false) : onClose())} statusBarTranslucent>
       <View style={{ flex: 1, backgroundColor: 'rgba(8,10,9,0.985)' }}>
         {/* The bar: close, position, and zoom where zoom means something. */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 46, paddingHorizontal: 16, paddingBottom: 10 }}>
+        {showChrome ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: topInset, paddingHorizontal: 16, paddingBottom: 10 }}>
           <TouchableOpacity onPress={onClose} accessibilityLabel="Close" style={roundBtn}>
             <X size={18} color="#fff" />
           </TouchableOpacity>
@@ -181,16 +202,21 @@ export function MediaViewer({
                 <Plus size={17} color="#fff" />
               </TouchableOpacity>
             </>
+          ) : video ? (
+            <TouchableOpacity onPress={() => setFull(true)} accessibilityLabel="Full screen" style={roundBtn}>
+              <Maximize2 size={17} color="#fff" />
+            </TouchableOpacity>
           ) : (
             <View style={{ width: 36 }} />
           )}
         </View>
+        ) : null}
 
         <View style={{ flex: 1 }}>
           {item.kind === 'image' ? (
             <ImageStage url={item.url} zoom={zoom} onCycle={() => setZoom((z) => (z >= 3 ? 1 : z + 1))} width={width} height={height} />
           ) : item.kind === 'video' ? (
-            <VideoStage url={item.url} poster={item.thumbnailUrl ?? null} />
+            <VideoStage url={item.url} poster={item.thumbnailUrl ?? null} full={full} />
           ) : (
             <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 20 }}>
               <AudioRow url={item.url} durationSeconds={item.durationSeconds} label="Voice note" tone="dark" />
@@ -199,8 +225,8 @@ export function MediaViewer({
         </View>
 
         {/* Stepping between items lives at the bottom, in reach of a thumb. */}
-        {many ? (
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 34 }}>
+        {!showChrome ? null : many ? (
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: bottomInset }}>
             <TouchableOpacity disabled={index === 0} onPress={() => onIndex(index - 1)} style={[roundBtn, { opacity: index === 0 ? 0.3 : 1 }]}>
               <ChevronLeft size={20} color="#fff" />
             </TouchableOpacity>
@@ -213,8 +239,20 @@ export function MediaViewer({
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={{ height: 34 }} />
+          <View style={{ height: bottomInset }} />
         )}
+
+        {/* Full screen hides everything else, so ONE control stays: without it
+            an iPhone has no way back out, having no system back button. */}
+        {full ? (
+          <TouchableOpacity
+            onPress={() => setFull(false)}
+            accessibilityLabel="Exit full screen"
+            style={[roundBtn, { position: 'absolute', top: topInset, left: 16 }]}
+          >
+            <Minimize2 size={17} color="#fff" />
+          </TouchableOpacity>
+        ) : null}
       </View>
     </Modal>
   );
@@ -285,7 +323,26 @@ function ImageStage({
  * journal through a web sheet — and left them staring at a poster with a "play
  * again" button if anything about that handoff failed.
  */
-function VideoStage({ url, poster }: { url: string; poster: string | null }) {
+/**
+ * A video, at the size it actually is.
+ *
+ * THE BUG THIS REPLACES: the stage was a box of `aspectRatio: 16/9` with the
+ * video contained inside it. Every video taken on a phone is PORTRAIT, so a
+ * 9:16 picture was fitted into a 16:9 hole and came out as a small strip in the
+ * middle of the screen with black either side — a quarter of the height the web
+ * app gives it. The web build never had a forced ratio (`<video>` uses the
+ * file's own), which is the whole of "it is bigger on the web".
+ *
+ * So the shape comes from the FILE. `sourceLoad` reports the track's real size;
+ * the box is then the largest rectangle of that shape which fits the stage, so
+ * a portrait video fills the height and a landscape one fills the width. Until
+ * the size is known the video simply fills the stage, which is already the
+ * right answer and merely un-rounded — so there is no wrong-shaped first frame.
+ *
+ * Fitting the box to the picture is also what makes the corners mean anything:
+ * a radius on a full-bleed black rectangle rounds the background, not the film.
+ */
+function VideoStage({ url, poster, full }: { url: string; poster: string | null; full: boolean }) {
   const web = Platform.OS === 'web';
   // `null` on web: the hook still has to run — hooks cannot be conditional —
   // but there is nothing for it to load, and the browser element below does the
@@ -296,26 +353,41 @@ function VideoStage({ url, poster }: { url: string; poster: string | null }) {
     p.play();
   });
 
+  // The stage, measured rather than assumed: it is what is left after the bar
+  // and the stepper, and both of them come and go with full screen.
+  const [stage, setStage] = useState({ w: 0, h: 0 });
+  const loaded = useEvent(player, 'sourceLoad', null);
+  const size = loaded?.availableVideoTracks?.[0]?.size ?? null;
+  const ratio = size && size.width > 0 && size.height > 0 ? size.width / size.height : null;
+
   if (web) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 }}>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: full ? 0 : 12 }}>
         {createElement('video', {
           src: url,
           poster: poster ?? undefined,
           controls: true,
           autoPlay: true,
           playsInline: true,
-          style: { width: '100%', maxHeight: '100%', borderRadius: 14, background: '#000' },
+          style: { width: '100%', maxHeight: '100%', borderRadius: full ? 0 : 10, background: '#000' },
         })}
       </View>
     );
   }
 
+  // The largest box of the video's own shape that fits. Both fall back to the
+  // whole stage before the size is known.
+  const boxW = ratio && stage.w && stage.h ? Math.min(stage.w, stage.h * ratio) : stage.w || undefined;
+  const boxH = ratio && stage.w && stage.h ? Math.min(stage.h, stage.w / ratio) : stage.h || undefined;
+
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 }}>
+    <View
+      style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: full ? 0 : 12 }}
+      onLayout={(e) => setStage({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+    >
       <VideoView
         player={player}
-        style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: 14, backgroundColor: '#000' }}
+        style={{ width: boxW, height: boxH, borderRadius: full ? 0 : 10, backgroundColor: '#000' }}
         contentFit="contain"
         nativeControls
       />

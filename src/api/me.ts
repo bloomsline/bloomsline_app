@@ -18,6 +18,12 @@ export interface MeProfile {
    *  Server-side rather than a flag on the phone: it has to survive a reinstall,
    *  and it is the only way to count how many patients actually finish. */
   momentsOnboardedAt: string | null;
+  /** Which tab opens the app, or null if they have never chosen. Here and not
+   *  in the Keychain for the same reason as the line above: an app update or a
+   *  new phone should not quietly move someone's home. */
+  landingTab: 'care' | 'moments' | null;
+  /** Tab explainers already dismissed, by versioned key. */
+  introsSeen: string[];
   locale: 'en' | 'fr';
   dateOfBirth: string | null; // 'YYYY-MM-DD'
   /** Their sign-in address. Shown, never edited: changing it is an auth flow
@@ -47,6 +53,11 @@ export async function saveProfile(input: {
   /** Sent once, from the last screen of the Moments introduction. The server
    *  keeps the FIRST date it is told, so sending it again is harmless. */
   momentsOnboarded?: boolean;
+  /** The tab to open the app on. */
+  landingTab?: 'care' | 'moments';
+  /** One explainer key, just dismissed. Appended server-side, and only once, so
+   *  sending it twice is harmless. */
+  introSeen?: string;
   locale?: 'en' | 'fr';
   /** An object key from `presignAvatar`, or null to remove the picture. The
    *  server re-checks it belongs to the caller before storing it. */

@@ -13,20 +13,20 @@
 // word on the page), then appearance, then the rest.
 import { useEffect, useState } from 'react';
 import { Image, Linking, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
-import { MessageCircle, MessageCircleQuestionMark, LogOut, ChevronRight, ChevronDown, Trash2, Languages, Palette, Home, ShieldCheck, FileText, Database, Lock, type LucideIcon } from 'lucide-react-native';
+import { MessageCircle, MessageCircleQuestionMark, LogOut, ChevronRight, ChevronDown, Trash2, Languages, Palette, Home, ShieldCheck, FileText, Database, Lock } from 'lucide-react-native';
 import { notify } from '@/src/ui/alert';
 import { EdHeader, EdCard, FadeIn, Kicker } from '@/src/ui/editorial';
 import { OptionSheet } from '@/src/ui/option-sheet';
 import { useTheme, type ThemeChoice } from '@/src/ui/theme-mode';
 import { useAuth } from '@/src/auth/auth-context';
 import { useOnboarding } from '@/src/onboarding/context';
-import { useLanding, type LandingTab } from '@/src/prefs/landing';
+import { useLanding, type LandingTab } from '@/src/prefs/app-prefs';
 import { useI18n, type Locale } from '@/src/i18n';
 import { useConfirm } from '@/src/ui/confirm';
 import { fetchMe, requestAccountDeletion, saveProfile } from '@/src/api/me';
 import { useMeFace } from '@/src/profile/me-face';
+import { Row } from '@/src/ui/settings-row';
 
 // Was "Bloomsline · v2 (preview)". A version string is a note we left for
 // ourselves at the foot of a patient's own settings screen, and "preview" tells
@@ -126,7 +126,6 @@ export default function Settings() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         {/* No kicker: it would say "Settings" above "Settings". */}
         <EdHeader title={t.settings.title} onBack={back} />
@@ -266,34 +265,4 @@ export default function Settings() {
 function purgeDate(requestedAt: string, locale: Locale): string {
   const d = new Date(new Date(requestedAt).getTime() + 30 * 86_400_000);
   return d.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'long' });
-}
-
-function Row({ Icon, title, value, onPress, divider, tone, chevron = true }: {
-  Icon: LucideIcon;
-  title: string;
-  /** The setting's current value, or a one-line hint for a row that has none. */
-  value?: string;
-  onPress: () => void;
-  divider?: boolean;
-  tone?: 'danger';
-  /** A chevron promises somewhere to go. Sign out and Delete are acts, not
-   *  destinations, so they do not get one. */
-  chevron?: boolean;
-}) {
-  const { t: TT } = useTheme();
-  const ink = tone === 'danger' ? TT.danger : TT.ink;
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.8}
-      style={{ paddingVertical: 15, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: divider ? 1 : 0, borderBottomColor: TT.line }}
-    >
-      <Icon size={20} color={tone === 'danger' ? TT.danger : TT.accent} strokeWidth={1.9} />
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 16, color: ink }}>{title}</Text>
-        {value ? <Text style={{ fontSize: 12.5, color: TT.faint, marginTop: 1 }}>{value}</Text> : null}
-      </View>
-      {chevron ? <ChevronRight size={18} color={TT.faint} strokeWidth={2} /> : null}
-    </TouchableOpacity>
-  );
 }

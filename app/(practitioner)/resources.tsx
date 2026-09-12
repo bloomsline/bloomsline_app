@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Check, Eye, Inbox, Search, Share2 } from 'lucide-react-native';
 import { EdHeader, EdCard, EdPill, EdSection, FadeIn } from '@/src/ui/editorial';
@@ -102,7 +101,6 @@ export default function Resources() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: PRACTITIONER_TAB_PAD }} showsVerticalScrollIndicator={false}>
         <EdHeader kicker={tr.kicker} title={tr.title} />
 
@@ -179,7 +177,7 @@ export default function Resources() {
               ))}
 
               {done ? <Text style={{ fontSize: 13.5, fontWeight: '700', color: TT.accent, marginTop: 6 }}>{done}</Text> : null}
-              {error ? <Text style={{ fontSize: 13.5, color: '#C0392B', marginTop: 6 }}>{error}</Text> : null}
+              {error ? <Text style={{ fontSize: 13.5, color: TT.danger, marginTop: 6 }}>{error}</Text> : null}
 
               <EdPill label={tr.back} variant="outline" onPress={() => setPicked(null)} style={{ marginTop: 18 }} />
             </>

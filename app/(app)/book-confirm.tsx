@@ -3,7 +3,6 @@
 // acknowledges without a real write. On success the hub refetches and shows it.
 import { useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Info, Video } from 'lucide-react-native';
 import { notify } from '@/src/ui/alert';
@@ -106,7 +105,6 @@ export default function BookConfirm() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
         <EdHeader kicker={kicker} title={tr.confirmTitle} source={ONBOARDING_IMAGES.final} onBack={() => router.back()} />
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>

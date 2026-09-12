@@ -17,7 +17,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Pressable, RefreshControl, ScrollView, Text, TouchableOpacity, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowDown } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
@@ -26,7 +25,7 @@ import { Line } from '@/src/moments/Line';
 import { MomentsClosing, MomentsIntro } from '@/src/moments/FirstRun';
 import { useMomentsFirstRun } from '@/src/moments/first-run';
 import { MomentDetail, type MomentChange } from '@/src/moments/MomentDetail';
-import { useLanding } from '@/src/prefs/landing';
+import { useLanding } from '@/src/prefs/app-prefs';
 import { useOnboarding } from '@/src/onboarding/context';
 import { Ground } from '@/src/ui/Ground';
 import { useI18n, greetingFor } from '@/src/i18n';
@@ -142,8 +141,17 @@ export default function Moments() {
    * Only a fling is fast enough to slip an event into that window, which is why
    * it never showed up under slow scrolling, and why it struck the FIRST page
    * load and not the ones after — by then the reader is no longer near the edge.
+   *
+   * STARTS TRUE, and that is the whole of "Moments opens at the oldest day".
+   * Android fires an `onScroll` at offset 0 as the list lays out, before any
+   * content-size event. That is not the reader scrolling — there is nothing to
+   * scroll yet — but it was taken as such, and a gap of `height - 0` is the
+   * whole line, so the anchor faithfully put them at the very top. iOS does not
+   * send that event, which is why the line opened at today there and at April on
+   * a phone. Nothing may speak for the reader until the first anchor has placed
+   * them.
    */
-  const growing = useRef(false);
+  const growing = useRef(true);
   /**
    * Distance from the reader to the FOOT of the line — the one end that holds
    * still, since today is always the bottom and every page arrives above it.
@@ -344,7 +352,6 @@ export default function Moments() {
 
   return (
     <Ground>
-      <StatusBar style="light" />
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <View style={{ paddingHorizontal: 22, paddingTop: HEADER_TOP, paddingBottom: 10, flexDirection: 'row', alignItems: 'flex-start' }}>
           <View style={{ flex: 1 }}>

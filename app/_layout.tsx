@@ -8,7 +8,7 @@ import { useFonts } from 'expo-font';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '@/src/auth/auth-context';
 import { OnboardingProvider } from '@/src/onboarding/context';
-import { LandingProvider } from '@/src/prefs/landing';
+import { AppPrefsProvider } from '@/src/prefs/app-prefs';
 import { I18nProvider } from '@/src/i18n';
 import { ConfirmProvider } from '@/src/ui/confirm';
 import { ThemeProvider, useTheme } from '@/src/ui/theme-mode';
@@ -69,7 +69,7 @@ export default function RootLayout() {
       <AuthProvider>
         <I18nProvider>
           <OnboardingProvider>
-            <LandingProvider>
+            <AppPrefsProvider>
               {/* ThemeProvider wraps ConfirmProvider, not the other way round:
                   ConfirmProvider renders themed UI of its own, so it has to be
                   INSIDE. Nesting it outside typechecks perfectly and throws on
@@ -79,7 +79,7 @@ export default function RootLayout() {
                   <Themed />
                 </ConfirmProvider>
               </ThemeProvider>
-            </LandingProvider>
+            </AppPrefsProvider>
           </OnboardingProvider>
         </I18nProvider>
       </AuthProvider>

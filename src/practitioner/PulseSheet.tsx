@@ -160,7 +160,7 @@ export function PulseSheet({ memberId, who, onClose }: { memberId: string | null
                 <Text style={{ fontSize: 15.5, lineHeight: 23, color: TT.ink, marginTop: 18 }}>{pulse.content.pulseLine}</Text>
 
                 {staleCount > 0 && (
-                  <Text style={{ fontSize: 12.5, color: '#B45309', marginTop: 10 }}>{fill(tr.stale, { n: String(staleCount) })}</Text>
+                  <Text style={{ fontSize: 12.5, color: KIND[mode].concern.fg, marginTop: 10 }}>{fill(tr.stale, { n: String(staleCount) })}</Text>
                 )}
 
                 {pulse.content.signals?.length > 0 && (
@@ -215,7 +215,7 @@ export function PulseSheet({ memberId, who, onClose }: { memberId: string | null
               </>
             )}
 
-            {error ? <Text style={{ fontSize: 13.5, lineHeight: 20, color: '#C0392B', marginTop: 14 }}>{error}</Text> : null}
+            {error ? <Text style={{ fontSize: 13.5, lineHeight: 20, color: TT.danger, marginTop: 14 }}>{error}</Text> : null}
           </ScrollView>
         </Pressable>
       </Pressable>

@@ -2,7 +2,6 @@
 // /api/mobile/care/todo (real assignments). Demo items under FORCE_CARE_HUB.
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Check, ChevronRight, MessageCircle, type LucideIcon } from 'lucide-react-native';
 import { notify } from '@/src/ui/alert';
@@ -59,7 +58,6 @@ export default function FromPractitioner() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         <EdHeader kicker={first} title={fmt(tr.titleFrom, { name: first })} subtitle={tr.subtitle} onBack={() => router.back()} />
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>

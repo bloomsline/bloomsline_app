@@ -237,7 +237,7 @@ export function NoteEditor({
           {saving ? <ActivityIndicator color={TT.onAccent} size="small" /> : <Text style={{ fontSize: 15, fontWeight: '700', color: TT.onAccent }}>Save note</Text>}
         </Pressable>
       </View>
-      {error ? <Text style={{ fontSize: 13.5, color: '#C0392B', marginTop: 12 }}>{error}</Text> : null}
+      {error ? <Text style={{ fontSize: 13.5, color: TT.danger, marginTop: 12 }}>{error}</Text> : null}
       <View style={{ height: 30 }} />
     </View>
   );

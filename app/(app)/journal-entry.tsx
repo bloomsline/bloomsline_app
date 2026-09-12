@@ -8,7 +8,6 @@
 // than as a verb under the writing — see ShareChip for why.
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Linking, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAudioRecorder, useAudioRecorderState, requestRecordingPermissionsAsync, RecordingPresets } from 'expo-audio';
@@ -314,7 +313,6 @@ export default function JournalEntry() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="light" />
       <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         {/* The bar. Dark and imageless, like the list it came from — and where
@@ -374,6 +372,7 @@ export default function JournalEntry() {
               <BlockRow key={b.id} block={b} tr={tr} first={i === 0} last={i === blocks.length - 1}
                 onPatch={(p) => patch(b.id, p)} onRemove={() => removeBlock(b.id)} onUp={() => move(b.id, -1)} onDown={() => move(b.id, 1)}
                 onRetry={redo.current.get(b.id)}
+                onOpenMedia={setViewingId}
                 onMeasure={(h) => drag.measure(i, h)}
                 gripHandlers={drag.gripHandlers(i)}
                 shift={drag.shiftOf(i)}
@@ -415,16 +414,21 @@ export default function JournalEntry() {
           rather than showing one item in isolation. */}
       {viewingId ? (
         (() => {
+          // `url ?? localUri`, in that order: the uploaded copy when there is
+          // one, the file on the phone while there is not. Requiring the url
+          // meant a video was unplayable for exactly as long as it was still
+          // uploading, which is the window someone is most likely to tap it in.
+          const playable = (b: JournalBlock) => (b.type === 'image' || b.type === 'video') && Boolean(b.url ?? b.localUri);
           const shown: ViewerItem[] = blocks
-            .filter((b) => (b.type === 'image' || b.type === 'video') && b.url)
-            .map((b) => ({ kind: b.type === 'video' ? ('video' as const) : ('image' as const), url: b.url!, thumbnailUrl: b.localUri ?? null }));
-          const at = blocks.filter((b) => (b.type === 'image' || b.type === 'video') && b.url).findIndex((b) => b.id === viewingId);
+            .filter(playable)
+            .map((b) => ({ kind: b.type === 'video' ? ('video' as const) : ('image' as const), url: (b.url ?? b.localUri)!, thumbnailUrl: b.localUri ?? null }));
+          const at = blocks.filter(playable).findIndex((b) => b.id === viewingId);
           if (at < 0 || shown.length === 0) return null;
           return (
             <MediaViewer
               items={shown}
               index={at}
-              onIndex={(i) => setViewingId(blocks.filter((b) => (b.type === 'image' || b.type === 'video') && b.url)[i]?.id ?? null)}
+              onIndex={(i) => setViewingId(blocks.filter(playable)[i]?.id ?? null)}
               onClose={() => setViewingId(null)}
             />
           );
@@ -500,15 +504,16 @@ function ReadBlock({ block: b, tr, onOpenMedia }: { block: JournalBlock; tr: Tr;
         <MediaBlock block={b} tr={tr} />
       );
     case 'image': case 'video':
-      return <TouchableOpacity activeOpacity={0.9} disabled={!b.url} onPress={() => b.url && onOpenMedia?.(b.id)}><MediaBlock block={b} tr={tr} /></TouchableOpacity>;
+      return <TouchableOpacity activeOpacity={0.9} disabled={!(b.url ?? b.localUri)} onPress={() => onOpenMedia?.(b.id)}><MediaBlock block={b} tr={tr} /></TouchableOpacity>;
     default: return null;
   }
 }
 
-function BlockRow({ block: b, tr, first, last, onPatch, onRemove, onUp, onDown, onRetry, onMeasure, gripHandlers, shift, lifted }: {
+function BlockRow({ block: b, tr, first, last, onPatch, onRemove, onUp, onDown, onRetry, onOpenMedia, onMeasure, gripHandlers, shift, lifted }: {
   block: JournalBlock; tr: Tr; first: boolean; last: boolean;
   onPatch: (p: Partial<JournalBlock>) => void; onRemove: () => void; onUp: () => void; onDown: () => void;
   onRetry?: () => Promise<void>;
+  onOpenMedia?: (blockId: string) => void;
   onMeasure: (height: number) => void;
   gripHandlers: object;
   shift: number;
@@ -566,7 +571,15 @@ function BlockRow({ block: b, tr, first, last, onPatch, onRemove, onUp, onDown, 
       {input({ fontSize: 13.5, color: TT.inkSoft }, b.label ?? '', (v) => onPatch({ label: v }), tr.linkLabel, false)}
     </View>
   );
-  else if (isMedia(b.type)) content = <MediaBlock block={b} tr={tr} />;
+  else if (isMedia(b.type)) content = (
+    // A still with a play triangle painted on it and no tap behind it is a
+    // video that does not work — which is exactly how it was reported. The
+    // read view has always opened the viewer here; editing now does too, and
+    // from the local file, so a video plays before it has finished uploading.
+    <TouchableOpacity activeOpacity={0.9} disabled={b.uploading || !(b.url ?? b.localUri)} onPress={() => onOpenMedia?.(b.id)}>
+      <MediaBlock block={b} tr={tr} />
+    </TouchableOpacity>
+  );
 
   // Up, down and delete used to sit under EVERY block, so a page of writing
   // read as a stack of controls. One quiet handle carries all three instead,

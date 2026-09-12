@@ -3,7 +3,6 @@
 // practitioner. Repeatable. Wired to GET /api/mobile/library/[id].
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Lock, CircleCheckBig } from 'lucide-react-native';
 import { notify } from '@/src/ui/alert';
@@ -81,7 +80,6 @@ export default function LibraryPractice() {
   if (!loaded) {
     return (
       <View style={{ flex: 1, backgroundColor: TT.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <StatusBar style="dark" />
         <ActivityIndicator color={TT.accent} />
       </View>
     );
@@ -89,7 +87,6 @@ export default function LibraryPractice() {
   if (!view) {
     return (
       <View style={{ flex: 1, backgroundColor: TT.bg }}>
-        <StatusBar style="dark" />
         <EdHeader kicker={tr.unavailable} title={tr.unavailable} onBack={back} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <Text style={{ fontSize: 16, fontWeight: '700', color: TT.ink }}>{tr.unavailable}</Text>
@@ -104,7 +101,6 @@ export default function LibraryPractice() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <EdHeader source={ONBOARDING_IMAGES.card4} kicker={meta.label} title={view.resource.title} onBack={back} />
@@ -137,7 +133,6 @@ function ResultView({ title, score, onDone, tr }: { title: string; score: Patien
   const { t: TT } = useTheme();
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
         <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: TT.accentTint, alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
           <CircleCheckBig size={34} color={TT.accent} strokeWidth={2} />

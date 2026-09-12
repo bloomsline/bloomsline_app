@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Eye } from 'lucide-react-native';
 import { EdHeader, EdCard, EdPill, FadeIn } from '@/src/ui/editorial';
@@ -58,7 +57,6 @@ export default function ResourcePreviewScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         <EdHeader kicker={tr.kicker} title={view?.resource.title ?? title ?? ''} onBack={back} />
 

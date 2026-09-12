@@ -29,7 +29,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronDown, ChevronUp, Check, Video, Phone, MapPin } from 'lucide-react-native';
 import { EdHeader, EdPill, FadeIn, Kicker } from '@/src/ui/editorial';
@@ -251,7 +250,6 @@ export default function Book() {
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: TT.bg }}>
-        <StatusBar style="dark" />
         <EdHeader title={title} source={ONBOARDING_IMAGES.card4} onBack={back} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={TT.accent} /></View>
       </View>
@@ -261,7 +259,6 @@ export default function Book() {
   if (!data) {
     return (
       <View style={{ flex: 1, backgroundColor: TT.bg }}>
-        <StatusBar style="dark" />
         <EdHeader title={title} source={ONBOARDING_IMAGES.card4} onBack={back} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <Text style={{ fontSize: 16, fontWeight: '700', color: TT.ink }}>{tr.unavailable}</Text>
@@ -288,7 +285,6 @@ export default function Book() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: showTime ? 120 : 40 }} showsVerticalScrollIndicator={false}>
         <EdHeader title={title} subtitle={tr.withName(name)} source={ONBOARDING_IMAGES.card4} onBack={back} />
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>

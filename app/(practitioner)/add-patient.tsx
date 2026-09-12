@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TextInput, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { EdHeader, EdCard, EdPill, EdSection, FadeIn } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
@@ -63,7 +62,6 @@ export default function AddPatient() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         <EdHeader kicker={tr.kicker} title={tr.title} onBack={back} />
 
@@ -82,7 +80,7 @@ export default function AddPatient() {
             style={{ marginTop: 22 }}
           />
           {saving && <ActivityIndicator style={{ marginTop: 12 }} />}
-          {error ? <Text style={{ fontSize: 13.5, color: '#C0392B', marginTop: 12 }}>{error}</Text> : null}
+          {error ? <Text style={{ fontSize: 13.5, color: TT.danger, marginTop: 12 }}>{error}</Text> : null}
         </FadeIn>
       </ScrollView>
     </View>

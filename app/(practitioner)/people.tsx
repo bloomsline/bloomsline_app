@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TextInput, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ChevronRight, Search, UserPlus } from 'lucide-react-native';
 import { EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
@@ -42,7 +41,6 @@ export default function People() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: PRACTITIONER_TAB_PAD }} showsVerticalScrollIndicator={false}>
         <EdHeader kicker={tr.kicker} title={tr.title} rightIcon={UserPlus} onRight={() => router.navigate('/(practitioner)/add-patient' as never)} />
 

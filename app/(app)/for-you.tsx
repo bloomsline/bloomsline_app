@@ -7,7 +7,6 @@
 import { useCallback, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { PenLine, Sprout, BookOpen, ChevronRight, type LucideIcon } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
@@ -53,7 +52,6 @@ export default function ForYou() {
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale];
-  const [introActive, setIntroActive] = useState(false);
   // Whether this patient's practitioner has published anything.
   //
   // `null` until we know, and the card is not rendered until then — a door that
@@ -74,7 +72,6 @@ export default function ForYou() {
 
   return (
     <Ground>
-      <StatusBar style="light" />
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <View style={{ paddingHorizontal: 22, paddingTop: HEADER_TOP, paddingBottom: 18, flexDirection: 'row', alignItems: 'flex-start' }}>
           <View style={{ flex: 1 }}>
@@ -85,16 +82,9 @@ export default function ForYou() {
         </View>
 
         <ScrollView contentContainerStyle={{ paddingBottom: 170 }} showsVerticalScrollIndicator={false}>
-          <View style={{ paddingHorizontal: 22 }}>
-            <TabIntro tabKey="foryou" tone="dark" onActiveChange={setIntroActive} />
-          </View>
-
-          {/* The intro is an inline card, not a modal, so it must never take the
-              content away. It used to set pointerEvents 'none' here: on a first
-              visit both doors were dead until "Got it" was tapped, and nothing
-              on screen said so — taps just did nothing. Dim to draw the eye to
-              the intro; stay tappable. */}
-          <FadeIn style={{ paddingHorizontal: 22, opacity: introActive ? 0.55 : 1 }}>
+          {/* The intro is a popup over the whole screen now, so the page below
+              it needs no dimming of its own — see TabIntro. */}
+          <FadeIn style={{ paddingHorizontal: 22 }}>
             <View style={{ gap: 12 }}>
               <DoorCard
                 Icon={PenLine}
@@ -125,6 +115,7 @@ export default function ForYou() {
       </SafeAreaView>
 
       <TabBar active="foryou" />
+      <TabIntro tabKey="foryou" />
     </Ground>
   );
 }

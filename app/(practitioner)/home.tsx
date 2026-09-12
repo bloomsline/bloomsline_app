@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { CalendarPlus, Check, ChevronDown, ChevronUp, NotebookPen, PenLine, Share2, Sparkles, UserPlus, Video, MapPin, Phone, Settings as SettingsIcon, X, type LucideIcon } from 'lucide-react-native';
 import { EdHeader, EdCard, EdSection, FadeIn } from '@/src/ui/editorial';
@@ -112,7 +111,6 @@ export default function Dashboard() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: PRACTITIONER_TAB_PAD }} showsVerticalScrollIndicator={false}>
         <EdHeader kicker={tr.kicker} title={tr.title} subtitle={subtitle} rightIcon={SettingsIcon} onRight={() => router.navigate('/(practitioner)/settings' as never)} />
 
@@ -154,7 +152,7 @@ export default function Dashboard() {
                   </View>
                 </EdCard>
               ))}
-              {error ? <Text style={{ fontSize: 13, color: '#C0392B' }}>{error}</Text> : null}
+              {error ? <Text style={{ fontSize: 13, color: TT.danger }}>{error}</Text> : null}
             </View>
           )}
 

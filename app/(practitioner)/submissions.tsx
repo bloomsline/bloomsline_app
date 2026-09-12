@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronRight, FileText, User } from 'lucide-react-native';
 import { EdHeader, EdCard, EdSection, FadeIn } from '@/src/ui/editorial';
@@ -85,7 +84,6 @@ export default function Submissions() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <StatusBar style="dark" />
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         <EdHeader kicker={tr.kicker} title={focused ? (params.title ?? tr.title) : tr.title} onBack={back} />
 
