@@ -321,6 +321,22 @@ export default function Moments() {
     [router],
   );
 
+  /**
+   * Put the reader at today, unless they have taken over.
+   *
+   * Called from FOUR places on purpose, and that is not belt-and-braces for its
+   * own sake. Three fixes to this screen each depended on one event behaving the
+   * way it does on iOS, and each shipped still opening at the oldest day —
+   * Android orders `onScroll`, `onLayout` and `onContentSizeChange` differently
+   * and one of them was swallowing the pin. So no single event is load-bearing
+   * now: whichever arrives, the line ends up at today, and the first drag stops
+   * all of them for good.
+   */
+  const pinToToday = useCallback(() => {
+    if (touched.current) return;
+    scroller.current?.scrollToEnd({ animated: false });
+  }, []);
+
   const onContentSize = useCallback((_w: number, h: number) => {
     const changed = h !== contentH.current;
     contentH.current = h;
@@ -339,7 +355,7 @@ export default function Moments() {
     // Nobody has touched it yet, so this is still the opening however many
     // times the content has resized on the way. Straight to today.
     if (!touched.current) {
-      scroller.current?.scrollToEnd({ animated: false });
+      pinToToday();
       growing.current = false;
       return;
     }
@@ -352,7 +368,16 @@ export default function Moments() {
     scroller.current?.scrollTo({ y: Math.max(0, h - bottomGap.current), animated: false });
     // The reader is where they belong again; scroll events may speak for them.
     growing.current = false;
-  }, []);
+  }, [pinToToday]);
+
+  // The nodes landing in state is its own signal, and on Android it is not the
+  // same frame as the size event.
+  useEffect(() => {
+    if (loading || touched.current) return;
+    pinToToday();
+    const again = setTimeout(pinToToday, 120);
+    return () => clearTimeout(again);
+  }, [loading, moments.length, pinToToday]);
 
   useFocusEffect(
     useCallback(() => {
@@ -367,10 +392,10 @@ export default function Moments() {
       // the pin above would have nothing to run on. Ask once directly, after
       // this frame. Safe when `load` then changes the height: the event fires
       // and pins again.
-      const pin = setTimeout(() => { if (!touched.current) scroller.current?.scrollToEnd({ animated: false }); }, 0);
+      const pins = [0, 150, 400].map((ms) => setTimeout(pinToToday, ms));
       void load();
-      return () => clearTimeout(pin);
-    }, [load]),
+      return () => pins.forEach(clearTimeout);
+    }, [load, pinToToday]),
   );
 
   /** Patch the line in place. Anything that refetched here would have to throw
@@ -438,7 +463,7 @@ export default function Moments() {
         contentContainerStyle={{ paddingBottom: 96, paddingTop: 22, flexGrow: 1, justifyContent: 'flex-end' }}
           showsVerticalScrollIndicator={false}
           onContentSizeChange={onContentSize}
-          onLayout={(e) => { viewportH.current = e.nativeEvent.layout.height; }}
+          onLayout={(e) => { viewportH.current = e.nativeEvent.layout.height; pinToToday(); }}
           onScroll={onScroll}
           // The only signal that the reader, and not this screen, moved the list.
           onScrollBeginDrag={() => { touched.current = true; }}
