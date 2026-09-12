@@ -281,7 +281,10 @@ export default function Moments() {
       // gap is only meaningful against the height it was taken from — except
       // while a page is landing, when the height and the offset belong to
       // different moments. See `growing`.
-      contentH.current = contentSize.height;
+      // Not before the reader has been placed: this is the write that used to
+      // swallow the opening pin, by making the content-size event that follows
+      // look like a no-op.
+      if (touched.current) contentH.current = contentSize.height;
       if (!growing.current) bottomGap.current = contentSize.height - contentOffset.y;
 
       const runway = Math.max(1, contentSize.height - layoutMeasurement.height);
@@ -321,15 +324,27 @@ export default function Moments() {
   const onContentSize = useCallback((_w: number, h: number) => {
     const changed = h !== contentH.current;
     contentH.current = h;
-    if (!changed) return;
 
-    // Nobody has touched it yet: this is still the opening, however many times
-    // the content has resized on the way there. Straight to today.
+    // THE OPENING PIN RUNS FIRST, before the `changed` gate, and that placement
+    // is the entire bug — three attempts at this sat underneath it.
+    //
+    // `onScroll` also writes `contentH.current` (see it, above). On Android a
+    // scroll event fires at offset 0 while the list is still laying out, and it
+    // carries the NEW content size — so it claims the height first, and the
+    // content-size event that follows finds `changed === false` and returns
+    // before reaching any of this. The anchor never ran at all. Not an
+    // arithmetic problem, which is what the last two fixes treated it as: the
+    // code was simply never getting here.
+    //
+    // Nobody has touched it yet, so this is still the opening however many
+    // times the content has resized on the way. Straight to today.
     if (!touched.current) {
       scroller.current?.scrollToEnd({ animated: false });
       growing.current = false;
       return;
     }
+
+    if (!changed) return;
 
     // Content grew (a page) or shrank (a moment deleted). Either way it happened
     // ABOVE the reader, so put the foot of the line back the same distance away
@@ -347,7 +362,14 @@ export default function Moments() {
       // And it is an OPENING again: pin to today until a finger says otherwise.
       touched.current = false;
       growing.current = true;
+      // Returning to the tab can bring the line back at exactly the height it
+      // left at, and a content size that does not change fires no event — so
+      // the pin above would have nothing to run on. Ask once directly, after
+      // this frame. Safe when `load` then changes the height: the event fires
+      // and pins again.
+      const pin = setTimeout(() => { if (!touched.current) scroller.current?.scrollToEnd({ animated: false }); }, 0);
       void load();
+      return () => clearTimeout(pin);
     }, [load]),
   );
 
