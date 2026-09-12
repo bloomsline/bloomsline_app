@@ -2,10 +2,10 @@
 // Self-guided activities from the patient's practitioner(s),
 // always open, never assigned. Wired to GET /api/mobile/library.
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Search, ChevronRight } from 'lucide-react-native';
+import { Search, ChevronRight, X } from 'lucide-react-native';
 import { EdHeader, EdCard, FadeIn, Kicker } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { resourceTypeMeta } from '@/src/care/resources';
@@ -21,6 +21,8 @@ const T = {
     emptyTitle: 'Nothing here yet',
     emptyBody: 'Self-guided practices your practitioner shares will appear here.',
     search: 'Search practices',
+    noMatch: 'Nothing matches that.',
+    clearSearch: 'Clear search',
     featured: 'Featured',
     done: 'Done',
     types: {
@@ -34,6 +36,8 @@ const T = {
     emptyTitle: 'Rien ici pour le moment',
     emptyBody: 'Les pratiques en autonomie que votre praticien partage apparaîtront ici.',
     search: 'Rechercher une pratique',
+    noMatch: 'Aucun résultat.',
+    clearSearch: 'Effacer la recherche',
     featured: 'À la une',
     done: 'Fait',
     types: {
@@ -49,6 +53,7 @@ export default function Library() {
   const { locale } = useI18n();
   const tr = T[locale];
   const [items, setItems] = useState<LibraryItem[] | null>(null);
+  const [q, setQ] = useState('');
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/for-you' as never));
   const open = (id: string) => router.navigate(`/library-practice?id=${id}` as never);
 
@@ -60,8 +65,23 @@ export default function Library() {
     }, []),
   );
 
-  const featured = items && items.length > 0 ? items[0] : null;
-  const rest = items ? items.slice(1) : [];
+  // Searching is ACCENT-INSENSITIVE, which is not a nicety in French: nobody
+  // types "méditation" with the accent when they are looking for it, and a
+  // search that returns nothing for a word plainly on the screen reads as
+  // broken rather than as strict.
+  const fold = (v: string) => v.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+  const needle = fold(q.trim());
+  const matches = (it: LibraryItem) =>
+    fold(it.title).includes(needle) ||
+    fold(it.description ?? '').includes(needle) ||
+    fold(tr.types[it.type] ?? '').includes(needle);
+
+  const searching = needle.length > 0;
+  const found = items ? items.filter(matches) : [];
+  // While searching there is no "featured": promoting one result above the rest
+  // would be the app deciding which of YOUR matches matters most.
+  const featured = !searching && items && items.length > 0 ? items[0] : null;
+  const rest = searching ? found : items ? items.slice(1) : [];
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
@@ -80,9 +100,26 @@ export default function Library() {
           ) : (
             <>
               {/* Search */}
-              <View style={{ height: 46, borderRadius: 23, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, marginBottom: 20 }}>
+              {/* It used to be a Text: an icon and a label that looked like a
+                  search box and did nothing when tapped. Sized by padding rather
+                  than a fixed height, for the reason the journal's field was
+                  clipping its own descenders. */}
+              <View style={{ borderRadius: 23, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 13, minHeight: 46, marginBottom: 20 }}>
                 <Search size={16} color={TT.faint} strokeWidth={2} />
-                <Text style={{ color: TT.faint, fontSize: 14 }}>{tr.search}</Text>
+                <TextInput
+                  value={q}
+                  onChangeText={setQ}
+                  placeholder={tr.search}
+                  placeholderTextColor={TT.faint}
+                  autoCorrect={false}
+                  returnKeyType="search"
+                  style={[{ flex: 1, fontSize: 14, color: TT.ink, padding: 0 }, { outlineStyle: 'none' } as never]}
+                />
+                {q.length > 0 ? (
+                  <TouchableOpacity onPress={() => setQ('')} hitSlop={10} accessibilityLabel={tr.clearSearch}>
+                    <X size={16} color={TT.faint} strokeWidth={2} />
+                  </TouchableOpacity>
+                ) : null}
               </View>
 
               {/* Featured — the one INVERTED block. It used to be `TT.ink`, which is
@@ -96,6 +133,10 @@ export default function Library() {
                   {featured.description ? <Text style={{ fontSize: 13, color: onCta(mode, 0.72), lineHeight: 20, marginTop: 4 }} numberOfLines={2}>{featured.description}</Text> : null}
                 </TouchableOpacity>
               )}
+
+              {searching && found.length === 0 ? (
+                <Text style={{ paddingTop: 18, textAlign: 'center', fontSize: 13.5, color: TT.inkSoft }}>{tr.noMatch}</Text>
+              ) : null}
 
               {/* Practices */}
               <View style={{ gap: 10 }}>
