@@ -66,3 +66,13 @@ export const MOCK_ROLE = process.env.EXPO_PUBLIC_MOCK_ROLE === 'practitioner' ? 
 // practitioner. Without it, a solo account sees the "connect a practitioner"
 // state instead. For design review only.
 export const FORCE_CARE_HUB = process.env.EXPO_PUBLIC_FORCE_CARE_HUB === '1';
+
+// Sign in with Apple on the WEB and on Android, through Apple's OAuth flow
+// rather than the iOS sheet. Gated on its own flag because it needs a Services
+// ID and a verified domain on the server: a button drawn without them sends
+// someone to a 404 at Apple, which is worse than not offering it.
+//
+// iOS is excluded here even when the flag is on — it has the native sheet, and
+// two ways in on one platform is a choice nobody asked to make.
+export const appleWebConfigured =
+  Platform.OS !== 'ios' && process.env.EXPO_PUBLIC_APPLE_WEB_SIGNIN === '1';

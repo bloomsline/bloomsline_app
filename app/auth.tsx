@@ -23,12 +23,16 @@ import { useI18n } from '@/src/i18n';
  * offered, but only if they ask for it.
  */
 export default function AuthLink() {
-  const { token } = useLocalSearchParams<{ token?: string }>();
+  // `error` arrives from Apple's web flow, which lands on this same screen —
+  // there is no token to exchange when Apple refused, the person cancelled, or
+  // the address is not invited.
+  const { token, error } = useLocalSearchParams<{ token?: string; error?: string }>();
   const { signInWithLink } = useAuth();
   const { t } = useI18n();
   const T = t.authLink;
 
   const raw = typeof token === 'string' ? token : '';
+  const returned = typeof error === 'string' ? error : '';
   const isWeb = Platform.OS === 'web';
   const [state, setState] = useState<'working' | 'handoff' | 'failed'>(isWeb ? 'handoff' : 'working');
   // The server's reason, when it has one worth reading (waitlisted, suspended).
@@ -55,6 +59,15 @@ export default function AuthLink() {
   }, [raw, signInWithLink]);
 
   useEffect(() => {
+    // A failed Apple return says WHY. Without this the screen reached for
+    // "this sign-in link has expired", which is not what happened and sends
+    // someone to check their email for a link that was never sent.
+    if (returned) {
+      const said = t.authLink.appleReturn[returned as keyof typeof t.authLink.appleReturn];
+      setReason(said ?? t.signUp.appleFailed);
+      setState('failed');
+      return;
+    }
     if (!raw) return setState('failed');
     if (isWeb) {
       // Ask the OS for the app. If it is installed this page is left behind; if
@@ -69,7 +82,7 @@ export default function AuthLink() {
       return;
     }
     void exchange();
-  }, [raw, isWeb, exchange]);
+  }, [raw, isWeb, exchange, returned, t]);
 
   return (
     <View style={{ flex: 1 }}>
