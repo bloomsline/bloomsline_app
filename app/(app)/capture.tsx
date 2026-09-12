@@ -272,17 +272,6 @@ export default function Capture() {
                       Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null,
                     ]}
                   />
-                  {/* Said out loud, under an EMPTY box only. A placeholder at
-                      21px reads as a heading — people sat under it waiting for
-                      something to happen — and "nothing happened today" is a
-                      perfectly good reason to stall on a question that asks what
-                      did. This says the action is typing and that one word is a
-                      complete answer. It leaves the moment anything is typed,
-                      because by then it is stating the obvious. */}
-                  {step === 'write' && !note ? (
-                    <Text style={{ fontSize: 13, color: TT.faint, marginTop: 10 }}>{tr.whatHint}</Text>
-                  ) : null}
-
                   {/* An overlay rather than a handler on the input: a disabled
                       TextInput eats the touch, so the only reliable way to hear
                       the tap is to sit on top of it. */}

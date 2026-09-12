@@ -351,7 +351,6 @@ export const fr: Dict = {
     newMoment: 'Nouveau moment',
     preview: 'Aperçu',
     what: 'Comment vous sentez-vous, là, maintenant ?',
-    whatHint: 'Écrivez ce que vous voulez. Un mot suffit.',
     photoOrVideo: 'Photo ou vidéo',
     voice: 'Audio',
     next: 'Suivant',

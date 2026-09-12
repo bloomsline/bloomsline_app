@@ -368,11 +368,8 @@ export const en = {
     // Was "What happened?", which asks for an EVENT. Most of the time nothing
     // happened — that is the ordinary case for a check-in, and a question you
     // cannot answer reads as a screen you are failing rather than an invitation.
-    // A feeling is always answerable, and the second line says plainly that
-    // typing is the thing to do here, since a placeholder alone is easy to read
-    // as a heading and sit under.
+    // A feeling is always answerable.
     what: 'How are you feeling right now?',
-    whatHint: 'Type anything. A word is enough.',
     photoOrVideo: 'Photo or video',
     voice: 'Voice',
     next: 'Next',
