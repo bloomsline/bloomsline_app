@@ -36,7 +36,7 @@ export interface MenuAction {
 }
 
 export function AnchoredMenu({
-  open, anchor, onClose, width = 210, note, actions, align = 'right',
+  open, anchor, onClose, width = 210, note, actions, align = 'right', onDismissed,
 }: {
   open: boolean;
   anchor: Anchor | null;
@@ -46,6 +46,8 @@ export function AnchoredMenu({
   note?: string;
   actions: MenuAction[];
   align?: 'left' | 'right';
+  /** Fired once the menu has actually gone (iOS) — see `after-dismiss`. */
+  onDismissed?: () => void;
 }) {
   const { t: TT } = useTheme();
   const { width: screenW, height: screenH } = useWindowDimensions();
@@ -60,7 +62,7 @@ export function AnchoredMenu({
   const top = anchor && below + estimated > screenH - 12 ? Math.max(12, anchor.y - estimated - 8) : below;
 
   return (
-    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose} onDismiss={onDismissed}>
       <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: TT.scrim }} />
       <View style={{ position: 'absolute', top, left, width, backgroundColor: TT.sheet, borderWidth: 1, borderColor: TT.line, borderRadius: 16, overflow: 'hidden' }}>
         {note ? (
