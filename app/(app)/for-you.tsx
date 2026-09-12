@@ -30,7 +30,7 @@ const T = {
     activitiesDesc: 'Resources chosen for you by your practitioner, available whenever you need them.',
     browse: 'Browse activities',
     articles: 'Articles',
-    articlesDesc: 'Pieces your practitioner has written, to read whenever you like.',
+    articlesDesc: 'Writing from your practitioner, to read whenever you like.',
     browseArticles: 'Browse articles',
   },
   fr: {
@@ -43,7 +43,7 @@ const T = {
     activitiesDesc: 'Des supports choisis par votre praticien, à explorer quand vous en ressentez le besoin.',
     browse: 'Voir les activités',
     articles: 'Articles',
-    articlesDesc: 'Des textes écrits par votre praticien, à lire quand vous le souhaitez.',
+    articlesDesc: 'Des textes rédigés par votre praticien, à lire quand vous le souhaitez.',
     browseArticles: 'Voir les articles',
   },
 } as const;
