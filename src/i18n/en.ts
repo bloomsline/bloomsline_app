@@ -365,11 +365,15 @@ export const en = {
   capture: {
     newMoment: 'New moment',
     preview: 'Preview',
-    // Was "What happened?", which asks for an EVENT. Most of the time nothing
-    // happened — that is the ordinary case for a check-in, and a question you
-    // cannot answer reads as a screen you are failing rather than an invitation.
-    // A feeling is always answerable.
-    what: 'How are you feeling right now?',
+    what: 'What happened?',
+    // THE FIRST MOMENT ONLY. "What happened?" asks for an event, and on the very
+    // first one — opened from the introduction, with nothing on the line yet —
+    // there may be no event at all; a question you cannot answer reads as a
+    // screen you are failing. A feeling is always answerable. Afterwards the
+    // question goes back to "What happened?", which is the better prompt for
+    // someone who already knows what a moment is and came here with something
+    // to record.
+    whatFirst: 'How are you feeling right now?',
     photoOrVideo: 'Photo or video',
     voice: 'Voice',
     next: 'Next',

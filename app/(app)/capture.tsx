@@ -64,7 +64,11 @@ export default function Capture() {
 
   // A pre-selected feeling from the Moments empty-state shortcut still works: it
   // opens the sheet on the matching tone with that feeling already chosen.
-  const { emotion } = useLocalSearchParams<{ emotion?: string }>();
+  // `first` is set by the Moments introduction, and only there: the very first
+  // moment gets a question that can always be answered, every one after it gets
+  // "What happened?".
+  const { emotion, first } = useLocalSearchParams<{ emotion?: string; first?: string }>();
+  const firstMoment = first === '1';
   const initial = typeof emotion === 'string' && MOODS.some((m) => m.key === emotion) ? emotion : null;
 
   const [step, setStep] = useState<Step>('write');
@@ -261,7 +265,7 @@ export default function Capture() {
                     ref={noteRef}
                     value={note}
                     onChangeText={setNote}
-                    placeholder={tr.what}
+                    placeholder={firstMoment ? tr.whatFirst : tr.what}
                     placeholderTextColor={TT.faint}
                     multiline
                     autoFocus={step === 'write'}
