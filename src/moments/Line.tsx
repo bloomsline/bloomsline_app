@@ -167,6 +167,15 @@ function NodeFace({ node, onPress }: { node: LineNode; onPress: () => void }) {
   const face = node.face;
   const showPhoto = !!face?.uri && !broken;
 
+  // Ask whether the file is there, without decoding it into a view.
+  useEffect(() => {
+    const uri = face?.uri;
+    if (!uri) return;
+    let alive = true;
+    Image.prefetch(uri).catch(() => { if (alive) setBroken(true); });
+    return () => { alive = false; };
+  }, [face?.uri]);
+
   // Leave a pixel for the stroke, or the outermost spikes get shaved.
   const d = shapePath(node.shape, NODE / 2, NODE / 2, NODE / 2 - 1);
   // Unique per MOUNT, not per moment.
@@ -207,13 +216,22 @@ function NodeFace({ node, onPress }: { node: LineNode; onPress: () => void }) {
         {showPhoto ? <Path d={d} fill="none" stroke={node.color} strokeWidth={1.4} strokeLinejoin="round" /> : null}
       </Svg>
 
-      {/* react-native-svg's Image has onLoad but no onError, and a moment whose
+      {/* No second <Image> here any more, and that matters more than it looks.
+          react-native-svg's Image has onLoad but no onError, and a moment whose
           object has left the bucket must SAY so rather than render an empty
-          shape. So a 1px RN Image loads the same URI purely to report failure;
-          it is served from the same cache, not a second download. */}
-      {face?.uri && !broken ? (
-        <Image source={{ uri: face.uri }} style={{ width: 1, height: 1, opacity: 0, position: 'absolute' }} onError={() => setBroken(true)} />
-      ) : null}
+          shape — so a hidden 1px Image used to load the same uri purely to
+          report failure. "Served from the same cache, not a second download" was
+          true and beside the point: it is a second DECODE, and a decoded bitmap
+          is sized by the source, not by the 1px box holding it.
+
+          A moment whose media predates on-device thumbnails has no
+          `thumbnailUrl`, so `face.uri` is the full photograph — several
+          megabytes once decoded, twice, per node, with every page ever scrolled
+          through still mounted. Reported as the app closing itself while
+          scrolling back through an old line, which is what running out of
+          memory looks like from the outside.
+
+          `prefetch` answers the same question without holding a bitmap. */}
 
       {showPhoto ? null : face?.kind === 'audio' ? (
         <AudioLines size={19} color={veil(mode, 0.72)} strokeWidth={2} />
