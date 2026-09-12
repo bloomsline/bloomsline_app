@@ -8,11 +8,11 @@
 // So: images open full screen and can be enlarged, audio plays where it sits,
 // and video plays over the screen and closes back onto it.
 //
-// The one place this cannot yet be honoured is native video. Playing it inline
-// needs `expo-video`, a native module and therefore a new build. Until that
-// exists, native falls back to `openBrowserAsync`, which is an in-app sheet the
-// patient dismisses straight back here — not a tab, and not a different app.
-import { createElement, useEffect, useRef, useState } from 'react';
+// Native video used to be the exception: with no player available it opened the
+// in-app browser instead, which asked a patient to watch their own journal
+// through a web sheet. `expo-video` closes that hole — it plays here now, with
+// the platform's own controls, on both halves.
+import { createElement, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -25,8 +25,8 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { ChevronLeft, ChevronRight, Minus, Pause, Play, Plus, X } from 'lucide-react-native';
 
 export interface ViewerItem {
@@ -273,24 +273,30 @@ function ImageStage({
 }
 
 /**
- * Video. On web this is a real <video> with its own controls, rendered through
- * createElement — the same trick the resources PDF viewer uses, and the only way
- * to play here without a viewer dependency.
+ * Video.
  *
- * On native there is no player available without `expo-video`, so it opens the
- * in-app browser sheet. That is still not a new tab: it lifts over the app and
- * dismisses back to this screen.
+ * WEB keeps the browser's own <video>, through createElement — the same trick
+ * the resources PDF viewer uses. It already knows about captions, picture in
+ * picture and the controls a person expects from their own browser, and there
+ * is nothing to be gained by replacing it.
+ *
+ * NATIVE plays here, with `expo-video`. It used to open the in-app browser
+ * because no player was installed, which asked a patient to watch their own
+ * journal through a web sheet — and left them staring at a poster with a "play
+ * again" button if anything about that handoff failed.
  */
 function VideoStage({ url, poster }: { url: string; poster: string | null }) {
-  const opened = useRef(false);
+  const web = Platform.OS === 'web';
+  // `null` on web: the hook still has to run — hooks cannot be conditional —
+  // but there is nothing for it to load, and the browser element below does the
+  // playing instead.
+  const player = useVideoPlayer(web ? null : { uri: url }, (p) => {
+    p.loop = false;
+    // Plays on arrival: opening a video IS the intent of the tap that got here.
+    p.play();
+  });
 
-  useEffect(() => {
-    if (Platform.OS === 'web' || opened.current) return;
-    opened.current = true;
-    void WebBrowser.openBrowserAsync(url);
-  }, [url]);
-
-  if (Platform.OS === 'web') {
+  if (web) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 }}>
         {createElement('video', {
@@ -306,16 +312,14 @@ function VideoStage({ url, poster }: { url: string; poster: string | null }) {
   }
 
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, paddingHorizontal: 30 }}>
-      {poster ? <Image source={{ uri: poster }} style={{ width: '100%', height: 200, borderRadius: 14 }} resizeMode="cover" /> : null}
-      <Text style={{ color: 'rgba(255,255,255,0.72)', fontSize: 14, textAlign: 'center' }}>Playing over the app. Close it to come back here.</Text>
-      <TouchableOpacity
-        onPress={() => { void WebBrowser.openBrowserAsync(url); }}
-        style={{ flexDirection: 'row', alignItems: 'center', gap: 8, height: 44, paddingHorizontal: 22, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.16)' }}
-      >
-        <Play size={16} color="#fff" fill="#fff" />
-        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>Play again</Text>
-      </TouchableOpacity>
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 }}>
+      <VideoView
+        player={player}
+        style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: 14, backgroundColor: '#000' }}
+        contentFit="contain"
+        nativeControls
+      />
     </View>
   );
 }
+
