@@ -229,6 +229,18 @@ export const OVER_MEDIA = {
   control: 'rgba(255,255,255,0.16)',
 } as const;
 
+/**
+ * `veil`'s counterpart for a MEDIA surface: a translucent white mark drawn on a
+ * photograph, a video still, or a placeholder standing in for one.
+ *
+ * Always white, never themed, for the same reason as `OVER_MEDIA` and `slot`:
+ * what is behind it is an image in both themes, so following the palette would
+ * be wrong rather than right. Named so the difference between "deliberately
+ * white" and "forgot the theme" stays visible — and so the lint rule can tell
+ * them apart.
+ */
+export const onMedia = (alpha: number): string => `rgba(255,255,255,${alpha})`;
+
 /** Recording in progress. The red is a signal, not a palette colour: it means
  *  the same thing on cream and on the ground, so it does not split by theme —
  *  and `danger` cannot stand in, because the salmon that reads on dark would

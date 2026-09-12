@@ -21,9 +21,10 @@ import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowDown } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
-import { TabIntro } from '@/src/ui/TabIntro';
 import { FadeIn, HEADER_TOP } from '@/src/ui/editorial';
 import { Line } from '@/src/moments/Line';
+import { MomentsClosing, MomentsIntro } from '@/src/moments/FirstRun';
+import { useMomentsFirstRun } from '@/src/moments/first-run';
 import { MomentDetail, type MomentChange } from '@/src/moments/MomentDetail';
 import { useLanding } from '@/src/prefs/landing';
 import { useOnboarding } from '@/src/onboarding/context';
@@ -115,8 +116,11 @@ export default function Moments() {
   // "Nothing yet" and "we could not reach your line" are different things to be
   // told, and showing the welcoming empty state for a network failure is a lie.
   const [failed, setFailed] = useState(false);
-  const [introActive, setIntroActive] = useState(false);
   const scroller = useRef<ScrollView>(null);
+  // Has this patient been through the Moments introduction? Server-held, so a
+  // reinstall does not introduce the app to someone who has been writing for
+  // months. See `first-run.ts`.
+  const firstRun = useMomentsFirstRun();
 
   // Scroll bookkeeping. All refs: these are read inside a 16ms scroll handler and
   // by the content-size callback, and none of them should cost a render.
@@ -342,6 +346,26 @@ export default function Moments() {
           <ProfileButton />
         </View>
 
+        {/* Three states, in the order a patient meets them.
+
+            An EMPTY line always gets the introduction — not a first visit, an
+            empty line. Someone who starts, wanders off and comes back a week
+            later meets it again rather than landing on a blank screen, which is
+            exactly the dead end this screen used to be.
+
+            Then, once and only once, the closing: why any of this is worth a
+            second moment. `firstRun.ready` gates both, or the introduction
+            flashes up for a beat in front of someone who finished it last year.
+
+            A failed fetch belongs to neither. "Nothing yet" and "we could not
+            reach your line" are different things to be told, and introducing the
+            app to someone whose connection dropped would be a lie about their
+            own data. */}
+        {!loading && firstRun.ready && !failed && moments.length === 0 ? (
+          <MomentsIntro onCapture={openCapture} />
+        ) : !loading && firstRun.ready && !failed && !firstRun.done ? (
+          <MomentsClosing onDone={firstRun.complete} />
+        ) : (
         <ScrollView
           ref={scroller}
           // `today` belongs just above the tab bar, however few moments there are.
@@ -361,16 +385,18 @@ export default function Moments() {
           // above the reader, so the top can never actually be pulled.
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={TT.faint} />}
         >
-          <View style={{ paddingHorizontal: 22 }}>
-            <TabIntro tabKey="moments" tone="dark" onActiveChange={setIntroActive} />
-          </View>
+          {/* No TabIntro here. That card explained the tab in the abstract and
+              then dismissed itself for good — it is keyed to storage, so it
+              never came back, which is how someone ended up on an empty screen
+              with nothing explaining it. The introduction above replaces it, and
+              is tied to the line being empty rather than to a visit. */}
 
           {loading ? (
             <View style={{ paddingTop: 60, alignItems: 'center' }}>
               <ActivityIndicator color={TT.faint} />
             </View>
           ) : (
-            <FadeIn style={{ opacity: introActive ? 0.55 : 1 }}>
+            <FadeIn>
               {moments.length === 0 ? (
                 <View style={{ paddingHorizontal: 34, paddingTop: 40, alignItems: 'center' }}>
                   <Text style={{ fontSize: 19, fontWeight: '700', color: TT.ink, textAlign: 'center', lineHeight: 26 }}>
@@ -416,6 +442,7 @@ export default function Moments() {
           )}
 
         </ScrollView>
+        )}
       </SafeAreaView>
 
       {/* Both only exist once the reader has actually gone somewhere. At the

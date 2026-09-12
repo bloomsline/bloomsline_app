@@ -14,6 +14,10 @@ export interface MeProfile {
   hasPractitioner: boolean;
   practitionerName: string | null;
   onboardedAt: string | null;
+  /** When they finished the Moments introduction, or null if they never have.
+   *  Server-side rather than a flag on the phone: it has to survive a reinstall,
+   *  and it is the only way to count how many patients actually finish. */
+  momentsOnboardedAt: string | null;
   locale: 'en' | 'fr';
   dateOfBirth: string | null; // 'YYYY-MM-DD'
   /** Their sign-in address. Shown, never edited: changing it is an auth flow
@@ -40,6 +44,9 @@ export async function saveProfile(input: {
   dateOfBirth?: string | null;
   agreedToTerms?: boolean;
   onboarded?: boolean;
+  /** Sent once, from the last screen of the Moments introduction. The server
+   *  keeps the FIRST date it is told, so sending it again is harmless. */
+  momentsOnboarded?: boolean;
   locale?: 'en' | 'fr';
   /** An object key from `presignAvatar`, or null to remove the picture. The
    *  server re-checks it belongs to the caller before storing it. */
