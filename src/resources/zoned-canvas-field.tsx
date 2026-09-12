@@ -216,7 +216,7 @@ export function ZonedCanvasField({
         />
       ))}
 
-      <Modal visible={open !== null} transparent animationType="fade" onRequestClose={() => setOpen(null)}>
+      <Modal visible={open !== null} transparent animationType="fade" onRequestClose={() => setOpen(null)} statusBarTranslucent>
         <Pressable
           onPress={() => setOpen(null)}
           style={{ flex: 1, backgroundColor: C.scrim, alignItems: 'center', justifyContent: 'center', padding: 28 }}

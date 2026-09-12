@@ -63,7 +63,7 @@ export function DateOfBirthField({ value, onChange, months, placeholder, doneLab
         <ChevronDown size={18} color="#BBBBBB" strokeWidth={2} />
       </Pressable>
 
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)} statusBarTranslucent>
         <Pressable className="flex-1 justify-end bg-black/40" onPress={() => setOpen(false)}>
           <Pressable className="rounded-t-3xl bg-white px-5 pb-8 pt-5" onPress={() => {}}>
             <Text className="mb-4 text-center text-[16px] font-bold text-ink">{titleLabel}</Text>

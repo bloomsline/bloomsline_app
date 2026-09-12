@@ -1,4 +1,5 @@
 import { Platform, Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LayoutGrid, Users, CalendarDays, Library, type LucideIcon } from 'lucide-react-native';
 import { useI18n } from '@/src/i18n';
@@ -29,9 +30,12 @@ export function PractitionerTabBar({ active }: { active: PractitionerTabId }) {
   const router = useRouter();
   const { locale } = useI18n();
   const fr = locale === 'fr';
+  // Floats over the page and outside any SafeAreaView, so it keeps itself clear
+  // of Android's navigation bar — see the same note on `TabBar`.
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={{ position: 'absolute', left: 22, right: 22, bottom: 30, flexDirection: 'row', alignItems: 'center' }}>
+    <View style={{ position: 'absolute', left: 22, right: 22, bottom: Math.max(30, insets.bottom + 12), flexDirection: 'row', alignItems: 'center' }}>
       <View
         style={{
           flex: 1, flexDirection: 'row', justifyContent: 'space-around', borderRadius: 40, paddingHorizontal: 10, paddingVertical: 12,

@@ -62,7 +62,18 @@ export function AnchoredMenu({
   const top = anchor && below + estimated > screenH - 12 ? Math.max(12, anchor.y - estimated - 8) : below;
 
   return (
-    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose} onDismiss={onDismissed}>
+    <Modal
+      visible={open}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+      onDismiss={onDismissed}
+      // The anchor comes from `measureInWindow`, which counts from the top of
+      // the SCREEN — status bar included. Without this the modal gets its own
+      // window starting below the status bar, so the menu is drawn a status
+      // bar's height too low, next to nothing in particular.
+      statusBarTranslucent
+    >
       <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: TT.scrim }} />
       <View style={{ position: 'absolute', top, left, width, backgroundColor: TT.sheet, borderWidth: 1, borderColor: TT.line, borderRadius: 16, overflow: 'hidden' }}>
         {note ? (

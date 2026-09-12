@@ -2,7 +2,7 @@
 // Self-guided activities from the patient's practitioner(s),
 // always open, never assigned. Wired to GET /api/mobile/library.
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Search, ChevronRight, X } from 'lucide-react-native';
@@ -113,7 +113,7 @@ export default function Library() {
                   placeholderTextColor={TT.faint}
                   autoCorrect={false}
                   returnKeyType="search"
-                  style={[{ flex: 1, fontSize: 14, color: TT.ink, padding: 0 }, { outlineStyle: 'none' } as never]}
+                  style={[{ flex: 1, fontSize: 14, color: TT.ink, padding: 0 }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
                 />
                 {q.length > 0 ? (
                   <TouchableOpacity onPress={() => setQ('')} hitSlop={10} accessibilityLabel={tr.clearSearch}>

@@ -11,7 +11,7 @@
 // `MomentsClosing` is shown once, after the first moment is saved, and answers
 // what the opening screen cannot: why would I do this twice.
 import { useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, PanResponder, Platform, Pressable, Text, View } from 'react-native';
+import { Animated, Easing, PanResponder, Platform, Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, ClipPath, Defs, G, Path, Rect } from 'react-native-svg';
 import { ImagePlus, Play, Quote } from 'lucide-react-native';
@@ -40,6 +40,10 @@ interface Card {
   /** How far it follows a finger. The near cards move more than the far ones. */
   drag: number;
 }
+
+/** The width the deck was drawn against. Every `left` below is a coordinate in
+ *  this space, so it is scaled rather than re-measured on a narrower screen. */
+const DESIGN_W = 390;
 
 const CARDS: Card[] = [
   { kind: 'words', size: 76, rotate: -17, left: -10, top: 88, opacity: 0.5, duration: 7500, drag: 0.35 },
@@ -106,6 +110,9 @@ export function MomentsIntro({ onCapture }: { onCapture: () => void }) {
   const { t: TT } = useTheme();
   const { t } = useI18n();
   const tr = t.firstRun;
+  // Never above 1: the deck shrinks to fit a narrower phone and is left alone
+  // on a wider one, where growing it would only make the cards coarse.
+  const fit = Math.min(1, useWindowDimensions().width / DESIGN_W);
 
   // One value per card, looping 0 → 1 → 0. Native-driven, so the drift costs no
   // JS frames on a screen that is otherwise perfectly still.
@@ -148,7 +155,16 @@ export function MomentsIntro({ onCapture }: { onCapture: () => void }) {
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', paddingBottom: 96 }}>
-      <View style={{ height: 230 }} {...responder.panHandlers}>
+      {/* The cards are placed in a 390-wide space, which is an iPhone's width
+          written down as coordinates. The outer two are MEANT to bleed off the
+          edges; on a 360dp Android phone the right-hand one bled most of the
+          way off while the left-hand one barely moved, and the fan went
+          lopsided. A fixed box, centred and scaled down to fit, keeps every
+          card where the design put it — proportionally, on any width. It is a
+          no-op at 390 and wider, so nothing moves on the phones this was
+          drawn on. */}
+      <View style={{ height: 230, alignItems: 'center' }} {...responder.panHandlers}>
+      <View style={{ width: DESIGN_W, height: 230, transform: [{ scale: fit }] }}>
         {CARDS.map((card, i) => {
           const wobble = drift[i].interpolate({ inputRange: [0, 1], outputRange: [`${card.rotate}deg`, `${card.rotate + (i % 2 === 0 ? 1.6 : -1.4)}deg`] });
           const lift = drift[i].interpolate({ inputRange: [0, 1], outputRange: [0, i % 2 === 0 ? -7 : 6] });
@@ -190,6 +206,12 @@ export function MomentsIntro({ onCapture }: { onCapture: () => void }) {
                   shadowOpacity: 0.42,
                   shadowRadius: 18,
                   shadowOffset: { width: 0, height: 10 },
+                  // Android ignores the shadow* family entirely, and this deck
+                  // is the one screen whose whole point is that the moments are
+                  // objects rather than a diagram — flat, they are just tiles.
+                  // Safe here and not on the parent: this node is rounded and
+                  // clipped, so the elevation follows the card's outline.
+                  elevation: 10,
                   borderRadius: 24,
                   overflow: 'hidden',
                   borderWidth: 1,
@@ -202,6 +224,7 @@ export function MomentsIntro({ onCapture }: { onCapture: () => void }) {
             </Animated.View>
           );
         })}
+      </View>
       </View>
 
       <View style={{ paddingHorizontal: 34, paddingTop: 26, alignItems: 'center' }}>

@@ -1,10 +1,11 @@
 // c8 — From your practitioner: assigned resources & exercises. Wired to GET
 // /api/mobile/care/todo (real assignments). Demo items under FORCE_CARE_HUB.
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Check, ChevronRight, MessageCircle, type LucideIcon } from 'lucide-react-native';
+import { notify } from '@/src/ui/alert';
 import { EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
 import { useOnboarding } from '@/src/onboarding/context';
 import { FORCE_CARE_HUB } from '@/src/config';
@@ -96,7 +97,7 @@ function ResItem({
 }) {
   const { t: TT } = useTheme();
   const { t } = useI18n();
-  const soon = () => Platform.OS === 'web' && globalThis.alert?.(t.common.comingSoon);
+  const soon = () => notify(t.common.comingSoon);
   return (
     <TouchableOpacity
       onPress={onPress ?? soon}

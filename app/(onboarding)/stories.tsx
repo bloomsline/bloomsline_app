@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { EditorialBg, Scrim, MonoKicker, Dashes, RiseIn, Pill } from '@/src/onboarding/editorial/kit';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
+import { useAndroidBack } from '@/src/ui/android-back';
 import { useI18n } from '@/src/i18n';
 
 // c2–c4 — the three value screens, one per tab the patient is about to meet:
@@ -35,6 +36,16 @@ export default function Stories() {
   const last = index === pages.length - 1;
 
   const advance = () => (last ? router.push('/(onboarding)/privacy') : setIndex((i) => i + 1));
+
+  // The three pages live in this route's state, so Android's back button would
+  // leave the carousel altogether from page 2 or 3 — while the dashes are still
+  // saying "02 / 03". It turns the page back instead, and only leaves from the
+  // first one.
+  useAndroidBack(() => {
+    if (index === 0) return false;
+    setIndex((i) => i - 1);
+    return true;
+  });
 
   // Swipe left/right between the three screens. Deliberately release-only: the
   // page does not follow the finger, it turns when you let go.

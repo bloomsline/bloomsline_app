@@ -6,6 +6,7 @@
 // that states its current value and opens this on tap says the same thing in
 // one line and keeps the page readable at a glance.
 import { Modal, Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Check } from 'lucide-react-native';
 import { useTheme } from '@/src/ui/theme-mode';
 
@@ -37,11 +38,26 @@ export function OptionSheet<T extends string>({
   onDismissed?: () => void;
 }) {
   const { t: TT } = useTheme();
+  // 34 was the iPhone's home indicator, written down as a number. Android's
+  // navigation bar is taller, and on a phone with three buttons the last option
+  // sat underneath it. The inset is the real measurement; the 34 stays as a
+  // floor so nothing moves on iOS.
+  const insets = useSafeAreaInsets();
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} onDismiss={onDismissed}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+      onDismiss={onDismissed}
+      // Without this an Android modal gets its own window starting BELOW the
+      // status bar, so the scrim stops short and a strip of the page shows
+      // through above it.
+      statusBarTranslucent
+    >
       <Pressable style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(20,20,20,0.4)' }} onPress={onClose}>
-        <Pressable style={{ borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: TT.sheet, paddingBottom: 34 }} onPress={() => {}}>
+        <Pressable style={{ borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: TT.sheet, paddingBottom: Math.max(34, insets.bottom + 16) }} onPress={() => {}}>
           <View style={{ alignItems: 'center', paddingTop: 12 }}>
             <View style={{ height: 4, width: 40, borderRadius: 2, backgroundColor: TT.line }} />
           </View>

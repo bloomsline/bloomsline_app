@@ -101,7 +101,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
       {top === null
         ? Platform.OS === 'web'
           ? opts && <View style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 2147483000 } as never}>{dialog}</View>
-          : <Modal visible={!!opts} transparent animationType="fade" onRequestClose={() => close(false)}>{dialog}</Modal>
+          : <Modal visible={!!opts} transparent animationType="fade" onRequestClose={() => close(false)} statusBarTranslucent>{dialog}</Modal>
         : null}
     </ConfirmContext.Provider>
   );

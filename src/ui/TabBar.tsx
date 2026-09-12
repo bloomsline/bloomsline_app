@@ -1,4 +1,5 @@
 import { Platform, Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useLanding } from '@/src/prefs/landing';
 import { useI18n } from '@/src/i18n';
@@ -31,10 +32,20 @@ export function TabBar({ active }: { active: TabId }) {
   const router = useRouter();
   const { landing } = useLanding();
   const { t } = useI18n();
+  const insets = useSafeAreaInsets();
   const order: TabId[] = landing === 'moments' ? ['moments', 'care', 'foryou'] : ['care', 'moments', 'foryou'];
 
+  // The bar floats over the page, OUTSIDE the screen's SafeAreaView (its hosts
+  // claim the top edge only), so it has to keep itself clear of the system's
+  // own chrome. `bottom-8` was measured against an iPhone's slim home
+  // indicator; Android's three-button navigation bar is twice as tall and was
+  // covering the labels. Whichever is taller wins, and the 32 stays as the
+  // floor so nothing moves on iOS.
   return (
-    <View className="absolute inset-x-6 bottom-8 flex-row items-center justify-center">
+    <View
+      className="absolute inset-x-6 flex-row items-center justify-center"
+      style={{ bottom: Math.max(32, insets.bottom + 12) }}
+    >
       {/* A pill, not bare labels. Bare text has no ground of its own, so the
           page scrolls UNDERNEATH it — the day heading collided with the tab
           row. The container gives the bar a surface; the active tab gets its

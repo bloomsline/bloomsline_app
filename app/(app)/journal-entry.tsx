@@ -598,7 +598,7 @@ function BlockRow({ block: b, tr, first, last, onPatch, onRemove, onUp, onDown, 
           anyone not dragging. */}
       <View
         {...gripHandlers}
-        style={[{ width: 24, height: 30, alignItems: 'center', justifyContent: 'center', marginTop: 2 }, { userSelect: 'none', cursor: 'grab' } as never]}
+        style={[{ width: 24, height: 30, alignItems: 'center', justifyContent: 'center', marginTop: 2 }, Platform.OS === 'web' ? ({ userSelect: 'none', cursor: 'grab' } as never) : null]}
       >
         <GripVertical size={15} color={lifted ? TT.accent : TT.faint} strokeWidth={2} />
       </View>

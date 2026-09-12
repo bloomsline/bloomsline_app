@@ -28,6 +28,7 @@
 // they show as a static line and only the time is editable.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronDown, ChevronUp, Check, Video, Phone, MapPin } from 'lucide-react-native';
@@ -124,6 +125,9 @@ function priceLabel(cents: number | null, currency: string, noChargeLabel: strin
 
 export default function Book() {
   const { t: TT } = useTheme();
+  // The booking button is pinned to the bottom of the window, so it has to
+  // clear Android's navigation bar itself.
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale];
@@ -383,7 +387,7 @@ export default function Book() {
       {/* Names the booking rather than saying "Continue", and stays inert until
           the patient has actually chosen a time. */}
       {showTime && !slotsLoading && days.length > 0 && (
-        <View style={{ position: 'absolute', left: 22, right: 22, bottom: 24 }}>
+        <View style={{ position: 'absolute', left: 22, right: 22, bottom: Math.max(24, insets.bottom + 10) }}>
           <EdPill
             label={pick ? (isReschedule ? tr.moveTo(whenLabel) : tr.bookAt(whenLabel)) : tr.chooseTime}
             variant="dark"

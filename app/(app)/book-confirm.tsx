@@ -2,10 +2,11 @@
 // the slot + atomic double-booking guard). `demo=1` (FORCE_CARE_HUB preview) just
 // acknowledges without a real write. On success the hub refetches and shows it.
 import { useRef, useState } from 'react';
-import { Platform, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Info, Video } from 'lucide-react-native';
+import { notify } from '@/src/ui/alert';
 import { EdHeader, EdCard, EdPill, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useOnboarding } from '@/src/onboarding/context';
@@ -73,7 +74,7 @@ export default function BookConfirm() {
   const start = slotIso ? new Date(slotIso) : null;
   const end = start ? new Date(start.getTime() + durationMinutes * 60000) : null;
 
-  const alert = (m: string) => Platform.OS === 'web' && globalThis.alert?.(m);
+  const alert = (m: string) => notify(m);
 
   const confirm = async () => {
     if (busy || !start) return;

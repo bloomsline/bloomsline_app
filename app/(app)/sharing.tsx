@@ -3,10 +3,11 @@
 // POST /api/moments/[id]/share {shared:false}. (Global "pause all sharing" needs
 // a user-level flag that doesn't exist yet — deferred.)
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Lock } from 'lucide-react-native';
+import { notify } from '@/src/ui/alert';
 import { EdHeader, EdCard, FadeIn, Kicker } from '@/src/ui/editorial';
 import { useOnboarding } from '@/src/onboarding/context';
 import { fetchSharing, type SharedItem } from '@/src/api/care';
@@ -61,7 +62,7 @@ export default function Sharing() {
       await shareMoment(id, false);
       setItems((prev) => (prev ? prev.filter((x) => x.id !== id) : prev));
     } catch {
-      if (Platform.OS === 'web') globalThis.alert?.(tr.updateError);
+      notify(tr.updateError);
     }
     setBusy(null);
   };
