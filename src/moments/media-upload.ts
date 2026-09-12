@@ -5,6 +5,7 @@
 import { Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { byteSize, putFile } from '@/src/upload/put-file';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import { presignMedia, type MomentMediaInput } from '@/src/api/moments';
 
@@ -16,11 +17,6 @@ export type PreparedMedia =
   | { kind: 'image'; uri: string; thumbUri: string; width: number; height: number; size: number; thumbSize: number }
   | { kind: 'video'; uri: string; mime: string; thumbUri: string | null; width: number; height: number; size: number; thumbSize: number; durationSeconds: number }
   | { kind: 'audio'; uri: string; mime: string; size: number; durationSeconds: number };
-
-async function byteSize(uri: string): Promise<number> {
-  const blob = await (await fetch(uri)).blob();
-  return blob.size;
-}
 
 async function jpegThumb(uri: string): Promise<{ uri: string; size: number }> {
   const t = await ImageManipulator.manipulateAsync(uri, [{ resize: { width: THUMB_WIDTH } }], { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG });
@@ -98,9 +94,11 @@ export const cameraAvailable =
 
 async function putOne(uri: string, contentType: string, sizeBytes: number, thumbnail: boolean): Promise<string> {
   const { key, url, headers } = await presignMedia({ contentType, sizeBytes, thumbnail });
-  const blob = await (await fetch(uri)).blob();
-  const put = await fetch(url, { method: 'PUT', headers: { ...headers, 'content-type': contentType }, body: blob });
-  if (!put.ok) throw new Error(`Upload failed (${put.status})`);
+  // See `upload/put-file`: a Blob body sends the blob's OWN content type on
+  // native, which does not match what the URL was signed with, and storage
+  // refuses it. Every photo, video and voice note on a moment went through
+  // that path.
+  if (!(await putFile(url, uri, contentType, headers))) throw new Error('Upload failed');
   return key;
 }
 

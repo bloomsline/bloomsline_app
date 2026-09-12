@@ -11,6 +11,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { presignAvatar } from '@/src/api/me';
+import { byteSize, putFile } from '@/src/upload/put-file';
 import type { CropRect } from './AvatarCropper';
 
 /** Wider than any avatar is drawn, so it survives a bigger frame later without
@@ -21,11 +22,6 @@ export interface PickedImage {
   uri: string;
   width: number;
   height: number;
-}
-
-async function byteSize(uri: string): Promise<number> {
-  const blob = await (await fetch(uri)).blob();
-  return blob.size;
 }
 
 /** Choose a photo. Null on cancel. Nothing is uploaded yet — the patient still
@@ -62,9 +58,9 @@ export async function uploadAvatar(source: PickedImage, crop: CropRect): Promise
   const signed = await presignAvatar('image/jpeg', size);
   if (!signed) return null;
 
-  const blob = await (await fetch(out.uri)).blob();
-  const put = await fetch(signed.url, { method: 'PUT', headers: { ...signed.headers, 'content-type': 'image/jpeg' }, body: blob });
-  if (!put.ok) return null;
+  // See `upload/put-file`. This is why "Take photo" answered "photo did not
+  // upload" on an iPhone while the same picture went up fine from a browser.
+  if (!(await putFile(signed.url, out.uri, 'image/jpeg', signed.headers))) return null;
 
   return { key: signed.key, localUri: out.uri };
 }

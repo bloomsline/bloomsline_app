@@ -1,7 +1,7 @@
 // Editorial onboarding kit — the shared primitives for the photography-led flow.
 // Motion is RN Animated tuned to the design's easing (long, soft, no bounce).
 import { useEffect, useRef, type ReactNode } from 'react';
-import { Animated, Easing, ImageBackground, Pressable, Text, View, type ImageSourcePropType, type ViewStyle } from 'react-native';
+import { Animated, Easing, ImageBackground, Platform, Pressable, Text, View, type ImageSourcePropType, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export const ED = {
@@ -39,11 +39,39 @@ export function EditorialBg({
     }
   }, [zoom, scale]);
 
+  /**
+   * WHERE THE CROP SITS, and why it is the same everywhere.
+   *
+   * `cover` fills the box and throws away what does not fit, centred. A browser
+   * window is far taller relative to its width than a phone, so the two crops
+   * of the same photograph kept different halves of it: the web showed the
+   * window and the blinds, the phone showed the woman holding a mug. Same file,
+   * same code — it simply looked like two different pictures, and the first
+   * guess was a broken asset.
+   *
+   * Both are now anchored to the TOP of the frame, which is the web's crop: the
+   * light, the window, the room. That is the register this flow is written in —
+   * an atmosphere to put your own words on, rather than a stock photograph of
+   * somebody else's face looking back at you.
+   *
+   * On web that is one line, `object-position`. On native there is no such
+   * property, so the image is drawn TALLER than its box and pinned to the top;
+   * the parent clips the rest. Same result, two mechanisms, because the two
+   * platforms give us different tools and not because they want different
+   * pictures.
+   */
+  const web = Platform.OS === 'web';
+
   return (
-    <View style={[{ flex: 1, backgroundColor: '#0E1512' }, style]}>
-      <Animated.View style={{ position: 'absolute', inset: 0, transform: [{ scale }] }}>
+    <View style={[{ flex: 1, backgroundColor: '#0E1512', overflow: 'hidden' }, style]}>
+      <Animated.View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, overflow: 'hidden', transform: [{ scale }] }}>
         {source ? (
-          <ImageBackground source={source} resizeMode="cover" style={{ flex: 1 }} />
+          <ImageBackground
+            source={source}
+            resizeMode="cover"
+            style={web ? { flex: 1 } : { position: 'absolute', left: 0, right: 0, top: 0, height: '142%' }}
+            imageStyle={web ? ({ objectPosition: '50% 0%' } as never) : undefined}
+          />
         ) : (
           <LinearGradient colors={[...SLOT_COLORS]} locations={[0, 0.55, 1]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={{ flex: 1 }} />
         )}
