@@ -20,7 +20,7 @@
 // and the timeline's valence is derived from the feelings actually picked (see
 // MOOD_SCORES). That is why this needed no migration.
 import { useEffect, useRef, useState } from 'react';
-import { useAudioRecorder, useAudioRecorderState, requestRecordingPermissionsAsync, RecordingPresets } from 'expo-audio';
+import { useAudioRecorder, useAudioRecorderState, requestRecordingPermissionsAsync, setAudioModeAsync, RecordingPresets } from 'expo-audio';
 import { ActivityIndicator, Animated, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -30,6 +30,7 @@ import { MediaViewer, type ViewerItem } from '@/src/ui/MediaViewer';
 import { MOODS, moodLabel } from '@/src/moments/moods';
 import { createMoment, shareMoment } from '@/src/api/moments';
 import { pickMedia, captureMedia, cameraAvailable, uploadMedia, type PreparedMedia } from '@/src/moments/media-upload';
+import { byteSize } from '@/src/upload/put-file';
 import { useOnboarding } from '@/src/onboarding/context';
 import { useI18n, fmt } from '@/src/i18n';
 import { notify } from '@/src/ui/alert';
@@ -141,6 +142,16 @@ export default function Capture() {
     try {
       const { granted } = await requestRecordingPermissionsAsync();
       if (!granted) { setError(tr.errMicNeeded); return; }
+      // iOS will not record until the audio SESSION is put into a mode that
+      // allows it — permission alone is not enough, and without this
+      // `prepareToRecordAsync` throws and the screen said "Could not start
+      // recording" with nothing to act on. A browser has no audio session, which
+      // is why voice notes worked on the web and only on the web.
+      //
+      // `playsInSilentMode` belongs with it: on a phone with the ringer switch
+      // flipped — which is most phones, most of the time — playback of the note
+      // you just recorded would be silent.
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await recorder.prepareToRecordAsync();
       recorder.record();
     } catch {
@@ -152,9 +163,15 @@ export default function Capture() {
     try {
       const seconds = Math.round((recState.durationMillis ?? 0) / 1000);
       await recorder.stop();
+      // Out of recording mode again. Left in it, iOS keeps the session on the
+      // record route and everything played afterwards comes out of the earpiece
+      // at a whisper.
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
       const uri = recorder.uri;
       if (uri) {
-        const size = (await (await fetch(uri)).blob()).size;
+        // Not `fetch(uri).blob()`: see `upload/put-file` — reading a file:// uri
+        // that way is the native trap this app has already hit twice.
+        const size = await byteSize(uri);
         setMedia((prev) => (prev.length >= MAX_MEDIA ? prev : [...prev, { kind: 'audio' as const, uri, mime: Platform.OS === 'web' ? 'audio/webm' : 'audio/mp4', size, durationSeconds: seconds }]));
       }
     } catch {
