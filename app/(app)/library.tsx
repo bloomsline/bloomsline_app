@@ -17,7 +17,7 @@ import { onCta } from '@/src/ui/tokens';
 const T = {
   en: {
     title: 'My guides',
-    subtitle: 'Practices you can do anytime — take what helps.',
+    subtitle: 'Resources chosen for you by your practitioner, available whenever you need them.',
     emptyTitle: 'Nothing here yet',
     emptyBody: 'Self-guided practices your practitioner shares will appear here.',
     search: 'Search practices',
@@ -30,7 +30,7 @@ const T = {
   },
   fr: {
     title: 'Mes repères',
-    subtitle: 'Des pratiques à faire quand vous le souhaitez, prenez ce qui vous aide.',
+    subtitle: 'Des supports choisis par votre praticien, à explorer quand vous en ressentez le besoin.',
     emptyTitle: 'Rien ici pour le moment',
     emptyBody: 'Les pratiques en autonomie que votre praticien partage apparaîtront ici.',
     search: 'Rechercher une pratique',
