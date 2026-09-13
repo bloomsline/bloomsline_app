@@ -40,6 +40,18 @@ import { useTheme } from '@/src/ui/theme-mode';
  *  straight back through someone's entire history on first paint. */
 const PAGE = 40;
 
+/**
+ * How far above and below the viewport a moment still draws its picture, and how
+ * coarsely that window moves.
+ *
+ * A screenful of margin either side means a picture is already there by the time
+ * it is scrolled to, at the cost of holding roughly three screens of them. The
+ * step is what keeps the line from re-rendering on every scroll event: the
+ * window only moves when the reader has travelled this far.
+ */
+const PHOTO_MARGIN = 900;
+const PHOTO_STEP = 400;
+
 /** How close to the top (px) starts the next fetch. Roughly a screenful of
  *  runway, so the page has landed before the line runs out under the thumb. */
 const LOAD_AHEAD = 600;
@@ -112,6 +124,18 @@ export default function Moments() {
   // null once the line has been read back to its beginning.
   const [cursor, setCursor] = useState<string | null>(null);
   const [viewing, setViewing] = useState<MomentDTO | null>(null);
+  /**
+   * Which band of the line may hold pictures, in the line's own coordinates.
+   *
+   * Everything stays mounted — the layout and the scroll position depend on it —
+   * but only the nodes near the viewport decode an image. A decoded photograph
+   * costs memory by its pixel size, not by the 56px shape it is drawn in, so a
+   * year of moments held at once is what Android kills the app for.
+   *
+   * STATE, and quantised to `PHOTO_STEP`, so a scroll re-renders the line about
+   * once a screenful rather than sixty times a second.
+   */
+  const [photoBand, setPhotoBand] = useState(0);
   // "Nothing yet" and "we could not reach your line" are different things to be
   // told, and showing the welcoming empty state for a network failure is a lie.
   const [failed, setFailed] = useState(false);
@@ -287,6 +311,11 @@ export default function Moments() {
       if (touched.current) contentH.current = contentSize.height;
       if (!growing.current) bottomGap.current = contentSize.height - contentOffset.y;
 
+      // Which band of the line is allowed to hold pictures. Quantised, so this
+      // sets state about once a screenful rather than on every event.
+      const band = Math.round(contentOffset.y / PHOTO_STEP);
+      setPhotoBand((prev) => (prev === band ? prev : band));
+
       const runway = Math.max(1, contentSize.height - layoutMeasurement.height);
       pos.setValue(Math.min(1, Math.max(0, contentOffset.y / runway)));
 
@@ -335,6 +364,12 @@ export default function Moments() {
   const pinToToday = useCallback(() => {
     if (touched.current) return;
     scroller.current?.scrollToEnd({ animated: false });
+    // And move the picture window with it. The band follows `onScroll`, which a
+    // programmatic scroll does not reliably fire — so opening at today with the
+    // band still at zero would load pictures for April and none for this week,
+    // which is precisely backwards.
+    const atFoot = Math.max(0, contentH.current - viewportH.current);
+    setPhotoBand((prev) => { const b = Math.round(atFoot / PHOTO_STEP); return prev === b ? prev : b; });
   }, []);
 
   const onContentSize = useCallback((_w: number, h: number) => {
@@ -523,6 +558,8 @@ export default function Moments() {
                     labels={lineLabels}
                     onOpen={setViewing}
                     onCaptureToday={openCapture}
+                    photoFrom={photoBand * PHOTO_STEP - PHOTO_MARGIN}
+                    photoTo={photoBand * PHOTO_STEP + viewportH.current + PHOTO_MARGIN}
                   />
                 </>
               )}

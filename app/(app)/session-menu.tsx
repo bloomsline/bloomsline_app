@@ -26,7 +26,8 @@ const T = {
     with: 'with',
     startsIn: 'Starts in',
     format: 'Format',
-    changesNotice: 'Changes allowed up to {hours} hours before the session.',
+    changesNotice: 'You can move this session up to {hours} hours before it starts. After that you can still cancel, and your practitioner is told.',
+    tooLateToMove: 'It is too close to the session to move it. You can still cancel, and your practitioner will be told.',
     reschedule: 'Reschedule session',
     cancel: 'Cancel session',
     contactPractitioner: 'To change or cancel this session, contact your practitioner.',
@@ -48,7 +49,8 @@ const T = {
     with: 'avec',
     startsIn: 'Commence dans',
     format: 'Format',
-    changesNotice: 'Modifications possibles jusqu’à {hours} heures avant la séance.',
+    changesNotice: 'Vous pouvez déplacer cette séance jusqu’à {hours} heures avant son début. Ensuite, vous pouvez encore l’annuler, et votre praticien en est informé.',
+    tooLateToMove: 'Il est trop tard pour déplacer cette séance. Vous pouvez encore l’annuler, et votre praticien en sera informé.',
     reschedule: 'Reprogrammer la séance',
     cancel: 'Annuler la séance',
     contactPractitioner: 'Pour modifier ou annuler cette séance, contactez votre praticien.',
@@ -87,6 +89,17 @@ export default function SessionMenu() {
   const canCancel = isDemo || p.canCancel === '1';
   const canReschedule = isDemo || p.canReschedule === '1';
   const noticeHours = Number(p.noticeHours) || 24;
+  // TWO BUTTONS, and one of them stops being offered near the session.
+  //
+  // The practitioner's permission is a single setting now, but the two actions
+  // are not the same act and the rule differs: a session inside the notice
+  // window can no longer be MOVED, and can still be CANCELLED — it goes through
+  // and the practitioner is told it was late. That is enforced server-side
+  // (`change-window.ts`); this is only the app agreeing with it, because a
+  // button that exists to answer "no" is worse than a button that is not there.
+  const hoursAway = start ? (start.getTime() - Date.now()) / 3_600_000 : Infinity;
+  const tooLateToMove = hoursAway < noticeHours;
+  const showReschedule = canReschedule && !tooLateToMove;
 
   const [busy, setBusy] = useState(false);
   const close = () => (router.canGoBack() ? router.back() : router.navigate('/home' as never));
@@ -136,15 +149,15 @@ export default function SessionMenu() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: TT.accentTint, borderRadius: 14, padding: 13, marginBottom: 16 }}>
               <Info size={15} color={TT.accent} strokeWidth={2} />
               <Text style={{ flex: 1, fontSize: 12.5, color: TT.inkSoft, lineHeight: 18 }}>
-                {fmt(tr.changesNotice, { hours: noticeHours })}
+                {tooLateToMove ? tr.tooLateToMove : fmt(tr.changesNotice, { hours: noticeHours })}
               </Text>
             </View>
           )}
 
-          {canReschedule && (
+          {showReschedule && (
             <EdPill label={tr.reschedule} variant="dark" onPress={busy ? undefined : reschedule} disabled={busy} />
           )}
-          {canReschedule && canCancel && <View style={{ height: 10 }} />}
+          {showReschedule && canCancel && <View style={{ height: 10 }} />}
           {canCancel && (
             <Pressable onPress={confirmCancel} disabled={busy} style={{ height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: TT.card, borderWidth: 1.5, borderColor: DANGER_BORDER }}>
               {busy ? <ActivityIndicator color={DANGER} /> : <Text style={{ fontSize: 15.5, fontWeight: '700', color: DANGER }}>{tr.cancel}</Text>}
@@ -152,7 +165,7 @@ export default function SessionMenu() {
           )}
 
           {/* Neither allowed: say so, so the sheet is not an empty panel. */}
-          {!canCancel && !canReschedule && (
+          {!canCancel && !showReschedule && (
             <Text style={{ fontSize: 12.5, color: TT.inkSoft, textAlign: 'center', lineHeight: 18 }}>
               {tr.contactPractitioner}
             </Text>

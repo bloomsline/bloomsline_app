@@ -78,7 +78,21 @@ export default function JournalEntry() {
   // which version is safe, which is the thing anyone actually wants to know.
   const [savedAtLabel, setSavedAtLabel] = useState('');
   /** Which media block is open full screen, by block id. */
-  const [viewingId, setViewingId] = useState<string | null>(null);
+  /**
+   * The viewer's contents, FROZEN at the moment something was tapped.
+   *
+   * It used to be derived from `blocks` on every render, and the editor
+   * re-renders constantly — autosave, the recorder's status, a keystroke. Every
+   * one of those rebuilt the item list, and a video whose url changed when its
+   * upload landed had the player released and rebuilt underneath it. Press play,
+   * it stops. Press play, it stops. Read mode never re-renders like that, which
+   * is exactly why it played fine there and nowhere else.
+   *
+   * A snapshot cannot be disturbed by any of it. The cost is that a video is
+   * played from the copy it was opened with: close and reopen to pick up the
+   * uploaded one, which is invisible in practice.
+   */
+  const [viewer, setViewer] = useState<{ items: ViewerItem[]; index: number } | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(typeof paramId === 'string' ? paramId : null);
@@ -210,6 +224,20 @@ export default function JournalEntry() {
     };
   }, []);
 
+  /** Tapping a picture or a video: take the list as it stands, and open on it.
+   *  `url ?? localUri` — the uploaded copy when there is one, the file on the
+   *  phone while there is not, so a video is watchable while it uploads. */
+  const openMedia = (blockId: string) => {
+    const playable = (b: JournalBlock) => (b.type === 'image' || b.type === 'video') && Boolean(b.url ?? b.localUri);
+    const list = latest.current.blocks.filter(playable);
+    const at = list.findIndex((b) => b.id === blockId);
+    if (at < 0) return;
+    setViewer({
+      index: at,
+      items: list.map((b) => ({ kind: b.type === 'video' ? ('video' as const) : ('image' as const), url: (b.url ?? b.localUri)!, thumbnailUrl: b.localUri ?? null })),
+    });
+  };
+
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/journal' as never));
 
   const remove = async () => {
@@ -322,7 +350,15 @@ export default function JournalEntry() {
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      {/* `padding` on ANDROID TOO, and that is the fix for two reports at once:
+          the caret hidden behind the keyboard, and the block toolbar (Text,
+          Heading, List, Quote) sitting underneath it where it cannot be reached.
+          Both were the same cause — `undefined` here means this view does
+          nothing on Android, so nothing moved out of the keyboard's way. The
+          toolbar is already inside this view, so once the view pads, the toolbar
+          rides above the keyboard and the scroller shrinks to match, which is
+          what puts the line being typed back on screen. */}
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
         {/* The bar. Dark and imageless, like the list it came from — and where
             the share state lives, because a state belongs with the chrome and
             not under the writing. */}
@@ -359,7 +395,7 @@ export default function JournalEntry() {
         <View style={{ flex: 1, backgroundColor: TT.bg, borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden' }}>
 
         {loaded && (mode === 'read' ? (
-          <ReadView title={title} blocks={blocks} tr={tr} meta={metaLine} onOpenMedia={setViewingId} />
+          <ReadView title={title} blocks={blocks} tr={tr} meta={metaLine} onOpenMedia={openMedia} />
         ) : (
           <ScrollView
             contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 32 }}
@@ -380,7 +416,7 @@ export default function JournalEntry() {
               <BlockRow key={b.id} block={b} tr={tr} first={i === 0} last={i === blocks.length - 1}
                 onPatch={(p) => patch(b.id, p)} onRemove={() => removeBlock(b.id)} onUp={() => move(b.id, -1)} onDown={() => move(b.id, 1)}
                 onRetry={redo.current.get(b.id)}
-                onOpenMedia={setViewingId}
+                onOpenMedia={openMedia}
                 onMeasure={(h) => drag.measure(i, h)}
                 gripHandlers={drag.gripHandlers(i)}
                 shift={drag.shiftOf(i)}
@@ -420,27 +456,13 @@ export default function JournalEntry() {
 
       {/* Everything on the page, so stepping in the viewer walks the page
           rather than showing one item in isolation. */}
-      {viewingId ? (
-        (() => {
-          // `url ?? localUri`, in that order: the uploaded copy when there is
-          // one, the file on the phone while there is not. Requiring the url
-          // meant a video was unplayable for exactly as long as it was still
-          // uploading, which is the window someone is most likely to tap it in.
-          const playable = (b: JournalBlock) => (b.type === 'image' || b.type === 'video') && Boolean(b.url ?? b.localUri);
-          const shown: ViewerItem[] = blocks
-            .filter(playable)
-            .map((b) => ({ kind: b.type === 'video' ? ('video' as const) : ('image' as const), url: (b.url ?? b.localUri)!, thumbnailUrl: b.localUri ?? null }));
-          const at = blocks.filter(playable).findIndex((b) => b.id === viewingId);
-          if (at < 0 || shown.length === 0) return null;
-          return (
-            <MediaViewer
-              items={shown}
-              index={at}
-              onIndex={(i) => setViewingId(blocks.filter(playable)[i]?.id ?? null)}
-              onClose={() => setViewingId(null)}
-            />
-          );
-        })()
+      {viewer ? (
+        <MediaViewer
+          items={viewer.items}
+          index={viewer.index}
+          onIndex={(i) => setViewer((v) => (v ? { ...v, index: i } : v))}
+          onClose={() => setViewer(null)}
+        />
       ) : null}
     </View>
   );
