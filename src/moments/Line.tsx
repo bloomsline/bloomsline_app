@@ -65,6 +65,24 @@ export interface LineNode {
 }
 
 const NODE = 56;
+
+/**
+ * How tall one slice of the stem is.
+ *
+ * The stem cannot be one <Svg> the height of the line: react-native-svg gives
+ * each one a single backing bitmap, and Android's Canvas throws above 100MB.
+ * At 1200dp and a 3x screen a slice is about 1170 x 3600 px — 17MB, an order of
+ * magnitude clear of the limit on any density we will meet, and few enough
+ * slices on screen at once to cost nothing.
+ */
+const STEM_SLICE = 1200;
+
+/** The top of every slice needed to cover a line this tall. */
+function sliceTops(total: number): number[] {
+  const tops: number[] = [];
+  for (let y = 0; y < total; y += STEM_SLICE) tops.push(y);
+  return tops;
+}
 const ROW = 118; // vertical rhythm between moments
 const TOP_PAD = 18;
 const RAIL = 44;      // the day rail down the left
@@ -308,9 +326,37 @@ export const Line = memo(function Line({
       <Text style={{ position: 'absolute', left: RAIL, top: -12, fontSize: 11, color: veil(mode, 0.28) }}>{labels.heavier}</Text>
       <Text style={{ position: 'absolute', right: 14, top: -12, fontSize: 11, color: veil(mode, 0.28) }}>{labels.lighter}</Text>
 
-      <Svg width={width} height={height + 30} style={{ position: 'absolute' }}>
-        {path ? <Path d={path} stroke={veil(mode, 0.22)} strokeWidth={1} fill="none" /> : null}
-      </Svg>
+      {/* THE STEM, IN SLICES, and this is what was crashing the app.
+          `react-native-svg` rasterises each <Svg> into ONE bitmap, and this was
+          a single <Svg> as tall as the whole line — 118px per moment, times the
+          screen's density. Android's Canvas refuses any bitmap over 100MB, so
+          at around a hundred moments it threw
+          `trying to draw too large (184861440bytes) bitmap` and took the app
+          with it. Not memory pressure: a hard limit on one bitmap, which is why
+          it killed a phone with memory to spare, and why iOS never did it.
+
+          Each slice draws the SAME path through a shifted viewBox, so the line
+          is identical and no bitmap is ever taller than one slice. And only the
+          slices near the reader are drawn at all — the window the pictures
+          already use. */}
+      {path
+        ? sliceTops(height + 30).map((top) =>
+            // A wider window than the pictures get: a slice is one stroked
+            // path and costs almost nothing, so there is no reason to let the
+            // line appear to end just off-screen.
+            top + STEM_SLICE >= photoFrom - STEM_SLICE * 2 && top <= photoTo + STEM_SLICE * 2 ? (
+              <Svg
+                key={top}
+                width={width}
+                height={STEM_SLICE}
+                viewBox={`0 ${top} ${width} ${STEM_SLICE}`}
+                style={{ position: 'absolute', top }}
+              >
+                <Path d={path} stroke={veil(mode, 0.22)} strokeWidth={1} fill="none" />
+              </Svg>
+            ) : null,
+          )
+        : null}
 
       {nodes.map((n) => (
         <View key={n.moment.id}>
