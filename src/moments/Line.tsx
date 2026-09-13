@@ -161,20 +161,35 @@ function stemPath(nodes: LineNode[], todayY: number, todayX: number): string {
  *  the same moment rendered twice. See `clipId` below for why that matters. */
 let clipSeq = 0;
 
-function NodeFace({ node, onPress }: { node: LineNode; onPress: () => void }) {
+/**
+ * `nearby` is what keeps this screen inside Android's memory budget.
+ *
+ * A decoded bitmap costs memory by its PIXEL dimensions, not by the 56px shape
+ * it is drawn in, and the line keeps every page ever scrolled through mounted —
+ * so a year of moments is a year of decoded photographs held at once. Android
+ * caps an app's heap and then kills it, which is the "Bloomsline stopped
+ * working" reported while scrolling back through an old line.
+ *
+ * So the NODES all stay — the layout, the stem and the scroll position depend on
+ * that, and they have been hard enough to get right. Only the PICTURES come and
+ * go: a node away from the viewport draws its silhouette and its glyph, and
+ * loads nothing. Scrolling back to it loads again, from cache, fast.
+ */
+function NodeFace({ node, onPress, nearby }: { node: LineNode; onPress: () => void; nearby: boolean }) {
   const { mode } = useTheme();
   const [broken, setBroken] = useState(false);
   const face = node.face;
-  const showPhoto = !!face?.uri && !broken;
+  const showPhoto = !!face?.uri && !broken && nearby;
 
-  // Ask whether the file is there, without decoding it into a view.
+  // Ask whether the file is there, without decoding it into a view — and only
+  // for the nodes that are going to draw it.
   useEffect(() => {
-    const uri = face?.uri;
+    const uri = nearby ? face?.uri : null;
     if (!uri) return;
     let alive = true;
     Image.prefetch(uri).catch(() => { if (alive) setBroken(true); });
     return () => { alive = false; };
-  }, [face?.uri]);
+  }, [face?.uri, nearby]);
 
   // Leave a pixel for the stroke, or the outermost spikes get shaved.
   const d = shapePath(node.shape, NODE / 2, NODE / 2, NODE / 2 - 1);
@@ -264,10 +279,15 @@ function NodeFace({ node, onPress }: { node: LineNode; onPress: () => void }) {
  * memoised at the call site for exactly this reason.
  */
 export const Line = memo(function Line({
-  moments, width, locale, labels, onOpen, onCaptureToday,
+  moments, width, locale, labels, onOpen, onCaptureToday, photoFrom, photoTo,
 }: {
   moments: MomentDTO[];
   width: number;
+  /** The band of the line, in its own coordinates, allowed to hold pictures.
+   *  Quantised by the caller so scrolling does not re-render this on every
+   *  pixel. See `nearby` on NodeFace. */
+  photoFrom: number;
+  photoTo: number;
   locale: 'en' | 'fr';
   labels: { heavier: string; lighter: string; today: string; yesterday: string; tapToRead: string; capture: string; plusMore: (n: number) => string };
   onOpen: (m: MomentDTO) => void;
@@ -298,7 +318,7 @@ export const Line = memo(function Line({
             <Text style={{ position: 'absolute', left: 14, top: n.y - 8, fontSize: 12, color: veil(mode, 0.42) }}>{n.dayLabel}</Text>
           ) : null}
 
-          <NodeFace node={n} onPress={() => onOpen(n.moment)} />
+          <NodeFace node={n} onPress={() => onOpen(n.moment)} nearby={n.y >= photoFrom && n.y <= photoTo} />
 
           {/* Two quiet marks under the node, and only when they are true.
               Outside the shape rather than on it: several of the shapes reach

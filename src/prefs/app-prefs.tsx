@@ -32,7 +32,17 @@ interface AppPrefsValue {
   landing: LandingTab;
   /** Persist a new choice, on this device and on the account. */
   setLanding: (tab: LandingTab) => void;
-  /** True once the cached preference has been read (avoids a routing flash). */
+  /**
+   * True once the landing tab is actually KNOWN — not merely looked for.
+   *
+   * The entry gate holds a spinner on this and then redirects exactly once, so
+   * it has to mean "we have an answer". It used to mean "the cache has been
+   * read", which on an empty cache is not an answer at all: the default was
+   * taken, the redirect fired, and the account's real choice arrived a moment
+   * later with nothing left to change. Set Moments as home, open the app, land
+   * on My Care — every time, on any launch where the cache was cold. Signing
+   * out clears that cache, so it was cold often.
+   */
   ready: boolean;
   /**
    * Has this explainer been dismissed? `null` means WE DO NOT KNOW YET, and it
@@ -50,6 +60,7 @@ const Ctx = createContext<AppPrefsValue | null>(null);
 export function AppPrefsProvider({ children }: { children: React.ReactNode }) {
   const { status } = useAuth();
   const [landing, setLandingState] = useState<LandingTab>('care');
+  // Do we know, rather than merely assume? See `ready`.
   const [ready, setReady] = useState(false);
   const [seen, setSeen] = useState<string[] | null>(null);
   // Set once the account's own answer has arrived. After that a cache read must
@@ -61,7 +72,12 @@ export function AppPrefsProvider({ children }: { children: React.ReactNode }) {
     let alive = true;
     void Promise.all([storageGet(LANDING_KEY), storageGet(INTROS_KEY)]).then(([tab, intros]) => {
       if (!alive) return;
-      if (!fromServer.current && (tab === 'care' || tab === 'moments')) setLandingState(tab);
+      // A cached tab IS an answer — it is the last thing the account told us —
+      // so it releases the gate immediately and the app opens without a wait.
+      if (!fromServer.current && (tab === 'care' || tab === 'moments')) {
+        setLandingState(tab);
+        setReady(true);
+      }
       if (!fromServer.current && intros) {
         try {
           const parsed: unknown = JSON.parse(intros);
@@ -70,10 +86,19 @@ export function AppPrefsProvider({ children }: { children: React.ReactNode }) {
           // A cache we cannot read is a cache we do not have.
         }
       }
-      setReady(true);
     });
     return () => { alive = false; };
   }, []);
+
+  // Nothing cached and no answer yet: wait, briefly. Without this the app opens
+  // on the wrong tab; with an unbounded wait it would not open at all when the
+  // server is unreachable, so the gate releases on its own after this and takes
+  // the default.
+  useEffect(() => {
+    if (ready) return;
+    const giveUp = setTimeout(() => setReady(true), 2500);
+    return () => clearTimeout(giveUp);
+  }, [ready, status]);
 
   // Signing out forgets the person. The device cache is cleared by
   // `forgetAccount`, but this provider is not remounted — so without this the
@@ -84,6 +109,9 @@ export function AppPrefsProvider({ children }: { children: React.ReactNode }) {
     fromServer.current = false;
     setLandingState('care');
     setSeen(null);
+    // And we no longer know whose app this is, so the next sign-in waits for an
+    // answer rather than inheriting this one's.
+    setReady(false);
   }, [status]);
 
   // 2. The account, which is the truth, and which is what survives a reinstall.
@@ -100,6 +128,9 @@ export function AppPrefsProvider({ children }: { children: React.ReactNode }) {
       const list = Array.isArray(me.introsSeen) ? me.introsSeen : [];
       setSeen(list);
       void storageSet(INTROS_KEY, JSON.stringify(list));
+      // The account has spoken, even when it says nothing: no `landingTab` means
+      // never chosen, and the default is then the right answer rather than a
+      // guess we are still waiting to have corrected.
       setReady(true);
     });
     return () => { alive = false; };
