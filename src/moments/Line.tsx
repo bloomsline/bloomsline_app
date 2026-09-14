@@ -142,9 +142,10 @@ export function layout(moments: MomentDTO[], width: number, locale: 'en' | 'fr',
   return { nodes, height: TOP_PAD + ordered.length * ROW + NODE };
 }
 
-/** The connecting stem: a smooth curve through the nodes, not straight hops. */
-function stemPath(nodes: LineNode[], todayY: number, todayX: number): string {
-  const pts = [...nodes.map((n) => ({ x: n.x, y: n.y })), { x: todayX, y: todayY }];
+/** The connecting stem: a smooth curve through the points, not straight hops.
+ *  Each segment depends only on its two ends, so the stem through any run of
+ *  consecutive points is exactly that stretch of the whole stem. */
+function stemPath(pts: { x: number; y: number }[]): string {
   if (pts.length < 2) return '';
   let d = `M ${pts[0].x} ${pts[0].y}`;
   for (let i = 1; i < pts.length; i++) {
@@ -237,7 +238,7 @@ function NodeFace({ node, onPress, nearby }: { node: LineNode; onPress: () => vo
   return (
     <Pressable
       onPress={onPress}
-      style={{ position: 'absolute', left: node.x - NODE / 2, top: node.y - NODE / 2, width: NODE, height: NODE, alignItems: 'center', justifyContent: 'center' }}
+      style={{ position: 'absolute', left: node.x - NODE / 2, top: ROW / 2 - NODE / 2, width: NODE, height: NODE, alignItems: 'center', justifyContent: 'center' }}
     >
       <Svg width={NODE} height={NODE} style={{ position: 'absolute' }}>
         <Defs>
@@ -321,7 +322,25 @@ export const Line = memo(function Line({
 
   const todayY = height - NODE / 2 - 6;
   const todayX = SIDE_PAD + 0.5 * (width - SIDE_PAD - NODE / 2 - 14);
-  const path = stemPath(nodes, todayY, todayX);
+  const total = height + 30;
+  // Every point of the stem, top to bottom: the moments, then today.
+  const points = useMemo(() => [...nodes.map((n) => ({ x: n.x, y: n.y })), { x: todayX, y: todayY }], [nodes, todayX, todayY]);
+
+  // WHAT IS MOUNTED, and this is the scroll freeze.
+  //
+  // Every moment ever scrolled through used to be rendered, and every one of
+  // them re-rendered whenever the picture band moved (every 400px of scroll) and
+  // whenever an older page arrived. Measured in the web preview: 40ms at 40
+  // moments, 130ms at 400, up to 200ms at 800, and several times that on a phone.
+  // That is the freeze, and it grew the further back someone read.
+  //
+  // Now only the moments near the reader are mounted; the rest are space. The
+  // layout, the height and so the scroll position are computed from ALL of them,
+  // so unmounting a far node moves nothing. And each row is anchored to the
+  // BOTTOM of the line (see NodeRow), which is the end that holds still when an
+  // older page lands above, so rows already mounted do not re-render at all.
+  const mountFrom = photoFrom - MOUNT_EXTRA;
+  const mountTo = photoTo + MOUNT_EXTRA;
 
   return (
     <View style={{ width, height: height + 30 }}>
@@ -343,8 +362,8 @@ export const Line = memo(function Line({
           is identical and no bitmap is ever taller than one slice. And only the
           slices near the reader are drawn at all — the window the pictures
           already use. */}
-      {path
-        ? sliceTops(height + 30).map((top) =>
+      {points.length > 1
+        ? sliceTops(total).map((top) =>
             // A wider window than the pictures get: a slice is one stroked
             // path and costs almost nothing, so there is no reason to let the
             // line appear to end just off-screen.
@@ -356,46 +375,97 @@ export const Line = memo(function Line({
                 viewBox={`0 ${top} ${width} ${STEM_SLICE}`}
                 style={{ position: 'absolute', top }}
               >
-                <Path d={path} stroke={veil(mode, 0.22)} strokeWidth={1} fill="none" />
+                <Path d={stemPath(pointsNear(points, top - ROW, top + STEM_SLICE + ROW))} stroke={veil(mode, 0.22)} strokeWidth={1} fill="none" />
               </Svg>
             ) : null,
           )
         : null}
 
-      {nodes.map((n) => (
-        <View key={n.moment.id}>
-          {n.dayLabel ? (
-            <Text style={{ position: 'absolute', left: 14, top: n.y - 8, fontSize: 12, color: veil(mode, 0.42) }}>{n.dayLabel}</Text>
-          ) : null}
-
-          <NodeFace node={n} onPress={() => onOpen(n.moment)} nearby={n.y >= photoFrom && n.y <= photoTo} />
-
-          {/* Two quiet marks under the node, and only when they are true.
-              Outside the shape rather than on it: several of the shapes reach
-              the full radius, so a corner badge would sit on a spike. */}
-          <NodeMarks node={n} label={labels.plusMore} />
-
-          {/* A moment with words and no picture says them here — the line would
-              otherwise be a row of identical glyphs. */}
-          {!n.face && n.moment.textContent ? (
-            <Pressable
-              onPress={() => onOpen(n.moment)}
-              style={{ position: 'absolute', top: n.y - 22, left: n.x < width / 2 ? n.x + NODE / 2 + 16 : undefined, right: n.x < width / 2 ? undefined : width - (n.x - NODE / 2) + 16, maxWidth: width * 0.42 }}
-            >
-              <Text numberOfLines={2} style={{ fontSize: 13, color: TT.inkSoft, lineHeight: 18, textAlign: n.x < width / 2 ? 'left' : 'right' }}>
-                {n.moment.textContent}
-              </Text>
-              <Text style={{ fontSize: 11, color: TT.faint, marginTop: 3, textAlign: n.x < width / 2 ? 'left' : 'right' }}>{labels.tapToRead}</Text>
-            </Pressable>
-          ) : null}
-        </View>
-      ))}
+      {nodes.map((n) => (n.y >= mountFrom && n.y <= mountTo ? (
+        <NodeRow
+          key={n.moment.id}
+          node={n}
+          bottom={total - (n.y + ROW / 2)}
+          nearby={n.y >= photoFrom && n.y <= photoTo}
+          width={width}
+          labels={labels}
+          onOpen={onOpen}
+        />
+      ) : null))}
 
       <Text style={{ position: 'absolute', left: 14, top: todayY - 8, fontSize: 12, color: TT.inkSoft, fontWeight: '600' }}>{labels.today}</Text>
       <TodayNode x={todayX} y={todayY} onPress={onCaptureToday} label={labels.capture} />
     </View>
   );
 });
+
+/** Pixels of line mounted beyond the picture band on each side. */
+const MOUNT_EXTRA = 1200;
+
+/** The stem points between two heights, plus one on each side so the segments
+ *  crossing the edges are drawn. `pts` are in line order (top to bottom). */
+function pointsNear(pts: { x: number; y: number }[], from: number, to: number): { x: number; y: number }[] {
+  let lo = 0;
+  let hi = pts.length;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (pts[mid].y < from) lo = mid + 1; else hi = mid; }
+  let end = lo;
+  while (end < pts.length && pts[end].y <= to) end++;
+  return pts.slice(Math.max(0, lo - 1), Math.min(pts.length, end + 1));
+}
+
+/**
+ * One moment on the line: its day label, its shape, its marks and its words.
+ *
+ * Positioned by its distance from the BOTTOM of the line. The line is laid out
+ * oldest first, so an older page arriving pushed every moment's `top` down and
+ * re-rendered all of them; their distance from the foot does not change, so a
+ * row already on screen keeps every prop and is skipped. The row is one ROW tall
+ * around the node (not zero-height): Android does not deliver touches outside a
+ * parent's bounds.
+ */
+const NodeRow = memo(function NodeRow({ node, bottom, nearby, width, labels, onOpen }: {
+  node: LineNode;
+  bottom: number;
+  nearby: boolean;
+  width: number;
+  labels: { tapToRead: string; plusMore: (n: number) => string };
+  onOpen: (m: MomentDTO) => void;
+}) {
+  const { mode, t: TT } = useTheme();
+  const open = () => onOpen(node.moment);
+  return (
+    <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, width, bottom, height: ROW }}>
+      {node.dayLabel ? (
+        <Text style={{ position: 'absolute', left: 14, top: ROW / 2 - 8, fontSize: 12, color: veil(mode, 0.42) }}>{node.dayLabel}</Text>
+      ) : null}
+
+      <NodeFace node={node} onPress={open} nearby={nearby} />
+
+      {/* Two quiet marks under the node, and only when they are true.
+          Outside the shape rather than on it: several of the shapes reach
+          the full radius, so a corner badge would sit on a spike. */}
+      <NodeMarks node={node} label={labels.plusMore} />
+
+      {/* A moment with words and no picture says them here — the line would
+          otherwise be a row of identical glyphs. */}
+      {!node.face && node.moment.textContent ? (
+        <Pressable
+          onPress={open}
+          style={{ position: 'absolute', top: ROW / 2 - 22, left: node.x < width / 2 ? node.x + NODE / 2 + 16 : undefined, right: node.x < width / 2 ? undefined : width - (node.x - NODE / 2) + 16, maxWidth: width * 0.42 }}
+        >
+          <Text numberOfLines={2} style={{ fontSize: 13, color: TT.inkSoft, lineHeight: 18, textAlign: node.x < width / 2 ? 'left' : 'right' }}>
+            {node.moment.textContent}
+          </Text>
+          <Text style={{ fontSize: 11, color: TT.faint, marginTop: 3, textAlign: node.x < width / 2 ? 'left' : 'right' }}>{labels.tapToRead}</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}, (a, b) =>
+  // Everything drawn comes from the moment (same object until it changes), its
+  // day label, where it sits and whether it may show its picture.
+  a.node.moment === b.node.moment && a.node.dayLabel === b.node.dayLabel && a.node.x === b.node.x
+  && a.bottom === b.bottom && a.nearby === b.nearby && a.width === b.width && a.labels === b.labels && a.onOpen === b.onOpen);
 
 /**
  * Today: the one place on the line with nothing in it yet.
@@ -476,7 +546,7 @@ function NodeMarks({ node, label }: { node: LineNode; label: (n: number) => stri
     <View
       pointerEvents="none"
       style={{
-        position: 'absolute', top: node.y + NODE / 2 + 5, left: node.x - NODE / 2, width: NODE,
+        position: 'absolute', top: ROW / 2 + NODE / 2 + 5, left: node.x - NODE / 2, width: NODE,
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
       }}
     >
