@@ -254,10 +254,9 @@ export function FileUploadField({
     await add(await fromAssets(res.assets));
   };
 
-  // The browser has a file chooser for ANY file, which is the one place a PDF or
-  // a document can be attached: the phone builds have no document picker without
-  // a new native module. On a phone's browser the same chooser also offers the
-  // camera and the photo library.
+  // On the web, the browser's own file chooser takes ANY file, documents included
+  // (phones use expo-document-picker instead, see pickDocument). On a phone's
+  // browser the same chooser also offers the camera and the photo library.
   const pickWeb = () => {
     setNotice(null);
     const doc = (globalThis as { document?: Document }).document;

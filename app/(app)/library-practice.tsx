@@ -16,6 +16,8 @@ import type { PatientScore } from '@/src/api/resources';
 import { useI18n } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
 import { OtherPractitionerNote } from '@/src/care/OtherPractitionerNote';
+import { useLeaveGuard } from '@/src/ui/leave-guard';
+import { useConfirm } from '@/src/ui/confirm';
 
 const T = {
   en: {
@@ -24,6 +26,8 @@ const T = {
     saveBusy: 'Too many tries in a row. Wait a moment and save again.',
     saveOffline: 'Could not reach Bloomsline. Check your connection and save again.',
     waitUploads: 'A file is still uploading. Wait for it to finish, then save.',
+    uploadingTitle: 'A file is still uploading', uploadingBody: 'If you leave now, it will not be saved with this practice.',
+    stay: 'Stay', leaveAnyway: 'Leave anyway',
     failedUploads: 'A file did not upload. Try again or remove it, then save.',
     unavailable: 'Activity unavailable',
     privateToYou: 'Private to you',
@@ -41,6 +45,8 @@ const T = {
     saveBusy: 'Trop d’essais d’affilée. Patientez un instant et enregistrez à nouveau.',
     saveOffline: 'Impossible de joindre Bloomsline. Vérifiez votre connexion et enregistrez à nouveau.',
     waitUploads: 'Un fichier est encore en cours d’envoi. Attendez la fin, puis enregistrez.',
+    uploadingTitle: 'Un fichier est en cours d’envoi', uploadingBody: 'Si vous partez maintenant, il ne sera pas enregistré avec cet exercice.',
+    stay: 'Rester', leaveAnyway: 'Partir quand même',
     failedUploads: 'Un fichier n’a pas été envoyé. Réessayez ou retirez-le, puis enregistrez.',
     unavailable: 'Activité indisponible',
     privateToYou: 'Privé',
@@ -88,6 +94,15 @@ export default function LibraryPractice() {
   // would keep the run without it. There are no required questions to check
   // here: a self-guided practice saves whatever was done.
   const uploads = useRef<Record<string, UploadStatus>>({});
+  // Mirrored in state for the leave guard below, which must re-render to arm.
+  const [uploadingNow, setUploadingNow] = useState(false);
+  const confirm = useConfirm();
+  // Leaving mid-upload asks, as the worksheet screen does. Without it the file
+  // was simply dropped, with nothing said.
+  useLeaveGuard(!result && uploadingNow, async (leave) => {
+    const go = await confirm({ title: tr.uploadingTitle, message: tr.uploadingBody, confirmLabel: tr.leaveAnyway, cancelLabel: tr.stay, destructive: true });
+    if (go) leave();
+  });
   // A ref, not the `saving` state: two taps in one frame both read the state as
   // false, and the run was saved twice.
   const savingRef = useRef(false);
@@ -156,7 +171,10 @@ export default function LibraryPractice() {
                 onChange={(v) => set(b.id, v)}
                 missing={false}
                 mediaUrl={view.mediaUrls?.[b.id]}
-                onUploadStatus={b.type === 'file_upload' ? (st) => { uploads.current = { ...uploads.current, [b.id]: st }; } : undefined}
+                onUploadStatus={b.type === 'file_upload' ? (st) => {
+                  uploads.current = { ...uploads.current, [b.id]: st };
+                  setUploadingNow(Object.values(uploads.current).some((u) => u.uploading > 0));
+                } : undefined}
               />
             ))}
           </FadeIn>
