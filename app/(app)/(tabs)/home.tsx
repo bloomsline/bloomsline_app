@@ -11,7 +11,6 @@ import { ActivityIndicator, Linking, Platform, ScrollView, Text, TouchableOpacit
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowLeftRight, ChevronRight, Plus, Ellipsis, RotateCcw, FileText, MapPin, Phone, type LucideIcon } from 'lucide-react-native';
-import { TabBar } from '@/src/ui/TabBar';
 import { TabIntro } from '@/src/ui/TabIntro';
 import { EdCard, FadeIn, HEADER_TOP, Kicker } from '@/src/ui/editorial';
 import { useLanding } from '@/src/prefs/app-prefs';
@@ -151,7 +150,6 @@ export default function MyCare() {
             ) : null}
           </ScrollView>
         </SafeAreaView>
-        <TabBar active="care" />
         {switcher.element}
       </View>
     );
@@ -177,7 +175,6 @@ export default function MyCare() {
             </FadeIn>
           </ScrollView>
         </SafeAreaView>
-        <TabBar active="care" />
       </View>
     );
   }
@@ -323,7 +320,6 @@ export default function MyCare() {
         </ScrollView>
       </SafeAreaView>
 
-      <TabBar active="care" />
       <TabIntro tabKey="care" />
       {switcher.element}
     </Ground>

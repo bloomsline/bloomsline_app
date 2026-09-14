@@ -19,7 +19,6 @@ import { ActivityIndicator, Animated, Pressable, RefreshControl, ScrollView, Tex
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowDown } from 'lucide-react-native';
-import { TabBar } from '@/src/ui/TabBar';
 import { FadeIn, HEADER_TOP } from '@/src/ui/editorial';
 import { Line } from '@/src/moments/Line';
 import { MomentsClosing, MomentsIntro } from '@/src/moments/FirstRun';
@@ -687,7 +686,6 @@ export default function Moments() {
         </Pressable>
       ) : null}
 
-      <TabBar active="moments" />
       {viewing ? <MomentDetail moment={viewing} onClose={() => setViewing(null)} onChanged={applyChange} /> : null}
     </Ground>
   );
