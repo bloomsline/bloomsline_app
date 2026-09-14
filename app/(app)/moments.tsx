@@ -279,8 +279,27 @@ export default function Moments() {
   // seconds, or for a tap on the note that now says it failed.
   const olderFailedAt = useRef(0);
   const [olderFailed, setOlderFailed] = useState(false);
+  /**
+   * A fling is under way. A page that lands during one waits for it to end.
+   *
+   * Landing a page grows the line above the reader, and the anchor then moves
+   * the scroll back by that height with `scrollTo`, which on both platforms
+   * STOPS a fling dead. That was the freeze in the middle of scrolling back:
+   * the momentum killed by our own correction, then a jolt. Held until the
+   * momentum ends, the correction lands on a list that is standing still.
+   */
+  const flinging = useRef(false);
+  const heldPage = useRef<null | (() => void)>(null);
+  const releaseHeldPage = useCallback(() => {
+    flinging.current = false;
+    const apply = heldPage.current;
+    heldPage.current = null;
+    apply?.();
+  }, []);
   const loadOlder = useCallback(async (force = false) => {
-    if (fetching.current || !cursorRef.current) return;
+    // A page still waiting for a fling to end comes first: fetching the next one
+    // now would put it in the same slot and lose the first.
+    if (fetching.current || heldPage.current || !cursorRef.current) return;
     if (!force && Date.now() - olderFailedAt.current < 8000) return;
     const g = gen.current;
     fetching.current = true;
@@ -288,22 +307,37 @@ export default function Moments() {
     try {
       const page = await listMoments({ before: cursorRef.current, beforeId: cursorIdRef.current, limit: PAGE });
       if (g !== gen.current) return;
-      // From here the content is about to grow: hold the gap that was measured
-      // BEFORE it did, which is the one that describes where the reader is.
-      growing.current = true;
-      setMoments((prev) => {
-        // The cursor is a timestamp, so a moment sharing the boundary instant
-        // could come back twice. Two nodes with one id is a duplicate key and a
-        // doubled circle on the line.
-        const seen = new Set(prev.map((m) => m.id));
-        const fresh = page.moments.filter((m) => !seen.has(m.id));
-        return fresh.length > 0 ? [...prev, ...fresh] : prev;
-      });
+      const apply = () => {
+        if (g !== gen.current) return;
+        // From here the content is about to grow: hold the gap that was measured
+        // BEFORE it did, which is the one that describes where the reader is.
+        growing.current = true;
+        setMoments((prev) => {
+          // The cursor is a timestamp, so a moment sharing the boundary instant
+          // could come back twice. Two nodes with one id is a duplicate key and a
+          // doubled circle on the line.
+          const seen = new Set(prev.map((m) => m.id));
+          const fresh = page.moments.filter((m) => !seen.has(m.id));
+          return fresh.length > 0 ? [...prev, ...fresh] : prev;
+        });
+        // Safety net. `growing` is normally lowered by the anchor, but a page of
+        // pure duplicates returns `prev` unchanged, so the content never resizes
+        // and `onContentSize` never runs — and a gap frozen forever would strand
+        // the reader on the next real page. Harmless if the anchor got there
+        // first.
+        setTimeout(() => { growing.current = false; }, 600);
+      };
       cursorRef.current = page.nextCursor;
       cursorIdRef.current = page.nextCursorId ?? null;
       setCursor(page.nextCursor);
       olderFailedAt.current = 0;
       setOlderFailed(false);
+      if (flinging.current) {
+        heldPage.current = apply;
+        // Not every fling reports its end (Android can drop the event when the
+        // list reaches its edge); a held page must not wait forever.
+        setTimeout(() => { if (heldPage.current === apply) releaseHeldPage(); }, 1500);
+      } else apply();
     } catch {
       // Leave the cursor exactly where it is. A failed page must not be mistaken
       // for the beginning of the line.
@@ -312,14 +346,8 @@ export default function Moments() {
     } finally {
       if (g === gen.current) setLoadingOlder(false);
       fetching.current = false;
-      // Safety net. `growing` is normally lowered by the anchor, but a page of
-      // pure duplicates returns `prev` unchanged, so the content never resizes
-      // and `onContentSize` never runs — and a gap frozen forever would strand
-      // the reader on the next real page. Harmless if the anchor got there
-      // first.
-      setTimeout(() => { growing.current = false; }, 600);
     }
-  }, []);
+  }, [releaseHeldPage]);
 
   const onScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -541,6 +569,11 @@ export default function Moments() {
           onScroll={onScroll}
           // The only signal that the reader, and not this screen, moved the list.
           onScrollBeginDrag={() => { touched.current = true; }}
+          // A page that arrived mid-fling is applied once the list stands still
+          // (see `flinging`). A finger landing on the list ends the fling too.
+          onMomentumScrollBegin={() => { flinging.current = true; }}
+          onMomentumScrollEnd={releaseHeldPage}
+          onScrollEndDrag={(e) => { if ((e.nativeEvent.velocity?.y ?? 0) === 0) releaseHeldPage(); }}
           scrollEventThrottle={16}
           // Reachable only at the true beginning of the line: while pages remain,
           // crossing LOAD_AHEAD fetches one and the anchor puts a screenful back
