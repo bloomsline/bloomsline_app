@@ -1,9 +1,10 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { History } from 'lucide-react-native';
 import { EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
 import { Block } from '@/src/resources/blocks';
+import { fileUrlIndex } from '@/src/resources/answers';
 import { useI18n } from '@/src/i18n';
 import { fetchSubmission, type SubmissionDetail } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
@@ -20,12 +21,14 @@ const T = {
   en: {
     kicker: 'SUBMISSION', pinned: 'Rendered against the version this was answered on.',
     missing: 'This submission could not be loaded.', note: 'YOUR NOTE BACK',
-    sources: { app: 'App', web: 'Web', link: 'Shared link' },
+    onEarlier: (d: string) => `Written on ${d}, about the earlier answers. These were sent since.`,
+    sources: { app: 'App', web: 'Web', share: 'Shared link', link: 'Shared link' },
   },
   fr: {
     kicker: 'RÉPONSE', pinned: 'Affiché selon la version utilisée pour répondre.',
     missing: 'Impossible de charger cette réponse.', note: 'VOTRE RETOUR',
-    sources: { app: 'App', web: 'Web', link: 'Lien partagé' },
+    onEarlier: (d: string) => `Écrit le ${d}, sur les réponses précédentes. Celles-ci ont été envoyées depuis.`,
+    sources: { app: 'App', web: 'Web', share: 'Lien partagé', link: 'Lien partagé' },
   },
 } as const;
 
@@ -51,6 +54,10 @@ export default function SubmissionScreen() {
       return () => { alive = false; };
     }, [id]),
   );
+
+  // Every file of an answer by its storage key (see `urlsByKey`); an older
+  // server's single `mediaUrls` link still reaches the first file.
+  const fileUrls = useMemo(() => (view ? fileUrlIndex(view.version.blocks, view.answers, view.fileUrls, view.mediaUrls) : {}), [view]);
 
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/(practitioner)/submissions' as never));
   const loc = locale === 'fr' ? 'fr-FR' : 'en-GB';
@@ -95,6 +102,7 @@ export default function SubmissionScreen() {
                   missing={false}
                   readOnly
                   mediaUrl={view.mediaUrls?.[b.id]}
+                  fileUrls={fileUrls}
                 />
               ))}
 
@@ -102,6 +110,11 @@ export default function SubmissionScreen() {
                 <View style={{ marginTop: 22 }}>
                   <Text style={{ fontSize: 12.5, fontWeight: '700', letterSpacing: 0.2, color: TT.faint, marginBottom: 8 }}>{tr.note}</Text>
                   <EdCard>
+                    {view.noteOnEarlierAnswers && view.noteWrittenAt ? (
+                      <Text style={{ fontSize: 12, color: TT.faint, marginBottom: 6 }}>
+                        {tr.onEarlier(new Date(view.noteWrittenAt).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'long' }))}
+                      </Text>
+                    ) : null}
                     <Text style={{ fontSize: 14.5, lineHeight: 21, color: TT.ink }}>{view.practitionerNote}</Text>
                   </EdCard>
                 </View>

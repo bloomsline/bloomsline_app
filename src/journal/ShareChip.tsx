@@ -13,6 +13,7 @@ import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 import { ChevronDown, EyeOff, Send } from 'lucide-react-native';
 import { AnchoredMenu, useAnchoredMenu } from '@/src/ui/AnchoredMenu';
 import { initialOf, type PractitionerFace } from '@/src/care/practitioner-face';
+import { joinFirstNames } from '@/src/care/practitioner-names';
 import { useTheme } from '@/src/ui/theme-mode';
 import { veil } from '@/src/ui/tokens';
 
@@ -20,17 +21,28 @@ const RED = '#B4443A';
 
 export interface ShareChipCopy {
   canRead: string;   // "{name} can read this"
+  canReadMany: string; // the same, for several names (French conjugates)
   private: string;   // "Private"
   sharedOn: string;  // "Shared {date}"
   onlyYou: string;   // "Only you can read this."
   stopSharing: string;
   shareWith: string; // "Share with {name}"
+  sharedElsewhere?: string; // "Shared with {names}": shared, but not with the one selected
+  alsoWith?: string;        // "Also shared with {names}."
+  notYet?: string;          // "{name} can't read this."
+  stopSharingWith?: string; // "Stop sharing with {name}": someone else keeps reading it
 }
 
 export function ShareChip({
-  shared, sharedAt, busy, face, copy, locale, onToggle,
+  shared, sharedAt, busy, face, names, copy, locale, onToggle, others = [],
 }: {
+  /** Other practitioners who can read it, beside the selected one (see
+   *  care/other-readers). Only ever set with a practitioner switcher. */
+  others?: string[];
   shared: boolean;
+  /** Everyone the page reaches when shared. The face shows the first; the words
+   *  name them all, because naming one of two told the patient it went to one. */
+  names: string[];
   sharedAt: string | null;
   busy: boolean;
   face: PractitionerFace | null;
@@ -39,8 +51,21 @@ export function ShareChip({
   onToggle: (next: boolean) => void;
 }) {
   const { t: TT, mode } = useTheme();
-  const name = (face?.name ?? '').replace(/^dr\.?\s*/i, '').trim();
-  const label = shared ? copy.canRead.replace('{name}', name || copy.private) : copy.private;
+  const all = names.length ? names : face?.name ? [face.name] : [];
+  const name = joinFirstNames(all, locale);
+  // No name to give is not "Private can read this", which is what it said.
+  const elsewhere = joinFirstNames(others, locale);
+  // Not shared with the practitioner on screen, but someone else can read it:
+  // "Private" would say no one can.
+  const sharedElsewhere = !shared && !!elsewhere && !!copy.sharedElsewhere;
+  const label = shared && name
+    ? (all.length > 1 ? copy.canReadMany : copy.canRead).replace('{name}', name)
+    : sharedElsewhere ? copy.sharedElsewhere!.replace('{names}', elsewhere) : copy.private;
+  const note = shared
+    ? [`${copy.sharedOn.replace('{date}', longDate(sharedAt, locale))}.`, elsewhere && copy.alsoWith ? copy.alsoWith.replace('{names}', elsewhere) : ''].filter(Boolean).join(' ')
+    : sharedElsewhere
+      ? [name && copy.notYet ? copy.notYet.replace('{name}', name) : '', `${copy.sharedElsewhere!.replace('{names}', elsewhere)}.`].filter(Boolean).join(' ')
+      : copy.onlyYou;
 
   const menu = useAnchoredMenu();
 
@@ -71,10 +96,12 @@ export function ShareChip({
         open={menu.open}
         anchor={menu.anchor}
         onClose={menu.hide}
-        note={shared ? copy.sharedOn.replace('{date}', longDate(sharedAt, locale)) : copy.onlyYou}
+        note={note}
         actions={[
           shared
-            ? { key: 'stop', label: copy.stopSharing, color: RED, Icon: EyeOff, onPress: () => onToggle(false) }
+            // Stopping is for the practitioner on screen only; when someone else
+            // keeps reading it, the action says whom it stops for.
+            ? { key: 'stop', label: elsewhere && name && copy.stopSharingWith ? copy.stopSharingWith.replace('{name}', name) : copy.stopSharing, color: RED, Icon: EyeOff, onPress: () => onToggle(false) }
             : { key: 'share', label: copy.shareWith.replace('{name}', name || ''), color: TT.accent, Icon: Send, onPress: () => onToggle(true) },
         ]}
       />

@@ -16,6 +16,7 @@ import { appleWebSignIn } from '@/src/auth/apple-web';
 import { appleWebConfigured, googleConfigured, microsoftConfigured, MOCK_AUTH } from '@/src/config';
 import { notify } from '@/src/ui/alert';
 import { useI18n, fmt } from '@/src/i18n';
+import { signInMessage } from '@/src/auth/sign-in-message';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -113,7 +114,8 @@ function MicrosoftAuthButton() {
 // the system. First in the list, since 4.8 wants it no less prominent than the
 // others.
 function AppleAuthButton() {
-  const tr = useI18n().t.signUp;
+  const { t } = useI18n();
+  const tr = t.signUp;
   const apple = useAppleSignIn();
   if (!apple.available) return null;
   return (
@@ -124,7 +126,7 @@ function AppleAuthButton() {
       onPress={async () => {
         const r = await apple.signIn();
         // null: they closed the sheet. On success the auth gate takes over.
-        if (r && !r.ok) notify(tr.kickerSignIn, r.message ?? tr.appleFailed);
+        if (r && !r.ok) notify(tr.kickerSignIn, signInMessage(r, t, tr.appleFailed));
         else if (r?.ok) router.replace('/');
       }}
     >
@@ -190,7 +192,7 @@ export default function SignUp() {
     try {
       const r = await signInWithReviewCode(codeFor, code.trim());
       if (r.ok) router.replace('/');
-      else notify(tc.kicker, r.message ?? tc.wrong);
+      else notify(tc.kicker, signInMessage(r, t, tc.wrong));
     } finally {
       setBusy(false);
     }
@@ -252,7 +254,7 @@ export default function SignUp() {
             <View style={{ flex: 1 }} />
 
             {codeFor ? (
-              <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+              <KeyboardAvoidingView behavior="padding">
                 <RiseIn y={40} duration={700} style={{ backgroundColor: ED.sheet, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 26, paddingTop: 26, paddingBottom: insets.bottom + 22 }}>
                   <MonoKicker size={10.5} color={ED.green} style={{ marginBottom: 10 }}>{tc.kicker}</MonoKicker>
                   <Text style={{ fontSize: 28, fontWeight: '800', color: '#141414', letterSpacing: -0.9, lineHeight: 31 }}>{tc.title}</Text>
@@ -295,7 +297,7 @@ export default function SignUp() {
                 </Pressable>
               </RiseIn>
             ) : (
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <KeyboardAvoidingView behavior="padding">
               <RiseIn y={40} duration={700} style={{ backgroundColor: ED.sheet, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 26, paddingTop: 26, paddingBottom: insets.bottom + 22 }}>
                 <MonoKicker size={10.5} color={ED.green} style={{ marginBottom: 10 }}>
                   {returning ? tr.kickerSignIn : tr.kickerCreate}

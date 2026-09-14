@@ -1,16 +1,18 @@
 // Documents & forms — the patient's documents with sign status. Wired to GET
 // /api/mobile/care/documents. Read-only list; signing still happens on the web
 // token link for now, so tapping a pending doc explains that.
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { FileText, Check } from 'lucide-react-native';
 import { notify } from '@/src/ui/alert';
 import { EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { fetchDocuments, type CareDocument } from '@/src/api/care';
+import { useSelectionReset } from '@/src/care/selected-practitioner';
 import { useI18n, fmt } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
+import { LoadFailed } from '@/src/ui/LoadFailed';
 
 const T = {
   en: {
@@ -41,11 +43,18 @@ export default function Documents() {
   const { locale } = useI18n();
   const tr = T[locale];
   const [items, setItems] = useState<CareDocument[] | null>(null);
-  useEffect(() => {
+  const [failed, setFailed] = useState(false);
+  const selectionKey = useSelectionReset(() => { setItems(null); setFailed(false); });
+  // Read on every visit, not once: a document signed on the web
+  // while this screen sat in the stack still showed as awaiting a signature.
+  const reload = useCallback(() => {
     let alive = true;
-    fetchDocuments().then((d) => { if (alive) setItems(d ?? []); });
+    // A failed read is not an empty one (see LoadFailed).
+    fetchDocuments().then((v) => { if (!alive) return; if (v) { setItems(v); setFailed(false); } else setFailed(true); });
     return () => { alive = false; };
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- selectionKey: load again for the practitioner just chosen
+  }, [selectionKey]);
+  useFocusEffect(reload);
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
@@ -53,7 +62,8 @@ export default function Documents() {
         <EdHeader kicker="Documents" title={tr.title} onBack={() => router.back()} />
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {items === null ? (
-            <View style={{ paddingTop: 40, alignItems: 'center' }}><ActivityIndicator color={TT.accent} /></View>
+            failed ? <LoadFailed onRetry={() => { setFailed(false); reload(); }} />
+            : <View style={{ paddingTop: 40, alignItems: 'center' }}><ActivityIndicator color={TT.accent} /></View>
           ) : items.length === 0 ? (
             <EdCard style={{ alignItems: 'center', padding: 24 }}>
               <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: TT.accentTint, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
@@ -68,6 +78,8 @@ export default function Documents() {
                 <TouchableOpacity
                   key={d.id}
                   activeOpacity={0.8}
+                  // No "declined" state: nothing on the server can set one, so the
+                  // label for it was removed on both sides.
                   onPress={() => { if (!d.signed) notify(tr.signAlert); }}
                   style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, borderRadius: 18, padding: 15, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}
                 >

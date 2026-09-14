@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { useAuth } from '../auth/auth-context';
 import { useI18n } from '../i18n';
 import { fetchMe } from '../api/me';
+import { useSelectedPractitioner } from '../care/selected-practitioner';
 
 export interface OnboardingData {
   firstName: string;
@@ -12,6 +13,8 @@ export interface OnboardingData {
   dateOfBirth: string | null; // 'YYYY-MM-DD'
   hasPractitioner: boolean;
   practitionerName: string | null;
+  /** Everyone a share reaches (see src/care/practitioner-names). */
+  practitionerNames: string[];
   mood: string | null;
   agreedToTerms: boolean;
 }
@@ -22,6 +25,7 @@ const EMPTY: OnboardingData = {
   dateOfBirth: null,
   hasPractitioner: false,
   practitionerName: null,
+  practitionerNames: [],
   mood: null,
   agreedToTerms: false,
 };
@@ -49,6 +53,14 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const update = useCallback((patch: Partial<OnboardingData>) => setData((d) => ({ ...d, ...patch })), []);
   const reset = useCallback(() => { setData(EMPTY); setResolved(false); }, []);
 
+  // No account, or one being decided: nothing here belongs to anyone yet. This
+  // provider is never remounted, and `reset` was never called, so the last
+  // person's name, date of birth and practitioner stayed until the next
+  // successful profile fetch — and onboarding copied them into the next account.
+  useEffect(() => {
+    if (status === 'anon' || status === 'loading') reset();
+  }, [status, reset]);
+
   // Resolve the Flow A/B branch + the profile (first name, practitioner) once we
   // enter onboarding — AND for a returning authed user, so the app-wide greeting
   // ("Good evening, {name}") and My Care header have the real name, not a blank.
@@ -63,6 +75,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         update({
           hasPractitioner: me.hasPractitioner,
           practitionerName: me.practitionerName,
+          practitionerNames: me.practitionerNames ?? (me.practitionerName ? [me.practitionerName] : []),
           firstName: me.firstName ?? '',
           lastName: me.lastName ?? '',
           dateOfBirth: me.dateOfBirth ?? null,
@@ -75,7 +88,22 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     return () => { alive = false; };
   }, [status, update, adoptDefault]);
 
-  const value = useMemo<OnboardingValue>(() => ({ ...data, resolved, update, reset }), [data, resolved, update, reset]);
+  // The practitioner every screen names is the one SELECTED. A patient with
+  // several switches between them, and "Book with Anna", "To do from Anna",
+  // "Share with Anna" must all follow the switch, without each screen knowing
+  // there is one. The list is only present on servers that support switching;
+  // without it these stay exactly what `/me` said.
+  const { practitioners, selected } = useSelectedPractitioner();
+  const value = useMemo<OnboardingValue>(() => {
+    const follow = practitioners.length > 0 && selected;
+    return {
+      ...data,
+      ...(follow ? { hasPractitioner: true, practitionerName: selected.name, practitionerNames: [selected.name] } : null),
+      resolved,
+      update,
+      reset,
+    };
+  }, [data, practitioners.length, selected, resolved, update, reset]);
   return <OnboardingContext.Provider value={value}>{children}</OnboardingContext.Provider>;
 }
 

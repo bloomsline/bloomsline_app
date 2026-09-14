@@ -16,7 +16,7 @@
 // their own week. See `onContentSize`.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Pressable, RefreshControl, ScrollView, Text, TouchableOpacity, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowDown } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
@@ -32,6 +32,8 @@ import { useI18n, greetingFor } from '@/src/i18n';
 import { listMoments, type MomentDTO } from '@/src/api/moments';
 import { ProfileButton } from '@/src/profile/ProfileButton';
 import { useTheme } from '@/src/ui/theme-mode';
+import { useStaleOnReturn } from '@/src/ui/use-stale-on-return';
+import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
 
 /** One page of the line. Deliberately larger than any viewport: at ROW=118 a
  *  page is ~4700px tall, so one fetch always overflows the screen and a page can
@@ -139,6 +141,7 @@ export default function Moments() {
   // "Nothing yet" and "we could not reach your line" are different things to be
   // told, and showing the welcoming empty state for a network failure is a lie.
   const [failed, setFailed] = useState(false);
+  const insets = useSafeAreaInsets();
   const scroller = useRef<ScrollView>(null);
   // Has this patient been through the Moments introduction? Server-held, so a
   // reinstall does not introduce the app to someone who has been writing for
@@ -230,12 +233,21 @@ export default function Moments() {
   // after a refresh cannot append to a list it no longer belongs to.
   const gen = useRef(0);
 
+  // Back from a long time away (or across midnight): the same fresh first page a
+  // return to the tab gets, so links work again and "Today" is today.
+  const reloadRef = useRef<() => void>(() => {});
+  const { markFresh } = useStaleOnReturn(() => reloadRef.current());
   const load = useCallback(async () => {
     const g = ++gen.current;
     try {
       const page = await listMoments({ limit: PAGE });
       if (g !== gen.current) return;
+      markFresh();
       setMoments(page.moments);
+      // An open moment is re-read with the page, so its sheet shows the share
+      // state it has NOW (see MomentDetail): after a switch, "shared" is about
+      // the practitioner just chosen.
+      setViewing((v) => (v ? page.moments.find((m) => m.id === v.id) ?? v : v));
       cursorRef.current = page.nextCursor;
       cursorIdRef.current = page.nextCursorId ?? null;
       setCursor(page.nextCursor);
@@ -255,14 +267,21 @@ export default function Moments() {
         setRefreshing(false);
       }
     }
-  }, []);
+  }, [markFresh]);
 
   /** The next page back. Keyset, not offset: the cursor is the oldest
    *  `(capturedAt, id)` we hold, so moments captured while someone reads cannot
    *  shift a page boundary — and two captured in the same instant cannot
    *  straddle one and lose the second. */
-  const loadOlder = useCallback(async () => {
+  // A page that failed is not asked for again on the very next scroll event:
+  // offline, `onScroll` fired every frame and "Loading earlier moments"
+  // flickered for as long as the reader stayed near the top. It waits a few
+  // seconds, or for a tap on the note that now says it failed.
+  const olderFailedAt = useRef(0);
+  const [olderFailed, setOlderFailed] = useState(false);
+  const loadOlder = useCallback(async (force = false) => {
     if (fetching.current || !cursorRef.current) return;
+    if (!force && Date.now() - olderFailedAt.current < 8000) return;
     const g = gen.current;
     fetching.current = true;
     setLoadingOlder(true);
@@ -283,9 +302,13 @@ export default function Moments() {
       cursorRef.current = page.nextCursor;
       cursorIdRef.current = page.nextCursorId ?? null;
       setCursor(page.nextCursor);
+      olderFailedAt.current = 0;
+      setOlderFailed(false);
     } catch {
       // Leave the cursor exactly where it is. A failed page must not be mistaken
-      // for the beginning of the line, and the next scroll retries it for free.
+      // for the beginning of the line.
+      olderFailedAt.current = Date.now();
+      setOlderFailed(true);
     } finally {
       if (g === gen.current) setLoadingOlder(false);
       fetching.current = false;
@@ -433,13 +456,29 @@ export default function Moments() {
     }, [load, pinToToday]),
   );
 
+  reloadRef.current = () => { touched.current = false; growing.current = true; void load(); };
+
+  // "Shared" on each moment means shared with the SELECTED practitioner, so a
+  // switch changes which ones carry the mark. The first page is read again;
+  // older pages go with it, which a switch (a deliberate change of view) can
+  // afford where a share toggle could not (see applyChange).
+  const { selectionKey } = useSelectedPractitioner();
+  const shownFor = useRef(selectionKey);
+  useEffect(() => {
+    if (shownFor.current === selectionKey) return;
+    shownFor.current = selectionKey;
+    reloadRef.current();
+  }, [selectionKey]);
+
   /** Patch the line in place. Anything that refetched here would have to throw
    *  away the older pages behind the reader. */
   const applyChange = useCallback((change: MomentChange) => {
     setMoments((prev) =>
       'deleted' in change
         ? prev.filter((m) => m.id !== change.id)
-        : prev.map((m) => (m.id === change.id ? { ...m, sharedWithPractitioner: change.shared } : m)),
+        : prev.map((m) => (m.id === change.id
+          ? { ...m, sharedWithPractitioner: change.shared, ...(change.sharedWith ? { sharedWith: change.sharedWith, sharedWithIds: change.sharedWithIds } : {}) }
+          : m)),
     );
   }, []);
 
@@ -546,6 +585,10 @@ export default function Moments() {
                         <ActivityIndicator size="small" color={TT.faint} />
                         <Text style={{ fontSize: 11.5, color: TT.faint }}>{tr.loadingOlder}</Text>
                       </View>
+                    ) : olderFailed ? (
+                      <Pressable onPress={() => { void loadOlder(true); }} hitSlop={10}>
+                        <Text style={{ fontSize: 11.5, color: TT.faint, textAlign: 'center', paddingHorizontal: 24 }}>{tr.olderFailed}</Text>
+                      </Pressable>
                     ) : cursor === null ? (
                       <Text style={{ fontSize: 11.5, color: TT.faint }}>{tr.lineStart}</Text>
                     ) : null}
@@ -599,6 +642,17 @@ export default function Moments() {
           </Pressable>
         </View>
       </Animated.View>
+
+      {/* A refresh that failed with the line already on screen. It used to end
+          the spinner and say nothing, so a stale line passed for a current one. */}
+      {failed && !loading && moments.length > 0 ? (
+        <Pressable
+          onPress={() => { setRefreshing(true); void load(); }}
+          style={{ position: 'absolute', top: insets.top + 12, left: 22, right: 22, borderRadius: 16, paddingVertical: 10, paddingHorizontal: 14, backgroundColor: TT.sheet, borderWidth: 1, borderColor: TT.cardLine }}
+        >
+          <Text style={{ fontSize: 12.5, color: TT.inkSoft, textAlign: 'center' }}>{tr.refreshFailed}</Text>
+        </Pressable>
+      ) : null}
 
       <TabBar active="moments" />
       {viewing ? <MomentDetail moment={viewing} onClose={() => setViewing(null)} onChanged={applyChange} /> : null}

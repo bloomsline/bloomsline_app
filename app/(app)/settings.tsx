@@ -14,7 +14,7 @@
 import { useEffect, useState } from 'react';
 import { Image, Linking, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { MessageCircle, MessageCircleQuestionMark, LogOut, ChevronRight, ChevronDown, Trash2, Languages, Palette, Home, ShieldCheck, FileText, Database, Lock } from 'lucide-react-native';
+import { MessageCircle, MessageCircleQuestionMark, LogOut, ChevronRight, ChevronDown, Trash2, Languages, Palette, Home, ShieldCheck, FileText, Database, Lock, UserRound } from 'lucide-react-native';
 import { notify } from '@/src/ui/alert';
 import { EdHeader, EdCard, FadeIn, Kicker } from '@/src/ui/editorial';
 import { OptionSheet } from '@/src/ui/option-sheet';
@@ -24,9 +24,11 @@ import { useOnboarding } from '@/src/onboarding/context';
 import { useLanding, type LandingTab } from '@/src/prefs/app-prefs';
 import { useI18n, type Locale } from '@/src/i18n';
 import { useConfirm } from '@/src/ui/confirm';
-import { fetchMe, requestAccountDeletion, saveProfile } from '@/src/api/me';
+import { fetchMe, requestAccountDeletion } from '@/src/api/me';
 import { useMeFace } from '@/src/profile/me-face';
 import { Row } from '@/src/ui/settings-row';
+import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
+import { usePractitionerSwitcher } from '@/src/care/PractitionerSwitcher';
 
 // Was "Bloomsline · v2 (preview)". A version string is a note we left for
 // ourselves at the foot of a patient's own settings screen, and "preview" tells
@@ -55,11 +57,15 @@ export default function Settings() {
   // this visit; a patient who opened it once last month and moved on should not
   // find it waiting for their thumb the next time they change their language.
   const [showMore, setShowMore] = useState(false);
+  // Which practitioner the app is showing, for a patient linked to several.
+  // Here as well as on My Care because Settings is where people look for "who
+  // am I looking at" once they have forgotten where the switch was.
+  const { selected } = useSelectedPractitioner();
+  const switcher = usePractitionerSwitcher();
 
-  const changeLocale = (l: Locale) => {
-    setLocale(l);
-    void saveProfile({ locale: l }); // persist as the server-side default
-  };
+  // The server hears about it from the language provider, which retries a save
+  // that failed instead of dropping it.
+  const changeLocale = (l: Locale) => setLocale(l);
 
   // Load the real profile (onboarding context may be empty for returning users).
   useEffect(() => {
@@ -161,7 +167,10 @@ export default function Settings() {
           <EdCard style={{ padding: 0, overflow: 'hidden', marginBottom: 24 }}>
             <Row Icon={Languages} title={t.settings.language} value={localeLabel} onPress={() => setSheet('language')} divider />
             <Row Icon={Palette} title={t.settings.appearance} value={themeLabel} onPress={() => setSheet('appearance')} divider />
-            <Row Icon={Home} title={t.settings.homeScreen} value={landingLabel} onPress={() => setSheet('landing')} />
+            <Row Icon={Home} title={t.settings.homeScreen} value={landingLabel} onPress={() => setSheet('landing')} divider={switcher.canSwitch} />
+            {switcher.canSwitch ? (
+              <Row Icon={UserRound} title={t.settings.yourPractitioner} value={selected?.name} onPress={switcher.open} />
+            ) : null}
           </EdCard>
 
           <Kicker color={TT.faint} style={{ marginBottom: 10 }}>{t.settings.support}</Kicker>
@@ -257,6 +266,8 @@ export default function Settings() {
         onSelect={(v: LandingTab) => setLanding(v)}
         onClose={() => setSheet(null)}
       />
+
+      {switcher.element}
     </View>
   );
 }

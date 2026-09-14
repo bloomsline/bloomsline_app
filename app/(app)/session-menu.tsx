@@ -2,7 +2,7 @@
 // and wires reschedule (→ the slot picker in reschedule mode) and cancel (→ POST
 // /api/mobile/care/sessions/[id]/cancel). Demo sessions (FORCE_CARE_HUB preview)
 // don't hit the backend.
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -14,6 +14,7 @@ import { cancelSession } from '@/src/api/booking';
 import { ConfirmLayer, useConfirm } from '@/src/ui/confirm';
 import { fmt, useI18n, type Locale } from '@/src/i18n';
 import { PractitionerAvatar } from '@/src/care/PractitionerAvatar';
+import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
 
 // Destructive tone for the cancel action, in an editorial-warm register.
@@ -31,12 +32,14 @@ const T = {
     reschedule: 'Reschedule session',
     cancel: 'Cancel session',
     contactPractitioner: 'To change or cancel this session, contact your practitioner.',
+    yourPractitioner: 'your practitioner',
     cancelledDemo: 'Session cancelled (demo)',
     cancelConfirm: 'Cancel this session?',
     cancelTitle: 'Cancel session',
     cancelBody: 'This will free the slot.',
     keepIt: 'Keep it',
-    couldNotCancel: 'Could not cancel.',
+    couldNotCancel: 'Could not cancel. Check your connection and try again.',
+    cannotCancelNow: 'This session can no longer be cancelled from the app. Contact your practitioner.',
     today: 'Today',
     tomorrow: 'Tomorrow',
     days: '{n} days',
@@ -54,12 +57,14 @@ const T = {
     reschedule: 'Reprogrammer la séance',
     cancel: 'Annuler la séance',
     contactPractitioner: 'Pour modifier ou annuler cette séance, contactez votre praticien.',
+    yourPractitioner: 'votre praticien',
     cancelledDemo: 'Séance annulée (démo)',
     cancelConfirm: 'Annuler cette séance ?',
     cancelTitle: 'Annuler la séance',
     cancelBody: 'Cela libérera le créneau.',
     keepIt: 'La conserver',
-    couldNotCancel: 'Annulation impossible.',
+    couldNotCancel: 'Annulation impossible. Vérifiez votre connexion et réessayez.',
+    cannotCancelNow: 'Cette séance ne peut plus être annulée depuis l’application. Contactez votre praticien.',
     today: 'Aujourd’hui',
     tomorrow: 'Demain',
     days: '{n} jours',
@@ -77,7 +82,9 @@ export default function SessionMenu() {
   const router = useRouter();
   const p = useLocalSearchParams<{ id?: string; scheduledAt?: string; durationMinutes?: string; sessionFormat?: string; sessionType?: string; meetLink?: string; demo?: string; canCancel?: string; canReschedule?: string; noticeHours?: string }>();
   const { practitionerName } = useOnboarding();
-  const name = practitionerName ?? 'Dr. Maya';
+  // "Dr. Maya" was a preview placeholder, and a real patient whose practitioner's
+  // name had not loaded read "with Dr. Maya" about their own session.
+  const name = practitionerName ?? tr.yourPractitioner;
 
   const id = typeof p.id === 'string' ? p.id : '';
   const start = p.scheduledAt ? new Date(p.scheduledAt) : null;
@@ -99,20 +106,44 @@ export default function SessionMenu() {
   // button that exists to answer "no" is worse than a button that is not there.
   const hoursAway = start ? (start.getTime() - Date.now()) / 3_600_000 : Infinity;
   const tooLateToMove = hoursAway < noticeHours;
-  const showReschedule = canReschedule && !tooLateToMove;
+  // Once it has begun there is nothing left to change: the server refuses a
+  // cancel from here, and the sheet should not offer one.
+  const started = hoursAway <= 0 && !isDemo;
+  const showReschedule = canReschedule && !tooLateToMove && !started;
+  const showCancel = canCancel && !started;
 
   const [busy, setBusy] = useState(false);
   const close = () => (router.canGoBack() ? router.back() : router.navigate('/home' as never));
 
+  // The session and the permissions in the params belong to the practitioner
+  // selected when My Care opened this sheet. A switch while it is open (a
+  // return to the app can correct a selection) leaves it describing someone
+  // else's session with someone else's rules: close it rather than act on that.
+  const { selectionKey } = useSelectedPractitioner();
+  const openedFor = useRef(selectionKey);
+  const stale = openedFor.current !== selectionKey;
+  const closeRef = useRef(close);
+  closeRef.current = close;
+  useEffect(() => {
+    if (openedFor.current !== selectionKey) closeRef.current();
+  }, [selectionKey]);
+
   const reschedule = () =>
-    router.navigate({ pathname: '/book', params: { rescheduleId: id, sessionTypeId: p.sessionType ?? '', format, demo: isDemo ? '1' : '' } } as never);
+    stale ? undefined : router.navigate({ pathname: '/book', params: { rescheduleId: id, sessionTypeId: p.sessionType ?? '', format, demo: isDemo ? '1' : '' } } as never);
 
   const doCancel = async () => {
+    if (openedFor.current !== selectionKey) return;
     setBusy(true);
     const res = await cancelSession(id);
     setBusy(false);
     if (res.ok) { close(); return; }
-    notify(res.error ?? tr.couldNotCancel);
+    // In the patient's language, by reason. The server's sentences are English,
+    // and one was always present, so the translated message was never shown.
+    notify(
+      res.reason === 'not_allowed' ? tr.contactPractitioner
+      : res.reason === 'started' || res.reason === 'not_active' || res.reason === 'too_late' ? tr.cannotCancelNow
+      : tr.couldNotCancel,
+    );
   };
 
   const confirmCancel = async () => {
@@ -145,7 +176,7 @@ export default function SessionMenu() {
             <MiniFact label={tr.format} value={fmtFormat(format, tr)} />
           </View>
 
-          {(canCancel || canReschedule) && (
+          {(showCancel || showReschedule) && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: TT.accentTint, borderRadius: 14, padding: 13, marginBottom: 16 }}>
               <Info size={15} color={TT.accent} strokeWidth={2} />
               <Text style={{ flex: 1, fontSize: 12.5, color: TT.inkSoft, lineHeight: 18 }}>
@@ -157,15 +188,15 @@ export default function SessionMenu() {
           {showReschedule && (
             <EdPill label={tr.reschedule} variant="dark" onPress={busy ? undefined : reschedule} disabled={busy} />
           )}
-          {showReschedule && canCancel && <View style={{ height: 10 }} />}
-          {canCancel && (
+          {showReschedule && showCancel && <View style={{ height: 10 }} />}
+          {showCancel && (
             <Pressable onPress={confirmCancel} disabled={busy} style={{ height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: TT.card, borderWidth: 1.5, borderColor: DANGER_BORDER }}>
               {busy ? <ActivityIndicator color={DANGER} /> : <Text style={{ fontSize: 15.5, fontWeight: '700', color: DANGER }}>{tr.cancel}</Text>}
             </Pressable>
           )}
 
           {/* Neither allowed: say so, so the sheet is not an empty panel. */}
-          {!canCancel && !showReschedule && (
+          {!showCancel && !showReschedule && (
             <Text style={{ fontSize: 12.5, color: TT.inkSoft, textAlign: 'center', lineHeight: 18 }}>
               {tr.contactPractitioner}
             </Text>

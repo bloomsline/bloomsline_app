@@ -5,6 +5,7 @@ import { useI18n } from '@/src/i18n';
 import { fetchPulse, generatePulse, type Pulse } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
 import { LIGHT, DARK, type Mode } from '@/src/ui/tokens';
+import { LoadFailed } from '@/src/ui/LoadFailed';
 
 // The session brief, on the phone.
 //
@@ -73,6 +74,7 @@ export function PulseSheet({ memberId, who, onClose }: { memberId: string | null
   const [consented, setConsented] = useState(true);
   const [fresh, setFresh] = useState<{ newNotes: number; newSessions: number } | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -82,8 +84,12 @@ export function PulseSheet({ memberId, who, onClose }: { memberId: string | null
     setLoaded(false);
     void fetchPulse(memberId).then((v) => {
       if (!alive) return;
-      setPulse(v?.pulse ?? null);
-      setConsented(v?.consented ?? false);
+      // Could not read it: say so. It said "Bloom Pulse is off", which sent
+      // practitioners to settings to turn on something that was already on.
+      setFailed(!v);
+      if (!v) { setLoaded(true); return; }
+      setPulse(v.pulse ?? null);
+      setConsented(v.consented ?? false);
       setFresh(v?.freshness ? { newNotes: v.freshness.newNotes, newSessions: v.freshness.newSessions } : null);
       setLoaded(true);
     });
@@ -134,11 +140,13 @@ export function PulseSheet({ memberId, who, onClose }: { memberId: string | null
 
             {!loaded && <ActivityIndicator style={{ marginTop: 22 }} />}
 
-            {loaded && !consented && (
+            {loaded && failed && <LoadFailed compact onRetry={() => { load(); }} />}
+
+            {loaded && !failed && !consented && (
               <Text style={{ fontSize: 14, lineHeight: 21, color: TT.inkSoft, marginTop: 18 }}>{tr.consentOff}</Text>
             )}
 
-            {loaded && consented && !pulse && !busy && (
+            {loaded && !failed && consented && !pulse && !busy && (
               <View style={{ marginTop: 18 }}>
                 <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.none}</Text>
                 <Pressable onPress={build} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16, borderRadius: 24, backgroundColor: TT.accent, paddingVertical: 13 }}>

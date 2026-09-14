@@ -9,9 +9,11 @@ import { EdHeader, EdCard, FadeIn, Kicker } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { resourceTypeMeta } from '@/src/care/resources';
 import { listLibrary, type LibraryItem } from '@/src/api/library';
+import { useSelectionReset } from '@/src/care/selected-practitioner';
 import { useI18n } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
 import { onCta } from '@/src/ui/tokens';
+import { LoadFailed } from '@/src/ui/LoadFailed';
 
 const T = {
   en: {
@@ -52,17 +54,21 @@ export default function Library() {
   const { locale } = useI18n();
   const tr = T[locale];
   const [items, setItems] = useState<LibraryItem[] | null>(null);
+  const [failed, setFailed] = useState(false);
   const [q, setQ] = useState('');
+  const selectionKey = useSelectionReset(() => { setItems(null); setFailed(false); });
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/for-you' as never));
   const open = (id: string) => router.navigate(`/library-practice?id=${id}` as never);
 
-  useFocusEffect(
-    useCallback(() => {
-      let alive = true;
-      listLibrary().then((l) => { if (alive) setItems(l ?? []); });
-      return () => { alive = false; };
-    }, []),
-  );
+  const reload = useCallback(() => {
+    let alive = true;
+    // A failed read is not an empty one: `failed` shows what happened, and a
+    // list already on screen is kept rather than replaced with nothing.
+    listLibrary().then((l) => { if (!alive) return; if (l) { setItems(l); setFailed(false); } else setFailed(true); });
+    return () => { alive = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- selectionKey: load again for the practitioner just chosen
+  }, [selectionKey]);
+  useFocusEffect(reload);
 
   // Searching is ACCENT-INSENSITIVE, which is not a nicety in French: nobody
   // types "méditation" with the accent when they are looking for it, and a
@@ -89,7 +95,8 @@ export default function Library() {
 
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {items === null ? (
-            <View style={{ paddingTop: 30, alignItems: 'center' }}><ActivityIndicator color={TT.accent} /></View>
+            failed ? <LoadFailed onRetry={() => { setFailed(false); reload(); }} />
+            : <View style={{ paddingTop: 30, alignItems: 'center' }}><ActivityIndicator color={TT.accent} /></View>
           ) : items.length === 0 ? (
             <EdCard style={{ padding: 26, alignItems: 'center' }}>
               <Text style={{ fontSize: 15, fontWeight: '700', color: TT.ink }}>{tr.emptyTitle}</Text>

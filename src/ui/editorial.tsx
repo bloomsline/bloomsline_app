@@ -6,6 +6,7 @@ import { Animated, Easing, Pressable, Text, View, type ImageSourcePropType, type
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, type LucideIcon } from 'lucide-react-native';
 import { useTheme } from './theme-mode';
+import { useI18n } from '@/src/i18n';
 
 // EDA and EDD now live in `tokens.ts`, where each key carries BOTH a light and
 // a dark value, and are re-exported here so the ~35 screens importing them from
@@ -73,6 +74,7 @@ export function EdHeader({
   onBack,
   rightIcon,
   onRight,
+  rightLabel,
 }: {
   /** The eyebrow above the title. Omitted where it would only repeat the
    *  title — a page whose kicker and title are the same word says it twice. */
@@ -84,14 +86,18 @@ export function EdHeader({
   onBack?: () => void;
   rightIcon?: LucideIcon;
   onRight?: () => void;
+  /** What the right-hand button does, for screen readers. An icon alone was
+   *  announced as an unlabelled button. */
+  rightLabel?: string;
 }) {
   const { t: TT } = useTheme();
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const RightIcon = rightIcon;
   const circle = { width: 38, height: 38, borderRadius: 19, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, alignItems: 'center' as const, justifyContent: 'center' as const };
   const rightBtn =
     RightIcon && onRight ? (
-      <Pressable onPress={onRight} style={circle}>
+      <Pressable onPress={onRight} style={circle} accessibilityRole="button" accessibilityLabel={rightLabel}>
         <RightIcon size={18} color={TT.ink} strokeWidth={2} />
       </Pressable>
     ) : null;
@@ -111,7 +117,7 @@ export function EdHeader({
       <View style={{ paddingHorizontal: 22, paddingTop: onBack ? 6 : HEADER_TOP, paddingBottom: 4 }}>
         {onBack ? (
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <Pressable onPress={onBack} style={circle}>
+            <Pressable onPress={onBack} style={circle} accessibilityRole="button" accessibilityLabel={t.common.back}>
               <ChevronLeft size={18} color={TT.ink} strokeWidth={2} />
             </Pressable>
             {rightBtn}

@@ -9,9 +9,11 @@ import { EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
 import { useOnboarding } from '@/src/onboarding/context';
 import { FORCE_CARE_HUB } from '@/src/config';
 import { fetchTodo, type TodoItem } from '@/src/api/care';
-import { resourceTypeMeta, statusLabel, isDone } from '@/src/care/resources';
+import { useSelectionReset } from '@/src/care/selected-practitioner';
+import { resourceTypeMeta, stageLabel, stageLine, todoStage } from '@/src/care/resources';
 import { useI18n, fmt } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
+import { LoadFailed } from '@/src/ui/LoadFailed';
 
 const T = {
   en: {
@@ -46,15 +48,21 @@ export default function FromPractitioner() {
   const { practitionerName } = useOnboarding();
   const first = (practitionerName ?? tr.defaultPractitioner).replace(/^dr\.?\s*/i, '').split(/\s+/)[0];
   const [items, setItems] = useState<TodoItem[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const selectionKey = useSelectionReset(() => { setItems(null); setFailed(false); });
 
   useEffect(() => {
     let alive = true;
     fetchTodo().then((t) => {
       if (!alive) return;
+      // A failed read is not an empty one (see LoadFailed).
+      if (t === null && !FORCE_CARE_HUB) { setFailed(true); return; }
+      setFailed(false);
       setItems(t && t.length > 0 ? t : FORCE_CARE_HUB ? DEMO : []);
     });
     return () => { alive = false; };
-  }, []);
+  }, [attempt, selectionKey]);
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
@@ -62,9 +70,11 @@ export default function FromPractitioner() {
         <EdHeader kicker={first} title={fmt(tr.titleFrom, { name: first })} subtitle={tr.subtitle} onBack={() => router.back()} />
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {items === null ? (
+            failed ? <LoadFailed onRetry={() => { setFailed(false); setAttempt((a) => a + 1); }} /> : (
             <View style={{ paddingTop: 40, alignItems: 'center' }}>
               <ActivityIndicator color={TT.accent} />
             </View>
+            )
           ) : items.length === 0 ? (
             <EdCard style={{ alignItems: 'center', padding: 24 }}>
               <Text style={{ fontSize: 16, fontWeight: '700', color: TT.ink }}>{tr.emptyTitle}</Text>
@@ -76,9 +86,10 @@ export default function FromPractitioner() {
             <View style={{ gap: 10 }}>
               {items.map((it) => {
                 const meta = resourceTypeMeta(it.type, locale);
-                const done = isDone(it.status);
+                const stage = todoStage(it);
+                const done = stage === 'done';
                 const open = it.resourceId ? () => router.navigate(`/resource/${it.id}` as never) : undefined;
-                return <ResItem key={it.id} Icon={meta.Icon} title={it.title} tag={meta.label} status={statusLabel(it.status, locale)} statusGreen={it.status === 'in_progress'} done={done} muted={done && !it.hasReply} reply={it.hasReply ? tr.reply : undefined} onPress={open} />;
+                return <ResItem key={it.id} Icon={meta.Icon} title={it.title} tag={meta.label} status={stageLabel(stage, locale)} statusGreen={stage === 'progress' || stage === 'reopened'} done={done} muted={done && !it.hasReply} reply={it.hasReply ? tr.reply : undefined} line={stageLine(stage, TT)} onPress={open} />;
               })}
             </View>
           )}
@@ -89,9 +100,12 @@ export default function FromPractitioner() {
 }
 
 function ResItem({
-  Icon, title, tag, status, statusGreen, done, muted, reply, onPress,
+  Icon, title, tag, status, statusGreen, done, muted, reply, line, onPress,
 }: {
-  Icon: LucideIcon; title: string; tag: string; status: string; statusGreen?: boolean; done?: boolean; muted?: boolean; reply?: string; onPress?: () => void;
+  Icon: LucideIcon; title: string; tag: string; status: string; statusGreen?: boolean; done?: boolean; muted?: boolean; reply?: string;
+  /** The border's colour for where it stands (see `stageLine`). */
+  line?: string;
+  onPress?: () => void;
 }) {
   const { t: TT } = useTheme();
   const { t } = useI18n();
@@ -100,7 +114,7 @@ function ResItem({
     <TouchableOpacity
       onPress={onPress ?? soon}
       activeOpacity={0.8}
-      style={{ backgroundColor: TT.card, borderWidth: reply ? 1.5 : 1, borderColor: reply ? TT.accent : TT.line, borderRadius: 18, padding: 15, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14, opacity: muted ? 0.7 : 1 }}
+      style={{ backgroundColor: TT.card, borderWidth: reply ? 1.5 : 1, borderColor: line ?? (reply ? TT.accent : TT.line), borderRadius: 18, padding: 15, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14, opacity: muted ? 0.7 : 1 }}
     >
       <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: TT.accentTint, alignItems: 'center', justifyContent: 'center' }}>
         <Icon size={19} color={muted ? TT.faint : TT.accent} strokeWidth={2} />

@@ -5,9 +5,11 @@ import { useRouter } from 'expo-router';
 import { EdHeader, Kicker, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { fetchHistory, type CareSession } from '@/src/api/care';
+import { useSelectionReset } from '@/src/care/selected-practitioner';
 import { useI18n, type Locale } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
 import { LIGHT, DARK, type Mode } from '@/src/ui/tokens';
+import { LoadFailed } from '@/src/ui/LoadFailed';
 
 const T = {
   en: {
@@ -62,21 +64,26 @@ export default function SessionHistory() {
   const tr = T[locale];
   const router = useRouter();
   const [items, setItems] = useState<CareSession[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const selectionKey = useSelectionReset(() => { setItems(null); setFailed(false); });
   useEffect(() => {
     let alive = true;
-    fetchHistory().then((s) => { if (alive) setItems(s ?? []); });
+    // A failed read is not an empty one (see LoadFailed).
+    fetchHistory().then((v) => { if (!alive) return; if (v) { setItems(v); setFailed(false); } else setFailed(true); });
     return () => { alive = false; };
-  }, []);
+  }, [attempt, selectionKey]);
 
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/home' as never));
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-        <EdHeader source={ONBOARDING_IMAGES.final} kicker="Session history" title={tr.title} onBack={back} />
+        <EdHeader source={ONBOARDING_IMAGES.final} kicker={tr.title} title={tr.title} onBack={back} />
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {items === null ? (
-            <View style={{ paddingTop: 40, alignItems: 'center' }}><ActivityIndicator color={TT.accent} /></View>
+            failed ? <LoadFailed onRetry={() => { setFailed(false); setAttempt((a) => a + 1); }} />
+            : <View style={{ paddingTop: 40, alignItems: 'center' }}><ActivityIndicator color={TT.accent} /></View>
           ) : items.length === 0 ? (
             <View style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, borderRadius: 20, padding: 24, alignItems: 'center', marginTop: 4 }}>
               <Text style={{ fontSize: 15, fontWeight: '700', color: TT.ink }}>{tr.emptyTitle}</Text>

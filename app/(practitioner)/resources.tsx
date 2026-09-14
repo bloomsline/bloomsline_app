@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Check, Eye, Inbox, Search, Share2 } from 'lucide-react-native';
@@ -6,8 +6,11 @@ import { EdHeader, EdCard, EdPill, EdSection, FadeIn } from '@/src/ui/editorial'
 import { PractitionerTabBar, PRACTITIONER_TAB_PAD } from '@/src/ui/PractitionerTabBar';
 import { useConfirm } from '@/src/ui/confirm';
 import { useI18n } from '@/src/i18n';
+import { patientLabel } from '@/src/practitioner/pending-label';
 import { fetchShareableResources, fetchPatients, shareResource, type ShareableResource, type PatientListItem } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
+import { LoadFailed } from '@/src/ui/LoadFailed';
+import { localizeServerMessage } from '@/src/api/server-messages';
 
 // The library, for SHARING. Published resources only — a draft has no frozen
 // version to pin an assignment to, so it cannot be sent.
@@ -47,6 +50,7 @@ export default function Resources() {
   const { shareId } = useLocalSearchParams<{ shareId?: string }>();
   const [items, setItems] = useState<ShareableResource[]>([]);
   const [patients, setPatients] = useState<PatientListItem[]>([]);
+  const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [q, setQ] = useState('');
   const [picked, setPicked] = useState<ShareableResource | null>(null);
@@ -54,24 +58,30 @@ export default function Resources() {
   const [done, setDone] = useState('');
   const [error, setError] = useState('');
 
-  useFocusEffect(
-    useCallback(() => {
-      let alive = true;
-      void Promise.all([fetchShareableResources(), fetchPatients()]).then(([res, pats]) => {
-        if (!alive) return;
-        setItems(res ?? []);
-        setPatients(pats ?? []);
-        setLoaded(true);
-      });
-      return () => { alive = false; };
-    }, []),
-  );
+  const reload = useCallback(() => {
+    let alive = true;
+    void Promise.all([fetchShareableResources(), fetchPatients()]).then(([res, pats]) => {
+      if (!alive) return;
+      // Keep what is there; a failed read is not "no resources".
+      if (res) setItems(res);
+      if (pats) setPatients(pats);
+      setFailed(!res || !pats);
+      setLoaded(true);
+    });
+    return () => { alive = false; };
+  }, []);
+  useFocusEffect(reload);
 
   // Preview said "share this one" — jump straight to the patient list.
+  //
+  // ONCE per arrival. It re-ran whenever the list refreshed (every refocus), so
+  // after "Pick another" and a detour through a preview, the picked resource
+  // quietly snapped back to the first one — one tap from sending the wrong thing.
+  const usedShareId = useRef<string | null>(null);
   useEffect(() => {
-    if (!shareId || items.length === 0) return;
+    if (!shareId || items.length === 0 || usedShareId.current === shareId) return;
     const match = items.find((r) => r.id === shareId);
-    if (match) setPicked(match);
+    if (match) { setPicked(match); usedShareId.current = shareId; }
   }, [shareId, items]);
 
   const needle = q.trim().toLowerCase();
@@ -95,7 +105,7 @@ export default function Resources() {
     setError(''); setDone(''); setBusyId(patient.id);
     const res = await shareResource(picked.id, patient.id);
     setBusyId(null);
-    if (!res.ok) { setError(res.error ?? ''); return; }
+    if (!res.ok) { setError(localizeServerMessage(res.error, locale) ?? ''); return; }
     setDone(`${tr.shared} · ${patient.name}`);
   };
 
@@ -112,7 +122,8 @@ export default function Resources() {
                 <TextInput value={q} onChangeText={setQ} placeholder={tr.search} placeholderTextColor={TT.faint} style={{ flex: 1, fontSize: 15, color: TT.ink }} autoCorrect={false} />
               </EdCard>
               {!loaded && <ActivityIndicator />}
-              {loaded && shown.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.empty}</Text>}
+              {loaded && failed && <LoadFailed compact onRetry={() => { reload(); }} />}
+              {loaded && !failed && shown.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.empty}</Text>}
               {shown.map((r) => {
                 const n = r.submissionCount ?? 0;
                 return (
@@ -171,8 +182,8 @@ export default function Resources() {
               {patients.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.noPatients}</Text>}
               {patients.map((p) => (
                 <EdCard key={p.id} onPress={() => send(p)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                  <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: TT.ink }}>{p.name}</Text>
-                  {busyId === p.id ? <ActivityIndicator size="small" /> : <Check size={16} color={TT.line} />}
+                  <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: TT.ink }}>{patientLabel(p, locale)}</Text>
+                  {busyId === p.id ? <ActivityIndicator size="small" /> : <Check size={16} color={TT.faint} />}
                 </EdCard>
               ))}
 

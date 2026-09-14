@@ -29,6 +29,7 @@ import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { ChevronLeft, ChevronRight, Maximize2, Minimize2, Minus, Pause, Play, Plus, X } from 'lucide-react-native';
+import { useI18n } from '@/src/i18n';
 
 export interface ViewerItem {
   kind: 'image' | 'video' | 'audio';
@@ -59,6 +60,7 @@ export function AudioRow({
   label: string;
   tone?: 'light' | 'dark';
 }) {
+  const { t: tt } = useI18n();
   const player = useAudioPlayer({ uri: url });
   const status = useAudioPlayerStatus(player);
   const [at, setAt] = useState(0);
@@ -106,7 +108,7 @@ export function AudioRow({
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: bg, borderRadius: 14, padding: 14 }}>
       <TouchableOpacity
         onPress={() => (playing ? player.pause() : player.play())}
-        accessibilityLabel={playing ? 'Pause' : 'Play'}
+        accessibilityLabel={playing ? tt.common.pause : tt.common.play}
         style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: accent, alignItems: 'center', justifyContent: 'center' }}
       >
         {playing ? <Pause size={16} color="#fff" fill="#fff" /> : <Play size={16} color="#fff" fill="#fff" />}
@@ -152,6 +154,7 @@ export function MediaViewer({
   onIndex: (i: number) => void;
   onClose: () => void;
 }) {
+  const { t: tt } = useI18n();
   const item = items[index];
   const { width, height } = useWindowDimensions();
   const [zoom, setZoom] = useState(1);
@@ -186,7 +189,7 @@ export function MediaViewer({
         {/* The bar: close, position, and zoom where zoom means something. */}
         {showChrome ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: topInset, paddingHorizontal: 16, paddingBottom: 10 }}>
-          <TouchableOpacity onPress={onClose} accessibilityLabel="Close" style={roundBtn}>
+          <TouchableOpacity onPress={onClose} accessibilityLabel={tt.common.close} style={roundBtn}>
             <X size={18} color="#fff" />
           </TouchableOpacity>
           <View style={{ flex: 1 }} />
@@ -194,15 +197,15 @@ export function MediaViewer({
           <View style={{ flex: 1 }} />
           {item.kind === 'image' ? (
             <>
-              <TouchableOpacity onPress={() => setZoom((z) => Math.max(1, z - 1))} accessibilityLabel="Zoom out" style={roundBtn}>
+              <TouchableOpacity onPress={() => setZoom((z) => Math.max(1, z - 1))} accessibilityLabel={tt.common.zoomOut} style={roundBtn}>
                 <Minus size={17} color="#fff" />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setZoom((z) => Math.min(4, z + 1))} accessibilityLabel="Zoom in" style={roundBtn}>
+              <TouchableOpacity onPress={() => setZoom((z) => Math.min(4, z + 1))} accessibilityLabel={tt.common.zoomIn} style={roundBtn}>
                 <Plus size={17} color="#fff" />
               </TouchableOpacity>
             </>
           ) : video ? (
-            <TouchableOpacity onPress={() => setFull(true)} accessibilityLabel="Full screen" style={roundBtn}>
+            <TouchableOpacity onPress={() => setFull(true)} accessibilityLabel={tt.common.fullScreen} style={roundBtn}>
               <Maximize2 size={17} color="#fff" />
             </TouchableOpacity>
           ) : (
@@ -221,7 +224,7 @@ export function MediaViewer({
             <VideoStage key={index} url={item.url} poster={item.thumbnailUrl ?? null} full={full} />
           ) : (
             <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 20 }}>
-              <AudioRow url={item.url} durationSeconds={item.durationSeconds} label="Voice note" tone="dark" />
+              <AudioRow url={item.url} durationSeconds={item.durationSeconds} label={tt.common.voiceNote} tone="dark" />
             </View>
           )}
         </View>
@@ -249,7 +252,7 @@ export function MediaViewer({
         {full ? (
           <TouchableOpacity
             onPress={() => setFull(false)}
-            accessibilityLabel="Exit full screen"
+            accessibilityLabel={tt.common.exitFullScreen}
             style={[roundBtn, { position: 'absolute', top: topInset, left: 16 }]}
           >
             <Minimize2 size={17} color="#fff" />
@@ -289,6 +292,7 @@ function ImageStage({
   width: number;
   height: number;
 }) {
+  const { t: tt } = useI18n();
   const [loading, setLoading] = useState(true);
   return (
     <ScrollView
@@ -299,7 +303,7 @@ function ImageStage({
       showsHorizontalScrollIndicator={false}
       showsVerticalScrollIndicator={false}
     >
-      <Pressable onPress={onCycle} accessibilityLabel="Zoom">
+      <Pressable onPress={onCycle} accessibilityLabel={tt.common.zoom}>
         <Image
           source={{ uri: url }}
           style={{ width: width * zoom, height: height * 0.72 * zoom }}

@@ -13,10 +13,12 @@ import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { getArticle, type ArticleBody, type ArticleBlock, type Run } from '@/src/api/articles';
 import { useI18n } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
+import { OtherPractitionerNote } from '@/src/care/OtherPractitionerNote';
 
 const T = {
-  en: { missingTitle: 'Not available', missingBody: 'This article could not be opened.', inOther: 'This one is in English.' },
-  fr: { missingTitle: 'Indisponible', missingBody: 'Cet article n’a pas pu être ouvert.', inOther: 'Celui-ci est en anglais.' },
+  // Named by the language the article is actually in (see articles.tsx).
+  en: { missingTitle: 'Not available', missingBody: 'This article could not be opened.', inLang: { en: 'This one is in English.', fr: 'This one is in French.' } as Record<string, string> },
+  fr: { missingTitle: 'Indisponible', missingBody: 'Cet article n’a pas pu être ouvert.', inLang: { en: 'Celui-ci est en anglais.', fr: 'Celui-ci est en français.' } as Record<string, string> },
 } as const;
 
 export default function ArticleScreen() {
@@ -127,11 +129,13 @@ export default function ArticleScreen() {
             </EdCard>
           ) : (
             <>
+              {/* Whose it is, when it is not the practitioner selected. */}
+              <OtherPractitionerNote practitioner={article.practitioner} />
               {/* Said before the article starts, not after it has confused
                   someone. */}
-              {article.renderedLocale !== reading && (
-                <Text style={{ fontSize: 12.5, color: TT.inkSoft, marginBottom: 14 }}>{tr.inOther}</Text>
-              )}
+              {article.renderedLocale !== reading && tr.inLang[article.renderedLocale] ? (
+                <Text style={{ fontSize: 12.5, color: TT.inkSoft, marginBottom: 14 }}>{tr.inLang[article.renderedLocale]}</Text>
+              ) : null}
               {article.blocks.map(renderBlock)}
             </>
           )}

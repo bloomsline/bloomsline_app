@@ -6,11 +6,11 @@
 // "next session" block and, much further down, a separate "Upcoming" list — so the
 // next two appointments were nowhere near each other. They are one horizontal
 // strip now: "Next session", then "Then", then the rest.
-import { useCallback, useRef, useState } from 'react';
-import { Linking, Platform, ScrollView, Text, TouchableOpacity, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Linking, Platform, ScrollView, Text, TouchableOpacity, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { ChevronRight, Plus, Ellipsis, RotateCcw, FileText, MapPin, type LucideIcon } from 'lucide-react-native';
+import { ArrowLeftRight, ChevronRight, Plus, Ellipsis, RotateCcw, FileText, MapPin, Phone, type LucideIcon } from 'lucide-react-native';
 import { TabBar } from '@/src/ui/TabBar';
 import { TabIntro } from '@/src/ui/TabIntro';
 import { EdCard, FadeIn, HEADER_TOP, Kicker } from '@/src/ui/editorial';
@@ -19,14 +19,18 @@ import { useI18n, fmt, greetingFor } from '@/src/i18n';
 import { useOnboarding } from '@/src/onboarding/context';
 import { FORCE_CARE_HUB } from '@/src/config';
 import { fetchCare, fetchTodo, type CareSession, type PatientCare, type TodoItem } from '@/src/api/care';
-import { resourceTypeMeta, statusLabel } from '@/src/care/resources';
+import { resourceTypeMeta, stageLabel, stageLine, todoStage } from '@/src/care/resources';
 import { notify } from '@/src/ui/alert';
 import { Ground } from '@/src/ui/Ground';
 import { PractitionerAvatar } from '@/src/care/PractitionerAvatar';
 import { primePractitionerFace } from '@/src/care/practitioner-face';
+import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
+import { usePractitionerSwitcher } from '@/src/care/PractitionerSwitcher';
 import { ProfileButton } from '@/src/profile/ProfileButton';
 import { useTheme } from '@/src/ui/theme-mode';
 import { veil } from '@/src/ui/tokens';
+import { LoadFailed } from '@/src/ui/LoadFailed';
+import { useStaleOnReturn } from '@/src/ui/use-stale-on-return';
 
 const PREVIEW_NEXT: CareSession = { id: 'preview', scheduledAt: inDays(5, 9), durationMinutes: 50, sessionFormat: 'video', sessionType: 'session', status: 'scheduled', meetLink: null, paymentStatus: null };
 const PREVIEW_UPCOMING: CareSession[] = [
@@ -48,15 +52,48 @@ export default function MyCare() {
   const [care, setCare] = useState<PatientCare | null>(null);
   const [todos, setTodos] = useState<TodoItem[] | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const { selectionKey, selected } = useSelectedPractitioner();
+  const switcher = usePractitionerSwitcher();
+  // Between choosing another practitioner and their care arriving. What is on
+  // screen until then is the PREVIOUS practitioner's sessions and to-dos, and
+  // keeping it (as a failed refetch rightly does) would show them under the new
+  // name. So a switch empties the hub and says it is loading instead.
+  const [switching, setSwitching] = useState(false);
+  const shownFor = useRef(selectionKey);
+  useEffect(() => {
+    if (shownFor.current === selectionKey) return;
+    shownFor.current = selectionKey;
+    setCare(null);
+    setTodos(null);
+    setFailed(false);
+    setSwitching(true);
+  }, [selectionKey]);
 
-  useFocusEffect(
-    useCallback(() => {
-      let alive = true;
-      fetchCare(locale).then((c) => { primePractitionerFace(c); if (alive) { setCare(c); setLoaded(true); } });
-      fetchTodo().then((r) => { if (alive) setTodos(r); });
-      return () => { alive = false; };
-    }, [locale]),
-  );
+  // A failed refetch keeps what is on screen. It used to replace it with
+  // nothing: coming back to My Care on a weak connection wiped the next session
+  // and said "No upcoming session", with a Book button the practitioner may have
+  // turned off. With nothing loaded yet, the screen says it could not load.
+  const reload = useCallback(() => {
+    let alive = true;
+    fetchCare(locale).then((c) => {
+      primePractitionerFace(c);
+      if (!alive) return;
+      if (c) { setCare(c); setFailed(false); } else setFailed(true);
+      setLoaded(true);
+      setSwitching(false);
+    });
+    fetchTodo().then((r) => { if (alive && r) setTodos(r); });
+    return () => { alive = false; };
+    // `selectionKey` is not read here, and it is the point: a new identity is
+    // what makes useFocusEffect fetch again, for the practitioner just chosen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locale, selectionKey]);
+  useFocusEffect(reload);
+  // Back from the background after a few minutes: read the hub again. It only
+  // refreshed on navigating to it, so yesterday's session, or one the
+  // practitioner had since cancelled, stayed on screen for as long as the app did.
+  useStaleOnReturn(() => { reload(); }, 5 * 60 * 1000);
 
   const soon = () => notify(t.common.comingSoon);
 
@@ -84,6 +121,42 @@ export default function MyCare() {
   // Solo (no practitioner, not previewing): the light connect state is unchanged
   // — it is a different screen doing a different job, and dark would read as an
   // error state rather than an invitation.
+  if (loaded && failed && !care && !preview) {
+    return (
+      <View style={{ flex: 1, backgroundColor: TT.bg }}>
+        <SafeAreaView edges={['top']} style={{ flex: 1 }}>
+          <ScrollView contentContainerStyle={{ paddingBottom: 180 }} showsVerticalScrollIndicator={false}>
+            {header}
+            <LoadFailed onRetry={() => { setFailed(false); reload(); }} />
+            {/* The way out when it is THIS practitioner's care that will not
+                load: the switcher sat on the practitioner row, which a failed
+                load never draws, so the patient was stuck on the error until
+                they found Settings. */}
+            {switcher.canSwitch ? (
+              <View style={{ alignItems: 'center', paddingHorizontal: 32, gap: 12 }}>
+                {selected?.name ? (
+                  <Text style={{ fontSize: 13, lineHeight: 19, color: TT.faint, textAlign: 'center' }}>{t.care.failedShowing.replace('{name}', selected.name)}</Text>
+                ) : null}
+                <TouchableOpacity
+                  onPress={switcher.open}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={t.care.switchPractitionerA11y}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 40, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, borderColor: TT.cardLine, backgroundColor: TT.card }}
+                >
+                  <ArrowLeftRight size={15} color={TT.accent} strokeWidth={2.2} />
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: TT.ink }}>{t.care.switchPractitionerA11y}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+          </ScrollView>
+        </SafeAreaView>
+        <TabBar active="care" />
+        {switcher.element}
+      </View>
+    );
+  }
+
   if (loaded && !showHub) {
     return (
       <View style={{ flex: 1, backgroundColor: TT.bg }}>
@@ -110,6 +183,9 @@ export default function MyCare() {
   }
 
   const pracName = real?.practitionerName ?? practitionerName ?? (preview ? 'Dr. Maya Laurent' : t.care.yourPractitioner);
+  // The selected practitioner's own picture while their care is on its way, so
+  // the row changes face the moment the switch is made.
+  const pracPhoto = real?.practitioner?.photoUrl ?? selected?.photoUrl ?? null;
   const pracHeadline = real?.practitionerHeadline ?? (preview ? 'Clinical psychologist' : null);
   const nextSession = real ? real.nextSession : preview ? PREVIEW_NEXT : null;
   const later = real ? real.upcomingSessions.filter((s) => s.id !== real.nextSession?.id) : preview ? PREVIEW_UPCOMING : [];
@@ -143,18 +219,45 @@ export default function MyCare() {
                 it needs no dimming of its own — see TabIntro. */}
             <View>
               {/* Practitioner — a row, not a card: it names a person, it is not a thing to do. */}
-              <TouchableOpacity
-                onPress={() => router.navigate('/practitioner' as never)}
-                activeOpacity={0.8}
-                style={{ marginHorizontal: 22, flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 12 }}
-              >
-                <PractitionerAvatar size={44} name={pracName} photoUrl={real?.practitioner?.photoUrl ?? null} />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 15.5, fontWeight: '700', color: TT.ink }}>{pracName}</Text>
-                  {pracHeadline ? <Text style={{ fontSize: 12.5, color: TT.inkSoft, marginTop: 1 }}>{pracHeadline}</Text> : null}
+              <View style={{ marginHorizontal: 22, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <TouchableOpacity
+                  onPress={() => router.navigate('/practitioner' as never)}
+                  activeOpacity={0.8}
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 12 }}
+                >
+                  <PractitionerAvatar size={44} name={pracName} photoUrl={pracPhoto} />
+                  <View style={{ flex: 1 }}>
+                    <Text numberOfLines={1} style={{ fontSize: 15.5, fontWeight: '700', color: TT.ink }}>{pracName}</Text>
+                    {pracHeadline ? <Text numberOfLines={1} style={{ fontSize: 12.5, color: TT.inkSoft, marginTop: 1 }}>{pracHeadline}</Text> : null}
+                  </View>
+                  {/* The chevron gives way to Switch: two trailing controls on
+                      one row read as one, and the row itself still opens the
+                      profile. */}
+                  {switcher.canSwitch ? null : <ChevronRight size={18} color={TT.faint} strokeWidth={2} />}
+                </TouchableOpacity>
+                {/* Only with several practitioners. A patient with one sees the
+                    row exactly as it was. */}
+                {switcher.canSwitch ? (
+                  <TouchableOpacity
+                    onPress={switcher.open}
+                    activeOpacity={0.8}
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel={t.care.switchPractitionerA11y}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, paddingHorizontal: 13, borderRadius: 17, borderWidth: 1, borderColor: TT.cardLine, backgroundColor: TT.card }}
+                  >
+                    <ArrowLeftRight size={14} color={TT.accent} strokeWidth={2.2} />
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: TT.ink }}>{t.care.switchPractitioner}</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+
+              {switching ? (
+                <View accessibilityRole="progressbar" style={{ paddingVertical: 64, alignItems: 'center' }}>
+                  <ActivityIndicator color={TT.accent} />
                 </View>
-                <ChevronRight size={18} color={TT.faint} strokeWidth={2} />
-              </TouchableOpacity>
+              ) : (
+              <>
 
               <SectionRule label={t.care.yourSessions} />
 
@@ -201,7 +304,8 @@ export default function MyCare() {
                     {todoItems.slice(0, 3).map((it) => {
                       const meta = resourceTypeMeta(it.type, locale);
                       const open = it.resourceId ? () => router.navigate(`/resource/${it.id}` as never) : () => router.navigate('/from-practitioner' as never);
-                      return <ResourceRow key={it.id} Icon={meta.Icon} title={it.title} sub={`${meta.label} · ${statusLabel(it.status, locale)}`} onPress={open} />;
+                      const stage = todoStage(it);
+                      return <ResourceRow key={it.id} Icon={meta.Icon} title={it.title} sub={`${meta.label} · ${stageLabel(stage, locale)}`} line={stageLine(stage, TT)} onPress={open} />;
                     })}
                   </View>
                 </>
@@ -212,6 +316,8 @@ export default function MyCare() {
                 <UtilityRow Icon={RotateCcw} label={t.care.pastSessions} onPress={() => router.navigate('/session-history' as never)} divider />
                 <UtilityRow Icon={FileText} label={t.care.documents} onPress={() => router.navigate('/documents' as never)} />
               </View>
+              </>
+              )}
             </View>
           </FadeIn>
         </ScrollView>
@@ -219,6 +325,7 @@ export default function MyCare() {
 
       <TabBar active="care" />
       <TabIntro tabKey="care" />
+      {switcher.element}
     </Ground>
   );
 }
@@ -311,6 +418,9 @@ function SessionCard({
   const { t: TT, mode } = useTheme();
   const inPerson = session.sessionFormat === 'in_person';
   const pay = session.paymentStatus;
+  // Asked for, not yet accepted. It looked like any booked session, Join button
+  // and all, while the practitioner could still decline it.
+  const pending = session.status === 'pending';
   return (
     <View style={{ width, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine, borderRadius: 20, padding: 18 }}>
       <Kicker color={TT.faint} size={10} style={{ marginBottom: 8 }}>{first ? t.care.nextSession : t.care.then}</Kicker>
@@ -319,7 +429,13 @@ function SessionCard({
         {clock(session.scheduledAt, locale)}  ·  {fmtFormat(session.sessionFormat, locale)}{first ? '' : ` · ${session.durationMinutes} min`}
       </Text>
 
-      {pay ? (
+      {pending ? (
+        <View style={{ alignSelf: 'flex-start', marginTop: 12, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: 'rgba(233,196,106,0.16)' }}>
+          <Text style={{ fontSize: 11.5, fontWeight: '700', color: TT.amber }}>{t.care.awaitingConfirmation}</Text>
+        </View>
+      ) : null}
+
+      {pay && !pending ? (
         <View style={{ alignSelf: 'flex-start', marginTop: 12, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, backgroundColor: pay === 'paid' ? 'rgba(127,217,192,0.16)' : 'rgba(233,196,106,0.16)' }}>
           <Text style={{ fontSize: 11.5, fontWeight: '700', color: pay === 'paid' ? TT.accent : TT.amber }}>
             {pay === 'paid' ? t.care.paid : pay === 'free' ? t.care.noCharge : t.care.awaitingPayment}
@@ -335,16 +451,24 @@ function SessionCard({
                             read out to a driver or copied
                           → else nothing. A button that opens nothing is worse
                             than no button. */}
-      {first && !inPerson ? (
+      {/* Join only where there is something to join: a video session with its
+          link. A phone session has no link — the practitioner calls — and a
+          "Join" that answered "Coming soon" was the button it used to show. */}
+      {first && !pending && session.sessionFormat === 'phone' ? (
+        <View style={{ flexDirection: 'row', gap: 7, marginTop: 14, alignItems: 'center' }}>
+          <Phone size={15} color={TT.faint} strokeWidth={2} />
+          <Text style={{ flex: 1, fontSize: 13, color: TT.inkSoft }}>{t.care.phoneCall}</Text>
+        </View>
+      ) : first && !pending && session.sessionFormat === 'video' && session.meetLink ? (
         <TouchableOpacity onPress={onJoin} activeOpacity={0.85} style={{ height: 44, borderRadius: 22, backgroundColor: TT.ctaBg, alignItems: 'center', justifyContent: 'center', marginTop: 16 }}>
           <Text style={{ fontSize: 14.5, fontWeight: '700', color: TT.ctaFg }}>{t.care.join}</Text>
         </TouchableOpacity>
-      ) : first && inPerson && mapsUrl ? (
+      ) : first && !pending && inPerson && mapsUrl ? (
         <TouchableOpacity onPress={onMaps} activeOpacity={0.85} style={{ height: 44, borderRadius: 22, backgroundColor: TT.ctaBg, alignItems: 'center', justifyContent: 'center', marginTop: 16, flexDirection: 'row', gap: 7 }}>
           <MapPin size={16} color={TT.ctaFg} strokeWidth={2.2} />
           <Text style={{ fontSize: 14.5, fontWeight: '700', color: TT.ctaFg }}>{t.care.openInMaps}</Text>
         </TouchableOpacity>
-      ) : first && inPerson && address ? (
+      ) : first && !pending && inPerson && address ? (
         <View style={{ flexDirection: 'row', gap: 7, marginTop: 14, alignItems: 'flex-start' }}>
           <MapPin size={15} color={TT.faint} strokeWidth={2} style={{ marginTop: 1 }} />
           <Text style={{ flex: 1, fontSize: 13, color: TT.inkSoft, lineHeight: 19 }}>{address}</Text>
@@ -418,10 +542,12 @@ function firstNameOf(name: string): string {
 
 
 
-function ResourceRow({ Icon, title, sub, onPress }: { Icon: LucideIcon; title: string; sub: string; onPress: () => void }) {
+// `line`: the border says where the item stands (see `stageLine`), beside the
+// status written under the title.
+function ResourceRow({ Icon, title, sub, line, onPress }: { Icon: LucideIcon; title: string; sub: string; line?: string; onPress: () => void }) {
   const { t: TT } = useTheme();
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine, borderRadius: 18, padding: 14, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: line ?? TT.cardLine, borderRadius: 18, padding: 14, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
       <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(127,217,192,0.14)', alignItems: 'center', justifyContent: 'center' }}>
         <Icon size={18} color={TT.accent} strokeWidth={2} />
       </View>

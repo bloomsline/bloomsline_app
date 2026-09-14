@@ -20,7 +20,7 @@
 // and the timeline's valence is derived from the feelings actually picked (see
 // MOOD_SCORES). That is why this needed no migration.
 import { useEffect, useRef, useState } from 'react';
-import { useAudioRecorder, useAudioRecorderState, requestRecordingPermissionsAsync, setAudioModeAsync, RecordingPresets } from 'expo-audio';
+import { useAudioRecorder, useAudioRecorderState, requestRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio';
 import { ActivityIndicator, Animated, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -28,16 +28,19 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { X, ChevronLeft, ImagePlus, Mic, Lock, Eye, Camera, Video, Images, Square, Circle, Play } from 'lucide-react-native';
 import { MediaViewer, type ViewerItem } from '@/src/ui/MediaViewer';
 import { MOODS, moodLabel } from '@/src/moments/moods';
-import { createMoment, shareMoment } from '@/src/api/moments';
-import { pickMedia, captureMedia, cameraAvailable, uploadMedia, type PreparedMedia } from '@/src/moments/media-upload';
+import { createMoment, shareMoment, type MomentMediaInput } from '@/src/api/moments';
+import { pickMedia, captureMedia, cameraAvailable, uploadMedia, MediaError, type PreparedMedia } from '@/src/moments/media-upload';
 import { byteSize } from '@/src/upload/put-file';
 import { useOnboarding } from '@/src/onboarding/context';
 import { useI18n, fmt } from '@/src/i18n';
+import { joinFirstNames } from '@/src/care/practitioner-names';
 import { notify } from '@/src/ui/alert';
 import { useAndroidBack } from '@/src/ui/android-back';
 import { HEADER_TOP } from '@/src/ui/editorial';
 import { useTheme } from '@/src/ui/theme-mode';
 import { KNOB, OVER_MEDIA, veil } from '@/src/ui/tokens';
+import { VOICE_RECORDING, recordedMime } from '@/src/audio/recording';
+import { ShareRefused } from '@/src/api/share-refused';
 
 const MAX_MOODS = 3; // the board asks for "up to 3 feelings"
 /** How many things one moment may carry. The server allows 7; five is what a
@@ -60,8 +63,13 @@ export default function Capture() {
   const router = useRouter();
   const { t, locale } = useI18n();
   const tr = t.capture;
-  const { practitionerName, hasPractitioner } = useOnboarding();
-  const pracFirst = (practitionerName ?? '').replace(/^dr\.?\s*/i, '').trim().split(/\s+/)[0] || '';
+  const { practitionerName, practitionerNames, hasPractitioner } = useOnboarding();
+  // Everyone the moment would reach, not the first of them: on an older server a
+  // share goes to every practitioner linked. With the switcher it goes to the
+  // selected one, and these names are that one (see onboarding/context).
+  const pracNames = practitionerNames.length ? practitionerNames : practitionerName ? [practitionerName] : [];
+  const pracFirst = joinFirstNames(pracNames, locale);
+  const pracMany = pracNames.length > 1;
 
   // A pre-selected feeling from the Moments empty-state shortcut still works: it
   // opens the sheet on the matching tone with that feeling already chosen.
@@ -113,9 +121,14 @@ export default function Capture() {
   // screen this replaces did the same.
   const [error, setError] = useState<string | null>(null);
 
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorder = useAudioRecorder(VOICE_RECORDING);
   const recState = useAudioRecorderState(recorder);
   const recording = recState.isRecording;
+  const recorderRef = useRef(recorder);
+  recorderRef.current = recorder;
+  const committing = useRef(false);
+  const captureId = useRef(`cap-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`).current;
+  const uploadedFor = useRef(new Map<string, MomentMediaInput>());
 
   const capturedAt = useRef(new Date()).current;
   const when = `${capturedAt.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'long' })}, ${capturedAt.toLocaleTimeString(locale === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}`;
@@ -136,8 +149,8 @@ export default function Capture() {
     try {
       const picked = await fn();
       if (picked) setMedia((prev) => (prev.length >= MAX_MEDIA ? prev : [...prev, picked]));
-    } catch {
-      setError(tr.errAddMedia);
+    } catch (e) {
+      setError(e instanceof MediaError ? (e.reason === 'too_large' ? tr.errTooLarge : tr.errCameraNeeded) : tr.errAddMedia);
     }
   };
 
@@ -162,6 +175,9 @@ export default function Capture() {
   // would take the written note, the photograph and the voice note with it.
   // Only the first step falls through to leaving, which is what the ✕ means.
   useAndroidBack(() => {
+    // Mid-save, back does nothing: the save carries what is on screen, and
+    // stepping back to change it (or leaving) made the result differ from it.
+    if (busy) return true;
     if (picker) { setPicker(null); return true; }
     if (step === 'preview') { setStep('feel'); return true; }
     if (step === 'feel') { toWrite(); return true; }
@@ -204,7 +220,8 @@ export default function Capture() {
         // Not `fetch(uri).blob()`: see `upload/put-file` — reading a file:// uri
         // that way is the native trap this app has already hit twice.
         const size = await byteSize(uri);
-        setMedia((prev) => (prev.length >= MAX_MEDIA ? prev : [...prev, { kind: 'audio' as const, uri, mime: Platform.OS === 'web' ? 'audio/webm' : 'audio/mp4', size, durationSeconds: seconds }]));
+        const mime = await recordedMime(uri);
+        setMedia((prev) => (prev.length >= MAX_MEDIA ? prev : [...prev, { kind: 'audio' as const, uri, mime, size, durationSeconds: seconds }]));
       }
     } catch {
       setError(tr.errSaveRec);
@@ -212,33 +229,63 @@ export default function Capture() {
   };
 
   const commit = async () => {
-    if (busy) return;
+    // A ref, not only state: two taps inside one frame both saw `busy` false.
+    if (busy || committing.current) return;
+    committing.current = true;
     setBusy(true);
     try {
       // Order is preserved: `Promise.all` resolves in input order, and the
       // first item is the one the timeline and the detail sheet use as ground.
-      const uploaded = await Promise.all(media.map(uploadMedia));
+      // Each file is uploaded ONCE: a retry after a failed save reuses what
+      // already reached storage instead of sending every file again.
+      const uploaded = await Promise.all(media.map(async (m) => {
+        const done = uploadedFor.current.get(m.uri);
+        if (done) return done;
+        const up = await uploadMedia(m);
+        uploadedFor.current.set(m.uri, up);
+        return up;
+      }));
       const created = await createMoment({
         textContent: note.trim() || null,
         moods,
         capturedAt: capturedAt.toISOString(),
         media: uploaded,
+        // The same id on every retry of THIS capture. A save that landed but
+        // whose answer was lost used to become two moments when retried.
+        clientId: captureId,
       });
       // Sharing is a second call on purpose: the moment exists either way, so a
       // failure here costs the share, never the moment.
       if (share) {
         try {
           await shareMoment(created.id, true);
-        } catch {
-          notify(tr.newMoment, tr.errShare);
+        } catch (e) {
+          // Nobody to share with is not a failure to retry from the moment later.
+          notify(tr.newMoment, e instanceof ShareRefused ? tr.errShareNoPractitioner : tr.errShare);
         }
       }
-      router.replace('/moments' as never);
+      // Back to the Moments screen that opened this one. `replace` put a NEW
+      // Moments screen in this one's place and left the old one underneath, so
+      // every moment saved added another full timeline to the stack, and Back
+      // led to Moments again instead of out. Moments reloads when it regains
+      // focus, so the new moment is there either way.
+      if (router.canGoBack()) router.back();
+      else router.replace('/moments' as never);
     } catch {
       notify(tr.newMoment, tr.errSave);
       setBusy(false);
+    } finally {
+      committing.current = false;
     }
   };
+
+  // Leaving while recording stops the recording and puts audio back out of
+  // record mode; left there, iOS played everything afterwards through the
+  // earpiece at a whisper.
+  useEffect(() => () => {
+    try { if (recorderRef.current?.isRecording) void recorderRef.current.stop(); } catch { /* released */ }
+    void setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {});
+  }, []);
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
@@ -263,8 +310,8 @@ export default function Capture() {
         <Header
           step={step}
           tr={tr}
-          onClose={() => router.back()}
-          onBack={() => (step === 'preview' ? setStep('feel') : toWrite())}
+          onClose={() => { if (!busy) router.back(); }}
+          onBack={() => { if (busy) return; if (step === 'preview') setStep('feel'); else toWrite(); }}
         />
 
         {step === 'preview' ? (
@@ -278,6 +325,7 @@ export default function Capture() {
             share={share}
             canShare={hasPractitioner && !!pracFirst}
             pracFirst={pracFirst}
+            pracMany={pracMany}
             busy={busy}
             onToggleShare={() => setShare((v) => !v)}
             onEdit={() => setStep('write')}
@@ -285,12 +333,15 @@ export default function Capture() {
           />
         ) : (
           <>
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+            <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
               <ScrollView contentContainerStyle={{ paddingHorizontal: 26, paddingTop: 6, flexGrow: 1 }} keyboardShouldPersistTaps="handled">
                 <Text style={{ fontSize: 12.5, color: TT.faint, marginBottom: 12 }}>{when}</Text>
                 <View>
                   <TextInput
                     ref={noteRef}
+                    // The server keeps 5,000 characters and silently cut the
+                    // rest; the field now stops where the note would end.
+                    maxLength={5000}
                     value={note}
                     onChangeText={setNote}
                     placeholder={firstMoment ? tr.whatFirst : tr.what}
@@ -334,8 +385,10 @@ export default function Capture() {
                   ) : null}
                   <View style={{ height: 1, backgroundColor: TT.cardLine, marginBottom: 14 }} />
                   <View style={{ flexDirection: 'row', gap: 10 }}>
-                    <Chip Icon={ImagePlus} label={tr.photoOrVideo} onPress={() => !atCap && openPicker('visual')} dim={atCap} />
-                    <Chip Icon={Mic} label={tr.voice} onPress={() => !atCap && openPicker('voice')} dim={atCap} />
+                    {/* Not while recording: "Record now" on a recorder already
+                        running threw, and could throw away the note in progress. */}
+                    <Chip Icon={ImagePlus} label={tr.photoOrVideo} onPress={() => !atCap && !recording && openPicker('visual')} dim={atCap || recording} />
+                    <Chip Icon={Mic} label={tr.voice} onPress={() => !atCap && !recording && openPicker('voice')} dim={atCap || recording} />
                   </View>
                   {atCap ? (
                     <Text style={{ fontSize: 12, color: TT.faint, marginTop: 8 }}>{fmt(tr.mediaFull, { n: MAX_MEDIA })}</Text>
@@ -509,7 +562,7 @@ function FeelSheet({
 
 /** Step three. The moment as it will look on the line, not a summary of a form. */
 function Preview({
-  when, note, media, moods, locale, tr, share, canShare, pracFirst, busy, onToggleShare, onEdit, onCommit,
+  when, note, media, moods, locale, tr, share, canShare, pracFirst, pracMany, busy, onToggleShare, onEdit, onCommit,
 }: {
   when: string;
   note: string;
@@ -520,6 +573,7 @@ function Preview({
   share: boolean;
   canShare: boolean;
   pracFirst: string;
+  pracMany: boolean;
   busy: boolean;
   onToggleShare: () => void;
   onEdit: () => void;
@@ -566,7 +620,7 @@ function Preview({
               {share ? fmt(tr.showPrac, { prac: pracFirst }) : tr.keepPrivate}
             </Text>
             <Text style={{ fontSize: 11.5, color: TT.faint, marginTop: 2 }}>
-              {share ? tr.canChangeLater : fmt(tr.pracCannotSee, { prac: pracFirst })}
+              {share ? tr.canChangeLater : fmt(pracMany ? tr.pracCannotSeeMany : tr.pracCannotSee, { prac: pracFirst })}
             </Text>
           </View>
           <View style={{ width: 42, height: 25, borderRadius: 13, padding: 3, backgroundColor: share ? TT.accent : veil(mode, 0.16), alignItems: share ? 'flex-end' : 'flex-start' }}>
@@ -638,8 +692,10 @@ function PickerSheet({
           { Icon: Images, label: tr.chooseLibrary, onPress: onLibrary },
         ]
       : [
+          // Recording only. "Choose a file" sat here and opened the PHOTO
+          // library: there is no audio file picker, and anything chosen was
+          // added as a photo or video under the Voice heading.
           { Icon: Circle, label: tr.recordNow, onPress: onRecord },
-          { Icon: Images, label: tr.chooseFile, onPress: onLibrary },
         ];
 
   return (

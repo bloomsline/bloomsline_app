@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Linking, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   CalendarClock, CheckCircle2, ChevronDown, Mail, MapPin, MoreHorizontal, NotebookPen, Phone,
@@ -15,6 +15,7 @@ import {
 } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
 import { LIGHT, DARK, type Mode } from '@/src/ui/tokens';
+import { localizeServerMessage } from '@/src/api/server-messages';
 
 // Everything you can do to a session, without leaving the day.
 //
@@ -40,7 +41,8 @@ const T = {
     // close flow
     howWent: 'HOW DID IT GO?', attended: 'Attended', didntHappen: 'Didn’t happen',
     whyNot: 'WHAT HAPPENED?', payment: 'PAYMENT', paid: 'Paid', unpaid: 'Unpaid', free: 'Free',
-    noteLabel: 'A NOTE (OPTIONAL)', notePlaceholder: 'What you want to remember.',
+    noteLabel: 'ADD TO THE SESSION NOTE (OPTIONAL)', notePlaceholder: 'What you want to remember.',
+    noteOpenFailed: 'Could not open this session’s note. Check your connection and try again.', noteUnsaved: 'The note you were writing is not kept yet. Check your connection, then try again.',
     save: 'Save', back: 'Back', pickReason: 'Pick what happened.',
     // cancel flow
     cancelTitle: 'CANCEL THIS SESSION', reasonPlaceholder: 'Reason (optional)',
@@ -59,7 +61,8 @@ const T = {
     guestNote: 'Réservation d’un invité. Associez-la à un patient pour gérer la séance.',
     howWent: 'COMMENT ÇA S’EST PASSÉ ?', attended: 'Présent', didntHappen: 'N’a pas eu lieu',
     whyNot: 'QUE S’EST-IL PASSÉ ?', payment: 'PAIEMENT', paid: 'Payé', unpaid: 'Impayé', free: 'Gratuit',
-    noteLabel: 'UNE NOTE (FACULTATIF)', notePlaceholder: 'Ce que vous voulez retenir.',
+    noteLabel: 'AJOUTER À LA NOTE DE SÉANCE (FACULTATIF)', notePlaceholder: 'Ce que vous voulez retenir.',
+    noteOpenFailed: 'Impossible d’ouvrir la note de cette séance. Vérifiez votre connexion et réessayez.', noteUnsaved: 'La note en cours n’est pas encore conservée. Vérifiez votre connexion, puis réessayez.',
     save: 'Enregistrer', back: 'Retour', pickReason: 'Choisissez ce qui s’est passé.',
     cancelTitle: 'ANNULER CETTE SÉANCE', reasonPlaceholder: 'Motif (facultatif)',
     thisOne: 'Cette séance', following: 'Celle-ci et les suivantes', whole: 'Toute la série',
@@ -172,10 +175,10 @@ export function SessionSheet({
 }) {
   const { t: TT, mode: themeMode } = useTheme();
   const router = useRouter();
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const tr = T[locale] ?? T.en;
   const confirm = useConfirm();
-  const { open: openNote } = useNoteDraft();
+  const { openForSession, appendText } = useNoteDraft();
 
   const [mode, setMode] = useState<'view' | 'close' | 'cancel'>('view');
   const [showMenu, setShowMenu] = useState(false);
@@ -227,7 +230,8 @@ export function SessionSheet({
     setBusy(true);
     const res = await fn();
     setBusy(false);
-    if (!res.ok) { notify(tr.statuses.pending, res.error ?? 'Something went wrong.'); return; }
+    // Titled with the session, not the word "Pending", which is what it said.
+    if (!res.ok) { notify(s.who, localizeServerMessage(res.error, locale) ?? t.common.somethingWrong); return; }
     if (opts?.keepOpen) {
       // A resend or a reminder does not change the day — confirm it in place
       // rather than closing the sheet out from under the practitioner.
@@ -241,7 +245,15 @@ export function SessionSheet({
 
   const saveClose = () => {
     if (outcome === 'no_show' && !reason) { notify(tr.whyNot, tr.pickReason); return; }
-    void run(() => closeSession(s.id, { outcome, paymentStatus: payment, summary: summary.trim() || undefined, reason: reason || undefined }));
+    const comment = summary.trim();
+    void run(async () => {
+      const res = await closeSession(s.id, { outcome, paymentStatus: payment, summary: comment || undefined, reason: reason || undefined });
+      // The server added the comment to the note and to its draft. A note for this
+      // session still open (or minimised) gets it too, or its next autosave would
+      // write the draft back without it.
+      if (res.ok && comment) appendText(s.id, comment);
+      return res;
+    });
   };
 
   const doCancel = (scope: 'this' | 'following' | 'all') =>
@@ -270,11 +282,16 @@ export function SessionSheet({
     } as never);
   };
 
-  const goNote = () => {
-    if (!s.memberId) return;
+  // With what the session's note already says. This opened an empty editor, and
+  // saving it replaced the note written earlier, on the web or on this phone.
+  const goNote = async () => {
+    if (!s.memberId || busy) return;
+    setBusy(true);
+    const res = await openForSession({ appointmentId: s.id, memberId: s.memberId, who: s.who, when: `${dayLabel} · ${hhmm(start)}`, noteType: 'session' });
+    setBusy(false);
+    if (!res.ok) { notify(tr.notes, res.reason === 'unsaved' ? tr.noteUnsaved : tr.noteOpenFailed); return; }
     reset();
     onClose();
-    openNote({ appointmentId: s.id, memberId: s.memberId, who: s.who, when: `${dayLabel} · ${hhmm(start)}`, title: '', text: '', ranges: [], noteType: 'session' });
     router.navigate('/(practitioner)/note' as never);
   };
 
@@ -282,6 +299,10 @@ export function SessionSheet({
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={() => { reset(); onClose(); }} statusBarTranslucent>
+      {/* The sheet rises with the keyboard. Its note and cancel-reason fields
+          sat under it, with Save, on both platforms: a bottom-anchored sheet in
+          a Modal had nothing moving it out of the way. */}
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
       <Pressable style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(20,20,18,0.45)' }} onPress={() => { reset(); onClose(); }}>
         <Pressable onPress={() => {}} style={{ maxHeight: '88%', borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: TT.sheet }}>
           <View style={{ alignItems: 'center', paddingTop: 10 }}>
@@ -345,7 +366,10 @@ export function SessionSheet({
                       <Text style={{ fontSize: 13.5, fontWeight: '800', color: TT.onAccent }}>{tr.join}</Text>
                     </Pressable>
                   ) : null}
-                  {canManage && isActive && <Outline Icon={NotebookPen} label={tr.notes} onPress={goNote} />}
+                  {/* Not only before it: the note is most often written after a
+                      session is closed, and closing one used to remove the only
+                      way to write it from the phone. Not for a cancelled one. */}
+                  {canManage && status !== 'cancelled' && <Outline Icon={NotebookPen} label={tr.notes} onPress={goNote} />}
                   {!isPending && isActive && (
                     <Outline Icon={Send} label={tr.resend} disabled={busy} onPress={() => void run(resendSessionDetails.bind(null, s.id), { keepOpen: true, flash: tr.sent })} />
                   )}
@@ -509,6 +533,7 @@ export function SessionSheet({
           </ScrollView>
         </Pressable>
       </Pressable>
+      </KeyboardAvoidingView>
       {/* Same reason as MomentDetail: delete and decline confirm from inside
           this Modal, so the dialog has to be hosted in it. */}
       <ConfirmLayer />

@@ -8,7 +8,7 @@
 // The input is not arbitrary HTML. It has already been through the care app's
 // note sanitizer (apps/care/src/lib/notes/sanitize.ts), so the tag set is a
 // closed allowlist — b, strong, i, em, u, s, p, br, ul, ol, li, blockquote, q,
-// a, mark — with attributes only on `a` (href/title/target/rel) and `mark`
+// a, mark, h3, h4 — with attributes only on `a` (href/title/target/rel) and `mark`
 // (data-tag). That is why a tokenizer is enough here and no HTML parser is
 // pulled in: anything outside that set cannot reach this code, and if it ever
 // did, an unknown tag contributes no styling and its text still renders.
@@ -155,6 +155,14 @@ export function parseRichText(html: string, options?: ParseOptions): RichBlock[]
       case 'blockquote':
         flush();
         kind = closing ? 'paragraph' : name === 'p' ? 'paragraph' : 'quote';
+        break;
+      case 'h3':
+      case 'h4':
+        // A session note's headings (the web editor writes these). Their own
+        // block, in bold; they used to run into the paragraph beneath.
+        flush();
+        kind = 'paragraph';
+        depthOf.bold = Math.max(0, depthOf.bold + (closing ? -1 : 1));
         break;
       case 'ul':
       case 'ol':

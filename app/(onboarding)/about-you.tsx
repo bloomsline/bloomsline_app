@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -10,6 +10,7 @@ import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useOnboarding } from '@/src/onboarding/context';
 import { useI18n, type Locale } from '@/src/i18n';
 import { saveProfile } from '@/src/api/me';
+import { notify } from '@/src/ui/alert';
 
 // e4 — About you, now the FIRST step after sign-up. A light sheet glides up over
 // the held imagery (the photography stays present, so it never feels like
@@ -26,16 +27,33 @@ export default function AboutYou() {
   const [last, setLast] = useState(lastName);
   const [dob, setDob] = useState<string | null>(dateOfBirth);
   const [focus, setFocus] = useState<'first' | 'last' | null>(null);
+  // The fields start from the profile, which can arrive after this screen does.
+  // Follow it until the person types, so what shows is THIS account's name —
+  // never a copy taken before it loaded.
+  const typed = useRef(false);
+  useEffect(() => {
+    if (typed.current) return;
+    setFirst(firstName);
+    setLast(lastName);
+    setDob(dateOfBirth);
+  }, [firstName, lastName, dateOfBirth]);
   const ready = first.trim().length > 0 && last.trim().length > 0;
 
   const T = t.onboarding.aboutYou;
 
   // An invited patient meets their practitioner's hello next; a solo one goes
   // straight to the carousel, which has nothing to say about a practitioner.
-  const next = () => {
-    if (!ready) return;
+  //
+  // The profile is saved BEFORE moving on. It was sent and forgotten, so on a bad
+  // connection the name, date of birth and language were silently lost.
+  const [saving, setSaving] = useState(false);
+  const next = async () => {
+    if (!ready || saving) return;
+    setSaving(true);
+    const ok = await saveProfile({ firstName: first.trim(), lastName: last.trim(), dateOfBirth: dob, locale });
+    setSaving(false);
+    if (!ok) { notify(T.saveFailed); return; }
     update({ firstName: first.trim(), lastName: last.trim(), dateOfBirth: dob });
-    saveProfile({ firstName: first.trim(), lastName: last.trim(), dateOfBirth: dob, locale });
     router.push(hasPractitioner ? '/(onboarding)/hello' : '/(onboarding)/stories');
   };
 
@@ -68,23 +86,23 @@ export default function AboutYou() {
 
             <View style={{ flex: 1 }} />
 
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <KeyboardAvoidingView behavior="padding">
               <RiseIn y={40} duration={700} style={{ backgroundColor: ED.sheet, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 26, paddingTop: 24, paddingBottom: insets.bottom + 24 }}>
                 <Text style={{ fontSize: 26, fontWeight: '800', color: '#141414', letterSpacing: -0.9, lineHeight: 29 }}>{T.title}</Text>
 
                 <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#8A8A83', marginBottom: 6 }}>{T.firstName}</Text>
-                    <TextInput value={first} onChangeText={setFirst} onFocus={() => setFocus('first')} onBlur={() => setFocus(null)} autoCapitalize="words" style={[nameFieldStyle('first'), Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]} />
+                    <TextInput value={first} onChangeText={(v) => { typed.current = true; setFirst(v); }} onFocus={() => setFocus('first')} onBlur={() => setFocus(null)} autoCapitalize="words" style={[nameFieldStyle('first'), Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#8A8A83', marginBottom: 6 }}>{T.lastName}</Text>
-                    <TextInput value={last} onChangeText={setLast} onFocus={() => setFocus('last')} onBlur={() => setFocus(null)} autoCapitalize="words" style={[nameFieldStyle('last'), Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]} />
+                    <TextInput value={last} onChangeText={(v) => { typed.current = true; setLast(v); }} onFocus={() => setFocus('last')} onBlur={() => setFocus(null)} autoCapitalize="words" style={[nameFieldStyle('last'), Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]} />
                   </View>
                 </View>
 
                 <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#8A8A83', marginTop: 12, marginBottom: 6 }}>{T.dob}</Text>
-                <DateOfBirthField value={dob} onChange={setDob} months={[...t.onboarding.months]} placeholder={T.dobPlaceholder} doneLabel={T.dobDone} titleLabel={T.dobTitle} />
+                <DateOfBirthField value={dob} onChange={(v) => { typed.current = true; setDob(v); }} months={[...t.onboarding.months]} placeholder={T.dobPlaceholder} doneLabel={T.dobDone} titleLabel={T.dobTitle} />
 
                 <Text style={{ fontSize: 11.5, fontWeight: '700', color: '#8A8A83', marginTop: 12, marginBottom: 6 }}>{T.language}</Text>
                 <View style={{ flexDirection: 'row', gap: 9 }}>

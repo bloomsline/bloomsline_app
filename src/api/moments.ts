@@ -2,6 +2,7 @@
 // apiFetch). Slice 1 covers WRITE moments (mood + note); media (photo/voice/
 // video) is deferred until object storage is provisioned, so we never send
 // `media` here yet — the timeline still renders any media the backend returns.
+import { readersFrom, throwShareFailure } from '@/src/api/share-refused';
 import { apiFetch } from '../auth/api';
 
 export interface MomentMediaDTO {
@@ -23,6 +24,11 @@ export interface MomentDTO {
   moods: string[];
   capturedAt: string; // ISO
   sharedWithPractitioner: boolean;
+  /** Who can read it now, by name: the practitioners the share named who are
+   *  still linked. Older servers do not send it. */
+  sharedWith?: string[];
+  /** The same readers by id, in the same order. */
+  sharedWithIds?: string[];
   media: MomentMediaDTO[];
 }
 
@@ -63,10 +69,12 @@ export async function deleteMoment(id: string): Promise<void> {
 }
 
 /** Share / unshare a moment with the patient's practitioner(s). Returns the new state. */
-export async function shareMoment(id: string, shared: boolean): Promise<boolean> {
+/** Throws ShareRefused when there is nobody to share with. */
+export async function shareMoment(id: string, shared: boolean): Promise<{ shared: boolean; sharedWith: string[]; sharedWithIds: string[] }> {
   const res = await apiFetch(`/api/moments/${id}/share`, { method: 'POST', body: JSON.stringify({ shared }) });
-  if (!res.ok) throw new Error(`Could not update sharing (${res.status})`);
-  return (await res.json()).shared as boolean;
+  if (!res.ok) await throwShareFailure(res, 'Could not update sharing');
+  const data = await res.json();
+  return { shared: data.shared === true, sharedWith: readersFrom(data.sharedWith), sharedWithIds: readersFrom(data.sharedWithIds) };
 }
 
 export interface MomentMediaInput {
@@ -96,6 +104,8 @@ export async function createMoment(input: {
   moods?: string[];
   capturedAt?: string;
   media?: MomentMediaInput[];
+  /** One per capture: retrying the save returns the same moment, not a second. */
+  clientId?: string;
 }): Promise<MomentDTO> {
   const media = input.media ?? [];
   const type = media.length > 0 ? (media.length > 1 ? 'mixed' : media[0].kind === 'image' ? 'photo' : media[0].kind === 'video' ? 'video' : 'voice') : 'write';
@@ -107,6 +117,7 @@ export async function createMoment(input: {
       moods: input.moods ?? [],
       capturedAt: input.capturedAt,
       media,
+      clientId: input.clientId,
     }),
   });
   if (!res.ok) {

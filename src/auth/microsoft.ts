@@ -10,10 +10,13 @@ import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { MICROSOFT } from '../config';
 import { useAuth } from './auth-context';
+import { signInMessage } from './sign-in-message';
+import { useI18n } from '@/src/i18n';
 
 WebBrowser.maybeCompleteAuthSession();
 
 export function useMicrosoftSignIn(onError?: (message: string) => void) {
+  const { t } = useI18n();
   const { signInWithMicrosoftIdToken } = useAuth();
   const discovery = AuthSession.useAutoDiscovery(`https://login.microsoftonline.com/${MICROSOFT.tenant}/v2.0`);
   // `native` is used ONLY by standalone/bare builds; web falls through to
@@ -47,12 +50,12 @@ export function useMicrosoftSignIn(onError?: (message: string) => void) {
 
   useEffect(() => {
     if (response?.type !== 'success' || !discovery) {
-      if (response?.type === 'error') onError?.('Microsoft sign-in failed.');
+      if (response?.type === 'error') onError?.(t.signUp.providerRejected);
       return;
     }
     const code = response.params?.code;
     if (!code) {
-      onError?.('Microsoft did not return an authorization code.');
+      onError?.(t.signUp.providerRejected);
       return;
     }
     AuthSession.exchangeCodeAsync(
@@ -61,15 +64,15 @@ export function useMicrosoftSignIn(onError?: (message: string) => void) {
     )
       .then((token) => {
         if (token.idToken) {
-          signInWithMicrosoftIdToken(token.idToken).then((ok) => {
-            if (!ok) onError?.('Microsoft sign-in was rejected.');
+          signInWithMicrosoftIdToken(token.idToken).then((r) => {
+            if (!r.ok) onError?.(signInMessage(r, t, t.signUp.providerRejected));
           });
         } else {
-          onError?.('Microsoft did not return an identity token.');
+          onError?.(t.signUp.providerRejected);
         }
       })
-      .catch(() => onError?.('Microsoft sign-in failed.'));
-  }, [response, discovery, redirectUri, request, signInWithMicrosoftIdToken, onError]);
+      .catch(() => onError?.(t.signUp.providerRejected));
+  }, [response, discovery, redirectUri, request, signInWithMicrosoftIdToken, onError, t]);
 
   return {
     available: request !== null && Boolean(MICROSOFT.clientId),

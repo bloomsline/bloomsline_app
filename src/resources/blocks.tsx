@@ -3,17 +3,19 @@
 // Renders content blocks + every interactive input; collects answers keyed by
 // block id (owned by the parent screen).
 import { createElement, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Modal, Platform, Pressable, ScrollView, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
+import { Image, Linking, Modal, Platform, Pressable, ScrollView, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
-import { Check, ExternalLink, FileText, Minus, Paperclip, Play, Plus, Upload, X } from 'lucide-react-native';
+import { Check, ExternalLink, FileText, Minus, Play, Plus, X } from 'lucide-react-native';
 import { useI18n } from '@/src/i18n';
+import { formatReadNumber, parseTypedNumber } from '@/src/resources/number';
 import { htmlToPlainText, parseRichText, type Span } from '@/src/resources/html';
 import { ZonedCanvasField } from '@/src/resources/zoned-canvas-field';
-import { uploadResponseFile, type PatientBlock, type UploadedFile } from '@/src/api/resources';
+import type { PatientBlock } from '@/src/api/resources';
 import { useCare } from '@/src/care/theme';
 import { decodeEntities } from '@/src/resources/html';
-import { byteSize as fileByteSize } from '@/src/upload/put-file';
+import { DateField } from '@/src/resources/date-field';
+import { FileUploadField, type UploadStatus } from '@/src/resources/file-upload-field';
+import { urlsByKey } from '@/src/resources/answers';
 import { useTheme } from '@/src/ui/theme-mode';
 import { OVER_MEDIA } from '@/src/ui/tokens';
 
@@ -42,8 +44,44 @@ const QUOTES = { en: ['\u201c', '\u201d'], fr: ['\u00ab\u00a0', '\u00a0\u00bb'] 
 // `readOnly` renders a sent response: everything visible, nothing editable. It
 // is the screen half of the rule the server enforces — a submitted response
 // belongs to the practitioner until they hand it back.
-export function Block({ block, value, onChange, missing, readOnly = false, mediaUrl }: { block: PatientBlock; value: unknown; onChange: (v: unknown) => void; missing: boolean; readOnly?: boolean; mediaUrl?: string }) {
+const FIELD_COPY = {
+  en: {
+    answer: 'Your answer', write: 'Write here…', yes: 'Yes', no: 'No',
+    required: 'This one is required.', mediaMissing: 'This media could not be loaded.', image: 'Image', opensLarger: 'Opens larger',
+    audio: 'Audio', video: 'Video', playAudio: 'Play audio', playVideo: 'Play video', openPdf: 'Open PDF',
+    readAs: 'Read as {n}', notANumber: 'Not read as a number. Use digits, like 12 or 3.5.',
+  },
+  fr: {
+    answer: 'Votre réponse', write: 'Écrivez ici…', yes: 'Oui', no: 'Non',
+    required: 'Cette réponse est obligatoire.', mediaMissing: 'Ce média n’a pas pu être chargé.', image: 'Image', opensLarger: 'Ouvre en grand',
+    audio: 'Audio', video: 'Vidéo', playAudio: 'Écouter', playVideo: 'Lire la vidéo', openPdf: 'Ouvrir le PDF',
+    readAs: 'Lu comme {n}', notANumber: 'Pas lu comme un nombre. Utilisez des chiffres, comme 12 ou 3,5.',
+  },
+} as const;
+/** The worksheet's own words, in the patient's language. */
+function useFieldCopy() {
+  const { locale } = useI18n();
+  return FIELD_COPY[locale] ?? FIELD_COPY.en;
+}
+
+export type { UploadStatus };
+
+export function Block({ block, value, onChange, missing, readOnly = false, mediaUrl, fileUrls, onUploadStatus }: {
+  block: PatientBlock;
+  value: unknown;
+  onChange: (v: unknown) => void;
+  missing: boolean;
+  readOnly?: boolean;
+  mediaUrl?: string;
+  /** Signed links for answer files by storage key (`fileUrlIndex`). Without
+   *  it, the one link an older payload has (`mediaUrl`) goes to the first file. */
+  fileUrls?: Record<string, string>;
+  /** A file question's uploads still running or failed, for the screen to hold
+   *  Submit and the way out until they settle. */
+  onUploadStatus?: (s: UploadStatus) => void;
+}) {
   const C = useCare();
+  const f = useFieldCopy();
   const b = block;
   switch (b.type) {
     case 'heading':
@@ -57,7 +95,7 @@ export function Block({ block, value, onChange, missing, readOnly = false, media
     case 'file_upload':
       return (
         <Field label={b.label} required={b.required} missing={missing}>
-          <FileUploadField value={value as UploadedFile | undefined} onChange={onChange} readOnly={readOnly} />
+          <FileUploadField value={value} onChange={onChange} readOnly={readOnly} urls={fileUrls ?? urlsByKey(value, undefined, mediaUrl)} onStatus={onUploadStatus} />
         </Field>
       );
     case 'table':
@@ -74,16 +112,33 @@ export function Block({ block, value, onChange, missing, readOnly = false, media
       );
     case 'media':
       return <MediaBlock kind={b.mediaKind} url={mediaUrl} name={b.label} />;
-    case 'short_text':
     case 'number':
-    case 'date':
       return (
         <Field label={b.label} required={b.required} missing={missing}>
           <Input
             value={typeof value === 'string' || typeof value === 'number' ? String(value) : ''}
             onChangeText={onChange}
-            keyboardType={b.type === 'number' ? 'numeric' : 'default'}
-            placeholder={b.type === 'date' ? 'YYYY-MM-DD' : 'Your answer'}
+            // `decimal-pad`: iOS's plain numeric pad has no decimal key at all.
+            keyboardType="decimal-pad"
+            placeholder={f.answer}
+            readOnly={readOnly}
+          />
+          {!readOnly && typeof value === 'string' ? <NumberReading text={value} /> : null}
+        </Field>
+      );
+    case 'date':
+      return (
+        <Field label={b.label} required={b.required} missing={missing}>
+          <DateField value={value} onChange={onChange} readOnly={readOnly} />
+        </Field>
+      );
+    case 'short_text':
+      return (
+        <Field label={b.label} required={b.required} missing={missing}>
+          <Input
+            value={typeof value === 'string' || typeof value === 'number' ? String(value) : ''}
+            onChangeText={onChange}
+            placeholder={f.answer}
             readOnly={readOnly}
           />
         </Field>
@@ -91,7 +146,7 @@ export function Block({ block, value, onChange, missing, readOnly = false, media
     case 'long_text':
       return (
         <Field label={b.label} required={b.required} missing={missing}>
-          <Input value={typeof value === 'string' ? value : ''} onChangeText={onChange} placeholder="Write here…" multiline readOnly={readOnly} />
+          <Input value={typeof value === 'string' ? value : ''} onChangeText={onChange} placeholder={f.write} multiline readOnly={readOnly} />
         </Field>
       );
     case 'yes_no':
@@ -99,7 +154,7 @@ export function Block({ block, value, onChange, missing, readOnly = false, media
         <Field label={b.label} required={b.required} missing={missing}>
           <View style={{ flexDirection: 'row', gap: 10 }}>
             {(['yes', 'no'] as const).map((v) => (
-              <Choice key={v} label={v === 'yes' ? 'Yes' : 'No'} on={value === v} onPress={() => onChange(v)} flex readOnly={readOnly} />
+              <Choice key={v} label={v === 'yes' ? f.yes : f.no} on={value === v} onPress={() => onChange(v)} flex readOnly={readOnly} />
             ))}
           </View>
         </Field>
@@ -127,8 +182,12 @@ export function Block({ block, value, onChange, missing, readOnly = false, media
       const min = b.scale?.min ?? 0;
       const max = b.scale?.max ?? 10;
       const step = b.scale?.step && b.scale.step > 0 ? b.scale.step : 1;
+      // Counted in steps, not accumulated: adding 0.1 ten times is not 1 in
+      // floating point, so a 0–1 scale showed 0.30000000000000004 and had no 1.
+      // Rounded the way the web renders it, so a value answered there matches.
       const vals: number[] = [];
-      for (let n = min; n <= max; n += step) vals.push(n);
+      const count = Math.floor((max - min) / step + 1e-9);
+      for (let i = 0; i <= count && i < 1000; i++) vals.push(Math.round((min + i * step) * 1e6) / 1e6);
       return (
         <Field label={b.label} required={b.required} missing={missing}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -258,6 +317,8 @@ function decoration(s: Span): 'underline' | 'line-through' | 'underline line-thr
 // is reachable without a gesture — proper pinch on Android needs
 // react-native-gesture-handler, which is a native module and a new build.
 function ZoomableImage({ url, ratio, name }: { url: string; ratio: number; name?: string }) {
+  const f = useFieldCopy();
+  const { t } = useI18n();
   const C = useCare();
   const [open, setOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
@@ -273,7 +334,7 @@ function ZoomableImage({ url, ratio, name }: { url: string; ratio: number; name?
 
   return (
     <>
-      <TouchableOpacity activeOpacity={0.9} onPress={() => setOpen(true)} accessibilityLabel={name || 'Image'} accessibilityHint="Opens larger">
+      <TouchableOpacity activeOpacity={0.9} onPress={() => setOpen(true)} accessibilityLabel={name || f.image} accessibilityHint={f.opensLarger}>
         <View style={{ marginBottom: 16, borderRadius: 14, overflow: 'hidden', backgroundColor: C.card }}>
           <Image source={{ uri: url }} style={{ width: '100%', aspectRatio: ratio }} resizeMode="cover" />
         </View>
@@ -296,20 +357,20 @@ function ZoomableImage({ url, ratio, name }: { url: string; ratio: number; name?
                 viewport, which is what makes "any part of the image" reachable. */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', justifyContent: 'center' }}>
               <Pressable onPress={cycle}>
-                <Image source={{ uri: url }} style={{ width: shown, height: shown / ratio }} resizeMode="contain" accessibilityLabel={name || 'Image'} />
+                <Image source={{ uri: url }} style={{ width: shown, height: shown / ratio }} resizeMode="contain" accessibilityLabel={name || f.image} />
               </Pressable>
             </ScrollView>
           </ScrollView>
 
           <View style={{ position: 'absolute', top: 44, left: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <TouchableOpacity onPress={close} hitSlop={10} accessibilityLabel="Close" style={pill}>
+            <TouchableOpacity onPress={close} hitSlop={10} accessibilityLabel={t.common.close} style={pill}>
               <X size={18} color={OVER_MEDIA.ink} />
             </TouchableOpacity>
             <View style={{ flex: 1 }} />
-            <TouchableOpacity onPress={() => setZoom((z) => Math.max(1, z - 1))} disabled={zoom <= 1} hitSlop={10} accessibilityLabel="Zoom out" style={[pill, { opacity: zoom <= 1 ? 0.4 : 1 }]}>
+            <TouchableOpacity onPress={() => setZoom((z) => Math.max(1, z - 1))} disabled={zoom <= 1} hitSlop={10} accessibilityLabel={t.common.zoomOut} style={[pill, { opacity: zoom <= 1 ? 0.4 : 1 }]}>
               <Minus size={18} color={OVER_MEDIA.ink} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setZoom((z) => Math.min(3, z + 1))} disabled={zoom >= 3} hitSlop={10} accessibilityLabel="Zoom in" style={[pill, { opacity: zoom >= 3 ? 0.4 : 1 }]}>
+            <TouchableOpacity onPress={() => setZoom((z) => Math.min(3, z + 1))} disabled={zoom >= 3} hitSlop={10} accessibilityLabel={t.common.zoomIn} style={[pill, { opacity: zoom >= 3 ? 0.4 : 1 }]}>
               <Plus size={18} color={OVER_MEDIA.ink} />
             </TouchableOpacity>
           </View>
@@ -329,6 +390,7 @@ const pill = { width: 40, height: 40, borderRadius: 20, backgroundColor: OVER_ME
 // button that works.
 function MediaBlock({ kind, url, name }: { kind?: string; url?: string; name?: string }) {
   const C = useCare();
+  const f = useFieldCopy();
   const [ratio, setRatio] = useState(16 / 9);
 
   useEffect(() => {
@@ -343,7 +405,7 @@ function MediaBlock({ kind, url, name }: { kind?: string; url?: string; name?: s
   if (!url) {
     return (
       <View style={{ backgroundColor: C.card, borderRadius: 12, padding: 14, marginBottom: 16 }}>
-        <Text style={{ fontSize: 13, color: C.muted }}>This media could not be loaded.</Text>
+        <Text style={{ fontSize: 13, color: C.muted }}>{f.mediaMissing}</Text>
       </View>
     );
   }
@@ -359,8 +421,8 @@ function MediaBlock({ kind, url, name }: { kind?: string; url?: string; name?: s
   return (
     <MediaCard
       icon="play"
-      name={name || (kind === 'audio' ? 'Audio' : 'Video')}
-      action={kind === 'audio' ? 'Play audio' : 'Play video'}
+      name={name || (kind === 'audio' ? f.audio : f.video)}
+      action={kind === 'audio' ? f.playAudio : f.playVideo}
       onPress={() => { void WebBrowser.openBrowserAsync(url); }}
     />
   );
@@ -382,6 +444,8 @@ function MediaBlock({ kind, url, name }: { kind?: string; url?: string; name?: s
 // the system, which has something that can actually open a PDF (Drive, Files,
 // whichever reader is installed). Same promise every time: the document opens.
 function PdfBlock({ url, name }: { url: string; name?: string }) {
+  const f = useFieldCopy();
+  const { t } = useI18n();
   const C = useCare();
   const [open, setOpen] = useState(false);
   const title = name && !looksLikeStorageKey(name) ? name : 'PDF';
@@ -391,7 +455,7 @@ function PdfBlock({ url, name }: { url: string; name?: string }) {
       <MediaCard
         icon="pdf"
         name={name || 'PDF'}
-        action="Open PDF"
+        action={f.openPdf}
         // If nothing on the phone handles a PDF, fall back to the browser
         // rather than to nothing at all.
         onPress={() => { void Linking.openURL(url).catch(() => WebBrowser.openBrowserAsync(url)); }}
@@ -400,18 +464,18 @@ function PdfBlock({ url, name }: { url: string; name?: string }) {
   }
 
   if (Platform.OS !== 'web') {
-    return <MediaCard icon="pdf" name={name || 'PDF'} action="Open PDF" onPress={() => { void WebBrowser.openBrowserAsync(url); }} />;
+    return <MediaCard icon="pdf" name={name || 'PDF'} action={f.openPdf} onPress={() => { void WebBrowser.openBrowserAsync(url); }} />;
   }
 
   return (
     <>
-      <MediaCard icon="pdf" name={name || 'PDF'} action="Open PDF" onPress={() => setOpen(true)} />
+      <MediaCard icon="pdf" name={name || 'PDF'} action={f.openPdf} onPress={() => setOpen(true)} />
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)} statusBarTranslucent>
         <View style={{ flex: 1, backgroundColor: C.scrim, padding: 16 }}>
           <View style={{ flex: 1, backgroundColor: C.sheet, borderRadius: 16, overflow: 'hidden', maxWidth: 900, width: '100%', alignSelf: 'center' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.border }}>
               <Text numberOfLines={1} style={{ flex: 1, fontSize: 15, fontWeight: '700', color: C.ink }}>{title}</Text>
-              <TouchableOpacity onPress={() => setOpen(false)} hitSlop={10} accessibilityLabel="Close">
+              <TouchableOpacity onPress={() => setOpen(false)} hitSlop={10} accessibilityLabel={t.common.close}>
                 <X size={18} color="#6A6A6A" />
               </TouchableOpacity>
             </View>
@@ -462,6 +526,7 @@ function MediaCard({ icon, name, action, onPress }: { icon: 'pdf' | 'play'; name
 
 export function Field({ label, required, missing, children }: { label?: string; required?: boolean; missing: boolean; children: React.ReactNode }) {
   const C = useCare();
+  const f = useFieldCopy();
   return (
     <View style={{ marginBottom: 20 }}>
       {label ? (
@@ -471,106 +536,7 @@ export function Field({ label, required, missing, children }: { label?: string; 
         </Text>
       ) : null}
       {children}
-      {missing ? <Text style={{ fontSize: 12, color: C.danger, marginTop: 6 }}>This one is required.</Text> : null}
-    </View>
-  );
-}
-
-function humanSize(bytes: number): string {
-  if (!bytes) return '';
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-async function byteSize(uri: string): Promise<number> {
-  try {
-    // The shared one: on native a file:// uri is measured through the file
-    // system, not by reading it into a Blob.
-    return await fileByteSize(uri);
-  } catch {
-    return 0;
-  }
-}
-
-// A patient file-upload answer. Picks a photo/video from the library (works on
-// web and native), uploads straight to storage, and stores the { key, ... }
-// descriptor the server expects. Video covers the common "film yourself" case.
-function FileUploadField({ value, onChange, readOnly }: { value: UploadedFile | undefined; onChange: (v: unknown) => void; readOnly?: boolean }) {
-  const C = useCare();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const pick = async () => {
-    setError(null);
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], quality: 1, allowsMultipleSelection: false });
-    if (res.canceled || !res.assets?.[0]) return;
-    const a = res.assets[0];
-    const isVideo = a.type === 'video';
-    const name = a.fileName ?? (isVideo ? 'video.mp4' : 'photo.jpg');
-    const type = a.mimeType ?? (isVideo ? 'video/mp4' : 'image/jpeg');
-    const size = a.fileSize ?? (await byteSize(a.uri));
-    setBusy(true);
-    try {
-      const uploaded = await uploadResponseFile({ uri: a.uri, name, type, size });
-      if (!uploaded) { setError('Upload failed. Please try again.'); return; }
-      onChange(uploaded);
-    } catch {
-      setError('Upload failed. Please try again.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  if (busy) {
-    return (
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: C.border, borderRadius: 14, backgroundColor: C.card, padding: 14 }}>
-        <ActivityIndicator color={C.teal} />
-        <Text style={{ fontSize: 14, color: C.muted }}>Uploading…</Text>
-      </View>
-    );
-  }
-
-  if (value?.key) {
-    return (
-      <View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: C.teal, borderRadius: 14, backgroundColor: `${C.teal}0F`, padding: 14 }}>
-          <Paperclip size={16} color={C.teal} />
-          <View style={{ flex: 1 }}>
-            <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '600', color: C.ink }}>{value.name}</Text>
-            {value.size ? <Text style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{humanSize(value.size)}</Text> : null}
-          </View>
-          {!readOnly && (
-            <TouchableOpacity onPress={() => onChange(undefined)} hitSlop={8} accessibilityLabel="Remove file">
-              <X size={18} color="#9A9A9A" />
-            </TouchableOpacity>
-          )}
-        </View>
-        {!readOnly && (
-          <TouchableOpacity onPress={pick} activeOpacity={0.8} style={{ marginTop: 8 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: C.teal }}>Replace</Text>
-          </TouchableOpacity>
-        )}
-        {error ? <Text style={{ fontSize: 12, color: C.danger, marginTop: 6 }}>{error}</Text> : null}
-      </View>
-    );
-  }
-
-  if (readOnly) {
-    return (
-      <View style={{ backgroundColor: C.card, borderRadius: 12, padding: 14 }}>
-        <Text style={{ fontSize: 13, color: C.muted }}>No file.</Text>
-      </View>
-    );
-  }
-
-  return (
-    <View>
-      <TouchableOpacity onPress={pick} activeOpacity={0.85} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1.5, borderColor: C.border, borderStyle: 'dashed', borderRadius: 14, backgroundColor: C.card, paddingVertical: 18 }}>
-        <Upload size={18} color={C.teal} />
-        <Text style={{ fontSize: 15, fontWeight: '600', color: C.ink }}>Upload a photo or video</Text>
-      </TouchableOpacity>
-      {error ? <Text style={{ fontSize: 12, color: C.danger, marginTop: 6 }}>{error}</Text> : null}
+      {missing ? <Text style={{ fontSize: 12, color: C.danger, marginTop: 6 }}>{f.required}</Text> : null}
     </View>
   );
 }
@@ -582,6 +548,46 @@ type TableRow = Record<string, string | number>;
 // stops there too rather than letting someone type into a row that will not
 // survive the trip (apps/care/src/lib/resources/answers.ts).
 const MAX_TABLE_ROWS = 200;
+
+/**
+ * A number cell that shows what is being typed. The cell used to re-render from
+ * the parsed number on every keystroke, so "3." became "3", "-" vanished, and
+ * "3," emptied the cell — a decimal or a negative could not be entered at all.
+ * The stored value is still a number (or absent), exactly as before.
+ */
+function NumberCell({ value, onChange, readOnly }: { value: unknown; onChange: (text: string) => void; readOnly?: boolean }) {
+  const [text, setText] = useState(value != null ? String(value) : '');
+  return (
+    <>
+      <Input
+        value={text}
+        onChangeText={(t) => { setText(t); onChange(t); }}
+        keyboardType="numbers-and-punctuation"
+        placeholder="0"
+        readOnly={readOnly}
+      />
+      {!readOnly ? <NumberReading text={text} /> : null}
+    </>
+  );
+}
+
+/**
+ * What a typed number will be stored as, said under the field. "1,234" is a
+ * thousand in English and one and a bit in French, and a number the server
+ * cannot read is dropped; either used to happen with nothing on screen. Shown
+ * only when the reading is not simply the digits typed.
+ */
+function NumberReading({ text }: { text: string }) {
+  const C = useCare();
+  const f = useFieldCopy();
+  const { locale } = useI18n();
+  const typed = text.trim();
+  if (!typed || typed === '-' || typed === '+') return null;
+  const n = parseTypedNumber(typed, locale);
+  if (n === undefined) return <Text style={{ fontSize: 12, color: C.danger, marginTop: 6 }}>{f.notANumber}</Text>;
+  if (/^-?\d+$/.test(typed)) return null;
+  return <Text style={{ fontSize: 12, color: C.muted, marginTop: 6 }}>{f.readAs.replace('{n}', formatReadNumber(n, locale))}</Text>;
+}
 
 const TABLE_COPY = {
   en: { addRow: 'Add row', row: 'Row', remove: 'Remove row', noColumns: 'This table has no columns yet.', empty: 'Nothing added yet.' },
@@ -622,8 +628,9 @@ function TableField({ columns, value, onChange, readOnly }: { columns: TableColu
       if (i !== index) return row;
       const copy: TableRow = { ...row };
       if (column.type === 'number') {
-        const n = raw === '' ? NaN : Number(raw);
-        if (Number.isFinite(n)) copy[column.id] = n;
+        // Read as the server reads it, in the patient's language (src/resources/number).
+        const n = raw === '' ? undefined : parseTypedNumber(raw, locale);
+        if (n !== undefined) copy[column.id] = n;
         else delete copy[column.id];
       } else if (raw === '') {
         delete copy[column.id];
@@ -652,13 +659,15 @@ function TableField({ columns, value, onChange, readOnly }: { columns: TableColu
           {columns.map((c) => (
             <View key={c.id} style={{ gap: 6 }}>
               <Text style={{ fontSize: 13, fontWeight: '600', color: C.ink }}>{c.label}</Text>
-              <Input
-                value={row[c.id] != null ? String(row[c.id]) : ''}
-                onChangeText={(text) => setCell(i, c, text)}
-                keyboardType={c.type === 'number' ? 'numeric' : 'default'}
-                placeholder={c.type === 'number' ? '0' : undefined}
-                readOnly={readOnly}
-              />
+              {c.type === 'number' ? (
+                <NumberCell value={row[c.id]} onChange={(text) => setCell(i, c, text)} readOnly={readOnly} />
+              ) : (
+                <Input
+                  value={row[c.id] != null ? String(row[c.id]) : ''}
+                  onChangeText={(text) => setCell(i, c, text)}
+                  readOnly={readOnly}
+                />
+              )}
             </View>
           ))}
         </View>
@@ -678,7 +687,7 @@ function TableField({ columns, value, onChange, readOnly }: { columns: TableColu
   );
 }
 
-function Input({ value, onChangeText, placeholder, multiline, keyboardType, readOnly }: { value: string; onChangeText: (t: string) => void; placeholder?: string; multiline?: boolean; keyboardType?: 'default' | 'numeric'; readOnly?: boolean }) {
+function Input({ value, onChangeText, placeholder, multiline, keyboardType, readOnly }: { value: string; onChangeText: (t: string) => void; placeholder?: string; multiline?: boolean; keyboardType?: 'default' | 'numeric' | 'decimal-pad' | 'numbers-and-punctuation'; readOnly?: boolean }) {
   const C = useCare();
   return (
     <View style={{ borderWidth: 1, borderColor: C.border, borderRadius: 14, backgroundColor: C.card, paddingHorizontal: 14, paddingVertical: 12 }}>

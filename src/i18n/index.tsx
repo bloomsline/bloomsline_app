@@ -11,6 +11,8 @@
 // web). `t` is the active dictionary; interpolate {tokens} with `fmt`.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { storageGet, storageSet } from '../storage';
+import { useAuth } from '../auth/auth-context';
+import { saveProfile } from '../api/me';
 import { en } from './en';
 import { fr } from './fr';
 
@@ -58,6 +60,13 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>('en');
   const [ready, setReady] = useState(false);
   const chosen = useRef(false); // an explicit/persisted preference exists
+  // A language the person PICKED that the server has not been told yet. It is
+  // what their emails are written in, and a choice made on the welcome or invite
+  // screen — before there is an account to save it to — never reached it: the
+  // app was French and every email stayed English.
+  const unsynced = useRef<Locale | null>(null);
+  const { status } = useAuth();
+  const signedIn = status === 'authed' || status === 'onboarding' || status === 'practitioner';
 
   useEffect(() => {
     let alive = true;
@@ -76,9 +85,20 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   const setLocale = useCallback((l: Locale) => {
     chosen.current = true;
+    unsynced.current = l;
     setLocaleState(l);
     void storageSet(KEY, l);
   }, []);
+
+  // Sent as soon as there is someone signed in to send it for, and again on the
+  // next change of state if that failed — rather than once, and forgotten.
+  useEffect(() => {
+    const l = unsynced.current;
+    if (!signedIn || !l) return;
+    let alive = true;
+    void saveProfile({ locale: l }).then((ok) => { if (alive && ok && unsynced.current === l) unsynced.current = null; });
+    return () => { alive = false; };
+  }, [signedIn, locale]);
 
   const adoptDefault = useCallback((l: Locale) => {
     if (chosen.current) return; // never override an explicit choice

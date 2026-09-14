@@ -34,7 +34,7 @@ const isCachedStatus = (v: string | null): v is CachedStatus =>
 
 /** A sign-in that can be refused for a reason the person should read
  *  (waitlisted, suspended), which only the server knows. */
-export type SignInResult = { ok: true } | { ok: false; message?: string };
+export type SignInResult = { ok: true } | { ok: false; message?: string; code?: string };
 
 export interface AppleSignInPayload {
   identityToken: string;
@@ -64,8 +64,8 @@ interface AuthValue {
    * waitlist" are different things to be told and only the server knows which.
    */
   signInWithLink: (token: string) => Promise<SignInResult>;
-  signInWithGoogleIdToken: (idToken: string) => Promise<boolean>;
-  signInWithMicrosoftIdToken: (idToken: string) => Promise<boolean>;
+  signInWithGoogleIdToken: (idToken: string) => Promise<SignInResult>;
+  signInWithMicrosoftIdToken: (idToken: string) => Promise<SignInResult>;
   /** Dev-only mock sign-in (EXPO_PUBLIC_MOCK_AUTH) → enters onboarding, no backend. */
   devSignIn: () => Promise<void>;
   /** Mark the first-run signup flow complete → move to the app. */
@@ -92,7 +92,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // A token that cannot be refreshed ends the session too, and it has exactly
     // the same forgetting to do as pressing Sign out — this path used to flip
     // the status and leave the last person's name in a module variable.
-    setOnSignOut(() => { void forgetAccount(); setStatus('anon'); });
+    // The cached status goes too: left behind, a launch that could not reach
+    // `/me` read it back and opened the app for a session that had ended.
+    setOnSignOut(() => {
+      void Promise.all([forgetAccount(), storageDelete(ONBOARDED_KEY), storageDelete(SESSION_KEY)]);
+      setStatus('anon');
+    });
     return () => setOnSignOut(null);
   }, []);
 
@@ -123,11 +128,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // reinstall) never had one.
       await storageSet(SESSION_KEY, next);
       if (next === 'authed') await storageSet(ONBOARDED_KEY, '1');
+      // Finished on THIS phone but the server never heard (the save at the end of
+      // onboarding is best-effort): tell it now. Otherwise a reinstall, a second
+      // device or a sign-out sent the patient through onboarding again.
+      if (next === 'authed' && !me.onboardedAt && onboardedLocal) void saveProfile({ onboarded: true }).catch(() => {});
       return setStatus(next);
     }
 
     // `/me` is unreachable. Trust the last confirmed answer rather than demote
-    // someone to signup: we still hold a refresh token, so they were signed in.
+    // someone to signup — but only while there is still a session to trust. A
+    // refresh the server REJECTED (expired after 60 days, revoked, account
+    // suspended) clears the tokens while these retries run, and restoring the
+    // cached status then opened an app in which every request failed, with no
+    // way back to sign-in short of killing it.
+    if (!(await getRefreshToken())) return setStatus('anon');
     const cached = await storageGet(SESSION_KEY);
     if (isCachedStatus(cached)) return setStatus(cached);
     return setStatus(onboardedLocal ? 'authed' : 'onboarding');
@@ -138,10 +152,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // stale `bl_onboarded` would otherwise skip a brand-new patient straight past
   // onboarding. Cold-start (app reopened as the same user) keeps its flag — only
   // a fresh sign-in resets it, so the SERVER's onboardedAt decides for the new user.
+  //
+  // A sign-in is also the END of whoever was signed in before, and it forgets
+  // them the way Sign out does. It used to clear two flags only: open a sign-in
+  // link for another account while signed in, or sign in as someone new on a
+  // shared phone before the app was killed, and the new person saw the last
+  // one's name, photo, practitioner and home tab — and onboarding pre-filled the
+  // last person's name and date of birth into the new account.
+  //
+  // Passing through `loading` is what makes every provider that fetched for the
+  // previous account fetch again for this one: they key on the status, and
+  // authed → authed was no change at all.
   const afterSignIn = useCallback(async () => {
-    await Promise.all([storageDelete(ONBOARDED_KEY), storageDelete(SESSION_KEY)]);
+    setStatus('loading');
+    await Promise.all([storageDelete(ONBOARDED_KEY), storageDelete(SESSION_KEY), forgetAccount()]);
     await resolveSession();
   }, [resolveSession]);
+
+  /** Keep a new session, ending the one it replaces on the server too — the old
+   *  refresh token otherwise stayed valid for its full 60 days. */
+  const keepNewSession = useCallback(async (pair: Parameters<typeof saveTokens>[0]) => {
+    const previous = await getRefreshToken();
+    if (previous && previous !== pair.refreshToken) postJson('/api/mobile/auth/logout', { refreshToken: previous }).catch(() => {});
+    await saveTokens(pair);
+  }, []);
 
   // On launch: token present → resolve which app; else anon.
   useEffect(() => {
@@ -169,12 +203,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const res = await postJson(path, body);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      return { ok: false, message: typeof data?.error === 'string' ? data.error : undefined };
+      return { ok: false, message: typeof data?.error === 'string' ? data.error : undefined, code: typeof data?.code === 'string' ? data.code : undefined };
     }
-    await saveTokens(await res.json());
+    await keepNewSession(await res.json());
     await afterSignIn();
     return { ok: true };
-  }, [afterSignIn]);
+  }, [afterSignIn, keepNewSession]);
 
   const signInWithReviewCode = useCallback(
     (email: string, code: string) => signInVia('/api/mobile/auth/review', { email, code }),
@@ -190,7 +224,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await afterSignIn();
   }, [afterSignIn]);
 
-  const signInWithLink = useCallback(async (token: string): Promise<{ ok: true } | { ok: false; message?: string }> => {
+  const signInWithLink = useCallback(async (token: string): Promise<SignInResult> => {
     if (MOCK_AUTH) { await saveTokens(mockPair()); await afterSignIn(); return { ok: true }; } // any token
     const res = await postJson('/api/mobile/auth/magic-link/verify', { token });
     if (!res.ok) {
@@ -198,21 +232,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // saying "expired" would send someone off to request link after link for
       // an account that is not waiting on a link at all.
       const data = await res.json().catch(() => ({}));
-      return { ok: false, message: typeof data?.error === 'string' ? data.error : undefined };
+      return { ok: false, message: typeof data?.error === 'string' ? data.error : undefined, code: typeof data?.code === 'string' ? data.code : undefined };
     }
-    await saveTokens(await res.json());
+    await keepNewSession(await res.json());
     await afterSignIn();
     return { ok: true };
-  }, [afterSignIn]);
+  }, [afterSignIn, keepNewSession]);
 
-  const exchangeIdToken = useCallback(async (path: string, idToken: string) => {
-    if (MOCK_AUTH) { await saveTokens(mockPair()); await afterSignIn(); return true; }
+  // The refusal's reason comes back, as for Apple and email. It was dropped here,
+  // so a waitlisted or suspended person signing in with Google or Microsoft was
+  // told only "rejected, try again" — and tried again, indefinitely.
+  const exchangeIdToken = useCallback(async (path: string, idToken: string): Promise<SignInResult> => {
+    if (MOCK_AUTH) { await saveTokens(mockPair()); await afterSignIn(); return { ok: true }; }
     const res = await postJson(path, { idToken });
-    if (!res.ok) return false;
-    await saveTokens(await res.json());
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return { ok: false, message: typeof data?.error === 'string' ? data.error : undefined, code: typeof data?.code === 'string' ? data.code : undefined };
+    }
+    await keepNewSession(await res.json());
     await afterSignIn();
-    return true;
-  }, [afterSignIn]);
+    return { ok: true };
+  }, [afterSignIn, keepNewSession]);
 
   const signInWithGoogleIdToken = useCallback((idToken: string) => exchangeIdToken('/api/mobile/auth/google', idToken), [exchangeIdToken]);
   const signInWithMicrosoftIdToken = useCallback((idToken: string) => exchangeIdToken('/api/mobile/auth/microsoft', idToken), [exchangeIdToken]);

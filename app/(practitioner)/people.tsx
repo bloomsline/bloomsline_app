@@ -7,12 +7,13 @@ import { PractitionerTabBar, PRACTITIONER_TAB_PAD } from '@/src/ui/PractitionerT
 import { useI18n } from '@/src/i18n';
 import { fetchPatients, type PatientListItem } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
+import { LoadFailed } from '@/src/ui/LoadFailed';
 
 // Find someone, open them, write a note. Names, not records — the clinical
 // history stays in the care app.
 const T = {
-  en: { kicker: 'PEOPLE', title: 'Your patients', search: 'Search by name', empty: 'No patients yet.', none: 'No one matches that.', last: 'Last session' },
-  fr: { kicker: 'PATIENTS', title: 'Vos patients', search: 'Rechercher par nom', empty: 'Aucun patient.', none: 'Aucun résultat.', last: 'Dernière séance' },
+  en: { kicker: 'PEOPLE', title: 'Your patients', search: 'Search by name', empty: 'No patients yet.', none: 'No one matches that.', last: 'Last session', pending: 'Pending' },
+  fr: { kicker: 'PATIENTS', title: 'Vos patients', search: 'Rechercher par nom', empty: 'Aucun patient.', none: 'Aucun résultat.', last: 'Dernière séance', pending: 'En attente' },
 } as const;
 
 export default function People() {
@@ -23,14 +24,16 @@ export default function People() {
   const [q, setQ] = useState('');
   const [items, setItems] = useState<PatientListItem[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      let alive = true;
-      void fetchPatients().then((rows) => { if (alive) { setItems(rows ?? []); setLoaded(true); } });
-      return () => { alive = false; };
-    }, []),
-  );
+  const reload = useCallback(() => {
+    let alive = true;
+    // Keep the caseload on a failed refetch; with none loaded, say it failed
+    // rather than "No patients yet".
+    void fetchPatients().then((rows) => { if (alive) { if (rows) setItems(rows); setFailed(!rows); setLoaded(true); } });
+    return () => { alive = false; };
+  }, []);
+  useFocusEffect(reload);
 
   // Filtering on device: a caseload is not a directory, and it is smaller than
   // the latency of a round trip per keystroke.
@@ -42,7 +45,7 @@ export default function People() {
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: PRACTITIONER_TAB_PAD }} showsVerticalScrollIndicator={false}>
-        <EdHeader kicker={tr.kicker} title={tr.title} rightIcon={UserPlus} onRight={() => router.navigate('/(practitioner)/add-patient' as never)} />
+        <EdHeader kicker={tr.kicker} title={tr.title} rightIcon={UserPlus} rightLabel={locale === 'fr' ? 'Ajouter un patient' : 'Add a patient'} onRight={() => router.navigate('/(practitioner)/add-patient' as never)} />
 
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           <EdCard style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, marginBottom: 16 }}>
@@ -58,7 +61,8 @@ export default function People() {
           </EdCard>
 
           {!loaded && <ActivityIndicator />}
-          {loaded && shown.length === 0 && (
+          {loaded && failed && items.length === 0 && <LoadFailed compact onRetry={() => { reload(); }} />}
+          {loaded && !failed && shown.length === 0 && (
             <Text style={{ fontSize: 14, color: TT.inkSoft }}>{items.length === 0 ? tr.empty : tr.none}</Text>
           )}
 
@@ -68,10 +72,18 @@ export default function People() {
                 <Text style={{ fontSize: 14, fontWeight: '800', color: TT.accent }}>{initials(p.name)}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 15.5, fontWeight: '700', color: TT.ink }}>{p.name}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={{ fontSize: 15.5, fontWeight: '700', color: TT.ink, flexShrink: 1 }} numberOfLines={1}>{p.name}</Text>
+                  {/* Shown, not hidden: a patient still pending is still yours. */}
+                  {p.status === 'pending' && (
+                    <View style={{ borderWidth: 1, borderColor: TT.line, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: TT.inkSoft }}>{tr.pending}</Text>
+                    </View>
+                  )}
+                </View>
                 {when(p.lastSessionAt) && <Text style={{ fontSize: 12.5, color: TT.faint, marginTop: 2 }}>{tr.last} · {when(p.lastSessionAt)}</Text>}
               </View>
-              <ChevronRight size={16} color={TT.line} />
+              <ChevronRight size={16} color={TT.faint} />
             </EdCard>
           ))}
         </FadeIn>

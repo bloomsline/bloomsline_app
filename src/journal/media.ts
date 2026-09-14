@@ -23,10 +23,17 @@ export async function pickImage(): Promise<PickedImage | null> {
 }
 
 export async function pickVideo(): Promise<PickedVideo | null> {
-  const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['videos'], quality: 1, allowsMultipleSelection: false });
+  const res = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['videos'], quality: 1, allowsMultipleSelection: false,
+    // iOS re-encodes to 720p, which keeps most clips well under the limit.
+    videoExportPreset: ImagePicker.VideoExportPreset.H264_1280x720,
+  });
   if (res.canceled || !res.assets?.[0]) return null;
   const a = res.assets[0];
   const mime = a.mimeType && /mp4|webm|quicktime/i.test(a.mimeType) ? a.mimeType : 'video/mp4';
+  // Refused when picked, with a reason, rather than failing its upload later
+  // (the server's journal ceiling is 100 MB).
+  if ((a.fileSize ?? (await byteSize(a.uri))) > 100 * 1024 * 1024) throw new Error('too_large');
   let thumbUri: string | null = null;
   try {
     const poster = await VideoThumbnails.getThumbnailAsync(a.uri, { time: 0 });
@@ -62,7 +69,10 @@ export async function uploadImage(img: PickedImage): Promise<{ storageKey: strin
 export async function uploadVideo(v: PickedVideo): Promise<{ storageKey: string; thumbnailKey: string | null; mime: string; durationSeconds: number } | null> {
   const key = await putOne(v.uri, v.mime);
   if (!key) return null;
-  const thumbnailKey = v.thumbUri ? await putOne(v.thumbUri, 'image/jpeg', true) : null;
+  // The poster is a nicety. A failed poster upload used to reject the whole
+  // thing, so a video that had uploaded fine showed "Upload failed" and Retry
+  // sent all of it again.
+  const thumbnailKey = v.thumbUri ? await putOne(v.thumbUri, 'image/jpeg', true).catch(() => null) : null;
   return { storageKey: key, thumbnailKey, mime: v.mime, durationSeconds: v.durationSeconds };
 }
 

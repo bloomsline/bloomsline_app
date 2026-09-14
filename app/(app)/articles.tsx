@@ -9,8 +9,10 @@ import { ChevronRight, BookOpen, Languages } from 'lucide-react-native';
 import { EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { listArticles, type Article } from '@/src/api/articles';
+import { useSelectionReset } from '@/src/care/selected-practitioner';
 import { useI18n } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
+import { LoadFailed } from '@/src/ui/LoadFailed';
 
 const T = {
   en: {
@@ -18,16 +20,19 @@ const T = {
     subtitle: 'Writing from your practitioner, to read whenever you like.',
     emptyTitle: 'Nothing here yet',
     emptyBody: 'Articles your practitioner publishes will appear here.',
-    inOther: 'In English',
-    showIn: 'Read in French',
+    // Named by the language it IS in. These were fixed strings — "In English",
+    // "Read in French" — shown whatever the language, so French text was
+    // labelled English, and after switching the button still offered French.
+    inLang: { en: 'In English', fr: 'In French' } as Record<string, string>,
+    showIn: { en: 'Read in English', fr: 'Read in French' } as Record<string, string>,
   },
   fr: {
     title: 'Articles',
     subtitle: 'Des textes rédigés par votre praticien, à lire quand vous le souhaitez.',
     emptyTitle: 'Rien ici pour le moment',
     emptyBody: 'Les articles publiés par votre praticien apparaîtront ici.',
-    inOther: 'En anglais',
-    showIn: 'Lire en anglais',
+    inLang: { en: 'En anglais', fr: 'En français' } as Record<string, string>,
+    showIn: { en: 'Lire en anglais', fr: 'Lire en français' } as Record<string, string>,
   },
 } as const;
 
@@ -43,16 +48,20 @@ export default function Articles() {
   // practitioner may write in the other one — hence the toggle.
   const [reading, setReading] = useState<string>(locale);
   const [items, setItems] = useState<Article[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const selectionKey = useSelectionReset(() => { setItems(null); setFailed(false); });
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/for-you' as never));
   const open = (id: string) => router.navigate(`/article?id=${id}&locale=${reading}` as never);
 
-  useFocusEffect(
-    useCallback(() => {
-      let alive = true;
-      listArticles(reading).then((l) => { if (alive) setItems(l ?? []); });
-      return () => { alive = false; };
-    }, [reading]),
-  );
+  const reload = useCallback(() => {
+    let alive = true;
+    // A failed read is not an empty one: `failed` shows what happened, and a
+    // list already on screen is kept rather than replaced with nothing.
+    listArticles(reading).then((l) => { if (!alive) return; if (l) { setItems(l); setFailed(false); } else setFailed(true); });
+    return () => { alive = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- selectionKey: load again for the practitioner just chosen
+  }, [reading, selectionKey]);
+  useFocusEffect(reload);
 
   const dateOf = (iso: string | null) =>
     iso ? new Date(iso).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
@@ -64,7 +73,8 @@ export default function Articles() {
 
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {items === null ? (
-            <View style={{ paddingTop: 30, alignItems: 'center' }}><ActivityIndicator color={TT.accent} /></View>
+            failed ? <LoadFailed onRetry={() => { setFailed(false); reload(); }} />
+            : <View style={{ paddingTop: 30, alignItems: 'center' }}><ActivityIndicator color={TT.accent} /></View>
           ) : items.length === 0 ? (
             <EdCard style={{ padding: 26, alignItems: 'center' }}>
               <Text style={{ fontSize: 15, fontWeight: '700', color: TT.ink }}>{tr.emptyTitle}</Text>
@@ -81,7 +91,7 @@ export default function Articles() {
                   style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 20, borderWidth: 1, borderColor: TT.line, backgroundColor: TT.card, paddingHorizontal: 13, paddingVertical: 8, marginBottom: 18 }}
                 >
                   <Languages size={15} color={TT.inkSoft} strokeWidth={2} />
-                  <Text style={{ fontSize: 13, fontWeight: '600', color: TT.inkSoft }}>{tr.showIn}</Text>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: TT.inkSoft }}>{tr.showIn[other(reading)]}</Text>
                 </TouchableOpacity>
               )}
 
@@ -107,7 +117,7 @@ export default function Articles() {
                       <Text style={{ fontSize: 12, color: TT.inkSoft, marginTop: 2 }} numberOfLines={1}>
                         {/* Said plainly when a post is not in the language being
                             read — better than quietly handing over English. */}
-                        {a.renderedLocale !== reading ? tr.inOther : dateOf(a.publishedAt)}
+                        {a.renderedLocale !== reading ? tr.inLang[a.renderedLocale] ?? dateOf(a.publishedAt) : dateOf(a.publishedAt)}
                       </Text>
                     </View>
                     <ChevronRight size={18} color={TT.faint} strokeWidth={2} />

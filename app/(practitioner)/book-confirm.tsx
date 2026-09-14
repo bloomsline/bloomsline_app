@@ -6,6 +6,7 @@ import { EdHeader, EdCard, EdPill, FadeIn } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 import { bookSession } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
+import { localizeServerMessage } from '@/src/api/server-messages';
 
 // Confirm the booking — the practitioner's counterpart to the patient's
 // book-confirm screen, and deliberately the same shape.
@@ -42,7 +43,7 @@ export default function BookConfirm() {
   const tr = T[locale] ?? T.en;
   const p = useLocalSearchParams<{
     memberId?: string; name?: string; sessionTypeId?: string; label?: string;
-    scheduledAt?: string; format?: string; duration?: string;
+    scheduledAt?: string; format?: string; duration?: string; tz?: string;
   }>();
 
   const [saving, setSaving] = useState(false);
@@ -54,10 +55,12 @@ export default function BookConfirm() {
   const duration = Number(p.duration ?? '60') || 60;
   const Icon = FORMAT_ICON[format as keyof typeof FORMAT_ICON] ?? MapPin;
 
+  // On the practice's clock, like the calendar and the slot list (see book.tsx).
+  const zone = typeof p.tz === 'string' && p.tz ? { timeZone: p.tz } : {};
   const when = iso
-    ? new Date(iso).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+    ? new Date(iso).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long', ...zone })
     : '';
-  const time = iso ? new Date(iso).toLocaleTimeString(locale === 'fr' ? 'fr-FR' : 'en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+  const time = iso ? new Date(iso).toLocaleTimeString(locale === 'fr' ? 'fr-FR' : 'en-GB', { hour: '2-digit', minute: '2-digit', ...zone }) : '';
 
   const confirm = async () => {
     if (!p.memberId || !iso) return;
@@ -69,7 +72,7 @@ export default function BookConfirm() {
     setSaving(false);
     // A 409 is the one a practitioner will actually hit, and it means the day
     // moved under them — say exactly that rather than "something went wrong".
-    if (!res.ok) { setError(res.error ?? tr.generic); return; }
+    if (!res.ok) { setError(localizeServerMessage(res.error, locale) ?? tr.generic); return; }
     setDone(true);
   };
 

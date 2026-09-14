@@ -41,6 +41,10 @@ export type ArticleBlock =
 
 export interface ArticleBody extends Article {
   blocks: ArticleBlock[];
+  /** Whose post it is. The detail opens for ANY linked practitioner (a shared
+   *  link), while the list shows only the selected one's. Absent from older
+   *  servers. */
+  practitioner?: { id: string; name: string };
 }
 
 /** Live posts by this patient's practitioner(s), newest first.

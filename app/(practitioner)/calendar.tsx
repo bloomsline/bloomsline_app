@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { CalendarPlus, ChevronLeft, ChevronRight, MapPin, Phone, Video } from 'lucide-react-native';
@@ -10,6 +10,7 @@ import { useI18n } from '@/src/i18n';
 import { fetchDay, fetchBookingOptions, type CloseReasonGroup, type PractitionerSession, type SessionTypeOption } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
 import { LIGHT, DARK, type Mode, type Palette } from '@/src/ui/tokens';
+import { LoadFailed } from '@/src/ui/LoadFailed';
 
 // The day, as a timeline rather than a list.
 //
@@ -45,11 +46,12 @@ const OFF = new Set(['cancelled', 'no_show']);
 export default function DayCalendar() {
   const { t: TT, mode } = useTheme();
   const router = useRouter();
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const tr = T[locale] ?? T.en;
 
   const [date, setDate] = useState(() => new Date());
   const [items, setItems] = useState<PractitionerSession[]>([]);
+  const [failed, setFailed] = useState(false);
   const [tz, setTz] = useState<string | undefined>();
   const [currency, setCurrency] = useState('EUR');
   const [loaded, setLoaded] = useState(false);
@@ -62,13 +64,20 @@ export default function DayCalendar() {
 
   const key = ymd(date);
 
+  // Which day `items` belongs to, so a failed refetch of the SAME day keeps it.
+  const itemsKey = useRef<string | null>(null);
   const load = useCallback(() => {
     let alive = true;
     setLoaded(false);
     void fetchDay(key).then((d) => {
       if (!alive) return;
-      setItems(d?.items ?? []);
-      setTz(d?.timezone);
+      // A day that could not be read is not an empty day. Coming back to the tab
+      // offline used to wipe the day already on screen; now it stays, with the
+      // notice above it. Another day's sessions are never shown under this one.
+      setFailed(!d);
+      if (d) { setItems(d.items); itemsKey.current = key; }
+      else if (itemsKey.current !== key) { setItems([]); itemsKey.current = null; }
+      if (d) setTz(d.timezone);
       if (d?.currency) setCurrency(d.currency);
       setLoaded(true);
     });
@@ -163,18 +172,18 @@ export default function DayCalendar() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <EdHeader kicker={tr.kicker} title={isToday ? tr.today : heading} rightIcon={CalendarPlus} onRight={() => router.navigate('/(practitioner)/book' as never)} />
+      <EdHeader kicker={tr.kicker} title={isToday ? tr.today : heading} rightIcon={CalendarPlus} rightLabel={locale === 'fr' ? 'Réserver une séance' : 'Book a session'} onRight={() => router.navigate('/(practitioner)/book' as never)} />
 
       {/* Day stepper — the whole point of a day view is moving between days. */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 22, paddingTop: 14 }}>
-        <Pressable onPress={() => step(-1)} hitSlop={10} style={circle(TT)} accessibilityLabel="Previous day">
+        <Pressable onPress={() => step(-1)} hitSlop={10} style={circle(TT)} accessibilityLabel={t.common.previousDay}>
           <ChevronLeft size={17} color={TT.ink} />
         </Pressable>
         <Pressable onPress={() => setDate(new Date())} style={{ borderRadius: 18, borderWidth: 1, borderColor: TT.line, backgroundColor: TT.card, paddingHorizontal: 14, paddingVertical: 8 }}>
           <Text style={{ fontSize: 13.5, fontWeight: '700', color: TT.ink }}>{tr.today}</Text>
         </Pressable>
         <Text style={{ flex: 1, fontSize: 13.5, color: TT.inkSoft, textTransform: 'capitalize' }} numberOfLines={1}>{heading}</Text>
-        <Pressable onPress={() => step(1)} hitSlop={10} style={circle(TT)} accessibilityLabel="Next day">
+        <Pressable onPress={() => step(1)} hitSlop={10} style={circle(TT)} accessibilityLabel={t.common.nextDay}>
           <ChevronRight size={17} color={TT.ink} />
         </Pressable>
       </View>
@@ -182,7 +191,8 @@ export default function DayCalendar() {
       <ScrollView contentContainerStyle={{ paddingBottom: PRACTITIONER_TAB_PAD, paddingHorizontal: 22, paddingTop: 16 }} showsVerticalScrollIndicator={false}>
         <FadeIn>
           {!loaded && <ActivityIndicator />}
-          {loaded && items.length === 0 && (
+          {loaded && failed && <LoadFailed compact onRetry={() => { load(); }} />}
+          {loaded && !failed && items.length === 0 && (
             <Text style={{ fontSize: 13.5, color: TT.faint, marginBottom: 12 }}>{tr.nothing}</Text>
           )}
 
