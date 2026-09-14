@@ -23,8 +23,8 @@ export type LandingTab = 'care' | 'moments';
 
 /** The route each landing tab opens on. */
 export const LANDING_HREF: Record<LandingTab, string> = {
-  care: '/(app)/home',
-  moments: '/(app)/moments',
+  care: '/(app)/(tabs)/home',
+  moments: '/(app)/(tabs)/moments',
 };
 
 interface AppPrefsValue {

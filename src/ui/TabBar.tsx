@@ -1,4 +1,5 @@
-import { Platform, Pressable, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Platform, Pressable, Text, View, type LayoutChangeEvent } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -44,9 +45,51 @@ const TABS: Record<TabId, { id: TabId; href: string }> = {
 // screen and on the dark rebuilt tabs without a variant. Capture is reached
 // from the dashed "today" node at the foot of the line, which sits where the
 // new moment will land; the corner + was a second door to the same room.
-export function TabBar({ active }: { active: TabId }) {
+/** The soft ease-out every tab movement shares (the drift and the chip): quick to
+ *  start, slow to settle, so nothing lands with a bump. */
+export const TAB_EASING = Easing.bezier(0.22, 1, 0.36, 1);
+export const TAB_DURATION = 280;
+
+export function TabBar({ active, onSelect, reduceMotion = false }: {
+  active: TabId;
+  /** Switch tabs. Without it, navigates by route (the bar outside a tab navigator). */
+  onSelect?: (id: TabId) => void;
+  /** The phone's Reduce Motion setting: the chip jumps instead of gliding. */
+  reduceMotion?: boolean;
+}) {
   const { t: TT } = useTheme();
   const router = useRouter();
+
+  // THE CHIP GLIDES. The highlight under the active tab is one shape that moves
+  // to the tab chosen, rather than a background that vanishes from one label
+  // and appears on another; with the page drifting the same way (see the tabs
+  // layout), the bar says where you went. Measured per label, since the labels
+  // differ in width and in language.
+  const [frames, setFrames] = useState<Partial<Record<TabId, { x: number; w: number }>>>({});
+  const chipX = useRef(new Animated.Value(0)).current;
+  const chipW = useRef(new Animated.Value(0)).current;
+  const placed = useRef(false);
+  useEffect(() => {
+    const f = frames[active];
+    if (!f) return;
+    // The first placement, and any placement under Reduce Motion, is immediate.
+    if (!placed.current || reduceMotion) {
+      chipX.setValue(f.x);
+      chipW.setValue(f.w);
+      placed.current = true;
+      return;
+    }
+    // Width can't use the native driver; the whole chip moves on one clock so
+    // its two edges never disagree.
+    Animated.parallel([
+      Animated.timing(chipX, { toValue: f.x, duration: TAB_DURATION + 40, easing: TAB_EASING, useNativeDriver: false }),
+      Animated.timing(chipW, { toValue: f.w, duration: TAB_DURATION + 40, easing: TAB_EASING, useNativeDriver: false }),
+    ]).start();
+  }, [active, frames, reduceMotion, chipX, chipW]);
+  const measure = (id: TabId) => (e: LayoutChangeEvent) => {
+    const { x, width } = e.nativeEvent.layout;
+    setFrames((prev) => (prev[id]?.x === x && prev[id]?.w === width ? prev : { ...prev, [id]: { x, w: width } }));
+  };
   const { landing } = useLanding();
   const { t } = useI18n();
   const insets = useSafeAreaInsets();
@@ -120,17 +163,27 @@ export function TabBar({ active }: { active: TabId }) {
           elevation: 6,
         }}
       >
+        {/* The chip, behind the labels. Hidden until measured so it never flashes
+            at the left edge on the first frame. */}
+        {frames[active] ? (
+          <Animated.View
+            pointerEvents="none"
+            style={{ position: 'absolute', top: 4, bottom: 4, left: chipX, width: chipW, borderRadius: 999, backgroundColor: TT.accent }}
+          />
+        ) : null}
         {order.map((id) => TABS[id]).map((tab) => {
           const on = tab.id === active;
           return (
             <Pressable
               key={tab.id}
               disabled={on}
-              onPress={() => router.navigate(tab.href as never)}
+              onPress={() => (onSelect ? onSelect(tab.id) : router.navigate(tab.href as never))}
+              onLayout={measure(tab.id)}
               accessibilityRole="tab"
               accessibilityState={{ selected: on }}
               className="rounded-full px-3.5 py-1.5"
-              style={on ? { backgroundColor: TT.accent } : undefined}
+              // No background of its own: the gliding chip behind it is the highlight.
+              style={frames[tab.id] ? undefined : on ? { backgroundColor: TT.accent } : undefined}
             >
               {/* `onAccent`, never white: the dark theme's accent is a pale
                   mint, and white on it is unreadable. The token already knows

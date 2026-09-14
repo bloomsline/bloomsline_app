@@ -9,7 +9,6 @@ import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { PenLine, Sprout, BookOpen, ChevronRight, type LucideIcon } from 'lucide-react-native';
-import { TabBar } from '@/src/ui/TabBar';
 import { TabIntro } from '@/src/ui/TabIntro';
 import { FadeIn, HEADER_TOP } from '@/src/ui/editorial';
 import { Ground } from '@/src/ui/Ground';
@@ -119,7 +118,6 @@ export default function ForYou() {
         </ScrollView>
       </SafeAreaView>
 
-      <TabBar active="foryou" />
       <TabIntro tabKey="foryou" />
     </Ground>
   );
