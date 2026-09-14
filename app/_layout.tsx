@@ -1,6 +1,6 @@
 import '../global.css';
 import '@/src/ui/text-global'; // Manrope as the app-wide default Text font
-import { Platform, View } from 'react-native';
+import { Platform, View, useColorScheme } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as WebBrowser from 'expo-web-browser';
@@ -8,11 +8,13 @@ import { useFonts } from 'expo-font';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '@/src/auth/auth-context';
 import { OnboardingProvider } from '@/src/onboarding/context';
+import { SelectedPractitionerProvider } from '@/src/care/selected-practitioner';
 import { AppPrefsProvider } from '@/src/prefs/app-prefs';
 import { I18nProvider } from '@/src/i18n';
 import { ConfirmProvider } from '@/src/ui/confirm';
 import { ThemeProvider, useTheme } from '@/src/ui/theme-mode';
 import { FONT_ASSETS } from '@/src/ui/fonts';
+import { DARK, LIGHT } from '@/src/ui/tokens';
 
 // MUST be at the ROOT, not only in the auth modules that start the flow.
 //
@@ -62,25 +64,34 @@ function Themed() {
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts(FONT_ASSETS);
+  const systemDark = useColorScheme() === 'dark';
   // Hold render until the type is ready, so nothing flashes in the system font.
-  if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: '#E4E2DB' }} />;
+  // Before fonts, before the theme is read: follow the system, so a dark-mode
+  // phone does not open on a light screen. (The saved choice takes over a moment
+  // later, in `Themed`.) The theme's own grounds, not copies of them that drift.
+  if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: systemDark ? DARK.bg : LIGHT.bg }} />;
   return (
     <SafeAreaProvider>
       <AuthProvider>
         <I18nProvider>
-          <OnboardingProvider>
-            <AppPrefsProvider>
-              {/* ThemeProvider wraps ConfirmProvider, not the other way round:
-                  ConfirmProvider renders themed UI of its own, so it has to be
-                  INSIDE. Nesting it outside typechecks perfectly and throws on
-                  first paint. */}
-              <ThemeProvider>
-                <ConfirmProvider>
-                  <Themed />
-                </ConfirmProvider>
-              </ThemeProvider>
-            </AppPrefsProvider>
-          </OnboardingProvider>
+          {/* Inside Auth (it keys on the session) and OUTSIDE Onboarding: the
+              practitioner name every screen reads from onboarding follows the
+              selection, so onboarding has to be able to see it. */}
+          <SelectedPractitionerProvider>
+            <OnboardingProvider>
+              <AppPrefsProvider>
+                {/* ThemeProvider wraps ConfirmProvider, not the other way round:
+                    ConfirmProvider renders themed UI of its own, so it has to be
+                    INSIDE. Nesting it outside typechecks perfectly and throws on
+                    first paint. */}
+                <ThemeProvider>
+                  <ConfirmProvider>
+                    <Themed />
+                  </ConfirmProvider>
+                </ThemeProvider>
+              </AppPrefsProvider>
+            </OnboardingProvider>
+          </SelectedPractitionerProvider>
         </I18nProvider>
       </AuthProvider>
     </SafeAreaProvider>

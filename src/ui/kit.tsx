@@ -20,6 +20,7 @@ import { ArrowRight, ChevronRight, type LucideIcon } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from './theme-mode';
 import { R, type TileName } from './tokens';
+import { useI18n } from '@/src/i18n';
 
 // ── IconTile ──────────────────────────────────────────────────────────────────
 
@@ -269,11 +270,12 @@ export function Sheet({
   cta?: { label: string; onPress: () => void; disabled?: boolean };
 }) {
   const { t } = useTheme();
+  const { t: tt } = useI18n();
   const insets = useSafeAreaInsets();
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <Pressable style={{ flex: 1, backgroundColor: t.scrim }} onPress={onClose} accessibilityLabel="Close" />
+      <Pressable style={{ flex: 1, backgroundColor: t.scrim }} onPress={onClose} accessibilityLabel={tt.common.close} />
       <View
         style={{
           backgroundColor: t.bg,

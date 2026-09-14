@@ -5,11 +5,14 @@ import { CalendarPlus, Check, ChevronDown, ChevronUp, NotebookPen, PenLine, Shar
 import { EdHeader, EdCard, EdSection, FadeIn } from '@/src/ui/editorial';
 import { PractitionerTabBar, PRACTITIONER_TAB_PAD } from '@/src/ui/PractitionerTabBar';
 import { useConfirm } from '@/src/ui/confirm';
+import { notify } from '@/src/ui/alert';
 import { useI18n } from '@/src/i18n';
 import { useNoteDraft } from '@/src/notes/draft';
 import { PulseSheet } from '@/src/practitioner/PulseSheet';
 import { fetchDay, fetchRequests, decideRequest, type PractitionerSession, type BookingRequest } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
+import { LoadFailed } from '@/src/ui/LoadFailed';
+import { localizeServerMessage } from '@/src/api/server-messages';
 
 // The practitioner's dashboard, in the same editorial language as the patient
 // app: the image-less EdHeader, EdCards, one accent.
@@ -20,6 +23,7 @@ import { useTheme } from '@/src/ui/theme-mode';
 const T = {
   en: {
     kicker: 'PRACTICE', title: 'Your day',
+    noteOpenFailed: 'Could not open this session’s note. Check your connection and try again.', noteUnsaved: 'The note you were writing is not kept yet. Check your connection, then try again.',
     book: 'Book a session', bookSub: 'With a patient',
     note: 'Take a note', noteSub: 'After a session',
     share: 'Share', shareSub: 'A resource',
@@ -32,6 +36,7 @@ const T = {
   },
   fr: {
     kicker: 'CABINET', title: 'Votre journée',
+    noteOpenFailed: 'Impossible d’ouvrir la note de cette séance. Vérifiez votre connexion et réessayez.', noteUnsaved: 'La note en cours n’est pas encore conservée. Vérifiez votre connexion, puis réessayez.',
     book: 'Réserver', bookSub: 'Avec un patient',
     note: 'Prendre une note', noteSub: 'Après une séance',
     share: 'Partager', shareSub: 'Une ressource',
@@ -59,6 +64,9 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [tz, setTz] = useState<string | undefined>();
   const [loaded, setLoaded] = useState(false);
+  // The day could not be read. "Nothing on today" is a statement about a
+  // practitioner's schedule, and it used to be what a failed read said.
+  const [failed, setFailed] = useState(false);
 
   const load = useCallback(() => {
       let alive = true;
@@ -66,6 +74,7 @@ export default function Dashboard() {
         if (!alive) return;
         if (day) { setSessions(day.items); setTz(day.timezone); }
         if (reqs) setRequests(reqs.items);
+        setFailed(!day);
         setLoaded(true);
       });
       return () => { alive = false; };
@@ -81,23 +90,32 @@ export default function Dashboard() {
     const res = await decideRequest(r.id, action);
     setBusyId(null);
     // A refused decision means somebody got there first, so the list is stale.
-    if (!res.ok) setError(res.error ?? '');
+    if (!res.ok) setError(localizeServerMessage(res.error, locale) ?? '');
     load();
   };
 
   const [prep, setPrep] = useState<PractitionerSession | null>(null);
-  const { open: openNote } = useNoteDraft();
+  const { openForSession } = useNoteDraft();
 
   // Opens the editor already bound to THIS session, which is the whole point of
   // the button being on the row: a note belongs to a session, and picking one
   // from a list you have just navigated away from is the step worth removing.
-  const openNoteFor = (s: PractitionerSession) => {
-    if (!s.memberId) return;
-    openNote({
+  //
+  // With what the session's note already says. This opened an empty editor, and
+  // saving it replaced a note written earlier (on the web, or on this phone).
+  // Opening reads the note from the server first, which takes a moment on a
+  // phone network. The button used to give no sign it had been tapped, so it got
+  // tapped again.
+  const [openingNote, setOpeningNote] = useState<string | null>(null);
+  const openNoteFor = async (s: PractitionerSession) => {
+    if (!s.memberId || openingNote) return;
+    setOpeningNote(s.id);
+    const res = await openForSession({
       appointmentId: s.id, memberId: s.memberId, who: s.who,
       when: new Date(s.scheduledAt).toLocaleString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
-      title: '', text: '', ranges: [], noteType: 'session',
-    });
+      noteType: 'session',
+    }).finally(() => setOpeningNote(null));
+    if (!res.ok) { notify(tr.title, res.reason === 'unsaved' ? tr.noteUnsaved : tr.noteOpenFailed); return; }
     router.navigate('/(practitioner)/note' as never);
   };
 
@@ -112,22 +130,23 @@ export default function Dashboard() {
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: PRACTITIONER_TAB_PAD }} showsVerticalScrollIndicator={false}>
-        <EdHeader kicker={tr.kicker} title={tr.title} subtitle={subtitle} rightIcon={SettingsIcon} onRight={() => router.navigate('/(practitioner)/settings' as never)} />
+        <EdHeader kicker={tr.kicker} title={tr.title} subtitle={subtitle} rightIcon={SettingsIcon} rightLabel={locale === 'fr' ? 'Réglages' : 'Settings'} onRight={() => router.navigate('/(practitioner)/settings' as never)} />
 
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {/* The day comes first. The actions are what you do about it, and they
               read as an afterthought only if they are on top of it. */}
           <EdSection label={tr.upNext} />
           {!loaded && <ActivityIndicator />}
-          {loaded && today.length === 0 && (
+          {loaded && failed && <LoadFailed compact onRetry={() => { load(); }} />}
+          {loaded && !failed && today.length === 0 && (
             <EdCard><Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.nothing}</Text></EdCard>
           )}
-          <SessionList items={today} time={time} join={tr.join} more={tr.seeMore} less={tr.seeLess} onPrep={setPrep} onNote={openNoteFor} />
+          <SessionList items={today} time={time} join={tr.join} more={tr.seeMore} less={tr.seeLess} onPrep={setPrep} onNote={openNoteFor} openingNote={openingNote} />
 
           {later.length > 0 && (
             <View style={{ marginTop: 22 }}>
               <EdSection label={tr.tomorrow} />
-              <SessionList items={later} time={time} join={tr.join} more={tr.seeMore} less={tr.seeLess} onPrep={setPrep} onNote={openNoteFor} />
+              <SessionList items={later} time={time} join={tr.join} more={tr.seeMore} less={tr.seeLess} onPrep={setPrep} onNote={openNoteFor} openingNote={openingNote} />
             </View>
           )}
 
@@ -183,9 +202,9 @@ export default function Dashboard() {
 // away and say how many they are, so the count is never a surprise.
 const PREVIEW = 2;
 
-function SessionList({ items, time, join, more, less, onPrep, onNote }: {
+function SessionList({ items, time, join, more, less, onPrep, onNote, openingNote }: {
   items: PractitionerSession[]; time: (iso: string) => string; join: string; more: string; less: string;
-  onPrep: (s: PractitionerSession) => void; onNote: (s: PractitionerSession) => void;
+  onPrep: (s: PractitionerSession) => void; onNote: (s: PractitionerSession) => void; openingNote: string | null;
 }) {
   const { t: TT } = useTheme();
   const [open, setOpen] = useState(false);
@@ -193,7 +212,7 @@ function SessionList({ items, time, join, more, less, onPrep, onNote }: {
   const shown = open ? items : items.slice(0, PREVIEW);
   return (
     <>
-      {shown.map((s) => <SessionRow key={s.id} s={s} time={time} join={join} onPrep={onPrep} onNote={onNote} />)}
+      {shown.map((s) => <SessionRow key={s.id} s={s} time={time} join={join} onPrep={onPrep} onNote={onNote} opening={openingNote === s.id} />)}
       {hidden > 0 && (
         <Pressable onPress={() => setOpen((v) => !v)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 11 }}>
           <Text style={{ fontSize: 13.5, fontWeight: '700', color: TT.accent }}>
@@ -206,9 +225,9 @@ function SessionList({ items, time, join, more, less, onPrep, onNote }: {
   );
 }
 
-function SessionRow({ s, time, join, onPrep, onNote }: {
+function SessionRow({ s, time, join, onPrep, onNote, opening }: {
   s: PractitionerSession; time: (iso: string) => string; join: string;
-  onPrep: (s: PractitionerSession) => void; onNote: (s: PractitionerSession) => void;
+  onPrep: (s: PractitionerSession) => void; onNote: (s: PractitionerSession) => void; opening: boolean;
 }) {
   const { t: TT } = useTheme();
   const Icon = FORMAT_ICON[s.sessionFormat as keyof typeof FORMAT_ICON] ?? MapPin;
@@ -258,7 +277,7 @@ function SessionRow({ s, time, join, onPrep, onNote }: {
           {canAct && (
             <>
               <RowAction Icon={Sparkles} onPress={() => onPrep(s)} />
-              <RowAction Icon={NotebookPen} onPress={() => onNote(s)} />
+              <RowAction Icon={NotebookPen} onPress={() => onNote(s)} busy={opening} />
             </>
           )}
         </View>
@@ -280,15 +299,16 @@ function mapsFor(s: PractitionerSession): string | null {
   return s.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.location)}`;
 }
 
-function RowAction({ Icon, onPress }: { Icon: LucideIcon; onPress: () => void }) {
+function RowAction({ Icon, onPress, busy }: { Icon: LucideIcon; onPress: () => void; busy?: boolean }) {
   const { t: TT } = useTheme();
   return (
     <Pressable
       onPress={onPress}
+      disabled={busy}
       hitSlop={6}
       style={{ height: 34, width: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: TT.line, backgroundColor: TT.bg }}
     >
-      <Icon size={15} color={TT.inkSoft} />
+      {busy ? <ActivityIndicator size="small" color={TT.inkSoft} /> : <Icon size={15} color={TT.inkSoft} />}
     </Pressable>
   );
 }

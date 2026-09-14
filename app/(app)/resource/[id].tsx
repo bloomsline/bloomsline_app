@@ -1,16 +1,24 @@
 // Assigned-resource detail + response flow. Opens an assigned resource, renders
 // the frozen version's blocks (shared renderer), collects answers, and submits →
 // server validates + scores → shows the result. Reached from My Care "To do".
-import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, AppState, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Check, CircleCheckBig, MessageCircle } from 'lucide-react-native';
 import { EdHeader, EdPill, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
-import { Block, INTERACTIVE, ResourceIntro } from '@/src/resources/blocks';
-import { fetchAssignment, submitAssignment, type AssignmentView, type PatientScore } from '@/src/api/resources';
+import { Block, INTERACTIVE, ResourceIntro, type UploadStatus } from '@/src/resources/blocks';
+import { fileUrlIndex, filesOf, isAnswered, missingRequired } from '@/src/resources/answers';
+import { parseTypedNumber } from '@/src/resources/number';
+import { flushCanvasDrafts } from '@/src/resources/zoned-canvas-field';
+import { fetchAssignment, saveAssignmentDraft, submitAssignment, type AssignmentView, type PatientScore } from '@/src/api/resources';
+import { useConfirm } from '@/src/ui/confirm';
+import { useLeaveGuard } from '@/src/ui/leave-guard';
 import { useI18n } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
+import { OtherPractitionerNote } from '@/src/care/OtherPractitionerNote';
+import { clearUnsent, readUnsent, saveUnsent } from '@/src/unsent';
 
 const DANGER = '#C0392B';
 
@@ -37,7 +45,15 @@ function formatDone(iso: string | null | undefined, locale: 'en' | 'fr'): string
 
 const T = {
   en: {
-    couldNotSubmit: 'Could not submit. Please try again.',
+    couldNotSubmit: 'Could not submit. Check your connection and try again. Your answers are still here.',
+    missingRequired: 'Please answer the required questions.',
+    missingCount: (n: number) => (n === 1 ? '1 question still needs an answer' : `${n} questions still need an answer`),
+    waitUploads: 'A file is still uploading. Wait for it to finish, then submit.',
+    failedUploads: 'A file did not upload. Try again or remove it, then submit.',
+    uploadingTitle: 'A file is still uploading', uploadingBody: 'If you leave now, it will not be added to your answers.',
+    draftKept: 'Your answers are kept as you go.', draftSaving: 'Keeping your answers…', draftFailed: 'Not kept yet. Check your connection.',
+    unsavedTitle: 'Your answers are not kept', unsavedBody: 'Your latest answers have not reached the server. If you leave now, they will be lost.',
+    stay: 'Stay', leaveAnyway: 'Leave anyway',
     unavailable: 'Resource unavailable',
     unavailableBody: 'This resource is no longer available.',
     reading: 'Reading',
@@ -49,6 +65,7 @@ const T = {
     alreadySubmitted: 'Already submitted',
     alreadyDone: 'Already marked as done',
     fromPractitioner: 'Message from your practitioner',
+    onEarlier: (d: string) => `On your earlier answers · ${d}`,
     lockedNote: 'Your practitioner can reopen this if you need to change it.',
     resultTitle: 'All done',
     resultBodySuffix: ' is saved and shared with your practitioner.',
@@ -56,7 +73,15 @@ const T = {
     done: 'Done',
   },
   fr: {
-    couldNotSubmit: 'Envoi impossible. Veuillez réessayer.',
+    couldNotSubmit: 'Envoi impossible. Vérifiez votre connexion et réessayez. Vos réponses sont toujours là.',
+    missingRequired: 'Merci de répondre aux questions obligatoires.',
+    missingCount: (n: number) => (n === 1 ? '1 question attend encore une réponse' : `${n} questions attendent encore une réponse`),
+    waitUploads: 'Un fichier est encore en cours d’envoi. Attendez la fin, puis envoyez.',
+    failedUploads: 'Un fichier n’a pas été envoyé. Réessayez ou retirez-le, puis envoyez.',
+    uploadingTitle: 'Un fichier est en cours d’envoi', uploadingBody: 'Si vous partez maintenant, il ne sera pas ajouté à vos réponses.',
+    draftKept: 'Vos réponses sont conservées au fur et à mesure.', draftSaving: 'Conservation de vos réponses…', draftFailed: 'Pas encore conservé. Vérifiez votre connexion.',
+    unsavedTitle: 'Vos réponses ne sont pas conservées', unsavedBody: 'Vos dernières réponses ne sont pas arrivées sur le serveur. Si vous partez maintenant, elles seront perdues.',
+    stay: 'Rester', leaveAnyway: 'Partir quand même',
     unavailable: 'Ressource indisponible',
     unavailableBody: 'Cette ressource n’est plus disponible.',
     reading: 'Lecture',
@@ -68,6 +93,7 @@ const T = {
     alreadySubmitted: 'Déjà envoyé',
     alreadyDone: 'Déjà marqué comme terminé',
     fromPractitioner: 'Message de votre praticien',
+    onEarlier: (d: string) => `Sur vos réponses précédentes · ${d}`,
     lockedNote: 'Votre praticien peut le rouvrir si vous devez le modifier.',
     resultTitle: 'Terminé',
     resultBodySuffix: ' est enregistré et partagé avec votre praticien.',
@@ -89,16 +115,171 @@ export default function ResourceDetail() {
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [missingId, setMissingId] = useState<string | null>(null);
+  // Every required question found empty at the last Submit. Kept as the list
+  // found then, and read against the answers on every render, so a mark clears
+  // the moment its question is answered and the count under it goes down.
+  const [missingIds, setMissingIds] = useState<string[]>([]);
   const [result, setResult] = useState<{ score: PatientScore | null } | null>(null);
+  const confirm = useConfirm();
+  const insets = useSafeAreaInsets();
+  // A state is not enough to stop a double tap: two taps in one frame both read
+  // `submitting` as false and sent the answers twice.
+  const submittingRef = useRef(false);
+  // Submit was held for a file. Said only while it is still true, so the line
+  // goes away by itself when the upload lands or the failed file is removed.
+  const [uploadHold, setUploadHold] = useState(false);
+
+  // --- where each question is ---------------------------------------------------
+  // To bring the first missing one into view. onLayout gives each position
+  // relative to its parent, so the chain is added up: the content wrapper in the
+  // scroll view, the list in the wrapper, the question in the list.
+  const scroller = useRef<ScrollView>(null);
+  const wrapY = useRef(0);
+  const listY = useRef(0);
+  const blockY = useRef<Record<string, number>>({});
+  const scrollToBlock = (blockId: string) => {
+    const y = blockY.current[blockId];
+    if (y === undefined) return;
+    // The header scrolls with the page, so only the status bar sits over the
+    // top of it. Nudged a little lower so the question's label is not flush
+    // against the edge.
+    const top = Math.max(0, wrapY.current + listY.current + y - insets.top - 16);
+    // With the keyboard up the view is about to grow back; scrolling in the same
+    // frame lands short on a phone, so it waits for the keyboard to go.
+    const keyboardUp = Platform.OS !== 'web' && Keyboard.isVisible();
+    Keyboard.dismiss();
+    setTimeout(() => scroller.current?.scrollTo({ y: top, animated: true }), keyboardUp ? 280 : 0);
+  };
+
+  // --- uploads ----------------------------------------------------------------
+  // Files upload while the patient carries on, and only reach the answers once
+  // stored. So a Submit, a way out, or a draft in the middle of one would all
+  // silently leave the file behind; the screen needs to know they are running.
+  const uploadsRef = useRef<Record<string, UploadStatus>>({});
+  const [uploads, setUploads] = useState<UploadStatus>({ uploading: 0, failed: 0 });
+  const reportUpload = useCallback((blockId: string, st: UploadStatus) => {
+    uploadsRef.current = { ...uploadsRef.current, [blockId]: st };
+    const all = Object.values(uploadsRef.current);
+    setUploads({ uploading: all.reduce((n, x) => n + x.uploading, 0), failed: all.reduce((n, x) => n + x.failed, 0) });
+  }, []);
+
+  // --- keeping answers --------------------------------------------------------
+  // Answers used to live only in this screen until Submit, so Back, the OS
+  // reclaiming the app behind the photo picker, or a Submit that failed offline
+  // lost all of them. They are now kept on the server as a draft while the
+  // patient writes (invisible to the practitioner until sent), the same way the
+  // journal saves: debounced, queued, retried, and counted so only real changes
+  // are sent.
+  type Keep = 'idle' | 'saving' | 'saved' | 'failed';
+  const [keep, setKeep] = useState<Keep>('idle');
+  const latest = useRef<Record<string, unknown>>({});
+  const edits = useRef(0);
+  const savedEdits = useRef(0);
+  const chain = useRef<Promise<boolean>>(Promise.resolve(true));
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retry = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mounted = useRef(true);
+  const everLoaded = useRef(false);
+
+  const clearTimers = () => {
+    if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+    if (retry.current) { clearTimeout(retry.current); retry.current = null; }
+  };
+
+  const keepOnce = async (): Promise<boolean> => {
+    const carried = edits.current;
+    if (carried === savedEdits.current) {
+      if (mounted.current) setKeep((k) => (k === 'saving' || k === 'failed' ? (savedEdits.current > 0 ? 'saved' : 'idle') : k));
+      return true;
+    }
+    // A copy on the phone first, so answers survive the app being killed before
+    // the server has them (see src/unsent). Removed once they land.
+    await saveUnsent('worksheet', assignmentId, latest.current);
+    const res = await saveAssignmentDraft(assignmentId, latest.current, locale);
+    // Sent or withdrawn meanwhile: nothing to keep, and retrying cannot help.
+    if (res.ok || res.final) savedEdits.current = Math.max(savedEdits.current, carried);
+    if ((res.ok || res.final) && edits.current === carried) void clearUnsent('worksheet', assignmentId);
+    if (!mounted.current) return res.ok;
+    if (res.ok || res.final) {
+      setKeep(edits.current === savedEdits.current ? (res.ok ? 'saved' : 'idle') : 'saving');
+      if (res.ok) refreshFileLinks();
+      return true;
+    }
+    setKeep('failed');
+    if (retry.current) clearTimeout(retry.current);
+    retry.current = setTimeout(() => { void keepNow(); }, 8000);
+    return false;
+  };
+  // A file added here has no signed link until the server has it. Photos and
+  // videos preview from the phone's copy meanwhile, but a document can only be
+  // opened by its link, so once a draft carrying new files lands the page is
+  // read again for their links. Only then: every save would be a wasted read.
+  const viewRef = useRef<AssignmentView | null>(null);
+  viewRef.current = view;
+  const refreshFileLinks = () => {
+    const v = viewRef.current;
+    if (!v) return;
+    const known = fileUrlIndex(v.version.blocks, v.response?.answers, v.fileUrls, v.mediaUrls);
+    const unsigned = v.version.blocks.some((b) => b.type === 'file_upload' && filesOf(latest.current[b.id]).some((f) => !known[f.key]));
+    if (!unsigned) return;
+    void fetchAssignment(assignmentId).then((fresh) => { if (fresh && mounted.current) setView(fresh); });
+  };
+
+  const keepNow = (): Promise<boolean> => {
+    const next = chain.current.then(keepOnce, keepOnce);
+    chain.current = next;
+    return next;
+  };
+  const keepNowRef = useRef(keepNow);
+  keepNowRef.current = keepNow;
+
+  useEffect(() => {
+    // Backgrounding is when the OS may end the app; send what is pending first.
+    const sub = AppState.addEventListener('change', (st) => { if (st !== 'active') { clearTimers(); void keepNow(); } });
+    return () => {
+      sub.remove();
+      mounted.current = false;
+      clearTimers();
+      void keepNow();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
       let alive = true;
       fetchAssignment(assignmentId).then((v) => {
         if (!alive) return;
+        // A refetch on returning to the screen (from the photo picker, from
+        // another tab) must not replace what was typed with the server's older
+        // copy, and a refetch that fails must not blank a screen that loaded.
+        if (!v) { if (!everLoaded.current) { setView(null); setLoaded(true); } return; }
         setView(v);
-        setAnswers(v?.response?.answers ?? {});
+        if (!everLoaded.current) {
+          everLoaded.current = true;
+          const initial = v.response?.answers ?? {};
+          latest.current = initial;
+          setAnswers(initial);
+          const closed = v.locked ?? (v.response?.status === 'submitted' || v.response?.status === 'reviewed');
+          // Answers kept on this phone that never reached the server come back
+          // and are sent again. Not onto a response that has since been sent, and
+          // not over answers written since (on another phone, or on the web by
+          // the practitioner): a copy stranded for a week used to win anyway.
+          const serverAt = v.response?.updatedAt;
+          void readUnsent<Record<string, unknown>>('worksheet', assignmentId).then((kept) => {
+            if (!kept || !alive) return;
+            if (closed || (serverAt && kept.savedAt <= serverAt)) { void clearUnsent('worksheet', assignmentId); return; }
+            latest.current = { ...initial, ...kept.payload };
+            setAnswers(latest.current);
+            edits.current += 1;
+            setKeep('saving');
+            // The copy can name files uploaded before the app was closed. They
+            // are in storage (a file only joins the answers once it is), and
+            // once the copy lands the page is read again for their links (see
+            // refreshFileLinks).
+            void keepNowRef.current();
+          });
+        }
         setLoaded(true);
       });
       return () => { alive = false; };
@@ -106,6 +287,17 @@ export default function ResourceDetail() {
   );
 
   const blocks = view?.version.blocks ?? [];
+  const readNumber = (v: unknown) => (typeof v === 'number' ? v : typeof v === 'string' ? parseTypedNumber(v, locale) : undefined);
+  const shownMissing = missingIds.filter((mid) => {
+    const b = blocks.find((x) => x.id === mid);
+    return !!b && !isAnswered(b, answers[mid], readNumber);
+  });
+  // Links for files already on the server, by storage key, read against the
+  // answers the server signed them for (see `urlsByKey`).
+  const fileUrls = useMemo(
+    () => (view ? fileUrlIndex(view.version.blocks, view.response?.answers, view.fileUrls, view.mediaUrls) : {}),
+    [view],
+  );
   const hasInteractive = useMemo(() => (view?.version.blocks ?? []).some((b) => INTERACTIVE.has(b.type)), [view]);
   // Finished either way: a worksheet leaves a submitted response, while a
   // reading-only resource leaves no row at all and only flips the assignment.
@@ -118,21 +310,98 @@ export default function ResourceDetail() {
     : hasInteractive
       ? tr.alreadySubmitted
       : tr.alreadyDone;
-  const set = (blockId: string, value: unknown) => setAnswers((prev) => ({ ...prev, [blockId]: value }));
+  const set = (blockId: string, value: unknown) => {
+    const next = { ...latest.current, [blockId]: value };
+    latest.current = next;
+    setAnswers(next);
+    if (locked || !hasInteractive) return;
+    edits.current += 1;
+    setKeep('saving');
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => { timer.current = null; void keepNow(); }, 1200);
+  };
+
+  const firstUploadBlock = (key: keyof UploadStatus) => blocks.find((b) => (uploadsRef.current[b.id]?.[key] ?? 0) > 0)?.id;
 
   const submit = async () => {
-    if (submitting) return;
-    setSubmitting(true);
+    if (submittingRef.current) return;
     setError(null);
-    setMissingId(null);
-    const res = await submitAssignment(assignmentId, answers);
-    if (res.ok) { setResult({ score: res.score ?? null }); return; }
+    // Canvas text typed but not added counts as written.
+    flushCanvasDrafts();
+    // A file on its way is not in the answers yet: sending now would send the
+    // worksheet without it, and a failed one would be missing without a word.
+    const up = Object.values(uploadsRef.current);
+    if (up.some((u) => u.uploading > 0) || up.some((u) => u.failed > 0)) {
+      const waiting = up.some((u) => u.uploading > 0);
+      setUploadHold(true);
+      const at = firstUploadBlock(waiting ? 'uploading' : 'failed');
+      if (at) scrollToBlock(at);
+      return;
+    }
+    // Every empty required question, marked at once and the first one brought
+    // into view, before asking the server (which would name only the first).
+    const gaps = missingRequired(blocks, latest.current, readNumber, INTERACTIVE);
+    if (gaps.length) {
+      setMissingIds(gaps);
+      scrollToBlock(gaps[0]);
+      return;
+    }
+    setMissingIds([]);
+    setUploadHold(false);
+    submittingRef.current = true;
+    setSubmitting(true);
+    Keyboard.dismiss();
+    // Anything waiting to be kept goes first, so a Submit that fails still
+    // leaves the latest answers on the server.
+    clearTimers();
+    await keepNow();
+    const res = await submitAssignment(assignmentId, latest.current, locale);
+    if (res.ok) {
+      savedEdits.current = edits.current;
+      void clearUnsent('worksheet', assignmentId);
+      guard.release();
+      setResult({ score: res.score ?? null });
+      return;
+    }
+    submittingRef.current = false;
     setSubmitting(false);
-    if (res.missingBlockId) setMissingId(res.missingBlockId);
-    setError(res.error ?? tr.couldNotSubmit);
+    // The server reads the rules this screen does, so this is only reached when
+    // the two disagree (a question it treats differently): mark what it named.
+    const named = res.missingBlockId ? blocks.find((b) => b.id === res.missingBlockId) : undefined;
+    if (named) {
+      setMissingIds([named.id]);
+      scrollToBlock(named.id);
+    }
+    // The count under Submit says it when the mark can show; when this screen
+    // reads the named answer as filled (so no mark), the sentence still does.
+    const markShows = !!named && !isAnswered(named, latest.current[named.id], readNumber);
+    // In the patient's language. The server's own sentences are English only.
+    setError(
+      res.reason === 'missing_required' ? (markShows ? null : tr.missingRequired)
+      : res.reason === 'revoked' ? tr.unavailableBody
+      : res.reason === 'already_submitted' ? tr.lockedNote
+      : tr.couldNotSubmit,
+    );
   };
 
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/home' as never));
+
+  // Leaving with answers not yet kept: keep them, then go; ask only if that fails.
+  // A file still uploading is held the same way: leaving drops it, so that is
+  // said first and only a deliberate "leave anyway" goes.
+  const guard = useLeaveGuard(!result && (keep === 'saving' || keep === 'failed' || uploads.uploading > 0), async (leave) => {
+    clearTimers();
+    if (Object.values(uploadsRef.current).some((u) => u.uploading > 0)) {
+      const go = await confirm({ title: tr.uploadingTitle, message: tr.uploadingBody, confirmLabel: tr.leaveAnyway, cancelLabel: tr.stay, destructive: true });
+      if (!go) return;
+      await keepNow();
+      leave();
+      return;
+    }
+    if (await keepNow()) { leave(); return; }
+    const yes = await confirm({ title: tr.unsavedTitle, message: tr.unsavedBody, confirmLabel: tr.leaveAnyway, cancelLabel: tr.stay, destructive: true });
+    if (yes) leave();
+  });
 
   if (!loaded) {
     return (
@@ -157,13 +426,18 @@ export default function ResourceDetail() {
 
   const kicker = view.resource.type === 'psychoeducation' ? tr.reading : tr.worksheet;
 
+
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      {/* `padding` on Android too; `undefined` does nothing there and the last
+          answer fields sat under the keyboard. */}
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+        <ScrollView ref={scroller} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <EdHeader source={ONBOARDING_IMAGES.card2} kicker={kicker} title={view.resource.title} onBack={back} />
 
+          <View onLayout={(e) => { wrapY.current = e.nativeEvent.layout.y; }}>
           <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
+            <OtherPractitionerNote practitioner={view.practitioner} />
             {view.response?.practitionerNote ? (
               // Deliberately unlike the description card above it. Both were the
               // same green tint, so the one thing written personally to this
@@ -176,6 +450,13 @@ export default function ResourceDetail() {
                     <MessageCircle size={13} color={TT.accent} strokeWidth={2.5} />
                     <Text style={{ fontSize: 12, fontWeight: '800', color: TT.accentDeep, letterSpacing: 0.2 }}>{tr.fromPractitioner}</Text>
                   </View>
+                  {/* Answers sent since the message: it replies to the earlier ones,
+                      and read beside the new answers it would seem to answer them. */}
+                  {view.response.noteOnEarlierAnswers && view.response.noteWrittenAt ? (
+                    <Text style={{ fontSize: 12, color: TT.faint, marginBottom: 6 }}>
+                      {tr.onEarlier(new Date(view.response.noteWrittenAt).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'long' }))}
+                    </Text>
+                  ) : null}
                   <Text style={{ fontSize: 16, color: TT.ink, lineHeight: 25 }}>{view.response.practitionerNote}</Text>
                 </View>
               </View>
@@ -188,15 +469,47 @@ export default function ResourceDetail() {
               </View>
             )}
 
-            {blocks.map((b) => (
-              <Block key={b.id} block={b} value={answers[b.id]} onChange={(v) => set(b.id, v)} missing={missingId === b.id} readOnly={locked} mediaUrl={view.mediaUrls?.[b.id]} />
-            ))}
+            <View onLayout={(e) => { listY.current = e.nativeEvent.layout.y; }}>
+              {blocks.map((b) => (
+                <View key={b.id} onLayout={(e) => { blockY.current[b.id] = e.nativeEvent.layout.y; }}>
+                  <Block
+                    block={b}
+                    value={answers[b.id]}
+                    onChange={(v) => set(b.id, v)}
+                    missing={shownMissing.includes(b.id)}
+                    readOnly={locked}
+                    mediaUrl={view.mediaUrls?.[b.id]}
+                    fileUrls={fileUrls}
+                    onUploadStatus={b.type === 'file_upload' ? (st) => reportUpload(b.id, st) : undefined}
+                  />
+                </View>
+              ))}
+            </View>
 
             {error && <Text style={{ marginTop: 14, fontSize: 13.5, fontWeight: '600', color: DANGER }}>{error}</Text>}
           </FadeIn>
+          </View>
         </ScrollView>
 
         <View style={{ paddingHorizontal: 22, paddingTop: 12, paddingBottom: 10, borderTopWidth: 1, borderTopColor: TT.line }}>
+          {/* How many are left, where the thumb is. Tapping it goes to the next
+              one, which on a long worksheet is the part that is hard to find. */}
+          {shownMissing.length > 0 ? (
+            <Pressable onPress={() => scrollToBlock(shownMissing[0])} accessibilityRole="button" accessibilityLiveRegion="polite" style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: TT.dangerTint, borderRadius: 14, paddingVertical: 6, paddingHorizontal: 12, marginBottom: 10 }}>
+              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: TT.danger }} />
+              <Text style={{ fontSize: 13, fontWeight: '700', color: TT.danger }}>{tr.missingCount(shownMissing.length)}</Text>
+            </Pressable>
+          ) : null}
+          {uploadHold && (uploads.uploading > 0 || uploads.failed > 0) ? (
+            <Text accessibilityLiveRegion="polite" style={{ fontSize: 13, fontWeight: '600', color: TT.danger, textAlign: 'center', marginBottom: 10 }}>
+              {uploads.uploading > 0 ? tr.waitUploads : tr.failedUploads}
+            </Text>
+          ) : null}
+          {hasInteractive && !locked && keep !== 'idle' ? (
+            <Text style={{ fontSize: 12, color: keep === 'failed' ? DANGER : TT.faint, textAlign: 'center', marginBottom: 8 }}>
+              {keep === 'failed' ? tr.draftFailed : keep === 'saving' ? tr.draftSaving : tr.draftKept}
+            </Text>
+          ) : null}
           {finished ? (
             // Offering "Submit" again on something already finished reads as if
             // the first one did not take. The state comes first; re-submitting

@@ -29,6 +29,8 @@ import { refreshMeFace, setMeFaceLocally } from '@/src/profile/me-face';
 import { pickImage, uploadAvatar, type PickedImage } from '@/src/profile/avatar-upload';
 import { AvatarCropper, type CropRect } from '@/src/profile/AvatarCropper';
 import { cameraAvailable } from '@/src/moments/media-upload';
+import { useOnboarding } from '@/src/onboarding/context';
+import { LoadFailed } from '@/src/ui/LoadFailed';
 
 type PhotoAction = 'camera' | 'library' | 'remove';
 
@@ -60,7 +62,12 @@ export function ProfileScreen({ home }: { home: string }) {
   const afterSheet = useAfterDismiss();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const { update: updateProfile } = useOnboarding();
 
+  // The form opens only on the account's real details. When they could not be
+  // read it opened EMPTY, and saving it wrote the blanks over the stored name.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let alive = true;
     fetchMe().then((me) => {
@@ -71,10 +78,11 @@ export function ProfileScreen({ home }: { home: string }) {
         setAvatarUrl(me.avatarUrl);
         setEmail(me.email);
       }
+      setLoadFailed(!me);
       setLoading(false);
     });
     return () => { alive = false; };
-  }, []);
+  }, [attempt]);
 
   const back = () => (router.canGoBack() ? router.back() : router.navigate(home as never));
 
@@ -115,9 +123,9 @@ export function ProfileScreen({ home }: { home: string }) {
       // which is not a url, so the letter stayed on screen and choosing a photo
       // looked like it had done nothing until the app was restarted.
       setPreview(out.localUri);
-      // Everything showing the face follows immediately, including the corner
-      // button on the tab behind this screen.
-      setMeFaceLocally({ avatarUrl: out.localUri });
+      // The rest of the app follows on SAVE, not here. Setting it here showed the
+      // new photo in every header even when the patient backed out without
+      // saving, while the server still held the old one.
       setPhotoDone(true);
     } catch (e) {
       // The step that failed travels with the message — see `avatar-upload`.
@@ -138,6 +146,12 @@ export function ProfileScreen({ home }: { home: string }) {
     });
     setBusy(false);
     if (!ok) { setError(tr.saveFailed); return; }
+    // Everything showing the face follows now, including the corner button on
+    // the tab behind this screen — then the server's own copy replaces it.
+    if (avatarKey !== undefined) setMeFaceLocally({ avatarUrl: avatarKey === null ? null : preview });
+    // The greeting ("Good evening, {name}") reads the onboarding profile, which
+    // was only fetched at sign-in, so a rename showed the old name until restart.
+    updateProfile({ firstName: first.trim(), lastName: last.trim() });
     // The signed url is minted on read, so it does not exist until `/me` is
     // asked again. Without this the card behind still showed the old picture.
     await refreshMeFace();
@@ -153,12 +167,14 @@ export function ProfileScreen({ home }: { home: string }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <EdHeader title={tr.yourDetails} onBack={back} />
 
           {loading ? (
             <View style={{ paddingTop: 80, alignItems: 'center' }}><ActivityIndicator color={TT.accent} /></View>
+          ) : loadFailed ? (
+            <LoadFailed onRetry={() => { setLoading(true); setAttempt((a) => a + 1); }} />
           ) : (
             <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
               {/* Photo */}

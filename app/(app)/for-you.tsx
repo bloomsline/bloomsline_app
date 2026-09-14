@@ -15,6 +15,7 @@ import { FadeIn, HEADER_TOP } from '@/src/ui/editorial';
 import { Ground } from '@/src/ui/Ground';
 import { useI18n } from '@/src/i18n';
 import { listArticles } from '@/src/api/articles';
+import { useSelectionReset } from '@/src/care/selected-practitioner';
 import { ProfileButton } from '@/src/profile/ProfileButton';
 import { useTheme } from '@/src/ui/theme-mode';
 
@@ -61,13 +62,17 @@ export default function ForYou() {
   // An empty list and a FAILED request are different things: on failure the card
   // stays hidden rather than promising articles we could not fetch.
   const [hasArticles, setHasArticles] = useState<boolean | null>(null);
+  // Whose articles: the selected practitioner's. A switch hides the card until
+  // the new practitioner's answer is in, for the reason above.
+  const selectionKey = useSelectionReset(() => setHasArticles(null));
 
   useFocusEffect(
     useCallback(() => {
       let alive = true;
       listArticles(locale).then((l) => { if (alive) setHasArticles(l != null && l.length > 0); });
       return () => { alive = false; };
-    }, [locale]),
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- selectionKey: load again for the practitioner just chosen
+    }, [locale, selectionKey]),
   );
 
   return (

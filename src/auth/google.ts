@@ -15,11 +15,14 @@ import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { GOOGLE } from '../config';
 import { useAuth } from './auth-context';
+import { signInMessage } from './sign-in-message';
+import { useI18n } from '@/src/i18n';
 
 WebBrowser.maybeCompleteAuthSession();
 
 export function useGoogleSignIn(onError?: (message: string) => void) {
   const { signInWithGoogleIdToken } = useAuth();
+  const { t } = useI18n();
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: GOOGLE.webClientId || undefined,
@@ -30,16 +33,16 @@ export function useGoogleSignIn(onError?: (message: string) => void) {
     if (response?.type === 'success') {
       const idToken = response.params?.id_token ?? response.authentication?.idToken;
       if (idToken) {
-        signInWithGoogleIdToken(idToken).then((ok) => {
-          if (!ok) onError?.('Google sign-in was rejected. Please try again.');
+        signInWithGoogleIdToken(idToken).then((r) => {
+          if (!r.ok) onError?.(signInMessage(r, t, t.signUp.providerRejected));
         });
       } else {
-        onError?.('Google did not return an identity token.');
+        onError?.(t.authLink.providerReturn.google);
       }
     } else if (response?.type === 'error') {
-      onError?.('Google sign-in failed.');
+      onError?.(t.authLink.providerReturn.google);
     }
-  }, [response, signInWithGoogleIdToken, onError]);
+  }, [response, signInWithGoogleIdToken, onError, t]);
 
   return {
     available: request !== null,

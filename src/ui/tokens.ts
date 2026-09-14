@@ -95,6 +95,15 @@ export interface Palette {
    *  for the same reason `onAccent` does: white is right on the deep red and
    *  2.4:1 on the salmon. */
   onDanger: string;
+  /** A wash of `danger`, for a quiet notice rather than an alarm. */
+  dangerTint: string;
+  /** A to-do card's thin border, by where it stands. Muted on purpose: the
+   *  border is a hint beside the written status, never the only signal and
+   *  never an alert. Not started is a soft coral, not the error red; started or
+   *  handed back is amber; done is the accent's green. */
+  statusTodo: string;
+  statusProgress: string;
+  statusDone: string;
   /** Scrim behind a sheet. */
   scrim: string;
   /** The journal's head band, with the "paper" scrolling up over it on rounded
@@ -141,6 +150,10 @@ export const LIGHT: Palette = {
   amber: '#B4750F',
   danger: '#B3261E',
   onDanger: '#FFFFFF',
+  dangerTint: 'rgba(179,38,30,0.08)',
+  statusTodo: '#EBC2B8',
+  statusProgress: '#E6CB8F',
+  statusDone: '#A9D3C4',
   headBg: '#0E1512',
   headInk: '#FFFFFF',
   scrim: 'rgba(20,20,20,0.35)',
@@ -178,6 +191,10 @@ export const DARK: Palette = {
   danger: '#E5837B',
   // The salmon is a LIGHT colour; what sits on it has to be dark.
   onDanger: '#0E1512',
+  dangerTint: 'rgba(229,131,123,0.13)',
+  statusTodo: 'rgba(229,131,123,0.42)',
+  statusProgress: 'rgba(233,196,106,0.45)',
+  statusDone: 'rgba(127,217,192,0.40)',
   headBg: '#080C0A',
   headInk: '#FFFFFF',
   scrim: 'rgba(0,0,0,0.55)',

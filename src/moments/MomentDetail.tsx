@@ -2,7 +2,7 @@
 // pared to what v2 supports today: moods, text/caption, time, image media, plus
 // wired Share-to-practitioner and Delete. Deferred vs v1: the conversation thread
 // (no moment_comments backend yet) and the video/voice player (media storage dark).
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Modal, Pressable, ScrollView, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Send, CircleCheckBig, Trash2, Play } from 'lucide-react-native';
@@ -12,7 +12,11 @@ import { deleteMoment, shareMoment, type MomentDTO, type MomentMediaDTO } from '
 import { ConfirmLayer, useConfirm } from '@/src/ui/confirm';
 import { AudioRow, MediaViewer } from '@/src/ui/MediaViewer';
 import { useI18n, fmt } from '@/src/i18n';
+import { joinFirstNames } from '@/src/care/practitioner-names';
+import { ShareRefused } from '@/src/api/share-refused';
 import { useOnboarding } from '@/src/onboarding/context';
+import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
+import { otherReaders } from '@/src/care/other-readers';
 import { Kicker } from '@/src/ui/editorial';
 import { useTheme } from '@/src/ui/theme-mode';
 import { OVER_MEDIA } from '@/src/ui/tokens';
@@ -20,6 +24,7 @@ import { OVER_MEDIA } from '@/src/ui/tokens';
 const T = {
   en: {
     updateSharingError: 'Could not update sharing. Please try again.',
+    noPractitioner: 'You are not linked to a practitioner right now, so there is no one to share this with.',
     deleteError: 'Could not delete. Please try again.',
     deleteConfirmWeb: 'Delete this moment? This can’t be undone.',
     deleteTitle: 'Delete moment',
@@ -38,10 +43,15 @@ const T = {
     stopShareTitle: 'Stop sharing',
     stopShareBody: 'Stop sharing this moment? Your practitioner will no longer see it.',
     stopShareBodyNamed: 'Stop sharing this moment? {name} will no longer see it.',
+    shareBodyNamedMany: 'Share this moment with {name}? They’ll be able to see it.',
+    stopShareBodyNamedMany: 'Stop sharing this moment? {name} will no longer see it.',
     stopSharing: 'Stop sharing',
+    sharedElsewhere: 'Shared with {names}, not with {name}.',
+    alsoWith: 'Also shared with {names}.',
   },
   fr: {
     updateSharingError: 'Impossible de mettre à jour le partage. Veuillez réessayer.',
+    noPractitioner: 'Vous n’êtes lié à aucun praticien pour le moment, il n’y a donc personne avec qui partager.',
     deleteError: 'Impossible de supprimer. Veuillez réessayer.',
     deleteConfirmWeb: 'Supprimer ce moment ? Cette action est irréversible.',
     deleteTitle: 'Supprimer le moment',
@@ -60,7 +70,11 @@ const T = {
     stopShareTitle: 'Arrêter le partage',
     stopShareBody: 'Arrêter de partager ce moment ? Votre praticien ne le verra plus.',
     stopShareBodyNamed: 'Arrêter de partager ce moment ? {name} ne le verra plus.',
+    shareBodyNamedMany: 'Partager ce moment avec {name} ? Ces personnes pourront le consulter.',
+    stopShareBodyNamedMany: 'Arrêter de partager ce moment ? {name} ne le verront plus.',
     stopSharing: 'Arrêter',
+    sharedElsewhere: 'Partagé avec {names}, pas avec {name}.',
+    alsoWith: 'Aussi partagé avec {names}.',
   },
 } as const;
 
@@ -71,7 +85,7 @@ const fmtDur = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2
  *  just say "something changed" and the line refetched its first page — which,
  *  now that the line is paged, would throw away every older page the reader had
  *  scrolled back through and drop them at today. */
-export type MomentChange = { id: string; deleted: true } | { id: string; shared: boolean };
+export type MomentChange = { id: string; deleted: true } | { id: string; shared: boolean; sharedWith?: string[]; sharedWithIds?: string[] };
 
 export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO; onClose: () => void; onChanged: (change: MomentChange) => void }) {
   const { t: TT } = useTheme();
@@ -82,10 +96,39 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
   // Name the practitioner wherever we know it. "Send to my practitioner" is a
   // role; "Send to Anna" is the person, which is the thing a patient is
   // actually deciding about. Same first-name treatment capture already uses.
-  const { practitionerName } = useOnboarding();
-  const pracFirst = (practitionerName ?? '').replace(/^dr\.?\s*/i, '').trim().split(/\s+/)[0] || '';
-  const sendLabel = pracFirst ? fmt(tr.sendToNamed, { name: pracFirst }) : tr.sendToPractitioner;
+  //
+  // On an older server a share reaches every practitioner linked, and naming only
+  // the first told a patient with two it went to one. With the switcher it
+  // reaches the SELECTED practitioner only, and onboarding's names are exactly
+  // that one (see onboarding/context).
+  const { practitionerName, practitionerNames, hasPractitioner } = useOnboarding();
+  const { canSwitch, selectionKey, selectedId } = useSelectedPractitioner();
+  const pracNames = practitionerNames.length ? practitionerNames : practitionerName ? [practitionerName] : [];
   const [shared, setShared] = useState(moment.sharedWithPractitioner);
+  // Who can read it NOW, once shared: the practitioners the share named who are
+  // still linked. Naming today's practitioners instead told the patient an old
+  // share reached someone linked since, who cannot read it.
+  const [readers, setReaders] = useState<string[] | undefined>(moment.sharedWith);
+  const [readerIds, setReaderIds] = useState<string[] | undefined>(moment.sharedWithIds);
+  // Re-read when the timeline hands over a fresh copy of this moment, which it
+  // does after a switch: `shared` is about the selected practitioner, and the
+  // sheet must not keep saying "Shared" about the previous one.
+  useEffect(() => {
+    setShared(moment.sharedWithPractitioner);
+    setReaders(moment.sharedWith);
+    setReaderIds(moment.sharedWithIds);
+  }, [moment, selectionKey]);
+  // Other practitioners reading it, beside the selected one (care/other-readers).
+  const others = canSwitch ? joinFirstNames(otherReaders(readers, readerIds, selectedId), locale) : '';
+  const sendNames = pracNames;
+  // Stopping removes the selected practitioner only, so with a choice of
+  // practitioners that is who "stop sharing" names, whoever else can read it.
+  const stopNames = canSwitch ? pracNames : readers ?? pracNames;
+  const pracFirst = joinFirstNames(sendNames, locale);
+  const pracMany = sendNames.length > 1;
+  const stopFirst = joinFirstNames(stopNames, locale);
+  const stopMany = stopNames.length > 1;
+  const sendLabel = pracFirst ? fmt(tr.sendToNamed, { name: pracFirst }) : tr.sendToPractitioner;
   const [sharing, setSharing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   // Which media item is open full screen, or null. The index is into
@@ -101,8 +144,8 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
     const ok = await confirm({
       title: next ? tr.shareTitle : tr.stopShareTitle,
       message: next
-        ? (pracFirst ? fmt(tr.shareBodyNamed, { name: pracFirst }) : tr.shareBody)
-        : (pracFirst ? fmt(tr.stopShareBodyNamed, { name: pracFirst }) : tr.stopShareBody),
+        ? (pracFirst ? fmt(pracMany ? tr.shareBodyNamedMany : tr.shareBodyNamed, { name: pracFirst }) : tr.shareBody)
+        : (stopFirst ? fmt(stopMany ? tr.stopShareBodyNamedMany : tr.stopShareBodyNamed, { name: stopFirst }) : tr.stopShareBody),
       confirmLabel: next ? tr.share : tr.stopSharing,
       cancelLabel: t.common.cancel,
     });
@@ -116,11 +159,13 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
     setShared(next); // optimistic
     try {
       const confirmed = await shareMoment(moment.id, next);
-      setShared(confirmed);
-      onChanged({ id: moment.id, shared: confirmed });
-    } catch {
+      setShared(confirmed.shared);
+      setReaders(confirmed.sharedWith);
+      setReaderIds(confirmed.sharedWithIds);
+      onChanged({ id: moment.id, shared: confirmed.shared, sharedWith: confirmed.sharedWith, sharedWithIds: confirmed.sharedWithIds });
+    } catch (e) {
       setShared(!next); // revert
-      notify(tr.updateSharingError);
+      notify(e instanceof ShareRefused ? tr.noPractitioner : tr.updateSharingError);
     } finally {
       setSharing(false);
     }
@@ -143,7 +188,9 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
   };
 
   const when = new Date(moment.capturedAt);
-  const timeLabel = `${when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · ${when.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+  // In the app's language, not the phone's: a French app on an English phone
+  // showed "10:30 PM · Sep 13".
+  const timeLabel = `${when.toLocaleTimeString(locale === 'fr' ? 'fr-FR' : 'en-GB', { hour: '2-digit', minute: '2-digit' })} · ${when.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { month: 'short', day: 'numeric' })}`;
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
@@ -182,8 +229,10 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
               {/* Time */}
               <Kicker color={TT.faint} size={10.5}>{timeLabel}</Kicker>
 
-              {/* Share to practitioner */}
-              <TouchableOpacity
+              {/* Share to practitioner. Not offered with nobody to share with — it
+                  used to say "Shared" and reach no one, until a practitioner
+                  linked later inherited it. Stopping a share stays possible. */}
+              {(hasPractitioner || shared) && <TouchableOpacity
                 onPress={confirmToggleShare}
                 disabled={sharing}
                 activeOpacity={0.85}
@@ -205,7 +254,14 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
                     <Text style={{ fontSize: 14, fontWeight: '600', color: TT.onAccent }}>{sendLabel}</Text>
                   </>
                 )}
-              </TouchableOpacity>
+              </TouchableOpacity>}
+              {/* Said under the button: whether someone other than the selected
+                  practitioner can read it. The button is about the selected one. */}
+              {others ? (
+                <Text style={{ fontSize: 12.5, color: TT.faint, textAlign: 'center', marginTop: 8 }}>
+                  {shared ? fmt(tr.alsoWith, { names: others }) : fmt(tr.sharedElsewhere, { names: others, name: pracFirst || '' })}
+                </Text>
+              ) : null}
 
               {/* Delete */}
               <TouchableOpacity

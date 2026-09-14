@@ -7,6 +7,7 @@ import { EditorialBg, Scrim, RiseIn, MonoKicker, Pill } from '@/src/onboarding/e
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useAuth } from '@/src/auth/auth-context';
 import { useI18n } from '@/src/i18n';
+import { signInMessage } from '@/src/auth/sign-in-message';
 
 /**
  * The target of the emailed sign-in link. One route, two jobs:
@@ -55,9 +56,9 @@ export default function AuthLink() {
       router.replace('/');
       return;
     }
-    setReason(r.message ?? null);
+    setReason(r.ok ? null : signInMessage(r, t, t.signUp.appleFailed));
     setState('failed');
-  }, [raw, signInWithLink]);
+  }, [raw, signInWithLink, t]);
 
   useEffect(() => {
     // A failed return says WHY. Without this the screen reached for "this

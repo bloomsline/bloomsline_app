@@ -20,6 +20,9 @@ export interface CareSession {
  * must render as a sparser screen, never as invented detail.
  */
 export interface CarePractitioner {
+  /** Whose profile this is. Lets a cache check the payload is about the
+   *  practitioner selected now. Absent from older servers. */
+  practitionerId?: string;
   name: string | null;
   headline: string | null;
   bio: string | null;
@@ -107,6 +110,12 @@ export interface TodoItem {
   /** Their practitioner has written back on this one. Optional: a build talking
    *  to a server that predates it simply shows no badge. */
   hasReply?: boolean;
+  /** Answers are kept as a draft and not yet sent. Optional: without it a
+   *  started worksheet reads as not started, as it always has. */
+  hasDraft?: boolean;
+  /** The practitioner handed a sent response back to be changed. Optional,
+   *  like `hasDraft`. */
+  reopened?: boolean;
 }
 
 /** Resources the practitioner assigned to the patient. null on failure; [] when
@@ -154,11 +163,19 @@ export async function fetchDocuments(): Promise<CareDocument[] | null> {
 
 export interface SharedItem {
   id: string;
+  /** Which endpoint stops sharing it. Older servers list moments only and do
+   *  not send it, so absent means a moment. */
+  kind?: 'moment' | 'journal';
+  /** A journal page's title, when it has one. */
+  title?: string | null;
   text: string | null;
   moods: string[];
   when: string;
+  /** Who can read it now, by name. Older servers do not send it. */
+  sharedWith?: string[];
 }
 
+/** What the SELECTED practitioner can read: moments and journal pages. */
 export async function fetchSharing(): Promise<SharedItem[] | null> {
   try {
     const res = await apiFetch('/api/mobile/care/sharing');

@@ -40,6 +40,11 @@ export default function AppLayout() {
   //
   // Runs ONCE per app start and only on the three tab routes, so navigating to
   // Moments afterwards stays on Moments.
+  // A different account is a different app start, as far as its home tab goes.
+  useEffect(() => {
+    if (status === 'anon' || status === 'loading') entryDecided = false;
+  }, [status]);
+
   useEffect(() => {
     if (entryDecided || status !== 'authed' || !ready) return;
     entryDecided = true;

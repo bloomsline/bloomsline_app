@@ -94,8 +94,13 @@ export function AppPrefsProvider({ children }: { children: React.ReactNode }) {
   // on the wrong tab; with an unbounded wait it would not open at all when the
   // server is unreachable, so the gate releases on its own after this and takes
   // the default.
+  //
+  // Only while someone is signed in. It also ran on the sign-in screen, where
+  // two and a half seconds always pass, so `ready` was already true when the
+  // account signed in and the app opened on the default tab before that
+  // account's own choice had arrived.
   useEffect(() => {
-    if (ready) return;
+    if (ready || status === 'anon' || status === 'loading') return;
     const giveUp = setTimeout(() => setReady(true), 2500);
     return () => clearTimeout(giveUp);
   }, [ready, status]);
@@ -105,7 +110,9 @@ export function AppPrefsProvider({ children }: { children: React.ReactNode }) {
   // next person to sign in on the same phone inherits the last one's home tab
   // and their dismissed explainers, which is what was reported.
   useEffect(() => {
-    if (status !== 'anon') return;
+    // `loading` too: a sign-in while someone else was signed in passes through
+    // it, and nothing of the previous account's may answer for the next.
+    if (status !== 'anon' && status !== 'loading') return;
     fromServer.current = false;
     setLandingState('care');
     setSeen(null);

@@ -3,6 +3,8 @@ import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-nativ
 import { Bold, Italic, List, Minus, Quote, Tag as TagIcon, X } from 'lucide-react-native';
 import type { NoteRange } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
+import { useI18n } from '@/src/i18n';
+import { RichText } from '@/src/resources/blocks';
 
 // The note editor, as close to the care app's as a phone allows.
 //
@@ -18,11 +20,31 @@ import { useTheme } from '@/src/ui/theme-mode';
 // so the same text can never carry two contradictory tags.
 export interface EditorTag { slug: string; label: string }
 
+const NOTE_COPY = {
+  en: {
+    minimize: 'Minimize', close: 'Close', discard: 'Discard draft', bold: 'Bold', italic: 'Italic', bullet: 'Bullet list',
+    quote: 'Quote', tag: 'Tag', templates: 'Templates', tagHeading: 'TAG THE SELECTED TEXT', removeTag: 'Remove tag',
+    body: 'Write a note for this session…', save: 'Save note',
+    hint: 'Select a sentence to tag, quote or format it.',
+    simplified: 'This note was formatted on the web. Headings, numbered lists and links show here as plain text, and saving a change keeps them that way.',
+    appendNotice: 'This note was formatted on the web, so here you add to it. What you write goes after the note, which stays as it is. Edit the whole note on the web.',
+    appendBody: 'Add to this note…', appendSave: 'Add to note', theNote: 'THE NOTE SO FAR',
+  },
+  fr: {
+    minimize: 'Réduire', close: 'Fermer', discard: 'Supprimer le brouillon', bold: 'Gras', italic: 'Italique', bullet: 'Liste à puces',
+    quote: 'Citation', tag: 'Étiquette', templates: 'Modèles', tagHeading: 'ÉTIQUETER LE TEXTE SÉLECTIONNÉ', removeTag: 'Retirer l’étiquette',
+    body: 'Rédigez une note pour cette séance…', save: 'Enregistrer la note',
+    hint: 'Sélectionnez une phrase pour l’étiqueter, la citer ou la mettre en forme.',
+    simplified: 'Cette note a été mise en forme sur le web. Les titres, listes numérotées et liens apparaissent ici en texte simple, et enregistrer une modification les garde ainsi.',
+    appendNotice: 'Cette note a été mise en forme sur le web : ici, vous la complétez. Ce que vous écrivez s’ajoute après la note, qui reste telle quelle. Modifiez la note entière sur le web.',
+    appendBody: 'Compléter cette note…', appendSave: 'Ajouter à la note', theNote: 'LA NOTE JUSQU’ICI',
+  },
+} as const;
+
 export function NoteEditor({
-  title, text, ranges, noteType, noteTypes, tags, templates, saving, error,
-  onTitle, onText, onRanges, onNoteType, onSave, onMinimize, onCancel, onDiscard, statusLine, header,
+  text, ranges, noteType, noteTypes, tags, templates, saving, error, simplified, appendToHtml,
+  onText, onRanges, onNoteType, onSave, onMinimize, onCancel, onDiscard, statusLine, header,
 }: {
-  title: string;
   text: string;
   ranges: NoteRange[];
   noteType: string;
@@ -31,7 +53,11 @@ export function NoteEditor({
   templates: { id: string; label: string; body: string }[];
   saving: boolean;
   error: string;
-  onTitle: (v: string) => void;
+  /** The note carries formatting only the web can write. */
+  simplified?: boolean;
+  /** Adding to a web-formatted note: the note as stored, shown above the field,
+   *  which then holds only what is added. */
+  appendToHtml?: string;
   onText: (v: string) => void;
   onRanges: (r: NoteRange[]) => void;
   onNoteType: (v: string) => void;
@@ -46,6 +72,8 @@ export function NoteEditor({
   header: string;
 }) {
   const { t: TT } = useTheme();
+  const { locale } = useI18n();
+  const c = NOTE_COPY[locale] ?? NOTE_COPY.en;
   const [sel, setSel] = useState({ start: 0, end: 0 });
   const [tagOpen, setTagOpen] = useState(false);
   const [tplOpen, setTplOpen] = useState(false);
@@ -89,7 +117,11 @@ export function NoteEditor({
   };
 
   const insertTemplate = (body: string) => {
-    const next = text.trim() ? `${text.trim()}\n\n${body}` : body;
+    // Trim the END only: trimming the front moved every character under the
+    // marks laid on them.
+    const kept = text.replace(/\s+$/, '');
+    const next = kept ? `${kept}\n\n${body}` : body;
+    onRanges(kept ? ranges.filter((r) => r.start < kept.length).map((r) => ({ ...r, end: Math.min(r.end, kept.length) })) : []);
     onText(next);
     setTplOpen(false);
   };
@@ -104,10 +136,10 @@ export function NoteEditor({
           <Text style={{ fontSize: 18, fontWeight: '800', color: TT.ink }}>{header}</Text>
           {statusLine ? <Text style={{ fontSize: 11.5, color: TT.faint, marginTop: 2 }}>{statusLine}</Text> : null}
         </View>
-        <Pressable onPress={onMinimize} hitSlop={10} accessibilityLabel="Minimize">
+        <Pressable onPress={onMinimize} hitSlop={10} accessibilityLabel={c.minimize}>
           <Minus size={20} color={TT.inkSoft} />
         </Pressable>
-        <Pressable onPress={onCancel} hitSlop={10} accessibilityLabel="Close">
+        <Pressable onPress={onCancel} hitSlop={10} accessibilityLabel={c.close}>
           <X size={20} color={TT.inkSoft} />
         </Pressable>
       </View>
@@ -116,23 +148,41 @@ export function NoteEditor({
           Close control on purpose. */}
       {onDiscard ? (
         <Pressable onPress={onDiscard} hitSlop={8} style={{ alignSelf: 'flex-start', paddingBottom: 10 }}>
-          <Text style={{ fontSize: 12.5, fontWeight: '600', color: TT.faint }}>Discard draft</Text>
+          <Text style={{ fontSize: 12.5, fontWeight: '600', color: TT.faint }}>{c.discard}</Text>
         </Pressable>
+      ) : null}
+
+      {/* Said before the note is changed, not discovered on the web afterwards.
+          Saved unchanged, the server keeps the note's formatting as it was. */}
+      {appendToHtml !== undefined ? (
+        <>
+          <View style={{ backgroundColor: TT.accentTint, borderRadius: 12, padding: 12, marginBottom: 12 }}>
+            <Text style={{ fontSize: 12.5, lineHeight: 18, color: TT.accentDeep }}>{c.appendNotice}</Text>
+          </View>
+          <Text style={{ fontSize: 11.5, fontWeight: '700', color: TT.faint, marginBottom: 6 }}>{c.theNote}</Text>
+          <View style={{ borderWidth: 1, borderColor: TT.line, borderRadius: 16, backgroundColor: TT.card, paddingHorizontal: 14, paddingTop: 12, marginBottom: 14 }}>
+            <RichText html={appendToHtml} />
+          </View>
+        </>
+      ) : simplified ? (
+        <View style={{ backgroundColor: TT.accentTint, borderRadius: 12, padding: 12, marginBottom: 10 }}>
+          <Text style={{ fontSize: 12.5, lineHeight: 18, color: TT.accentDeep }}>{c.simplified}</Text>
+        </View>
       ) : null}
 
       {/* Toolbar. Formatting acts on the SELECTION, so it is disabled without
           one rather than silently doing nothing. */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: TT.line, backgroundColor: TT.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingHorizontal: 10, paddingVertical: 8 }}>
-        <ToolButton Icon={Bold} on={marked('bold')} disabled={!hasSelection} onPress={() => (marked('bold') ? clearMark('bold') : applyMark('bold'))} label="Bold" />
-        <ToolButton Icon={Italic} on={marked('italic')} disabled={!hasSelection} onPress={() => (marked('italic') ? clearMark('italic') : applyMark('italic'))} label="Italic" />
+        <ToolButton Icon={Bold} on={marked('bold')} disabled={!hasSelection} onPress={() => (marked('bold') ? clearMark('bold') : applyMark('bold'))} label={c.bold} />
+        <ToolButton Icon={Italic} on={marked('italic')} disabled={!hasSelection} onPress={() => (marked('italic') ? clearMark('italic') : applyMark('italic'))} label={c.italic} />
         <View style={{ width: 1, height: 20, backgroundColor: TT.line, marginHorizontal: 2 }} />
-        <ToolButton Icon={List} on={false} disabled={false} onPress={bulletLine} label="Bullet list" />
-        <ToolButton Icon={Quote} on={marked('quote')} disabled={!hasSelection} onPress={() => (marked('quote') ? clearMark('quote') : applyMark('quote'))} label="Quote" />
-        <ToolButton Icon={TagIcon} on={tagOpen} disabled={!hasSelection} onPress={() => setTagOpen((v) => !v)} label="Tag" />
+        <ToolButton Icon={List} on={false} disabled={false} onPress={bulletLine} label={c.bullet} />
+        <ToolButton Icon={Quote} on={marked('quote')} disabled={!hasSelection} onPress={() => (marked('quote') ? clearMark('quote') : applyMark('quote'))} label={c.quote} />
+        <ToolButton Icon={TagIcon} on={tagOpen} disabled={!hasSelection} onPress={() => setTagOpen((v) => !v)} label={c.tag} />
         <View style={{ flex: 1 }} />
         {templates.length > 0 && (
           <Pressable onPress={() => setTplOpen((v) => !v)} hitSlop={8}>
-            <Text style={{ fontSize: 12.5, fontWeight: '700', color: TT.accent }}>Templates</Text>
+            <Text style={{ fontSize: 12.5, fontWeight: '700', color: TT.accent }}>{c.templates}</Text>
           </Pressable>
         )}
       </View>
@@ -149,7 +199,7 @@ export function NoteEditor({
 
       {tagOpen && (
         <View style={{ borderWidth: 1, borderTopWidth: 0, borderColor: TT.line, backgroundColor: TT.card, paddingHorizontal: 10, paddingVertical: 10 }}>
-          <Text style={{ fontSize: 11.5, fontWeight: '700', color: TT.faint, marginBottom: 8 }}>TAG THE SELECTED TEXT</Text>
+          <Text style={{ fontSize: 11.5, fontWeight: '700', color: TT.faint, marginBottom: 8 }}>{c.tagHeading}</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {tags.map((t) => (
               <Pressable key={t.slug} onPress={() => applyMark('tag', t.slug)} style={{ borderRadius: 14, paddingHorizontal: 11, paddingVertical: 7, backgroundColor: TT.accentTint, borderWidth: 1, borderColor: TT.accent }}>
@@ -158,34 +208,29 @@ export function NoteEditor({
             ))}
             {marked('tag') && (
               <Pressable onPress={() => clearMark('tag')} style={{ borderRadius: 14, paddingHorizontal: 11, paddingVertical: 7, borderWidth: 1, borderColor: TT.line }}>
-                <Text style={{ fontSize: 12.5, fontWeight: '700', color: TT.inkSoft }}>Remove tag</Text>
+                <Text style={{ fontSize: 12.5, fontWeight: '700', color: TT.inkSoft }}>{c.removeTag}</Text>
               </Pressable>
             )}
           </View>
         </View>
       )}
 
-      <View style={{ borderWidth: 1, borderTopWidth: 0, borderColor: TT.line, backgroundColor: TT.card, paddingHorizontal: 14, paddingVertical: 12 }}>
-        <TextInput
-          value={title}
-          onChangeText={onTitle}
-          placeholder="Title (optional)"
-          placeholderTextColor={TT.faint}
-          style={{ fontSize: 15.5, fontWeight: '700', color: TT.ink }}
-        />
-      </View>
+      {/* No title field. A session note has none on the web, and a title typed
+          here reopened as a bold first line with the field empty. */}
 
       <View style={{ borderWidth: 1, borderTopWidth: 0, borderColor: TT.line, backgroundColor: TT.card, borderBottomLeftRadius: 16, borderBottomRightRadius: 16, paddingHorizontal: 14, paddingVertical: 12 }}>
         <TextInput
           value={text}
           onChangeText={(v) => {
-            // Marks index into the text, so a shorter text must not leave marks
-            // pointing past the end.
-            if (v.length < text.length) onRanges(ranges.filter((r) => r.end <= v.length));
+            // Marks index into the text, so they move with every edit. They used
+            // to stay on the same character positions: type "Today " before a
+            // tagged phrase and the tag slid onto "Today felt aban".
+            const moved = shiftRanges(text, v, ranges);
+            if (moved !== ranges) onRanges(moved);
             onText(v);
           }}
           onSelectionChange={(e) => setSel(e.nativeEvent.selection)}
-          placeholder="Write a note for this session…"
+          placeholder={appendToHtml !== undefined ? c.appendBody : c.body}
           placeholderTextColor={TT.faint}
           multiline
           textAlignVertical="top"
@@ -194,24 +239,12 @@ export function NoteEditor({
       </View>
 
       {!hasSelection && (
-        <Text style={{ fontSize: 12, color: TT.faint, marginTop: 8 }}>
-          Select a sentence to tag, quote or format it.
-        </Text>
+        <Text style={{ fontSize: 12, color: TT.faint, marginTop: 8 }}>{c.hint}</Text>
       )}
 
-      {noteTypes.length > 1 && (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
-          {noteTypes.map((t) => (
-            <Pressable
-              key={t}
-              onPress={() => onNoteType(t)}
-              style={{ borderRadius: 14, paddingHorizontal: 11, paddingVertical: 7, backgroundColor: t === noteType ? TT.accentTint : TT.card, borderWidth: 1.5, borderColor: t === noteType ? TT.accent : TT.line }}
-            >
-              <Text style={{ fontSize: 12.5, fontWeight: '700', color: t === noteType ? TT.accentDeep : TT.inkSoft, textTransform: 'capitalize' }}>{t.replace(/_/g, ' ')}</Text>
-            </Pressable>
-          ))}
-        </View>
-      )}
+      {/* No note-type chips. A phone note is always the session's note — the
+          server saves it as the session summary whatever type is picked — so the
+          chips were a choice that changed nothing, labelled with raw slugs. */}
 
       {/* The footer's tag summary, as the care modal has bottom-left. */}
       {usedTags.length > 0 && (
@@ -227,14 +260,14 @@ export function NoteEditor({
 
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 22 }}>
         <Pressable onPress={onCancel} style={{ flex: 1, height: 50, borderRadius: 25, borderWidth: 1.5, borderColor: TT.line, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 15, fontWeight: '600', color: TT.inkSoft }}>Close</Text>
+          <Text style={{ fontSize: 15, fontWeight: '600', color: TT.inkSoft }}>{c.close}</Text>
         </Pressable>
         <Pressable
           onPress={onSave}
           disabled={saving || !text.trim()}
           style={{ flex: 1.4, height: 50, borderRadius: 25, backgroundColor: TT.accent, alignItems: 'center', justifyContent: 'center', opacity: saving || !text.trim() ? 0.45 : 1 }}
         >
-          {saving ? <ActivityIndicator color={TT.onAccent} size="small" /> : <Text style={{ fontSize: 15, fontWeight: '700', color: TT.onAccent }}>Save note</Text>}
+          {saving ? <ActivityIndicator color={TT.onAccent} size="small" /> : <Text style={{ fontSize: 15, fontWeight: '700', color: TT.onAccent }}>{appendToHtml !== undefined ? c.appendSave : c.save}</Text>}
         </Pressable>
       </View>
       {error ? <Text style={{ fontSize: 13.5, color: TT.danger, marginTop: 12 }}>{error}</Text> : null}
@@ -254,4 +287,37 @@ function ToolButton({ Icon, on, disabled, onPress, label }: { Icon: typeof Bold;
       <Icon size={16} color={on ? TT.accent : TT.ink} strokeWidth={2} />
     </Pressable>
   );
+}
+
+/**
+ * Move marks to follow an edit. The edit is found as the span between the text's
+ * unchanged beginning and unchanged end; marks after it shift by the change in
+ * length, marks it cuts into are clipped to it, and marks that end up empty go.
+ * Typing inside a marked phrase grows the mark; typing right after one does not.
+ * Returns the same array when nothing moved.
+ */
+export function shiftRanges(prev: string, next: string, ranges: NoteRange[]): NoteRange[] {
+  if (prev === next || ranges.length === 0) return ranges;
+  let start = 0;
+  while (start < prev.length && start < next.length && prev[start] === next[start]) start++;
+  let endPrev = prev.length;
+  let endNext = next.length;
+  while (endPrev > start && endNext > start && prev[endPrev - 1] === next[endNext - 1]) { endPrev--; endNext--; }
+  const delta = endNext - endPrev;
+  let changed = false;
+  const out: NoteRange[] = [];
+  for (const r of ranges) {
+    let s2 = r.start;
+    let e2 = r.end;
+    if (r.end <= start) { /* entirely before the edit */ }
+    else if (r.start >= endPrev) { s2 += delta; e2 += delta; }
+    else {
+      if (r.start > start) s2 = endNext;
+      e2 = r.end >= endPrev ? r.end + delta : endNext;
+    }
+    if (s2 !== r.start || e2 !== r.end) changed = true;
+    if (e2 > s2) out.push(s2 === r.start && e2 === r.end ? r : { ...r, start: s2, end: e2 });
+    else changed = true;
+  }
+  return changed ? out : ranges;
 }

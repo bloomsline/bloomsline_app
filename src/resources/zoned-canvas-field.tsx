@@ -12,7 +12,7 @@
 // A phone renders the canvas at roughly 0.42x, so it needs a bigger font in
 // canvas units than the care app and settles on a shorter text budget for the
 // same answer — which is fine, because an answer stores no coordinates.
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, Ellipse, G, Polygon, Rect, Text as SvgText } from 'react-native-svg';
 import { Plus, X } from 'lucide-react-native';
@@ -54,6 +54,19 @@ const drawOrder = (zones: CanvasZone[]): CanvasZone[] =>
 /** The one size the zone labels are wrapped AND drawn at. */
 const LABEL_SIZE = 17;
 
+/**
+ * Text typed into a zone's field but not yet added, for every zone on screen.
+ *
+ * Submitting used to ignore it: a patient wrote "my reactions", tapped Submit
+ * without tapping Add, and the answer went without it — or a required canvas
+ * was refused as empty with their words still sitting in the box. The screen
+ * calls this before it reads the answers.
+ */
+const pendingDrafts = new Set<() => void>();
+export function flushCanvasDrafts(): void {
+  for (const flush of [...pendingDrafts]) flush();
+}
+
 export function ZonedCanvasField({
   zones,
   canvas,
@@ -75,6 +88,10 @@ export function ZonedCanvasField({
   // comment on the <Svg> below.
   const [boxWidth, setBoxWidth] = useState(0);
   const answer = useMemo(() => asAnswer(value), [value]);
+  // Several zones can be flushed in one go; each must build on the last one's
+  // result rather than on the answer this render started from.
+  const answerRef = useRef(answer);
+  answerRef.current = answer;
   // A chip is a number, so the text has to live somewhere reachable. Tapping one
   // (on the canvas or in the legend) opens it — the only way to read a long
   // entry without laying it inside a shape it does not fit in.
@@ -108,9 +125,10 @@ export function ZonedCanvasField({
   }
 
   const setZone = (zoneId: string, entries: CanvasEntry[]) => {
-    const next: CanvasAnswer = { ...answer };
+    const next: CanvasAnswer = { ...answerRef.current };
     if (entries.length) next[zoneId] = entries;
     else delete next[zoneId];
+    answerRef.current = next;
     onChange(Object.keys(next).length ? next : undefined);
   };
 
@@ -279,11 +297,21 @@ function ZonePanel({
   const others = zones.filter((z) => z.id !== zone.id);
 
   const add = () => {
-    const text = draft.trim();
+    const text = draftRef.current.trim();
     if (!text) return;
     onSet([...entries, { id: `${zone.id}-${Date.now().toString(36)}`, text, createdAt: new Date().toISOString() }]);
+    draftRef.current = '';
     setDraft('');
   };
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const addRef = useRef(add);
+  addRef.current = add;
+  useEffect(() => {
+    const flush = () => addRef.current();
+    pendingDrafts.add(flush);
+    return () => { pendingDrafts.delete(flush); };
+  }, []);
 
   return (
     <View style={{ borderWidth: 1, borderColor: C.border, borderRadius: 14, backgroundColor: C.card, padding: 12, gap: 10 }}>

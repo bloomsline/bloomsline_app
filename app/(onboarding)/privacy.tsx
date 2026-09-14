@@ -10,6 +10,7 @@ import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useOnboarding } from '@/src/onboarding/context';
 import { useI18n } from '@/src/i18n';
 import { saveProfile } from '@/src/api/me';
+import { notify } from '@/src/ui/alert';
 
 // e4b — The privacy promise, editorial theme. Imagery held behind a deep scrim,
 // promises as hairline-divided rows, an explicit consent checkbox above the pill.
@@ -26,10 +27,16 @@ export default function Privacy() {
     { icon: 'wave', title: T.p4Title, body: T.p4Body },
   ];
 
-  const next = () => {
-    if (!agreed) return;
+  // Consent is recorded before moving on. It was sent and forgotten, so a failed
+  // request left an account in use with no record that its terms were accepted.
+  const [saving, setSaving] = useState(false);
+  const next = async () => {
+    if (!agreed || saving) return;
+    setSaving(true);
+    const ok = await saveProfile({ agreedToTerms: true });
+    setSaving(false);
+    if (!ok) { notify(T.saveFailed); return; }
     update({ agreedToTerms: true });
-    saveProfile({ agreedToTerms: true });
     router.push('/(onboarding)/ready');
   };
 

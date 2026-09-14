@@ -10,10 +10,13 @@
 import { useCallback, useState } from 'react';
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { ArrowLeftRight } from 'lucide-react-native';
 import { EdHeader, EdCard, EdSection, EdPill, FadeIn, Kicker } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useOnboarding } from '@/src/onboarding/context';
 import { fetchCare, type CarePractitioner } from '@/src/api/care';
+import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
+import { usePractitionerSwitcher } from '@/src/care/PractitionerSwitcher';
 import { useI18n, fmt } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
 
@@ -47,7 +50,17 @@ export default function Practitioner() {
   const [p, setP] = useState<CarePractitioner | null>(null);
   const [canBook, setCanBook] = useState(true);
   const [loaded, setLoaded] = useState(false);
+  const { selectionKey } = useSelectedPractitioner();
+  const switcher = usePractitionerSwitcher();
 
+  // On focus, and again on a switch: the header's switch button changes whose
+  // profile this is without leaving the screen. The old profile is dropped at
+  // once, so the new name never sits over the previous practitioner's bio.
+  const [shownFor, setShownFor] = useState(selectionKey);
+  if (shownFor !== selectionKey) {
+    setShownFor(selectionKey);
+    setP(null);
+  }
   useFocusEffect(
     useCallback(() => {
       let alive = true;
@@ -62,7 +75,8 @@ export default function Practitioner() {
       return () => {
         alive = false;
       };
-    }, [locale]),
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- selectionKey: refetch for the new practitioner
+    }, [locale, selectionKey]),
   );
 
   // Fall back to the name we already knew rather than showing nothing while the
@@ -111,6 +125,9 @@ export default function Practitioner() {
           subtitle={headline ?? undefined}
           onBack={() => router.back()}
           source={p?.photoUrl ? { uri: p.photoUrl } : ONBOARDING_IMAGES.card3}
+          rightIcon={switcher.canSwitch ? ArrowLeftRight : undefined}
+          onRight={switcher.canSwitch ? switcher.open : undefined}
+          rightLabel={t.care.switchPractitionerA11y}
         />
 
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
@@ -245,6 +262,7 @@ export default function Practitioner() {
           )}
         </FadeIn>
       </ScrollView>
+      {switcher.element}
     </View>
   );
 }

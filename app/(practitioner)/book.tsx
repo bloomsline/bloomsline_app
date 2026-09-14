@@ -5,8 +5,10 @@ import { EdHeader, EdCard, EdPill, EdSection, FadeIn } from '@/src/ui/editorial'
 import { MonthCalendar } from '@/src/ui/MonthCalendar';
 import { notify } from '@/src/ui/alert';
 import { useI18n } from '@/src/i18n';
+import { patientLabel } from '@/src/practitioner/pending-label';
 import { fetchPatients, fetchBookingOptions, rescheduleSession, type PatientListItem, type SessionTypeOption, type NextAvailableDay } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
+import { localizeServerMessage } from '@/src/api/server-messages';
 
 // Book a session: who, what kind, which day, which slot.
 //
@@ -41,7 +43,7 @@ const fill = (s: string, vars: Record<string, string>) => s.replace(/\{(\w+)\}/g
 export default function Book() {
   const { t: TT } = useTheme();
   const router = useRouter();
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const tr = T[locale] ?? T.en;
 
   // Three ways in, one screen:
@@ -104,6 +106,7 @@ export default function Book() {
     setPicked(null);
     void fetchBookingOptions({ date, duration, format }).then((res) => {
       if (!alive) return;
+      if (res?.timezone) setTz(res.timezone);
       setSlots(res?.slots ?? []);
       setSlotsLoading(false);
     });
@@ -122,7 +125,18 @@ export default function Book() {
     return () => { alive = false; };
   }, [type]);
 
-  const time = (iso: string) => new Date(iso).toLocaleTimeString(locale === 'fr' ? 'fr-FR' : 'en-GB', { hour: '2-digit', minute: '2-digit' });
+  // Times in the PRACTICE's timezone, the one the calendar is drawn in. They were
+  // shown in the phone's, so a practitioner travelling (or on a laptop set to
+  // another zone) tapped 10:00, was offered "09:00", and booked it.
+  const [tz, setTz] = useState<string | undefined>(undefined);
+  const zone = tz ? { timeZone: tz } : {};
+  const time = (iso: string) => new Date(iso).toLocaleTimeString(locale === 'fr' ? 'fr-FR' : 'en-GB', { hour: '2-digit', minute: '2-digit', ...zone });
+  /** Minutes past midnight of an instant, on the practice's clock. */
+  const minutesOf = (iso: string) => {
+    const parts = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', ...zone }).formatToParts(new Date(iso));
+    const get = (t: string) => Number(parts.find((x) => x.type === t)?.value ?? 0);
+    return get('hour') * 60 + get('minute');
+  };
 
   // Picking a time does NOT book it. It goes to a confirmation, the same shape
   // as the patient's flow — booking is the one action here that reaches into
@@ -133,7 +147,7 @@ export default function Book() {
       pathname: '/(practitioner)/book-confirm',
       params: {
         memberId: patient.id, name: patient.name, sessionTypeId: type.id, label: type.label,
-        scheduledAt: slot, format: type.defaultFormat, duration: String(type.durationMinutes),
+        scheduledAt: slot, format: type.defaultFormat, duration: String(type.durationMinutes), ...(tz ? { tz } : {}),
       },
     } as never);
   };
@@ -147,7 +161,7 @@ export default function Book() {
     setMoving(true);
     void rescheduleSession(moveId, { scheduledAt: slot, durationMinutes: moveDuration }).then((res) => {
       setMoving(false);
-      if (!res.ok) { notify(tr.moveTitle, res.error ?? 'Could not move the session.'); return; }
+      if (!res.ok) { notify(tr.moveTitle, localizeServerMessage(res.error, locale) ?? t.common.somethingWrong); return; }
       notify(tr.moveTitle, tr.moved);
       back();
     });
@@ -168,8 +182,7 @@ export default function Book() {
     let best: string | null = null;
     let bestGap = Infinity;
     for (const s of slots) {
-      const d = new Date(s);
-      const gap = Math.abs(d.getHours() * 60 + d.getMinutes() - want);
+      const gap = Math.abs(minutesOf(s) - want);
       if (gap < bestGap) { bestGap = gap; best = s; }
     }
     return best;
@@ -188,8 +201,8 @@ export default function Book() {
   // information, and silently moving them is not.
   const exact = (() => {
     if (!fromTap || !chosen || typeof params.initialTime !== 'string') return true;
-    const d = new Date(chosen);
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` === params.initialTime;
+    const mins = minutesOf(chosen);
+    return `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}` === params.initialTime;
   })();
 
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/(practitioner)/home' as never));
@@ -217,7 +230,7 @@ export default function Book() {
               {patients.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.noPatients}</Text>}
               {patients.map((p) => (
                 <EdCard key={p.id} onPress={() => setPatient(p)} style={{ marginBottom: 10 }}>
-                  <Text style={{ fontSize: 15, fontWeight: '600', color: TT.ink }}>{p.name}</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: TT.ink }}>{patientLabel(p, locale)}</Text>
                 </EdCard>
               ))}
             </>

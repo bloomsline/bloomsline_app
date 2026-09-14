@@ -35,9 +35,11 @@ import { EdHeader, EdPill, FadeIn, Kicker } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useOnboarding } from '@/src/onboarding/context';
 import { FORCE_CARE_HUB } from '@/src/config';
-import { fetchSlots, type SlotDay, type BookingSlots } from '@/src/api/booking';
+import { fetchSlots, type SlotDay, type BookingSlots, type SlotsRefusal } from '@/src/api/booking';
+import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
 import { useI18n, type Locale } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
+import { LoadFailed } from '@/src/ui/LoadFailed';
 
 /** Which section the patient has deliberately reopened to change their mind. */
 type Editing = 'type' | 'format' | null;
@@ -64,6 +66,22 @@ function demo(): BookingSlots {
   };
 }
 
+/**
+ * The ways a session type can actually be booked: the practice's formats that
+ * the type allows. Mirrors the server's `formatsForType`, including its fallback
+ * to every offered format when the type names none of them.
+ *
+ * The screen used to list the practice's formats for every type, so a patient
+ * could choose "In person" for a video-only type; the server then booked video
+ * without saying so, under a confirmation that read "In person".
+ */
+function formatsFor(data: BookingSlots, typeId: string | null): string[] {
+  const t = data.sessionTypes.find((x) => x.id === typeId);
+  if (!t?.formats?.length) return data.offeredFormats;
+  const allowed = data.offeredFormats.filter((f) => t.formats!.includes(f));
+  return allowed.length ? allowed : data.offeredFormats;
+}
+
 const FORMAT_ICON: Record<string, typeof Video> = {
   video: Video,
   phone: Phone,
@@ -77,6 +95,10 @@ const T = {
     yourPractitioner: 'your practitioner',
     unavailable: "Booking isn't available",
     unavailableBody: (n: string) => `Please check back later, or reach out to ${n}.`,
+    notAllowed: (n: string) => `${n} books your sessions`,
+    notAllowedBody: (n: string) => `Contact ${n} to arrange a session.`,
+    noPractitioner: 'No practitioner to book with',
+    noPractitionerBody: 'Booking opens once a practitioner has added you to their practice.',
     withName: (n: string) => `With ${n}`,
     min: 'min',
     noCharge: 'No charge',
@@ -98,6 +120,10 @@ const T = {
     yourPractitioner: 'votre praticien',
     unavailable: "La réservation n'est pas disponible",
     unavailableBody: (n: string) => `Revenez un peu plus tard, ou contactez ${n}.`,
+    notAllowed: (n: string) => `${n} réserve vos séances`,
+    notAllowedBody: (n: string) => `Contactez ${n} pour planifier une séance.`,
+    noPractitioner: 'Aucun praticien avec qui réserver',
+    noPractitionerBody: 'La réservation s’ouvre dès qu’un praticien vous a ajouté·e à son cabinet.',
     withName: (n: string) => `Avec ${n}`,
     min: 'min',
     noCharge: 'Gratuit',
@@ -116,7 +142,8 @@ const T = {
 } as const;
 
 function priceLabel(cents: number | null, currency: string, noChargeLabel: string): string {
-  if (cents == null) return noChargeLabel;
+  // Zero is free, and says so — not "€0".
+  if (cents == null || cents === 0) return noChargeLabel;
   const symbol = currency === 'EUR' ? '€' : currency === 'USD' ? '$' : currency === 'GBP' ? '£' : `${currency} `;
   const amount = cents % 100 === 0 ? String(cents / 100) : (cents / 100).toFixed(2);
   return `${symbol}${amount}`;
@@ -134,8 +161,10 @@ export default function Book() {
   const params = useLocalSearchParams<{ rescheduleId?: string; sessionTypeId?: string; format?: string; demo?: string }>();
   const rescheduleId = typeof params.rescheduleId === 'string' ? params.rescheduleId : '';
   const isReschedule = !!rescheduleId;
+  // Follows the practitioner selected in the app (see onboarding/context).
   const { practitionerName } = useOnboarding();
   const name = practitionerName ?? tr.yourPractitioner;
+  const { selectionKey } = useSelectedPractitioner();
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<BookingSlots | null>(null);
@@ -149,19 +178,33 @@ export default function Book() {
   const [openDay, setOpenDay] = useState<string>('');
   const [pick, setPick] = useState<string | null>(null);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  // Could not ask the server — distinct from "not available" and "no times",
+  // both of which are statements about the practitioner and were shown instead.
+  const [failed, setFailed] = useState(false);
+  // Why booking is closed, when the server said. Two refusals, two sentences:
+  // they used to share "Booking isn't available", which told a patient whose
+  // practitioner books for them to "check back later".
+  const [refusal, setRefusal] = useState<SlotsRefusal | null>(null);
+  const [slotsFailed, setSlotsFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   // First load: fetch the options (and, for reschedule, the initial slots).
   useEffect(() => {
     let alive = true;
-    fetchSlots({ sessionTypeId: params.sessionTypeId, format: params.format }).then((res) => {
+    fetchSlots({ sessionTypeId: params.sessionTypeId, format: params.format }).then((got) => {
       if (!alive) return;
+      const refused = got && 'unavailable' in got ? got.unavailable : null;
+      const res = refused ? null : (got as BookingSlots | null);
+      setRefusal(refused);
+      setFailed(got === null && !(FORCE_CARE_HUB || params.demo === '1'));
       if (res && res.sessionTypes.length > 0) {
         setData(res);
         if (isReschedule) {
           setTypeId(res.sessionType.id);
           setFormat(res.format);
-          setDays(res.days);
-          setOpenDay(res.days[0]?.date ?? '');
+          const local = byLocalDay(res.days);
+          setDays(local);
+          setOpenDay(local[0]?.date ?? '');
         }
       } else if (FORCE_CARE_HUB || params.demo === '1') {
         setIsDemo(true);
@@ -170,7 +213,7 @@ export default function Book() {
       setLoading(false);
     });
     return () => { alive = false; };
-  }, [params.sessionTypeId, params.format, params.demo, isReschedule]);
+  }, [params.sessionTypeId, params.format, params.demo, isReschedule, attempt]);
 
   // Opening booking starts from nothing.
   //
@@ -183,9 +226,18 @@ export default function Book() {
   // Reschedule is exempt: it is always entered fresh from a specific session,
   // and its type and format come from the fetch, not from the patient.
   const returningFromConfirm = useRef(false);
+  const typeIdRef = useRef<string | null>(null);
+  const formatRef = useRef<string | null>(null);
+  const loadSlotsRef = useRef<(t: string | null, f: string | null) => Promise<void>>(async () => {});
   useFocusEffect(
     useCallback(() => {
-      if (returningFromConfirm.current) { returningFromConfirm.current = false; return; }
+      if (returningFromConfirm.current) {
+        returningFromConfirm.current = false;
+        // Back from confirm, often because the time was just taken. Ask again,
+        // so the slot that failed is not still offered.
+        if (typeIdRef.current && formatRef.current) void loadSlotsRef.current(typeIdRef.current, formatRef.current);
+        return;
+      }
       if (isReschedule) return;
       setTypeId(params.sessionTypeId ?? null);
       setFormat(params.format ?? null);
@@ -200,12 +252,24 @@ export default function Book() {
   // Deliberately does NOT pre-pick a slot: choosing the time is the patient's
   // decision, and a pre-filled one makes the button look like it is waiting on
   // them to agree rather than to choose.
+  // Only the latest request may set the list: change type then format quickly and
+  // the slower, older answer used to land last and show another format's times.
+  const slotsSeq = useRef(0);
   const loadSlots = async (t: string | null, f: string | null) => {
     if (isDemo) { const d = demo(); setDays(d.days); setOpenDay(d.days[0].date); setPick(null); return; }
     setSlotsLoading(true);
-    const res = await fetchSlots({ sessionTypeId: t ?? undefined, format: f ?? undefined });
-    setDays(res?.days ?? []);
-    setOpenDay(res?.days[0]?.date ?? '');
+    const mine = ++slotsSeq.current;
+    const got = await fetchSlots({ sessionTypeId: t ?? undefined, format: f ?? undefined });
+    if (mine !== slotsSeq.current) return;
+    const res = got && 'unavailable' in got ? null : got;
+    setSlotsFailed(got === null);
+    // The slots are for the format the server resolved. If that is not the one
+    // asked for, the screen follows it rather than showing times for one format
+    // under the name of another.
+    if (res?.format && res.format !== f) setFormat(res.format);
+    const local = byLocalDay(res?.days ?? []);
+    setDays(local);
+    setOpenDay(local[0]?.date ?? '');
     setPick(null);
     setSlotsLoading(false);
   };
@@ -219,7 +283,7 @@ export default function Book() {
     setTypeId(id);
     setEditing(null);
     const t = data?.sessionTypes.find((x) => x.id === id);
-    const offered = data?.offeredFormats ?? [];
+    const offered = data ? formatsFor(data, id) : [];
     const preferred = t && offered.includes(t.defaultFormat) ? t.defaultFormat : offered[0] ?? null;
     setFormat(preferred);
     void loadSlots(id, preferred);
@@ -235,13 +299,50 @@ export default function Book() {
   // One screen, so back means back. No step to unwind first.
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/home' as never));
 
+  // The patient switched practitioner while this was open (the switch itself
+  // lives on other screens, but a return to the app can correct a choice that
+  // is no longer linked). Everything on this page belonged to the previous
+  // practitioner: their types, their formats, their times.
+  //
+  // A reschedule is about one of the previous practitioner's sessions, so it
+  // has nothing to show for the new one: leave. A new booking starts again,
+  // for the practitioner now selected.
+  const openedFor = useRef(selectionKey);
+  const backRef = useRef(back);
+  backRef.current = back;
+  useEffect(() => {
+    if (openedFor.current === selectionKey) return;
+    openedFor.current = selectionKey;
+    if (isReschedule) { backRef.current(); return; }
+    slotsSeq.current += 1; // an answer still in the air is for the old practitioner
+    setData(null);
+    setIsDemo(false);
+    setTypeId(params.sessionTypeId ?? null);
+    setFormat(params.format ?? null);
+    setEditing(null);
+    setDays([]);
+    setOpenDay('');
+    setPick(null);
+    setSlotsLoading(false);
+    setLoading(true);
+    setAttempt((a) => a + 1);
+  }, [selectionKey, isReschedule, params.sessionTypeId, params.format]);
+
+  typeIdRef.current = typeId;
+  formatRef.current = format;
+  loadSlotsRef.current = loadSlots;
+
   const goConfirm = () => {
     if (!pick || !typeId || !format || !data) return;
     const dur = data.sessionTypes.find((t) => t.id === typeId)?.durationMinutes ?? 50;
     returningFromConfirm.current = true;
     router.navigate({
       pathname: '/book-confirm',
-      params: { slotIso: pick, sessionTypeId: typeId, format, durationMinutes: String(dur), demo: isDemo ? '1' : '', rescheduleId },
+      params: {
+        slotIso: pick, sessionTypeId: typeId, format, durationMinutes: String(dur), demo: isDemo ? '1' : '', rescheduleId,
+        // The practitioner's real rules, for the confirm screen to state.
+        ...(data.policy ? { canChange: data.policy.allowPatientChange ? '1' : '0', noticeHours: String(data.policy.noticeHours), approval: data.policy.requireApproval ? '1' : '0' } : {}),
+      },
     } as never);
   };
 
@@ -256,14 +357,27 @@ export default function Book() {
     );
   }
 
+  if (!data && failed) {
+    return (
+      <View style={{ flex: 1, backgroundColor: TT.bg }}>
+        <EdHeader title={title} source={ONBOARDING_IMAGES.card4} onBack={back} />
+        <View style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
+          <LoadFailed onRetry={() => { setLoading(true); setAttempt((a) => a + 1); }} />
+        </View>
+      </View>
+    );
+  }
+
   if (!data) {
     return (
       <View style={{ flex: 1, backgroundColor: TT.bg }}>
         <EdHeader title={title} source={ONBOARDING_IMAGES.card4} onBack={back} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: TT.ink }}>{tr.unavailable}</Text>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: TT.ink, textAlign: 'center' }}>
+            {refusal === 'not_allowed' ? tr.notAllowed(name) : refusal === 'no_practitioner' ? tr.noPractitioner : tr.unavailable}
+          </Text>
           <Text style={{ fontSize: 13.5, color: TT.inkSoft, textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
-            {tr.unavailableBody(name)}
+            {refusal === 'not_allowed' ? tr.notAllowedBody(name) : refusal === 'no_practitioner' ? tr.noPractitionerBody : tr.unavailableBody(name)}
           </Text>
         </View>
       </View>
@@ -271,7 +385,8 @@ export default function Book() {
   }
 
   const chosenType = data.sessionTypes.find((t) => t.id === typeId) ?? null;
-  const manyFormats = data.offeredFormats.length > 1;
+  const typeFormats = formatsFor(data, typeId);
+  const manyFormats = typeFormats.length > 1;
 
   // A section is open while it has no answer, or while the patient has reopened
   // it. Reschedule's type and format are not the patient's to change.
@@ -316,7 +431,7 @@ export default function Book() {
           {!!typeId && manyFormats && !isReschedule && (
             <Section label={tr.sectionFormat}>
               {formatOpen ? (
-                data.offeredFormats.map((f) => (
+                typeFormats.map((f) => (
                   <Choice
                     key={f}
                     Icon={FORMAT_ICON[f] ?? Video}
@@ -343,6 +458,8 @@ export default function Book() {
             <Section label={tr.sectionTime}>
               {slotsLoading ? (
                 <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 44 }}><ActivityIndicator color={TT.accent} /></View>
+              ) : slotsFailed ? (
+                <LoadFailed compact onRetry={() => loadSlots(typeId, format)} />
               ) : days.length === 0 ? (
                 <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 34, paddingHorizontal: 10 }}>
                   <Text style={{ fontSize: 16, fontWeight: '700', color: TT.ink }}>{tr.noTimes}</Text>
@@ -463,6 +580,24 @@ function dayLabel(dateStr: string, locale: Locale): string {
   // long date has no comma either, which is why these are hand-built.
   const sep = locale === 'fr' ? ' ' : ', ';
   return `${dt.toLocaleDateString(bcp, { weekday: 'long' })}${sep}${d} ${dt.toLocaleDateString(bcp, { month: 'long' })}`;
+}
+
+/**
+ * The slots, grouped under the day they fall on for THIS phone.
+ *
+ * The server groups by the practitioner's calendar day, and the times are shown
+ * on the phone's clock. For a patient in another timezone those disagree: a
+ * 22:30 Paris slot is 00:30 in Réunion, and it sat under the previous day's
+ * heading while the confirmation, built from the time itself, named the next
+ * day. Grouping here by the same clock the times use keeps the two in step.
+ */
+function byLocalDay(days: SlotDay[]): SlotDay[] {
+  const groups = new Map<string, string[]>();
+  for (const slot of days.flatMap((d) => d.slots).sort()) {
+    const key = dayOf(slot);
+    (groups.get(key) ?? groups.set(key, []).get(key)!).push(slot);
+  }
+  return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, slots]) => ({ ...days[0], date, slots }));
 }
 
 // The local calendar day an instant falls on, as 'YYYY-MM-DD'.

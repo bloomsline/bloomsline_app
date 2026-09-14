@@ -5,6 +5,7 @@ import { EdHeader, EdCard, EdPill, EdSection, FadeIn } from '@/src/ui/editorial'
 import { useI18n } from '@/src/i18n';
 import { addPatient } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
+import { localizeServerMessage } from '@/src/api/server-messages';
 
 // Add a patient. Name is required; an email is what makes the app invitation
 // possible — and whether one actually goes out is decided server-side, where the
@@ -39,11 +40,13 @@ export default function AddPatient() {
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/(practitioner)/people' as never));
 
   const save = async () => {
-    if (!firstName.trim() && !lastName.trim()) return;
+    // Both names, as the server requires; asking for one let the form submit and
+    // then refused it.
+    if (!firstName.trim() || !lastName.trim()) return;
     setError(''); setSaving(true);
     const res = await addPatient({ firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim() || undefined });
     setSaving(false);
-    if (!res.ok) { setError(res.error ?? ''); return; }
+    if (!res.ok) { setError(localizeServerMessage(res.error, locale) ?? ''); return; }
     back();
   };
 
@@ -76,7 +79,7 @@ export default function AddPatient() {
           <EdPill
             label={saving ? '…' : tr.save}
             onPress={save}
-            disabled={saving || (!firstName.trim() && !lastName.trim())}
+            disabled={saving || !firstName.trim() || !lastName.trim()}
             style={{ marginTop: 22 }}
           />
           {saving && <ActivityIndicator style={{ marginTop: 12 }} />}

@@ -8,6 +8,7 @@ import { useI18n } from '@/src/i18n';
 import { fetchPatient, type PatientDetail } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
 import { LIGHT, DARK, type Mode } from '@/src/ui/tokens';
+import { LoadFailed } from '@/src/ui/LoadFailed';
 
 // One patient, to READ.
 //
@@ -154,6 +155,8 @@ export default function PatientDetailScreen() {
 
   const [data, setData] = useState<PatientDetail | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [missing, setMissing] = useState(false);
   const [tab, setTab] = useState<Tab>('overview');
   const [q, setQ] = useState('');
   // One at a time. Several sessions open at once turns a history into a wall,
@@ -167,13 +170,21 @@ export default function PatientDetailScreen() {
   const [quoteOnly, setQuoteOnly] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      let alive = true;
-      void fetchPatient(patientId).then((d) => { if (alive) { setData(d); setLoaded(true); } });
-      return () => { alive = false; };
-    }, [patientId]),
-  );
+  const reload = useCallback(() => {
+    let alive = true;
+    // A failed refetch keeps the patient on screen. It replaced them with
+    // "Patient not found", which is not what happened.
+    // A 404 is the one answer that means the patient is not there (removed, or
+    // not yours), and it is said as such.
+    void fetchPatient(patientId).then((d) => {
+      if (!alive) return;
+      if (d === 'not_found') { setData(null); setMissing(true); setFailed(false); }
+      else { if (d) setData(d); setMissing(false); setFailed(!d); }
+      setLoaded(true);
+    });
+    return () => { alive = false; };
+  }, [patientId]);
+  useFocusEffect(reload);
 
   const loc = locale === 'fr' ? 'fr-FR' : 'en-GB';
   const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(loc, { day: 'numeric', month: 'short', year: 'numeric' }) : '');
@@ -253,7 +264,8 @@ export default function PatientDetailScreen() {
       <ScrollView contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 18, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         <FadeIn>
           {!loaded && <ActivityIndicator />}
-          {loaded && !data && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.missing}</Text>}
+          {loaded && !data && failed && <LoadFailed onRetry={() => { reload(); }} />}
+          {loaded && missing && <Text style={{ fontSize: 14, color: TT.inkSoft, textAlign: 'center', paddingVertical: 36 }}>{tr.missing}</Text>}
 
           {data && tab === 'overview' && (
             <>

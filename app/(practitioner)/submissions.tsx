@@ -6,6 +6,7 @@ import { EdHeader, EdCard, EdSection, FadeIn } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 import { fetchSubmissionGroups, fetchSubmissions, type SubmissionGroups, type SubmissionSummary } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
+import { LoadFailed } from '@/src/ui/LoadFailed';
 
 // What patients have sent back.
 //
@@ -22,14 +23,14 @@ const T = {
     byResource: 'By resource', byPatient: 'By patient',
     empty: 'Nothing submitted yet.', emptyOne: 'No submissions for this one yet.',
     one: 'submission', many: 'submissions',
-    sources: { app: 'App', web: 'Web', link: 'Shared link' },
+    sources: { app: 'App', web: 'Web', share: 'Shared link', link: 'Shared link' },
   },
   fr: {
     kicker: 'RÉPONSES', title: 'Ce qui est revenu',
     byResource: 'Par ressource', byPatient: 'Par patient',
     empty: 'Aucune réponse pour l’instant.', emptyOne: 'Aucune réponse pour celle-ci.',
     one: 'réponse', many: 'réponses',
-    sources: { app: 'App', web: 'Web', link: 'Lien partagé' },
+    sources: { app: 'App', web: 'Web', share: 'Lien partagé', link: 'Lien partagé' },
   },
 } as const;
 
@@ -48,20 +49,22 @@ export default function Submissions() {
   const [groups, setGroups] = useState<SubmissionGroups | null>(null);
   const [items, setItems] = useState<SubmissionSummary[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (focused) return;
-      let alive = true;
-      setLoaded(false);
-      void fetchSubmissionGroups().then((g) => {
-        if (!alive) return;
-        setGroups(g);
-        setLoaded(true);
-      });
-      return () => { alive = false; };
-    }, [focused]),
-  );
+  const reloadGroups = useCallback(() => {
+    if (focused) return;
+    let alive = true;
+    setLoaded(false);
+    void fetchSubmissionGroups().then((g) => {
+      if (!alive) return;
+      if (g) setGroups(g);
+      setFailed(!g);
+      setLoaded(true);
+    });
+    return () => { alive = false; };
+  }, [focused]);
+  useFocusEffect(reloadGroups);
 
   useEffect(() => {
     if (!focused) return;
@@ -69,11 +72,12 @@ export default function Submissions() {
     setLoaded(false);
     void fetchSubmissions({ resourceId: focusResource ?? undefined, memberId: focusMember ?? undefined }).then((rows) => {
       if (!alive) return;
-      setItems(rows ?? []);
+      if (rows) setItems(rows);
+      setFailed(!rows);
       setLoaded(true);
     });
     return () => { alive = false; };
-  }, [focused, focusResource, focusMember]);
+  }, [focused, focusResource, focusMember, attempt]);
 
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/(practitioner)/resources' as never));
   const loc = locale === 'fr' ? 'fr-FR' : 'en-GB';
@@ -98,7 +102,8 @@ export default function Submissions() {
           {!loaded && <ActivityIndicator />}
 
           {/* grouped */}
-          {loaded && !focused && rows.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.empty}</Text>}
+          {loaded && failed && <LoadFailed compact onRetry={() => { reloadGroups(); setAttempt((a) => a + 1); }} />}
+          {loaded && !failed && !focused && rows.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.empty}</Text>}
           {loaded && !focused && rows.map((r) => {
             const name = 'title' in r ? r.title : r.name;
             return (
@@ -122,7 +127,7 @@ export default function Submissions() {
           })}
 
           {/* one resource's or one patient's submissions */}
-          {loaded && focused && items.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.emptyOne}</Text>}
+          {loaded && !failed && focused && items.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.emptyOne}</Text>}
           {loaded && focused && items.length > 0 && <EdSection label={`${items.length} ${items.length === 1 ? tr.one : tr.many}`.toUpperCase()} />}
           {loaded && focused && items.map((s) => (
             <EdCard

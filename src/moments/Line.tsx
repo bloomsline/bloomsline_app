@@ -198,6 +198,10 @@ function NodeFace({ node, onPress, nearby }: { node: LineNode; onPress: () => vo
   const [broken, setBroken] = useState(false);
   const face = node.face;
   const showPhoto = !!face?.uri && !broken && nearby;
+  // A new link is a new chance. Nodes are keyed by moment, so they outlive a
+  // refresh, and a photo that failed once (an expired link, a dropped
+  // connection) stayed "missing" even after fresh links arrived.
+  useEffect(() => { setBroken(false); }, [face?.uri]);
 
   // Ask whether the file is there, without decoding it into a view — and only
   // for the nodes that are going to draw it.
@@ -463,7 +467,10 @@ function TodayNode({ x, y, onPress, label }: { x: number; y: number; onPress: ()
 function NodeMarks({ node, label }: { node: LineNode; label: (n: number) => string }) {
   const { mode } = useTheme();
   const extra = Math.max(0, node.moment.media.length - 1);
-  const shared = node.moment.sharedWithPractitioner;
+  // Any practitioner can see it, not only the one selected in the app: the mark
+  // says "someone other than you can see this", and a moment shared with another
+  // practitioner lost it on switching.
+  const shared = node.moment.sharedWithPractitioner || (node.moment.sharedWith?.length ?? 0) > 0;
   if (extra === 0 && !shared) return null;
   return (
     <View

@@ -27,7 +27,7 @@ import { useTheme, type ThemeChoice } from '@/src/ui/theme-mode';
 import { useAuth } from '@/src/auth/auth-context';
 import { useConfirm } from '@/src/ui/confirm';
 import { useI18n, type Locale } from '@/src/i18n';
-import { fetchMe, saveProfile } from '@/src/api/me';
+import { fetchMe } from '@/src/api/me';
 import { useMeFace } from '@/src/profile/me-face';
 
 type Sheet = 'language' | 'appearance' | null;
@@ -52,10 +52,9 @@ export default function PractitionerSettings() {
     return () => { alive = false; };
   }, []);
 
-  const changeLocale = (l: Locale) => {
-    setLocale(l);
-    void saveProfile({ locale: l }); // persist as the server-side default
-  };
+  // The server hears about it from the language provider, which retries a save
+  // that failed instead of dropping it.
+  const changeLocale = (l: Locale) => setLocale(l);
 
   const doSignOut = async () => {
     if (await confirm({ title: t.settings.signOutConfirm, confirmLabel: t.settings.signOut, cancelLabel: t.common.cancel, destructive: true })) signOut();

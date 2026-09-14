@@ -16,8 +16,12 @@ import { HEADER_TOP, Kicker } from '@/src/ui/editorial';
 import { useOnboarding } from '@/src/onboarding/context';
 import { useI18n } from '@/src/i18n';
 import { listJournal, createJournal, type JournalEntry } from '@/src/api/journal';
+import { useSelectedPractitioner, useSelectionReset } from '@/src/care/selected-practitioner';
+import { otherReaders } from '@/src/care/other-readers';
+import { joinFirstNames } from '@/src/care/practitioner-names';
 import { useTheme } from '@/src/ui/theme-mode';
 import { veil } from '@/src/ui/tokens';
+import { settleJournalWrites } from '@/src/journal/pending-writes';
 
 /** The three openings offered when there is nothing yet. Each creates a page
  *  titled with the prompt, so the blank screen is never the first thing. */
@@ -39,9 +43,16 @@ export default function Journal() {
   const [refreshing, setRefreshing] = useState(false);
   const [q, setQ] = useState('');
   const [creating, setCreating] = useState(false);
+  // The pages are the patient's own and stay on screen through a switch; only
+  // the "shared" badge is about the selected practitioner, so read the list
+  // again rather than empty it.
+  const selectionKey = useSelectionReset(() => {});
+  const { selectedId } = useSelectedPractitioner();
 
   const load = useCallback(async () => {
     try {
+      // A page just closed may still be saving; read the list after it lands.
+      await settleJournalWrites();
       const list = await listJournal();
       if (list) { setEntries(list); setFailed(false); } else setFailed(true);
     } catch {
@@ -51,7 +62,8 @@ export default function Journal() {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { void load(); }, [load]));
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- selectionKey: the badges follow the practitioner just chosen
+  useFocusEffect(useCallback(() => { void load(); }, [load, selectionKey]));
 
   const open = (id: string) => router.navigate({ pathname: '/journal-entry', params: { id } } as never);
   // A page we just created opens straight in EDIT. The entry screen decided
@@ -150,7 +162,7 @@ export default function Journal() {
                 ) : (
                   <View style={{ gap: 10 }}>
                     {shown.map((e) => (
-                      <EntryCard key={e.id} entry={e} locale={locale} tr={tr} pracName={practitionerName} onPress={() => open(e.id)} />
+                      <EntryCard key={e.id} entry={e} locale={locale} tr={tr} pracName={practitionerName} onPress={() => open(e.id)} selectedId={selectedId} />
                     ))}
                   </View>
                 )}
@@ -174,15 +186,19 @@ export default function Journal() {
 }
 
 function EntryCard({
-  entry, locale, tr, pracName, onPress,
+  entry, locale, tr, pracName, onPress, selectedId,
 }: {
   entry: JournalEntry;
   locale: 'en' | 'fr';
   tr: Jr;
   pracName: string | null;
   onPress: () => void;
+  /** The practitioner selected in the app, to tell a page shared with someone
+   *  else apart from a private one (care/other-readers). */
+  selectedId: string | null;
 }) {
-  const { t: TT } = useTheme();
+  const { t: TT, mode } = useTheme();
+  const others = entry.sharedWithPractitioner ? [] : otherReaders(entry.sharedWith, entry.sharedWithIds, selectedId);
   const initial = (pracName ?? '').replace(/^dr\.?\s*/i, '').trim().charAt(0).toUpperCase() || 'M';
   return (
     <TouchableOpacity
@@ -200,6 +216,12 @@ function EntryCard({
               <Text style={{ fontSize: 9.5, fontWeight: '800', color: TT.onAccent }}>{initial}</Text>
             </View>
             <Text style={{ fontSize: 11, fontWeight: '700', color: TT.accentDeep }}>{tr.shared}</Text>
+          </View>
+        ) : others.length > 0 ? (
+          // Shared, but not with the practitioner on screen: said plainly, in the
+          // quieter style, rather than shown as private.
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, height: 24, borderRadius: 12, backgroundColor: veil(mode, 0.08) }}>
+            <Text numberOfLines={1} style={{ fontSize: 11, fontWeight: '700', color: TT.inkSoft, maxWidth: 170 }}>{tr.sharedWithOther.replace('{name}', joinFirstNames(others, locale))}</Text>
           </View>
         ) : null}
       </View>

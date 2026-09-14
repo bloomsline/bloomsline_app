@@ -10,6 +10,13 @@ import * as VideoThumbnails from 'expo-video-thumbnails';
 import { presignMedia, type MomentMediaInput } from '@/src/api/moments';
 
 const MAX_MAIN_WIDTH = 1600;
+/** The server's ceiling for one file (lib/moments/media.ts MEDIA_MAX_BYTES). */
+export const MEDIA_MAX_BYTES = 100 * 1024 * 1024;
+
+/** A file refused before it is sent, with the reason a person can act on. */
+export class MediaError extends Error {
+  constructor(public readonly reason: 'too_large' | 'camera_denied') { super(reason); }
+}
 const THUMB_WIDTH = 400;
 const VIDEO_MIMES = new Set(['video/mp4', 'video/webm', 'video/quicktime']);
 
@@ -29,6 +36,10 @@ async function prepare(a: ImagePicker.ImagePickerAsset): Promise<PreparedMedia> 
   if (a.type === 'video') {
     const mime = a.mimeType && VIDEO_MIMES.has(a.mimeType) ? a.mimeType : 'video/mp4';
     const size = a.fileSize ?? (await byteSize(a.uri));
+    // Said HERE, when it is picked, rather than after the patient has written
+    // the note and chosen their feelings and pressed Create — which is where a
+    // too-large video used to fail, as "Could not save", every time.
+    if (size > MEDIA_MAX_BYTES) throw new MediaError('too_large');
     let thumbUri: string | null = null;
     let thumbSize = 0;
     try {
@@ -51,7 +62,12 @@ async function prepare(a: ImagePicker.ImagePickerAsset): Promise<PreparedMedia> 
 
 /** Choose a photo or video from the library. null if cancelled. */
 export async function pickMedia(): Promise<PreparedMedia | null> {
-  const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], quality: 1, allowsMultipleSelection: false });
+  const res = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images', 'videos'], quality: 1, allowsMultipleSelection: false,
+    // iOS re-encodes a chosen video to 720p, which keeps most clips well under
+    // the size limit. Android has no such option; the size check covers it.
+    videoExportPreset: ImagePicker.VideoExportPreset.H264_1280x720,
+  });
   if (res.canceled || !res.assets?.[0]) return null;
   return prepare(res.assets[0]);
 }
@@ -59,17 +75,18 @@ export async function pickMedia(): Promise<PreparedMedia | null> {
 /**
  * Take a photo, or record a video, with the camera.
  *
- * Returns null both when the person cancels AND when permission is refused —
- * the caller treats those the same way, because they are the same thing from
- * where the patient is standing: no media, no error shouted at them. The OS has
- * already explained why if it denied.
+ * null when the person cancels. A refused permission THROWS MediaError: the OS
+ * asks only once, so every later tap was refused in silence and "Take a photo"
+ * simply did nothing, with no hint that the camera was switched off in Settings.
  */
 export async function captureMedia(mode: 'photo' | 'video'): Promise<PreparedMedia | null> {
   const perm = await ImagePicker.requestCameraPermissionsAsync();
-  if (!perm.granted) return null;
+  if (!perm.granted) throw new MediaError('camera_denied');
   const res = await ImagePicker.launchCameraAsync({
     mediaTypes: mode === 'video' ? ['videos'] : ['images'],
     quality: 1,
+    // Recorded at 720p on iOS, for the same size reason as the library.
+    videoQuality: ImagePicker.UIImagePickerControllerQualityType.IFrame1280x720,
   });
   if (res.canceled || !res.assets?.[0]) return null;
   return prepare(res.assets[0]);

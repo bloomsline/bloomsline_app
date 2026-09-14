@@ -1,23 +1,30 @@
 // e4 — Library activity. Render a self-guided practice, do it, and save a PRIVATE
 // run (/api/mobile/library/[id]/run) — kept to the patient, never seen by the
 // practitioner. Repeatable. Wired to GET /api/mobile/library/[id].
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Lock, CircleCheckBig } from 'lucide-react-native';
 import { notify } from '@/src/ui/alert';
 import { EdHeader, EdPill, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { resourceTypeMeta } from '@/src/care/resources';
-import { Block, INTERACTIVE, ResourceIntro } from '@/src/resources/blocks';
+import { flushCanvasDrafts } from '@/src/resources/zoned-canvas-field';
+import { Block, INTERACTIVE, ResourceIntro, type UploadStatus } from '@/src/resources/blocks';
 import { getLibraryResource, runLibraryActivity, type LibraryResourceView } from '@/src/api/library';
 import type { PatientScore } from '@/src/api/resources';
 import { useI18n } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
+import { OtherPractitionerNote } from '@/src/care/OtherPractitionerNote';
 
 const T = {
   en: {
     couldNotSave: 'Could not save.',
+    saveGone: 'This activity is no longer available, so your answers could not be saved.',
+    saveBusy: 'Too many tries in a row. Wait a moment and save again.',
+    saveOffline: 'Could not reach Bloomsline. Check your connection and save again.',
+    waitUploads: 'A file is still uploading. Wait for it to finish, then save.',
+    failedUploads: 'A file did not upload. Try again or remove it, then save.',
     unavailable: 'Activity unavailable',
     privateToYou: 'Private to you',
     doneCount: 'done',
@@ -30,6 +37,11 @@ const T = {
   },
   fr: {
     couldNotSave: 'Enregistrement impossible.',
+    saveGone: 'Cette activité n’est plus disponible, vos réponses n’ont donc pas pu être enregistrées.',
+    saveBusy: 'Trop d’essais d’affilée. Patientez un instant et enregistrez à nouveau.',
+    saveOffline: 'Impossible de joindre Bloomsline. Vérifiez votre connexion et enregistrez à nouveau.',
+    waitUploads: 'Un fichier est encore en cours d’envoi. Attendez la fin, puis enregistrez.',
+    failedUploads: 'Un fichier n’a pas été envoyé. Réessayez ou retirez-le, puis enregistrez.',
     unavailable: 'Activité indisponible',
     privateToYou: 'Privé',
     doneCount: 'fait',
@@ -64,15 +76,35 @@ export default function LibraryPractice() {
 
   const blocks = view?.version.blocks ?? [];
   const hasInteractive = useMemo(() => (view?.version.blocks ?? []).some((b) => INTERACTIVE.has(b.type)), [view]);
-  const set = (blockId: string, value: unknown) => setAnswers((prev) => ({ ...prev, [blockId]: value }));
+  // Read through a ref at save time, so answers set a moment before (canvas text
+  // flushed on Save) are included rather than the last render's copy.
+  const latestAnswers = useRef<Record<string, unknown>>({});
+  const set = (blockId: string, value: unknown) => {
+    latestAnswers.current = { ...latestAnswers.current, [blockId]: value };
+    setAnswers(latestAnswers.current);
+  };
+
+  // Files join the answers only once uploaded, so a Save in the middle of one
+  // would keep the run without it. There are no required questions to check
+  // here: a self-guided practice saves whatever was done.
+  const uploads = useRef<Record<string, UploadStatus>>({});
+  // A ref, not the `saving` state: two taps in one frame both read the state as
+  // false, and the run was saved twice.
+  const savingRef = useRef(false);
 
   const save = async () => {
-    if (saving) return;
+    if (savingRef.current) return;
+    flushCanvasDrafts();
+    const up = Object.values(uploads.current);
+    if (up.some((u) => u.uploading > 0)) { notify(tr.waitUploads); return; }
+    if (up.some((u) => u.failed > 0)) { notify(tr.failedUploads); return; }
+    savingRef.current = true;
     setSaving(true);
-    const res = await runLibraryActivity(resourceId, answers);
+    const res = await runLibraryActivity(resourceId, latestAnswers.current, view?.version.id, locale);
     if (res.ok) { setResult({ score: res.score ?? null }); return; }
+    savingRef.current = false;
     setSaving(false);
-    notify(res.error ?? tr.couldNotSave);
+    notify(res.reason === 'gone' ? tr.saveGone : res.reason === 'busy' ? tr.saveBusy : res.reason === 'offline' ? tr.saveOffline : tr.couldNotSave);
   };
 
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/library' as never));
@@ -101,11 +133,14 @@ export default function LibraryPractice() {
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <EdHeader source={ONBOARDING_IMAGES.card4} kicker={meta.label} title={view.resource.title} onBack={back} />
 
           <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
+            {/* Whose library this comes from, when it is not the practitioner
+                selected (opened from a link). */}
+            <OtherPractitionerNote practitioner={view.practitioner} />
             {/* Private-to-you note */}
             <View style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: TT.accentTint, borderRadius: 12, paddingVertical: 5, paddingHorizontal: 10, marginBottom: 16 }}>
               <Lock size={12} color={TT.accent} strokeWidth={2} />
@@ -114,7 +149,15 @@ export default function LibraryPractice() {
 
             <ResourceIntro text={view.resource.description} />
             {blocks.map((b) => (
-              <Block key={b.id} block={b} value={answers[b.id]} onChange={(v) => set(b.id, v)} missing={false} mediaUrl={view.mediaUrls?.[b.id]} />
+              <Block
+                key={b.id}
+                block={b}
+                value={answers[b.id]}
+                onChange={(v) => set(b.id, v)}
+                missing={false}
+                mediaUrl={view.mediaUrls?.[b.id]}
+                onUploadStatus={b.type === 'file_upload' ? (st) => { uploads.current = { ...uploads.current, [b.id]: st }; } : undefined}
+              />
             ))}
           </FadeIn>
         </ScrollView>

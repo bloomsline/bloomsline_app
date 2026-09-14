@@ -82,6 +82,8 @@ export async function decideRequest(id: string, action: 'approve' | 'decline'): 
 export interface PatientListItem {
   id: string;
   name: string;
+  /** 'active' or 'pending'. Older servers send active patients only, and no status. */
+  status?: string;
   lastSessionAt: string | null;
 }
 
@@ -191,9 +193,12 @@ export async function fetchPatients(search?: string): Promise<PatientListItem[] 
   }
 }
 
-export async function fetchPatient(id: string): Promise<PatientDetail | null> {
+/** null: could not be read. 'not_found': the server says there is no such patient
+ *  of yours, which is a different thing to tell someone. */
+export async function fetchPatient(id: string): Promise<PatientDetail | 'not_found' | null> {
   try {
     const res = await apiFetch(`/api/mobile/practitioner/patients/${id}`);
+    if (res.status === 404) return 'not_found';
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -227,6 +232,9 @@ export interface UpcomingSession {
   durationMinutes: number;
   sessionFormat: string;
   sessionType: string;
+  status?: string;
+  /** Already over: listed under Recent, after the sessions still to come. */
+  past?: boolean;
 }
 
 export interface NoteWorkspace {
@@ -273,6 +281,10 @@ export async function fetchNoteVocabulary(patientId: string): Promise<NoteVocabu
 export async function createNote(input: {
   patientId: string; appointmentId: string; content: string;
   title?: string; noteType?: string; ranges?: NoteRange[]; isPrivate?: boolean;
+  /** Add `content` after the stored note instead of replacing it. */
+  append?: boolean;
+  /** When the note shown was written; the server refuses if it changed since. */
+  baseUpdatedAt?: string | null;
 }): Promise<{ ok: boolean; error?: string }> {
   const { patientId, ...payload } = input;
   try {
@@ -296,22 +308,50 @@ export async function createNote(input: {
  * rather than two that quietly fork. `draftAt` is set when what came back is an
  * unsaved draft rather than the stored note; the server resolves which is newer.
  */
-export async function fetchNoteDraft(appointmentId: string): Promise<{ content: string; draftAt: string | null } | null> {
+export interface SessionNoteText {
+  content: string;
+  ranges: NoteRange[];
+  draftAt: string | null;
+  /** When what came back was last written (note or draft). Null: nothing stored. */
+  updatedAt: string | null;
+  /** The note has formatting only the web can write (headings, numbered lists,
+   *  links). Changing it here keeps the words and simplifies that. */
+  simplified: boolean;
+  /** The note as stored, sent with a simplified note so it can be shown as is. */
+  html?: string;
+}
+
+export async function fetchNoteDraft(appointmentId: string): Promise<SessionNoteText | null> {
   try {
     const res = await apiFetch(`/api/mobile/practitioner/sessions/${appointmentId}/draft`);
     if (!res.ok) return null;
-    return (await res.json()) as { content: string; draftAt: string | null };
+    const body = (await res.json()) as { content?: string; ranges?: NoteRange[]; draftAt?: string | null; updatedAt?: string | null; simplified?: boolean; html?: string };
+    // `content` is plain text and `ranges` its marks; the server turns the stored
+    // note HTML into both, so the editor never shows markup.
+    return {
+      content: body.content ?? '',
+      ranges: Array.isArray(body.ranges) ? body.ranges : [],
+      draftAt: body.draftAt ?? null,
+      updatedAt: body.updatedAt ?? body.draftAt ?? null,
+      simplified: body.simplified === true,
+      ...(typeof body.html === 'string' ? { html: body.html } : {}),
+    };
   } catch {
     return null;
   }
 }
 
 /** Keep the unfinished note. Debounced by the caller. */
-export async function saveNoteDraft(appointmentId: string, content: string): Promise<{ ok: boolean; savedAt?: string | null }> {
+export async function saveNoteDraft(
+  appointmentId: string,
+  note: { text: string; title: string; ranges: NoteRange[] },
+): Promise<{ ok: boolean; savedAt?: string | null }> {
   try {
+    // The same three things the note is saved with, so the draft keeps the title
+    // and the marks as well as the words.
     const res = await apiFetch(`/api/mobile/practitioner/sessions/${appointmentId}/draft`, {
       method: 'PUT',
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content: note.text, title: note.title, ranges: note.ranges }),
     });
     if (!res.ok) return { ok: false };
     const body = (await res.json().catch(() => null)) as { savedAt?: string | null } | null;
@@ -580,7 +620,13 @@ export interface SubmissionDetail extends SubmissionSummary {
   version: { id: string; blocks: PatientBlock[] };
   answers: Record<string, unknown>;
   mediaUrls?: Record<string, string>;
+  /** Every file of a `file_upload` answer, in `filesOf` order. Older servers
+   *  send only the first, in `mediaUrls`. */
+  fileUrls?: Record<string, string[]>;
   practitionerNote: string | null;
+  /** The note was written before the answers shown (a redo or a resend). */
+  noteOnEarlierAnswers?: boolean;
+  noteWrittenAt?: string | null;
 }
 
 export async function fetchSubmission(id: string): Promise<SubmissionDetail | null> {

@@ -7,12 +7,30 @@
 // on rather than dead-ending someone on a network blip.
 import { apiFetch } from '../auth/api';
 
+/** One practitioner this patient is linked to, as the switcher lists them. */
+export interface LinkedPractitioner {
+  id: string;
+  name: string;
+  /** Already signed and loadable, or null for no picture. */
+  photoUrl: string | null;
+}
+
 export interface MeProfile {
   role: string; // 'member' (patient) | 'practitioner'
   firstName: string | null;
   lastName: string | null;
   hasPractitioner: boolean;
+  /** The SELECTED practitioner's name (see `selectedPractitionerId`). */
   practitionerName: string | null;
+  /** `[selected name]` on servers that know about selection; every linked
+   *  name on older ones. Absent from the oldest. */
+  practitionerNames?: string[];
+  /** Everyone linked, in link order. Absent from servers that predate the
+   *  switcher, and then the app behaves as it did: one practitioner, no switch. */
+  practitioners?: LinkedPractitioner[];
+  /** Who the server resolved this request to: the `x-bl-practitioner` header
+   *  when it named a real link, otherwise the first link. */
+  selectedPractitionerId?: string | null;
   onboardedAt: string | null;
   /** When they finished the Moments introduction, or null if they never have.
    *  Server-side rather than a flag on the phone: it has to survive a reinstall,
