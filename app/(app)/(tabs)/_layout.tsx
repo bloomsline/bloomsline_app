@@ -1,3 +1,4 @@
+import { View } from 'react-native';
 import { Tabs } from 'expo-router';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import type { TabId } from '@/src/ui/TabBar';
@@ -15,9 +16,9 @@ import { useTheme } from '@/src/ui/theme-mode';
 //
 // As tabs, the bar stays where it is and only its highlight glides; each tab
 // stays mounted, so Moments keeps its place in the line; and the change itself
-// is a GENTLE DRIFT (chosen by the product owner from five tried side by side):
-// the new page fades in while moving 16px toward the tab tapped, the old one
-// fades out moving away, on a soft ease-out. It runs on the native driver.
+// is a GENTLE CASCADE (chosen by the product owner from five tried side by side,
+// replacing an earlier drift): the page changes without moving, and its sections
+// settle in one after another from the top (ui/cascade). It runs on the UI thread.
 //
 // The URLs are unchanged: a group does not add a path segment, so /home,
 // /moments and /for-you still open these screens from links and bookmarks.
@@ -32,12 +33,20 @@ export default function TabsLayout() {
   // "the tab to the right" means the same thing to the drift as it does on screen.
   const order: TabId[] = landing === 'moments' ? ['moments', 'care', 'foryou'] : ['care', 'moments', 'foryou'];
 
+  // The page colour BEHIND the tabs as well as on each scene. The scene's own
+  // background moves with the scene, so it cannot cover what the drift uncovers:
+  // the 16px strip at the edge a page has moved away from, and, halfway through,
+  // the little that two half-faded pages let through. Behind the tabs is the
+  // stack's card, which is the navigation theme's near-white, and it flashed
+  // white down both edges of the screen on every tab change.
   return (
-    <Tabs
-      tabBar={(props: BottomTabBarProps) => <AppTabBar {...props} reduceMotion={reduceMotion} />}
-      screenOptions={tabScreenOptions(reduceMotion, TT.bg)}
-    >
-      {order.map((id) => <Tabs.Screen key={id} name={TAB_ROUTE[id]} />)}
-    </Tabs>
+    <View style={{ flex: 1, backgroundColor: TT.bg }}>
+      <Tabs
+        tabBar={(props: BottomTabBarProps) => <AppTabBar {...props} reduceMotion={reduceMotion} />}
+        screenOptions={tabScreenOptions(reduceMotion, TT.bg)}
+      >
+        {order.map((id) => <Tabs.Screen key={id} name={TAB_ROUTE[id]} />)}
+      </Tabs>
+    </View>
   );
 }

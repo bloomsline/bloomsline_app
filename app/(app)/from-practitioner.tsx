@@ -1,6 +1,6 @@
 // c8 — From your practitioner: assigned resources & exercises. Wired to GET
 // /api/mobile/care/todo (real assignments). Demo items under FORCE_CARE_HUB.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Check, ChevronRight, MessageCircle, type LucideIcon } from 'lucide-react-native';
@@ -13,6 +13,7 @@ import { useSelectionReset } from '@/src/care/selected-practitioner';
 import { resourceTypeMeta, stageLabel, stageLine, todoStage } from '@/src/care/resources';
 import { useI18n, fmt } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
+import { rememberGrowOrigin } from '@/src/ui/grow';
 import { LoadFailed } from '@/src/ui/LoadFailed';
 
 const T = {
@@ -110,9 +111,12 @@ function ResItem({
   const { t: TT } = useTheme();
   const { t } = useI18n();
   const soon = () => notify(t.common.comingSoon);
+  // The to-do page grows out of this card (ui/grow).
+  const card = useRef<View>(null);
   return (
     <TouchableOpacity
-      onPress={onPress ?? soon}
+      ref={card}
+      onPress={onPress ? () => rememberGrowOrigin(card, 18, onPress) : soon}
       activeOpacity={0.8}
       style={{ backgroundColor: TT.card, borderWidth: reply ? 1.5 : 1, borderColor: line ?? (reply ? TT.accent : TT.line), borderRadius: 18, padding: 15, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14, opacity: muted ? 0.7 : 1 }}
     >

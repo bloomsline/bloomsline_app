@@ -27,6 +27,8 @@ import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
 import { usePractitionerSwitcher } from '@/src/care/PractitionerSwitcher';
 import { ProfileButton } from '@/src/profile/ProfileButton';
 import { useTheme } from '@/src/ui/theme-mode';
+import { rememberGrowOrigin } from '@/src/ui/grow';
+import { Cascade } from '@/src/ui/cascade';
 import { veil } from '@/src/ui/tokens';
 import { LoadFailed } from '@/src/ui/LoadFailed';
 import { useStaleOnReturn } from '@/src/ui/use-stale-on-return';
@@ -210,44 +212,46 @@ export default function MyCare() {
     <Ground>
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingBottom: 180 }} showsVerticalScrollIndicator={false}>
-          {header}
+          <Cascade route="home" index={0}>{header}</Cascade>
           <FadeIn>
             {/* The intro is a popup over the whole screen now; the page below
                 it needs no dimming of its own — see TabIntro. */}
             <View>
               {/* Practitioner — a row, not a card: it names a person, it is not a thing to do. */}
-              <View style={{ marginHorizontal: 22, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <TouchableOpacity
-                  onPress={() => router.navigate('/practitioner' as never)}
-                  activeOpacity={0.8}
-                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 12 }}
-                >
-                  <PractitionerAvatar size={44} name={pracName} photoUrl={pracPhoto} />
-                  <View style={{ flex: 1 }}>
-                    <Text numberOfLines={1} style={{ fontSize: 15.5, fontWeight: '700', color: TT.ink }}>{pracName}</Text>
-                    {pracHeadline ? <Text numberOfLines={1} style={{ fontSize: 12.5, color: TT.inkSoft, marginTop: 1 }}>{pracHeadline}</Text> : null}
-                  </View>
-                  {/* The chevron gives way to Switch: two trailing controls on
-                      one row read as one, and the row itself still opens the
-                      profile. */}
-                  {switcher.canSwitch ? null : <ChevronRight size={18} color={TT.faint} strokeWidth={2} />}
-                </TouchableOpacity>
-                {/* Only with several practitioners. A patient with one sees the
-                    row exactly as it was. */}
-                {switcher.canSwitch ? (
+              <Cascade route="home" index={1}>
+                <View style={{ marginHorizontal: 22, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                   <TouchableOpacity
-                    onPress={switcher.open}
+                    onPress={() => router.navigate('/practitioner' as never)}
                     activeOpacity={0.8}
-                    hitSlop={6}
-                    accessibilityRole="button"
-                    accessibilityLabel={t.care.switchPractitionerA11y}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, paddingHorizontal: 13, borderRadius: 17, borderWidth: 1, borderColor: TT.cardLine, backgroundColor: TT.card }}
+                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 12 }}
                   >
-                    <ArrowLeftRight size={14} color={TT.accent} strokeWidth={2.2} />
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: TT.ink }}>{t.care.switchPractitioner}</Text>
+                    <PractitionerAvatar size={44} name={pracName} photoUrl={pracPhoto} />
+                    <View style={{ flex: 1 }}>
+                      <Text numberOfLines={1} style={{ fontSize: 15.5, fontWeight: '700', color: TT.ink }}>{pracName}</Text>
+                      {pracHeadline ? <Text numberOfLines={1} style={{ fontSize: 12.5, color: TT.inkSoft, marginTop: 1 }}>{pracHeadline}</Text> : null}
+                    </View>
+                    {/* The chevron gives way to Switch: two trailing controls on
+                        one row read as one, and the row itself still opens the
+                        profile. */}
+                    {switcher.canSwitch ? null : <ChevronRight size={18} color={TT.faint} strokeWidth={2} />}
                   </TouchableOpacity>
-                ) : null}
-              </View>
+                  {/* Only with several practitioners. A patient with one sees the
+                      row exactly as it was. */}
+                  {switcher.canSwitch ? (
+                    <TouchableOpacity
+                      onPress={switcher.open}
+                      activeOpacity={0.8}
+                      hitSlop={6}
+                      accessibilityRole="button"
+                      accessibilityLabel={t.care.switchPractitionerA11y}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 34, paddingHorizontal: 13, borderRadius: 17, borderWidth: 1, borderColor: TT.cardLine, backgroundColor: TT.card }}
+                    >
+                      <ArrowLeftRight size={14} color={TT.accent} strokeWidth={2.2} />
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: TT.ink }}>{t.care.switchPractitioner}</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </Cascade>
 
               {switching ? (
                 <View accessibilityRole="progressbar" style={{ paddingVertical: 64, alignItems: 'center' }}>
@@ -256,63 +260,71 @@ export default function MyCare() {
               ) : (
               <>
 
-              <SectionRule label={t.care.yourSessions} />
+              <Cascade route="home" index={2}>
+                <SectionRule label={t.care.yourSessions} />
 
-              {sessions.length > 0 ? (
-                <SessionCarousel
-                  sessions={sessions}
-                  locale={locale}
-                  t={t}
-                  address={address}
-                  mapsUrl={mapsUrl}
-                  onOpen={openSession}
-                  onJoin={joinSession}
-                  onMaps={() => mapsUrl && openUrl(mapsUrl)}
-                />
-              ) : (
-                <View style={{ marginHorizontal: 22, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine, borderRadius: 20, padding: 20 }}>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: TT.ink }}>{t.care.noSession}</Text>
-                  <Text style={{ fontSize: 13, color: TT.inkSoft, marginTop: 3 }}>{t.care.noSessionSub}</Text>
-                </View>
-              )}
-
-              {perms.canBook ? (
-                <TouchableOpacity
-                  onPress={() => router.navigate('/book' as never)}
-                  activeOpacity={0.85}
-                  style={{ marginHorizontal: 22, marginTop: 16, height: 50, borderRadius: 25, borderWidth: 1, borderColor: TT.cardLine, alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <Text style={{ fontSize: 14.5, fontWeight: '700', color: TT.ink }}>{t.care.bookSession}</Text>
-                </TouchableOpacity>
-              ) : (
-                <Text style={{ fontSize: 12.5, color: TT.inkSoft, textAlign: 'center', marginTop: 14, paddingHorizontal: 34 }}>{t.care.bookNote}</Text>
-              )}
-
-              {todoItems.length > 0 && (
-                <>
-                  {/* Attribution kept deliberately: "from {name}" tells a patient WHO
-                      asked, which the board's plain "My resources" drops. */}
-                  <SectionRule
-                    label={fmt(t.care.todoFrom, { name: firstNameOf(pracName) })}
-                    action={`${t.common.seeAll} (${todoItems.length})`}
-                    onAction={() => router.navigate('/from-practitioner' as never)}
+                {sessions.length > 0 ? (
+                  <SessionCarousel
+                    sessions={sessions}
+                    locale={locale}
+                    t={t}
+                    address={address}
+                    mapsUrl={mapsUrl}
+                    onOpen={openSession}
+                    onJoin={joinSession}
+                    onMaps={() => mapsUrl && openUrl(mapsUrl)}
                   />
-                  <View style={{ gap: 10, paddingHorizontal: 22 }}>
-                    {todoItems.slice(0, 3).map((it) => {
-                      const meta = resourceTypeMeta(it.type, locale);
-                      const open = it.resourceId ? () => router.navigate(`/resource/${it.id}` as never) : () => router.navigate('/from-practitioner' as never);
-                      const stage = todoStage(it);
-                      return <ResourceRow key={it.id} Icon={meta.Icon} title={it.title} sub={`${meta.label} · ${stageLabel(stage, locale)}`} line={stageLine(stage, TT)} onPress={open} />;
-                    })}
+                ) : (
+                  <View style={{ marginHorizontal: 22, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine, borderRadius: 20, padding: 20 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: TT.ink }}>{t.care.noSession}</Text>
+                    <Text style={{ fontSize: 13, color: TT.inkSoft, marginTop: 3 }}>{t.care.noSessionSub}</Text>
                   </View>
-                </>
-              )}
+                )}
+              </Cascade>
 
-              <SectionRule label={t.care.archive} />
-              <View style={{ marginHorizontal: 22, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine, borderRadius: 18, overflow: 'hidden' }}>
-                <UtilityRow Icon={RotateCcw} label={t.care.pastSessions} onPress={() => router.navigate('/session-history' as never)} divider />
-                <UtilityRow Icon={FileText} label={t.care.documents} onPress={() => router.navigate('/documents' as never)} />
-              </View>
+              <Cascade route="home" index={3}>
+                {perms.canBook ? (
+                  <TouchableOpacity
+                    onPress={() => router.navigate('/book' as never)}
+                    activeOpacity={0.85}
+                    style={{ marginHorizontal: 22, marginTop: 16, height: 50, borderRadius: 25, borderWidth: 1, borderColor: TT.cardLine, alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <Text style={{ fontSize: 14.5, fontWeight: '700', color: TT.ink }}>{t.care.bookSession}</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <Text style={{ fontSize: 12.5, color: TT.inkSoft, textAlign: 'center', marginTop: 14, paddingHorizontal: 34 }}>{t.care.bookNote}</Text>
+                )}
+              </Cascade>
+
+              <Cascade route="home" index={4}>
+                {todoItems.length > 0 && (
+                  <>
+                    {/* Attribution kept deliberately: "from {name}" tells a patient WHO
+                        asked, which the board's plain "My resources" drops. */}
+                    <SectionRule
+                      label={fmt(t.care.todoFrom, { name: firstNameOf(pracName) })}
+                      action={`${t.common.seeAll} (${todoItems.length})`}
+                      onAction={() => router.navigate('/from-practitioner' as never)}
+                    />
+                    <View style={{ gap: 10, paddingHorizontal: 22 }}>
+                      {todoItems.slice(0, 3).map((it) => {
+                        const meta = resourceTypeMeta(it.type, locale);
+                        const open = it.resourceId ? () => router.navigate(`/resource/${it.id}` as never) : () => router.navigate('/from-practitioner' as never);
+                        const stage = todoStage(it);
+                        return <ResourceRow key={it.id} Icon={meta.Icon} title={it.title} sub={`${meta.label} · ${stageLabel(stage, locale)}`} line={stageLine(stage, TT)} onPress={open} />;
+                      })}
+                    </View>
+                  </>
+                )}
+              </Cascade>
+
+              <Cascade route="home" index={5}>
+                <SectionRule label={t.care.archive} />
+                <View style={{ marginHorizontal: 22, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine, borderRadius: 18, overflow: 'hidden' }}>
+                  <UtilityRow Icon={RotateCcw} label={t.care.pastSessions} onPress={() => router.navigate('/session-history' as never)} divider />
+                  <UtilityRow Icon={FileText} label={t.care.documents} onPress={() => router.navigate('/documents' as never)} />
+                </View>
+              </Cascade>
               </>
               )}
             </View>
@@ -412,13 +424,16 @@ function SessionCard({
   onMaps: () => void;
 }) {
   const { t: TT, mode } = useTheme();
+  // The session sheet grows out of this card (ui/grow).
+  const card = useRef<View>(null);
+  const open = () => rememberGrowOrigin(card, 20, onOpen);
   const inPerson = session.sessionFormat === 'in_person';
   const pay = session.paymentStatus;
   // Asked for, not yet accepted. It looked like any booked session, Join button
   // and all, while the practitioner could still decline it.
   const pending = session.status === 'pending';
   return (
-    <View style={{ width, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine, borderRadius: 20, padding: 18 }}>
+    <View ref={card} collapsable={false} style={{ width, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine, borderRadius: 20, padding: 18 }}>
       <Kicker color={TT.faint} size={10} style={{ marginBottom: 8 }}>{first ? t.care.nextSession : t.care.then}</Kicker>
       <Text style={{ fontSize: 19, fontWeight: '800', color: TT.ink, letterSpacing: -0.4 }}>{longDate(session.scheduledAt, locale)}</Text>
       <Text style={{ fontSize: 13, color: TT.inkSoft, marginTop: 4 }}>
@@ -480,7 +495,7 @@ function SessionCard({
           does not work". Last child paints above, so the whole circle is the
           target — plus hitSlop, because 32px is under the 44px minimum. */}
       <TouchableOpacity
-        onPress={onOpen}
+        onPress={open}
         activeOpacity={0.7}
         hitSlop={6}
         accessibilityRole="button"
@@ -542,8 +557,10 @@ function firstNameOf(name: string): string {
 // status written under the title.
 function ResourceRow({ Icon, title, sub, line, onPress }: { Icon: LucideIcon; title: string; sub: string; line?: string; onPress: () => void }) {
   const { t: TT } = useTheme();
+  // The to-do page grows out of this card (ui/grow).
+  const card = useRef<View>(null);
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: line ?? TT.cardLine, borderRadius: 18, padding: 14, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+    <TouchableOpacity ref={card} onPress={() => rememberGrowOrigin(card, 18, onPress)} activeOpacity={0.8} style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: line ?? TT.cardLine, borderRadius: 18, padding: 14, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
       <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(127,217,192,0.14)', alignItems: 'center', justifyContent: 'center' }}>
         <Icon size={18} color={TT.accent} strokeWidth={2} />
       </View>

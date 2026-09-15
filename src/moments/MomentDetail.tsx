@@ -2,8 +2,8 @@
 // pared to what v2 supports today: moods, text/caption, time, image media, plus
 // wired Share-to-practitioner and Delete. Deferred vs v1: the conversation thread
 // (no moment_comments backend yet) and the video/voice player (media storage dark).
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, ScrollView, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Image, Modal, ScrollView, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Send, CircleCheckBig, Trash2, Play } from 'lucide-react-native';
 import { notify } from '@/src/ui/alert';
@@ -20,6 +20,7 @@ import { otherReaders } from '@/src/care/other-readers';
 import { Kicker } from '@/src/ui/editorial';
 import { useTheme } from '@/src/ui/theme-mode';
 import { OVER_MEDIA } from '@/src/ui/tokens';
+import { GrowFrame, type GrowHandle, type GrowRect } from '@/src/ui/grow';
 
 const T = {
   en: {
@@ -87,9 +88,16 @@ const fmtDur = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2
  *  scrolled back through and drop them at today. */
 export type MomentChange = { id: string; deleted: true } | { id: string; shared: boolean; sharedWith?: string[]; sharedWithIds?: string[] };
 
-export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO; onClose: () => void; onChanged: (change: MomentChange) => void }) {
+export function MomentDetail({ moment, origin, onClose, onChanged }: { moment: MomentDTO; origin?: GrowRect | null; onClose: () => void; onChanged: (change: MomentChange) => void }) {
   const { t: TT } = useTheme();
   const insets = useSafeAreaInsets();
+  const { height: screenH } = useWindowDimensions();
+  // The moment's node grows into this sheet, and closing folds it back (ui/grow).
+  const grow = useRef<GrowHandle>(null);
+  const dismiss = useCallback(() => {
+    if (grow.current) grow.current.close(onClose);
+    else onClose();
+  }, [onClose]);
   const { locale, t } = useI18n();
   const confirm = useConfirm();
   const tr = T[locale];
@@ -176,7 +184,7 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
     try {
       await deleteMoment(moment.id);
       onChanged({ id: moment.id, deleted: true });
-      onClose();
+      dismiss();
     } catch {
       setDeleting(false);
       notify(tr.deleteError);
@@ -193,11 +201,10 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
   const timeLabel = `${when.toLocaleTimeString(locale === 'fr' ? 'fr-FR' : 'en-GB', { hour: '2-digit', minute: '2-digit' })} · ${when.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { month: 'short', day: 'numeric' })}`;
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: TT.scrim, justifyContent: 'flex-end' }}>
-        <Pressable
-          onPress={() => {}}
-          style={{ backgroundColor: TT.sheet, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingBottom: insets.bottom + 16, maxHeight: '82%' }}
+    <Modal visible transparent animationType="none" onRequestClose={dismiss} statusBarTranslucent>
+      <GrowFrame ref={grow} origin={origin ?? null} kind="sheet" color={TT.sheet} scrim={TT.scrim} onScrimPress={dismiss}>
+        <View
+          style={{ backgroundColor: TT.sheet, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingBottom: insets.bottom + 16, maxHeight: Math.round(screenH * 0.82) }}
         >
           <View style={{ alignItems: 'center', paddingVertical: 12 }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: TT.line }} />
@@ -281,8 +288,8 @@ export function MomentDetail({ moment, onClose, onChanged }: { moment: MomentDTO
               </TouchableOpacity>
             </View>
           </ScrollView>
-        </Pressable>
-      </Pressable>
+        </View>
+      </GrowFrame>
       {/* The viewer sits inside this sheet so closing it returns here rather
           than dismissing the moment underneath it. */}
       {viewing !== null ? (
