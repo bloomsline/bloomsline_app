@@ -17,6 +17,7 @@ import { listArticles } from '@/src/api/articles';
 import { useSelectionReset } from '@/src/care/selected-practitioner';
 import { ProfileButton } from '@/src/profile/ProfileButton';
 import { useTheme } from '@/src/ui/theme-mode';
+import { Cascade } from '@/src/ui/cascade';
 
 const T = {
   en: {
@@ -77,41 +78,49 @@ export default function ForYou() {
   return (
     <Ground>
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
-        <View style={{ paddingHorizontal: 22, paddingTop: HEADER_TOP, paddingBottom: 18, flexDirection: 'row', alignItems: 'flex-start' }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 27, fontWeight: '800', color: TT.ink, letterSpacing: -0.9, lineHeight: 31 }}>{tr.title}</Text>
-            <Text style={{ marginTop: 8, fontSize: 14, color: TT.inkSoft, lineHeight: 21 }}>{tr.subtitle}</Text>
+        <Cascade route="for-you" index={0}>
+          <View style={{ paddingHorizontal: 22, paddingTop: HEADER_TOP, paddingBottom: 18, flexDirection: 'row', alignItems: 'flex-start' }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 27, fontWeight: '800', color: TT.ink, letterSpacing: -0.9, lineHeight: 31 }}>{tr.title}</Text>
+              <Text style={{ marginTop: 8, fontSize: 14, color: TT.inkSoft, lineHeight: 21 }}>{tr.subtitle}</Text>
+            </View>
+            <ProfileButton />
           </View>
-          <ProfileButton />
-        </View>
+        </Cascade>
 
         <ScrollView contentContainerStyle={{ paddingBottom: 170 }} showsVerticalScrollIndicator={false}>
           {/* The intro is a popup over the whole screen now, so the page below
               it needs no dimming of its own — see TabIntro. */}
           <FadeIn style={{ paddingHorizontal: 22 }}>
             <View style={{ gap: 12 }}>
-              <DoorCard
-                Icon={PenLine}
-                title={tr.journal}
-                body={tr.journalDesc}
-                action={tr.openJournal}
-                onPress={() => router.navigate('/journal' as never)}
-              />
-              <DoorCard
-                Icon={Sprout}
-                title={tr.activities}
-                body={tr.activitiesDesc}
-                action={tr.browse}
-                onPress={() => router.navigate('/library' as never)}
-              />
-              {hasArticles && (
+              <Cascade route="for-you" index={1}>
                 <DoorCard
-                  Icon={BookOpen}
-                  title={tr.articles}
-                  body={tr.articlesDesc}
-                  action={tr.browseArticles}
-                  onPress={() => router.navigate('/articles' as never)}
+                  Icon={PenLine}
+                  title={tr.journal}
+                  body={tr.journalDesc}
+                  action={tr.openJournal}
+                  onPress={() => router.navigate('/journal' as never)}
                 />
+              </Cascade>
+              <Cascade route="for-you" index={2}>
+                <DoorCard
+                  Icon={Sprout}
+                  title={tr.activities}
+                  body={tr.activitiesDesc}
+                  action={tr.browse}
+                  onPress={() => router.navigate('/library' as never)}
+                />
+              </Cascade>
+              {hasArticles && (
+                <Cascade route="for-you" index={3}>
+                  <DoorCard
+                    Icon={BookOpen}
+                    title={tr.articles}
+                    body={tr.articlesDesc}
+                    action={tr.browseArticles}
+                    onPress={() => router.navigate('/articles' as never)}
+                  />
+                </Cascade>
               )}
             </View>
           </FadeIn>

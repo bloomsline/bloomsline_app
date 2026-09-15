@@ -2,7 +2,7 @@
 // the frozen version's blocks (shared renderer), collects answers, and submits →
 // server validates + scores → shows the result. Reached from My Care "To do".
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, BackHandler, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Check, CircleCheckBig, MessageCircle } from 'lucide-react-native';
@@ -18,6 +18,7 @@ import { useLeaveGuard } from '@/src/ui/leave-guard';
 import { useI18n } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
 import { OtherPractitionerNote } from '@/src/care/OtherPractitionerNote';
+import { GrowFrame, takeGrowOrigin, useGrowFold } from '@/src/ui/grow';
 import { clearUnsent, readUnsent, saveUnsent } from '@/src/unsent';
 
 const DANGER = '#C0392B';
@@ -102,8 +103,20 @@ const T = {
   },
 } as const;
 
+// The to-do card grows into this page, and leaving folds it back (ui/grow).
 export default function ResourceDetail() {
   const { t: TT } = useTheme();
+  const [origin] = useState(takeGrowOrigin);
+  return (
+    <GrowFrame origin={origin} kind="page" color={TT.bg}>
+      <ResourceDetailPage />
+    </GrowFrame>
+  );
+}
+
+function ResourceDetailPage() {
+  const { t: TT } = useTheme();
+  const fold = useGrowFold();
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale];
@@ -384,12 +397,24 @@ export default function ResourceDetail() {
     );
   };
 
-  const back = () => (router.canGoBack() ? router.back() : router.navigate('/home' as never));
+  const leaveNow = () => (router.canGoBack() ? router.back() : router.navigate('/home' as never));
+  // While answers or a file are still being kept, leaving goes straight to the
+  // guard below, which may ask to stay: folding the page away first would leave
+  // someone who chose to stay looking at a card.
+  const holding = !result && (keep === 'saving' || keep === 'failed' || uploads.uploading > 0);
+  const back = () => (holding ? leaveNow() : fold(leaveNow));
+  const backRef = useRef(back);
+  backRef.current = back;
+  useFocusEffect(useCallback(() => {
+    if (Platform.OS !== 'android') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { backRef.current(); return true; });
+    return () => sub.remove();
+  }, []));
 
   // Leaving with answers not yet kept: keep them, then go; ask only if that fails.
   // A file still uploading is held the same way: leaving drops it, so that is
   // said first and only a deliberate "leave anyway" goes.
-  const guard = useLeaveGuard(!result && (keep === 'saving' || keep === 'failed' || uploads.uploading > 0), async (leave) => {
+  const guard = useLeaveGuard(holding, async (leave) => {
     clearTimers();
     if (Object.values(uploadsRef.current).some((u) => u.uploading > 0)) {
       const go = await confirm({ title: tr.uploadingTitle, message: tr.uploadingBody, confirmLabel: tr.leaveAnyway, cancelLabel: tr.stay, destructive: true });
@@ -422,7 +447,7 @@ export default function ResourceDetail() {
     );
   }
 
-  if (result) return <ResultView title={view.resource.title} score={result.score} onDone={() => (router.canGoBack() ? router.back() : router.navigate('/home' as never))} tr={tr} />;
+  if (result) return <ResultView title={view.resource.title} score={result.score} onDone={back} tr={tr} />;
 
   const kicker = view.resource.type === 'psychoeducation' ? tr.reading : tr.worksheet;
 

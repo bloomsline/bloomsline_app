@@ -4,6 +4,8 @@ import { useAuth } from '@/src/auth/auth-context';
 import { rememberRoute } from '@/src/auth/pending-route';
 import { hrefForStatus } from '@/src/auth/route';
 import { useLanding, LANDING_HREF } from '@/src/prefs/app-prefs';
+import { useTheme } from '@/src/ui/theme-mode';
+import { useReduceMotion } from '@/src/ui/app-tabs';
 
 /** The three tab routes. Only these are subject to the landing preference — a
  *  resource link, a journal entry or a session sheet is somewhere the patient
@@ -21,6 +23,8 @@ const TAB_PATHS: Record<string, true> = { '/home': true, '/moments': true, '/for
 let entryDecided = false;
 
 export default function AppLayout() {
+  const { t: TT } = useTheme();
+  const reduceMotion = useReduceMotion();
   const { status } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
@@ -60,10 +64,22 @@ export default function AppLayout() {
     return <Redirect href={hrefForStatus(status)} />;
   }
 
+  // How screens open.
+  //
+  // Most rise softly into place: the new page fades in while settling up from a
+  // little below, which reads as "on top of where you were" rather than a slide
+  // to somewhere else. The page colour is set here too: without it the
+  // navigation theme's near-white showed around a page as it rose in dark mode.
+  //
+  // A session's sheet and a to-do's page instead GROW out of the card that was
+  // tapped (ui/grow), so they open as transparent screens with no animation of
+  // their own and draw the growth themselves over the screen they came from.
+  const grown = { presentation: 'transparentModal', animation: 'none', contentStyle: { backgroundColor: 'transparent' } } as const;
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: TT.bg }, animation: reduceMotion ? 'none' : 'fade_from_bottom', animationDuration: 320 }}>
       <Stack.Screen name="capture" options={{ presentation: 'modal' }} />
-      <Stack.Screen name="session-menu" options={{ presentation: 'transparentModal', animation: 'fade' }} />
+      <Stack.Screen name="session-menu" options={grown} />
+      <Stack.Screen name="resource/[id]" options={grown} />
     </Stack>
   );
 }

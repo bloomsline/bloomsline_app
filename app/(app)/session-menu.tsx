@@ -2,10 +2,11 @@
 // and wires reschedule (→ the slot picker in reschedule mode) and cancel (→ POST
 // /api/mobile/care/sessions/[id]/cancel). Demo sessions (FORCE_CARE_HUB preview)
 // don't hit the backend.
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { BackHandler, Platform } from 'react-native';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Info } from 'lucide-react-native';
 import { notify } from '@/src/ui/alert';
 import { EdPill, HEADER_TOP, Kicker } from '@/src/ui/editorial';
@@ -16,6 +17,7 @@ import { fmt, useI18n, type Locale } from '@/src/i18n';
 import { PractitionerAvatar } from '@/src/care/PractitionerAvatar';
 import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
+import { GrowFrame, takeGrowOrigin, type GrowHandle } from '@/src/ui/grow';
 
 // Destructive tone for the cancel action, in an editorial-warm register.
 const DANGER = '#B04A32';
@@ -113,7 +115,25 @@ export default function SessionMenu() {
   const showCancel = canCancel && !started;
 
   const [busy, setBusy] = useState(false);
-  const close = () => (router.canGoBack() ? router.back() : router.navigate('/home' as never));
+  const leave = () => (router.canGoBack() ? router.back() : router.navigate('/home' as never));
+  // The session card grows into this sheet and closing folds it back (ui/grow).
+  // Every way out goes through the fold, including Android's back button.
+  const [origin] = useState(takeGrowOrigin);
+  const grow = useRef<GrowHandle>(null);
+  const closing = useRef(false);
+  const close = () => {
+    if (closing.current) return;
+    closing.current = true;
+    if (grow.current) grow.current.close(leave);
+    else leave();
+  };
+  const closeOnBack = useRef(close);
+  closeOnBack.current = close;
+  useFocusEffect(useCallback(() => {
+    if (Platform.OS !== 'android') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { closeOnBack.current(); return true; });
+    return () => sub.remove();
+  }, []));
 
   // The session and the permissions in the params belong to the practitioner
   // selected when My Care opened this sheet. A switch while it is open (a
@@ -152,57 +172,58 @@ export default function SessionMenu() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: 'rgba(20,20,20,0.4)', justifyContent: 'flex-end' }}>
-      <Pressable style={{ flex: 1 }} onPress={close} />
-      {/* `sheet`, not `card`: card is rgba(255,255,255,0.055) on dark, so the
-          whole My Care page read straight through this sheet. Every other sheet
-          in the app already uses `sheet` for exactly this reason. */}
-      <SafeAreaView edges={['bottom']} style={{ backgroundColor: TT.sheet, borderTopLeftRadius: 28, borderTopRightRadius: 28 }}>
-        <View style={{ paddingHorizontal: 24, paddingTop: HEADER_TOP, paddingBottom: 8 }}>
-          <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: TT.line, alignSelf: 'center', marginBottom: 18 }} />
+    <View style={{ flex: 1 }}>
+      <GrowFrame ref={grow} origin={origin} kind="sheet" color={TT.sheet} scrim="rgba(20,20,20,0.4)" onScrimPress={close}>
+        {/* `sheet`, not `card`: card is rgba(255,255,255,0.055) on dark, so the
+            whole My Care page read straight through this sheet. Every other sheet
+            in the app already uses `sheet` for exactly this reason. */}
+        <SafeAreaView edges={['bottom']} style={{ backgroundColor: TT.sheet, borderTopLeftRadius: 28, borderTopRightRadius: 28 }}>
+          <View style={{ paddingHorizontal: 24, paddingTop: HEADER_TOP, paddingBottom: 8 }}>
+            <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: TT.line, alignSelf: 'center', marginBottom: 18 }} />
 
-          <Kicker color={TT.faint} style={{ marginBottom: 12 }}>{tr.session}</Kicker>
+            <Kicker color={TT.faint} style={{ marginBottom: 12 }}>{tr.session}</Kicker>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: TT.line }}>
-            <PractitionerAvatar size={46} name={name} tone="solid" />
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: TT.ink }}>{start ? `${longDate(start, locale)} · ${clock(start)}` : tr.session}</Text>
-              <Text style={{ fontSize: 12.5, color: TT.inkSoft, marginTop: 1 }}>{tr.with} {name} · {duration} min · {fmtFormat(format, tr)}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: TT.line }}>
+              <PractitionerAvatar size={46} name={name} tone="solid" />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: TT.ink }}>{start ? `${longDate(start, locale)} · ${clock(start)}` : tr.session}</Text>
+                <Text style={{ fontSize: 12.5, color: TT.inkSoft, marginTop: 1 }}>{tr.with} {name} · {duration} min · {fmtFormat(format, tr)}</Text>
+              </View>
             </View>
-          </View>
 
-          <View style={{ flexDirection: 'row', gap: 10, paddingVertical: 16 }}>
-            <MiniFact label={tr.startsIn} value={start ? startsIn(start, tr) : '—'} />
-            <MiniFact label={tr.format} value={fmtFormat(format, tr)} />
-          </View>
+            <View style={{ flexDirection: 'row', gap: 10, paddingVertical: 16 }}>
+              <MiniFact label={tr.startsIn} value={start ? startsIn(start, tr) : '—'} />
+              <MiniFact label={tr.format} value={fmtFormat(format, tr)} />
+            </View>
 
-          {(showCancel || showReschedule) && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: TT.accentTint, borderRadius: 14, padding: 13, marginBottom: 16 }}>
-              <Info size={15} color={TT.accent} strokeWidth={2} />
-              <Text style={{ flex: 1, fontSize: 12.5, color: TT.inkSoft, lineHeight: 18 }}>
-                {tooLateToMove ? tr.tooLateToMove : fmt(tr.changesNotice, { hours: noticeHours })}
+            {(showCancel || showReschedule) && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: TT.accentTint, borderRadius: 14, padding: 13, marginBottom: 16 }}>
+                <Info size={15} color={TT.accent} strokeWidth={2} />
+                <Text style={{ flex: 1, fontSize: 12.5, color: TT.inkSoft, lineHeight: 18 }}>
+                  {tooLateToMove ? tr.tooLateToMove : fmt(tr.changesNotice, { hours: noticeHours })}
+                </Text>
+              </View>
+            )}
+
+            {showReschedule && (
+              <EdPill label={tr.reschedule} variant="dark" onPress={busy ? undefined : reschedule} disabled={busy} />
+            )}
+            {showReschedule && showCancel && <View style={{ height: 10 }} />}
+            {showCancel && (
+              <Pressable onPress={confirmCancel} disabled={busy} style={{ height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: TT.card, borderWidth: 1.5, borderColor: DANGER_BORDER }}>
+                {busy ? <ActivityIndicator color={DANGER} /> : <Text style={{ fontSize: 15.5, fontWeight: '700', color: DANGER }}>{tr.cancel}</Text>}
+              </Pressable>
+            )}
+
+            {/* Neither allowed: say so, so the sheet is not an empty panel. */}
+            {!showCancel && !showReschedule && (
+              <Text style={{ fontSize: 12.5, color: TT.inkSoft, textAlign: 'center', lineHeight: 18 }}>
+                {tr.contactPractitioner}
               </Text>
-            </View>
-          )}
-
-          {showReschedule && (
-            <EdPill label={tr.reschedule} variant="dark" onPress={busy ? undefined : reschedule} disabled={busy} />
-          )}
-          {showReschedule && showCancel && <View style={{ height: 10 }} />}
-          {showCancel && (
-            <Pressable onPress={confirmCancel} disabled={busy} style={{ height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: TT.card, borderWidth: 1.5, borderColor: DANGER_BORDER }}>
-              {busy ? <ActivityIndicator color={DANGER} /> : <Text style={{ fontSize: 15.5, fontWeight: '700', color: DANGER }}>{tr.cancel}</Text>}
-            </Pressable>
-          )}
-
-          {/* Neither allowed: say so, so the sheet is not an empty panel. */}
-          {!showCancel && !showReschedule && (
-            <Text style={{ fontSize: 12.5, color: TT.inkSoft, textAlign: 'center', lineHeight: 18 }}>
-              {tr.contactPractitioner}
-            </Text>
-          )}
-        </View>
-      </SafeAreaView>
+            )}
+          </View>
+        </SafeAreaView>
+      </GrowFrame>
 
       {/* Cancelling did nothing on iOS while working on the web, and this line
           is the whole difference.

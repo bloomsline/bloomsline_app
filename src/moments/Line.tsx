@@ -16,6 +16,7 @@ import { MOOD_SCORES, moodColor } from '@/src/moments/moods';
 import { shapeFor, shapePath, type MoodShape } from '@/src/moments/shapes';
 import type { MomentDTO } from '@/src/api/moments';
 import { useTheme } from '@/src/ui/theme-mode';
+import type { GrowRect } from '@/src/ui/grow';
 // Translucent ink for the timeline's own marks. Lived here first; now shared,
 // because capture needed the same thing and two copies of a theme rule is how
 // one of them ends up wrong.
@@ -302,18 +303,21 @@ function NodeFace({ node, onPress, nearby }: { node: LineNode; onPress: () => vo
  * memoised at the call site for exactly this reason.
  */
 export const Line = memo(function Line({
-  moments, width, locale, labels, onOpen, onCaptureToday, photoFrom, photoTo,
+  moments, width, locale, labels, onOpen, onCaptureToday, photoFromFoot, photoToFoot,
 }: {
   moments: MomentDTO[];
   width: number;
-  /** The band of the line, in its own coordinates, allowed to hold pictures.
-   *  Quantised by the caller so scrolling does not re-render this on every
-   *  pixel. See `nearby` on NodeFace. */
-  photoFrom: number;
-  photoTo: number;
+  /** The band of the line allowed to hold pictures, as distances up from the
+   *  line's BOTTOM (its top edge, then its bottom edge). Quantised by the caller
+   *  so scrolling does not re-render this on every pixel. See `nearby` on
+   *  NodeFace. From the bottom because that is the end that holds still: when an
+   *  older page lands above, the band still covers the same moments in the very
+   *  render that moves them. */
+  photoFromFoot: number;
+  photoToFoot: number;
   locale: 'en' | 'fr';
   labels: { heavier: string; lighter: string; today: string; yesterday: string; tapToRead: string; capture: string; plusMore: (n: number) => string };
-  onOpen: (m: MomentDTO) => void;
+  onOpen: (m: MomentDTO, from?: GrowRect | null) => void;
   onCaptureToday: () => void;
 }) {
   const { mode } = useTheme();
@@ -323,6 +327,9 @@ export const Line = memo(function Line({
   const todayY = height - NODE / 2 - 6;
   const todayX = SIDE_PAD + 0.5 * (width - SIDE_PAD - NODE / 2 - 14);
   const total = height + 30;
+  // The band in the line's own coordinates, from the top, as the code below uses.
+  const photoFrom = total - photoFromFoot;
+  const photoTo = total - photoToFoot;
   // Every point of the stem, top to bottom: the moments, then today.
   const points = useMemo(() => [...nodes.map((n) => ({ x: n.x, y: n.y })), { x: todayX, y: todayY }], [nodes, todayX, todayY]);
 
@@ -429,12 +436,18 @@ const NodeRow = memo(function NodeRow({ node, bottom, nearby, width, labels, onO
   nearby: boolean;
   width: number;
   labels: { tapToRead: string; plusMore: (n: number) => string };
-  onOpen: (m: MomentDTO) => void;
+  onOpen: (m: MomentDTO, from?: GrowRect | null) => void;
 }) {
   const { mode, t: TT } = useTheme();
-  const open = () => onOpen(node.moment);
+  const row = useRef<View>(null);
+  // The sheet grows out of this node (ui/grow), so find where the node is first.
+  const open = () => {
+    const at = row.current;
+    if (!at?.measureInWindow) { onOpen(node.moment, null); return; }
+    at.measureInWindow((x, y) => onOpen(node.moment, { x: x + node.x - NODE / 2, y: y + ROW / 2 - NODE / 2, width: NODE, height: NODE, radius: NODE / 2 }));
+  };
   return (
-    <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, width, bottom, height: ROW }}>
+    <View ref={row} collapsable={false} pointerEvents="box-none" style={{ position: 'absolute', left: 0, width, bottom, height: ROW }}>
       {node.dayLabel ? (
         <Text style={{ position: 'absolute', left: 14, top: ROW / 2 - 8, fontSize: 12, color: veil(mode, 0.42) }}>{node.dayLabel}</Text>
       ) : null}

@@ -15,7 +15,7 @@
 // matching scroll correction, or the line silently walks them backwards through
 // their own week. See `onContentSize`.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Pressable, RefreshControl, ScrollView, Text, TouchableOpacity, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { ActivityIndicator, Animated, Dimensions, Pressable, RefreshControl, ScrollView, Text, TouchableOpacity, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowDown } from 'lucide-react-native';
@@ -24,11 +24,14 @@ import { Line } from '@/src/moments/Line';
 import { MomentsClosing, MomentsIntro } from '@/src/moments/FirstRun';
 import { useMomentsFirstRun } from '@/src/moments/first-run';
 import { MomentDetail, type MomentChange } from '@/src/moments/MomentDetail';
+import type { GrowRect } from '@/src/ui/grow';
+import { Cascade } from '@/src/ui/cascade';
 import { useLanding } from '@/src/prefs/app-prefs';
 import { useOnboarding } from '@/src/onboarding/context';
 import { Ground } from '@/src/ui/Ground';
 import { useI18n, greetingFor } from '@/src/i18n';
 import { listMoments, type MomentDTO } from '@/src/api/moments';
+import { keepFreshLinks } from '@/src/moments/keep-links';
 import { ProfileButton } from '@/src/profile/ProfileButton';
 import { useTheme } from '@/src/ui/theme-mode';
 import { useStaleOnReturn } from '@/src/ui/use-stale-on-return';
@@ -62,6 +65,10 @@ const LOAD_AHEAD = 600;
  *  disappears above the viewport moves everything below it, which reads as the
  *  line twitching every time a page starts or finishes. */
 const TOP_SLOT = 52;
+
+/** Below the line in the scroll content: its bottom padding and the foot marker. */
+const FOOT_PAD = 96;
+const FOOT_MARK = 1;
 
 /** How far from the foot before the way back appears. Two rows: a nudge should
  *  not summon chrome onto a screen whose whole point is being quiet. */
@@ -124,9 +131,26 @@ export default function Moments() {
   const [loadingOlder, setLoadingOlder] = useState(false);
   // null once the line has been read back to its beginning.
   const [cursor, setCursor] = useState<string | null>(null);
+  // When each moment's picture links arrived, and the list as last rendered, so a
+  // fresh read can keep links that are still good (moments/keep-links).
+  const linksAt = useRef(new Map<string, number>());
+  const momentsRef = useRef(moments);
+  momentsRef.current = moments;
   const [viewing, setViewing] = useState<MomentDTO | null>(null);
+  // The node it was opened from, which the sheet grows out of (ui/grow).
+  const [viewingFrom, setViewingFrom] = useState<GrowRect | null>(null);
+  const openMoment = useCallback((m: MomentDTO, from?: GrowRect | null) => { setViewingFrom(from ?? null); setViewing(m); }, []);
   /**
-   * Which band of the line may hold pictures, in the line's own coordinates.
+   * Which band of the line may hold pictures, as the distance from the FOOT of
+   * the scroll content to the top of the viewport.
+   *
+   * Measured from the foot, not the top, because the foot is the end that holds
+   * still. An older page lands ABOVE the reader: measured from the top, the band
+   * kept pointing at the same number of pixels down the line while every moment
+   * moved a page further down, so for a frame the moments on screen fell outside
+   * it. Their pictures dropped and rows unmounted, then the next scroll event put
+   * them back: the blink when a page arrived. From the foot, the band means the
+   * same moments before and after a page lands, in the same render.
    *
    * Everything stays mounted — the layout and the scroll position depend on it —
    * but only the nodes near the viewport decode an image. A decoded photograph
@@ -136,7 +160,7 @@ export default function Moments() {
    * STATE, and quantised to `PHOTO_STEP`, so a scroll re-renders the line about
    * once a screenful rather than sixty times a second.
    */
-  const [photoBand, setPhotoBand] = useState(0);
+  const [photoBand, setPhotoBand] = useState(() => Math.round(Dimensions.get('window').height / PHOTO_STEP));
   // "Nothing yet" and "we could not reach your line" are different things to be
   // told, and showing the welcoming empty state for a network failure is a lie.
   const [failed, setFailed] = useState(false);
@@ -242,11 +266,14 @@ export default function Moments() {
       const page = await listMoments({ limit: PAGE });
       if (g !== gen.current) return;
       markFresh();
-      setMoments(page.moments);
+      // Same files, same links: a photo does not blink every time the tab is
+      // shown just because the page was read again (moments/keep-links).
+      const merged = keepFreshLinks(momentsRef.current, page.moments, linksAt.current, Date.now());
+      setMoments(merged);
       // An open moment is re-read with the page, so its sheet shows the share
       // state it has NOW (see MomentDetail): after a switch, "shared" is about
       // the practitioner just chosen.
-      setViewing((v) => (v ? page.moments.find((m) => m.id === v.id) ?? v : v));
+      setViewing((v) => (v ? merged.find((m) => m.id === v.id) ?? v : v));
       cursorRef.current = page.nextCursor;
       cursorIdRef.current = page.nextCursorId ?? null;
       setCursor(page.nextCursor);
@@ -317,6 +344,8 @@ export default function Moments() {
           // doubled circle on the line.
           const seen = new Set(prev.map((m) => m.id));
           const fresh = page.moments.filter((m) => !seen.has(m.id));
+          const now = Date.now();
+          for (const m of fresh) linksAt.current.set(m.id, now);
           return fresh.length > 0 ? [...prev, ...fresh] : prev;
         });
         // Safety net. `growing` is normally lowered by the anchor, but a page of
@@ -363,7 +392,7 @@ export default function Moments() {
 
       // Which band of the line is allowed to hold pictures. Quantised, so this
       // sets state about once a screenful rather than on every event.
-      const band = Math.round(contentOffset.y / PHOTO_STEP);
+      const band = Math.round((contentSize.height - contentOffset.y) / PHOTO_STEP);
       setPhotoBand((prev) => (prev === band ? prev : band));
 
       const runway = Math.max(1, contentSize.height - layoutMeasurement.height);
@@ -418,8 +447,8 @@ export default function Moments() {
     // programmatic scroll does not reliably fire — so opening at today with the
     // band still at zero would load pictures for April and none for this week,
     // which is precisely backwards.
-    const atFoot = Math.max(0, contentH.current - viewportH.current);
-    setPhotoBand((prev) => { const b = Math.round(atFoot / PHOTO_STEP); return prev === b ? prev : b; });
+    // At the foot, the viewport's top is one viewport above the end.
+    setPhotoBand((prev) => { const b = Math.round(viewportH.current / PHOTO_STEP); return prev === b ? prev : b; });
   }, []);
 
   const onContentSize = useCallback((_w: number, h: number) => {
@@ -526,12 +555,14 @@ export default function Moments() {
   return (
     <Ground>
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
-        <View style={{ paddingHorizontal: 22, paddingTop: HEADER_TOP, paddingBottom: 10, flexDirection: 'row', alignItems: 'flex-start' }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 27, fontWeight: '800', color: TT.ink, letterSpacing: -0.9, lineHeight: 31 }}>{title}</Text>
+        <Cascade route="moments" index={0}>
+          <View style={{ paddingHorizontal: 22, paddingTop: HEADER_TOP, paddingBottom: 10, flexDirection: 'row', alignItems: 'flex-start' }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 27, fontWeight: '800', color: TT.ink, letterSpacing: -0.9, lineHeight: 31 }}>{title}</Text>
+            </View>
+            <ProfileButton />
           </View>
-          <ProfileButton />
-        </View>
+        </Cascade>
 
         {/* Three states, in the order a patient meets them.
 
@@ -548,101 +579,116 @@ export default function Moments() {
             reach your line" are different things to be told, and introducing the
             app to someone whose connection dropped would be a lie about their
             own data. */}
-        {!loading && firstRun.ready && !failed && moments.length === 0 ? (
-          <MomentsIntro onCapture={openFirstCapture} />
-        ) : !loading && firstRun.ready && !failed && !firstRun.done ? (
-          <MomentsClosing onDone={firstRun.complete} />
-        ) : (
-        <ScrollView
-          ref={scroller}
-          // `today` belongs just above the tab bar, however few moments there are.
-        // With a short line the content did not overflow, so it sat top-aligned
-        // and left ~185px of slack underneath — and because it does not
-        // overflow, trimming the padding moves nothing. `flexGrow` +
-        // `justify-end` pushes a short line down to the foot; a long one
-        // scrolls exactly as before.
-        contentContainerStyle={{ paddingBottom: 96, paddingTop: 22, flexGrow: 1, justifyContent: 'flex-end' }}
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={onContentSize}
-          onLayout={(e) => { viewportH.current = e.nativeEvent.layout.height; pinToToday(); }}
-          onScroll={onScroll}
-          // The only signal that the reader, and not this screen, moved the list.
-          onScrollBeginDrag={() => { touched.current = true; }}
-          // A page that arrived mid-fling is applied once the list stands still
-          // (see `flinging`). A finger landing on the list ends the fling too.
-          onMomentumScrollBegin={() => { flinging.current = true; }}
-          onMomentumScrollEnd={releaseHeldPage}
-          onScrollEndDrag={(e) => { if ((e.nativeEvent.velocity?.y ?? 0) === 0) releaseHeldPage(); }}
-          scrollEventThrottle={16}
-          // Reachable only at the true beginning of the line: while pages remain,
-          // crossing LOAD_AHEAD fetches one and the anchor puts a screenful back
-          // above the reader, so the top can never actually be pulled.
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={TT.faint} />}
-        >
-          {/* No TabIntro here. That card explained the tab in the abstract and
-              then dismissed itself for good — it is keyed to storage, so it
-              never came back, which is how someone ended up on an empty screen
-              with nothing explaining it. The introduction above replaces it, and
-              is tied to the line being empty rather than to a visit. */}
-
-          {loading ? (
-            <View style={{ paddingTop: 60, alignItems: 'center' }}>
-              <ActivityIndicator color={TT.faint} />
-            </View>
+        {/* The line settles in after the header when a tab press brings you here (ui/cascade). */}
+        <Cascade route="moments" index={1} style={{ flex: 1 }}>
+          {!loading && firstRun.ready && !failed && moments.length === 0 ? (
+            <MomentsIntro onCapture={openFirstCapture} />
+          ) : !loading && firstRun.ready && !failed && !firstRun.done ? (
+            <MomentsClosing onDone={firstRun.complete} />
           ) : (
-            <FadeIn>
-              {moments.length === 0 ? (
-                <View style={{ paddingHorizontal: 34, paddingTop: 40, alignItems: 'center' }}>
-                  <Text style={{ fontSize: 19, fontWeight: '700', color: TT.ink, textAlign: 'center', lineHeight: 26 }}>
-                    {failed ? tr.failedTitle : tr.emptyTitle}
-                  </Text>
-                  <Text style={{ marginTop: 8, fontSize: 14, color: TT.inkSoft, textAlign: 'center', lineHeight: 21 }}>
-                    {failed ? tr.failedBody : tr.emptyBody}
-                  </Text>
-                  {failed ? (
-                    <TouchableOpacity
-                      onPress={() => { setLoading(true); void load(); }}
-                      style={{ marginTop: 18, height: 44, paddingHorizontal: 26, borderRadius: 22, borderWidth: 1, borderColor: TT.cardLine, alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: TT.ink }}>{t.common.retry}</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
-              ) : (
-                <>
-                  {/* Fixed height whatever it holds — see TOP_SLOT. */}
-                  <View style={{ height: TOP_SLOT, alignItems: 'center', justifyContent: 'center' }}>
-                    {loadingOlder ? (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <ActivityIndicator size="small" color={TT.faint} />
-                        <Text style={{ fontSize: 11.5, color: TT.faint }}>{tr.loadingOlder}</Text>
-                      </View>
-                    ) : olderFailed ? (
-                      <Pressable onPress={() => { void loadOlder(true); }} hitSlop={10}>
-                        <Text style={{ fontSize: 11.5, color: TT.faint, textAlign: 'center', paddingHorizontal: 24 }}>{tr.olderFailed}</Text>
-                      </Pressable>
-                    ) : cursor === null ? (
-                      <Text style={{ fontSize: 11.5, color: TT.faint }}>{tr.lineStart}</Text>
+          <ScrollView
+            ref={scroller}
+            // `today` belongs just above the tab bar, however few moments there are.
+          // With a short line the content did not overflow, so it sat top-aligned
+          // and left ~185px of slack underneath — and because it does not
+          // overflow, trimming the padding moves nothing. `flexGrow` +
+          // `justify-end` pushes a short line down to the foot; a long one
+          // scrolls exactly as before.
+          contentContainerStyle={{ paddingBottom: FOOT_PAD, paddingTop: 22, flexGrow: 1, justifyContent: 'flex-end' }}
+            showsVerticalScrollIndicator={false}
+            // Index 1 is the foot marker: skip the line, which never moves.
+            maintainVisibleContentPosition={{ minIndexForVisible: 1 }}
+            onContentSizeChange={onContentSize}
+            onLayout={(e) => { viewportH.current = e.nativeEvent.layout.height; pinToToday(); }}
+            onScroll={onScroll}
+            // The only signal that the reader, and not this screen, moved the list.
+            onScrollBeginDrag={() => { touched.current = true; }}
+            // A page that arrived mid-fling is applied once the list stands still
+            // (see `flinging`). A finger landing on the list ends the fling too.
+            onMomentumScrollBegin={() => { flinging.current = true; }}
+            onMomentumScrollEnd={releaseHeldPage}
+            onScrollEndDrag={(e) => { if ((e.nativeEvent.velocity?.y ?? 0) === 0) releaseHeldPage(); }}
+            scrollEventThrottle={16}
+            // Reachable only at the true beginning of the line: while pages remain,
+            // crossing LOAD_AHEAD fetches one and the anchor puts a screenful back
+            // above the reader, so the top can never actually be pulled.
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={TT.faint} />}
+          >
+            {/* No TabIntro here. That card explained the tab in the abstract and
+                then dismissed itself for good — it is keyed to storage, so it
+                never came back, which is how someone ended up on an empty screen
+                with nothing explaining it. The introduction above replaces it, and
+                is tied to the line being empty rather than to a visit. */}
+
+            {loading ? (
+              <View style={{ paddingTop: 60, alignItems: 'center' }}>
+                <ActivityIndicator color={TT.faint} />
+              </View>
+            ) : (
+              <FadeIn>
+                {moments.length === 0 ? (
+                  <View style={{ paddingHorizontal: 34, paddingTop: 40, alignItems: 'center' }}>
+                    <Text style={{ fontSize: 19, fontWeight: '700', color: TT.ink, textAlign: 'center', lineHeight: 26 }}>
+                      {failed ? tr.failedTitle : tr.emptyTitle}
+                    </Text>
+                    <Text style={{ marginTop: 8, fontSize: 14, color: TT.inkSoft, textAlign: 'center', lineHeight: 21 }}>
+                      {failed ? tr.failedBody : tr.emptyBody}
+                    </Text>
+                    {failed ? (
+                      <TouchableOpacity
+                        onPress={() => { setLoading(true); void load(); }}
+                        style={{ marginTop: 18, height: 44, paddingHorizontal: 26, borderRadius: 22, borderWidth: 1, borderColor: TT.cardLine, alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: TT.ink }}>{t.common.retry}</Text>
+                      </TouchableOpacity>
                     ) : null}
                   </View>
+                ) : (
+                  <>
+                    {/* Fixed height whatever it holds — see TOP_SLOT. */}
+                    <View style={{ height: TOP_SLOT, alignItems: 'center', justifyContent: 'center' }}>
+                      {loadingOlder ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <ActivityIndicator size="small" color={TT.faint} />
+                          <Text style={{ fontSize: 11.5, color: TT.faint }}>{tr.loadingOlder}</Text>
+                        </View>
+                      ) : olderFailed ? (
+                        <Pressable onPress={() => { void loadOlder(true); }} hitSlop={10}>
+                          <Text style={{ fontSize: 11.5, color: TT.faint, textAlign: 'center', paddingHorizontal: 24 }}>{tr.olderFailed}</Text>
+                        </Pressable>
+                      ) : cursor === null ? (
+                        <Text style={{ fontSize: 11.5, color: TT.faint }}>{tr.lineStart}</Text>
+                      ) : null}
+                    </View>
 
-                  <Line
-                    moments={moments}
-                    width={width > 460 ? 420 : width}
-                    locale={locale}
-                    labels={lineLabels}
-                    onOpen={setViewing}
-                    onCaptureToday={openCapture}
-                    photoFrom={photoBand * PHOTO_STEP - PHOTO_MARGIN}
-                    photoTo={photoBand * PHOTO_STEP + viewportH.current + PHOTO_MARGIN}
-                  />
-                </>
-              )}
-            </FadeIn>
+                    <Line
+                      moments={moments}
+                      width={width > 460 ? 420 : width}
+                      locale={locale}
+                      labels={lineLabels}
+                      onOpen={openMoment}
+                      onCaptureToday={openCapture}
+                      photoFromFoot={photoBand * PHOTO_STEP + PHOTO_MARGIN - FOOT_PAD - FOOT_MARK}
+                      photoToFoot={photoBand * PHOTO_STEP - viewportH.current - PHOTO_MARGIN - FOOT_PAD - FOOT_MARK}
+                    />
+                  </>
+                )}
+              </FadeIn>
+            )}
+
+            {/* THE FOOT MARKER, and what holds the reader still when a page lands.
+                The scroll view keeps this view where it is on screen across a
+                content change (maintainVisibleContentPosition, below), adjusting
+                the offset natively in the same frame the taller line is mounted.
+                The line itself cannot be the anchor: it is one view whose top never
+                moves, so a page landing inside it looks like no change at all.
+                This sits under it and moves down by exactly the page's height.
+                `onContentSize` still does the same correction from JS, which is
+                what the web build has; on a phone it finds nothing left to do. */}
+            <View collapsable={false} style={{ height: FOOT_MARK }} />
+          </ScrollView>
           )}
-
-        </ScrollView>
-        )}
+        </Cascade>
       </SafeAreaView>
 
       {/* Both only exist once the reader has actually gone somewhere. At the
@@ -686,7 +732,7 @@ export default function Moments() {
         </Pressable>
       ) : null}
 
-      {viewing ? <MomentDetail moment={viewing} onClose={() => setViewing(null)} onChanged={applyChange} /> : null}
+      {viewing ? <MomentDetail moment={viewing} origin={viewingFrom} onClose={() => setViewing(null)} onChanged={applyChange} /> : null}
     </Ground>
   );
 }
