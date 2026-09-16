@@ -265,11 +265,11 @@ export const fr: Dict = {
   },
   analytics: {
     ask: {
-      title: 'Nous aider à améliorer Bloomsline ?',
-      body: 'Nous pouvons compter l’usage de l’application : écrans ouverts, moment écrit, séance réservée, pour voir ce qui coince.',
-      never: 'Jamais ce que vous écrivez. Ni noms, ni moments, ni journal, rien de ce que vous saisissez. Ces comptages ne peuvent pas remonter jusqu’à vous et ne servent jamais à la publicité.',
-      no: 'Non merci',
-      yes: 'Oui, comptez-moi',
+      title: 'Un petit geste qui aide',
+      body: 'Si vous êtes d’accord, nous aimerions voir quelles parties de l’application servent le plus, pour savoir quoi améliorer.',
+      never: 'Seulement des comptages. Jamais vos mots : ni noms, ni moments, ni journal, rien de ce que vous saisissez. Ils ne peuvent pas remonter jusqu’à vous et ne servent jamais à la publicité.',
+      no: 'Pas pour moi',
+      yes: 'Avec plaisir',
       change: 'Vous pouvez changer d’avis à tout moment dans les Réglages.',
     },
     sheetTitle: 'Statistiques anonymes',
