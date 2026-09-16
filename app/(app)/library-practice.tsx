@@ -18,6 +18,7 @@ import { useTheme } from '@/src/ui/theme-mode';
 import { OtherPractitionerNote } from '@/src/care/OtherPractitionerNote';
 import { useLeaveGuard } from '@/src/ui/leave-guard';
 import { useConfirm } from '@/src/ui/confirm';
+import { track } from '@/src/analytics/client';
 
 const T = {
   en: {
@@ -116,7 +117,7 @@ export default function LibraryPractice() {
     savingRef.current = true;
     setSaving(true);
     const res = await runLibraryActivity(resourceId, latestAnswers.current, view?.version.id, locale);
-    if (res.ok) { setResult({ score: res.score ?? null }); return; }
+    if (res.ok) { track('library_activity_completed', { scored: res.score != null }); setResult({ score: res.score ?? null }); return; }
     savingRef.current = false;
     setSaving(false);
     notify(res.reason === 'gone' ? tr.saveGone : res.reason === 'busy' ? tr.saveBusy : res.reason === 'offline' ? tr.saveOffline : tr.couldNotSave);

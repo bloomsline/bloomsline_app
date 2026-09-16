@@ -269,6 +269,26 @@ export const en = {
       body: 'Gentle practices and little things, picked to support you between sessions.',
     },
   },
+  // The statistics question, asked once per device (src/analytics).
+  //
+  // It ASKS rather than announces. The first version read as a feature
+  // description with two buttons under it ("Help us improve Bloomsline?" /
+  // "Yes, count me"), which is the tone of a form; this one asks permission and
+  // names what it will never take. Refusing stays exactly as easy as accepting,
+  // same size, same weight, and it comes first.
+  analytics: {
+    ask: {
+      title: 'A small thing that helps',
+      body: 'If you are happy for it, we would like to see which parts of the app get used, so we know what to improve.',
+      never: 'Only counts. Never your words: no names, no moments, no journal, nothing you type. They cannot be traced back to you, and they are never used for advertising.',
+      no: 'Not for me',
+      yes: 'Happy to help',
+      change: 'You can change this any time in Settings.',
+    },
+    sheetTitle: 'Anonymous statistics',
+    onHint: 'Counts only, never what you write',
+    offHint: 'Nothing is sent',
+  },
   settings: {
     title: 'Settings',
     account: 'Bloomsline account',
@@ -319,6 +339,10 @@ export const en = {
     deleteFailed: 'That did not go through. Try again, or contact us.',
     deletePending: 'Deletion scheduled',
     deletePendingSub: 'Sign in again before {date} to keep your account.',
+    statistics: 'Anonymous statistics',
+    statisticsOn: 'On',
+    statisticsOff: 'Off',
+    statisticsSub: 'Helps us see which parts of the app are hard to use.',
   },
   journal: {
     kicker: 'Private',

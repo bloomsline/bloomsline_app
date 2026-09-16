@@ -263,6 +263,19 @@ export const fr: Dict = {
       body: 'Des pratiques douces et de petites choses, choisies pour vous soutenir entre les séances.',
     },
   },
+  analytics: {
+    ask: {
+      title: 'Un petit geste qui aide',
+      body: 'Si vous êtes d’accord, nous aimerions voir quelles parties de l’application servent le plus, pour savoir quoi améliorer.',
+      never: 'Seulement des comptages. Jamais vos mots : ni noms, ni moments, ni journal, rien de ce que vous saisissez. Ils ne peuvent pas remonter jusqu’à vous et ne servent jamais à la publicité.',
+      no: 'Pas pour moi',
+      yes: 'Avec plaisir',
+      change: 'Vous pouvez changer d’avis à tout moment dans les Réglages.',
+    },
+    sheetTitle: 'Statistiques anonymes',
+    onHint: 'Des comptages seulement, jamais ce que vous écrivez',
+    offHint: 'Rien n’est envoyé',
+  },
   settings: {
     title: 'Réglages',
     account: 'Compte Bloomsline',
@@ -307,6 +320,10 @@ export const fr: Dict = {
     deleteFailed: 'Cela n’a pas fonctionné. Réessayez ou contactez-nous.',
     deletePending: 'Suppression programmée',
     deletePendingSub: 'Reconnectez-vous avant le {date} pour conserver votre compte.',
+    statistics: 'Statistiques anonymes',
+    statisticsOn: 'Activées',
+    statisticsOff: 'Désactivées',
+    statisticsSub: 'Nous aide à voir ce qui est difficile à utiliser dans l’application.',
   },
   journal: {
     kicker: 'Privé',

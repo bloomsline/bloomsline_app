@@ -16,6 +16,7 @@ import {
 import { useTheme } from '@/src/ui/theme-mode';
 import { LIGHT, DARK, type Mode } from '@/src/ui/tokens';
 import { localizeServerMessage } from '@/src/api/server-messages';
+import { track } from '@/src/analytics/client';
 
 // Everything you can do to a session, without leaving the day.
 //
@@ -252,6 +253,9 @@ export function SessionSheet({
       // session still open (or minimised) gets it too, or its next autosave would
       // write the draft back without it.
       if (res.ok && comment) appendText(s.id, comment);
+      // Outcome and payment are categories; the comment is the practitioner's
+      // own words and is never sent. `withNote` says only whether there was one.
+      if (res.ok) track('practitioner_session_closed', { outcome, payment, withNote: comment.length > 0 });
       return res;
     });
   };

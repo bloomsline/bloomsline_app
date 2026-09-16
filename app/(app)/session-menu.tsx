@@ -18,6 +18,7 @@ import { PractitionerAvatar } from '@/src/care/PractitionerAvatar';
 import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
 import { GrowFrame, takeGrowOrigin, type GrowHandle } from '@/src/ui/grow';
+import { track } from '@/src/analytics/client';
 
 // Destructive tone for the cancel action, in an editorial-warm register.
 const DANGER = '#B04A32';
@@ -156,7 +157,7 @@ export default function SessionMenu() {
     setBusy(true);
     const res = await cancelSession(id);
     setBusy(false);
-    if (res.ok) { close(); return; }
+    if (res.ok) { track('session_cancelled'); close(); return; }
     // In the patient's language, by reason. The server's sentences are English,
     // and one was always present, so the translated message was never shown.
     notify(

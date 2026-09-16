@@ -34,6 +34,7 @@ import { byteSize } from '@/src/upload/put-file';
 import { useOnboarding } from '@/src/onboarding/context';
 import { useI18n, fmt } from '@/src/i18n';
 import { joinFirstNames } from '@/src/care/practitioner-names';
+import { track } from '@/src/analytics/client';
 import { notify } from '@/src/ui/alert';
 import { useAndroidBack } from '@/src/ui/android-back';
 import { HEADER_TOP } from '@/src/ui/editorial';
@@ -253,6 +254,17 @@ export default function Capture() {
         // The same id on every retry of THIS capture. A save that landed but
         // whose answer was lost used to become two moments when retried.
         clientId: captureId,
+      });
+      // Counted, never read: which kind of moment, how many moods, whether it
+      // carried words. `written` rather than `hasText` on purpose — any
+      // property whose name contains "text" is dropped by the filter, and the
+      // filter is right to be that blunt.
+      track('moment_created', {
+        kind: created.type ?? 'write',
+        written: note.trim().length > 0,
+        moodCount: moods.length,
+        mediaCount: uploaded.length,
+        shared: share,
       });
       // Sharing is a second call on purpose: the moment exists either way, so a
       // failure here costs the share, never the moment.

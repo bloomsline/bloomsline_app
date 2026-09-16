@@ -11,6 +11,7 @@ import { useOnboarding } from '@/src/onboarding/context';
 import { useI18n, type Locale } from '@/src/i18n';
 import { saveProfile } from '@/src/api/me';
 import { notify } from '@/src/ui/alert';
+import { track } from '@/src/analytics/client';
 
 // e4 — About you, now the FIRST step after sign-up. A light sheet glides up over
 // the held imagery (the photography stays present, so it never feels like
@@ -53,6 +54,8 @@ export default function AboutYou() {
     const ok = await saveProfile({ firstName: first.trim(), lastName: last.trim(), dateOfBirth: dob, locale });
     setSaving(false);
     if (!ok) { notify(T.saveFailed); return; }
+    // The step, never its contents: no name, no date of birth.
+    track('onboarding_profile_saved');
     update({ firstName: first.trim(), lastName: last.trim(), dateOfBirth: dob });
     router.push(hasPractitioner ? '/(onboarding)/hello' : '/(onboarding)/stories');
   };

@@ -10,6 +10,7 @@ import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'rea
 import { useRouter } from 'expo-router';
 import { Lock } from 'lucide-react-native';
 import { notify } from '@/src/ui/alert';
+import { track } from '@/src/analytics/client';
 import { EdHeader, EdCard, FadeIn, Kicker } from '@/src/ui/editorial';
 import { joinFirstNames } from '@/src/care/practitioner-names';
 import { useOnboarding } from '@/src/onboarding/context';
@@ -92,6 +93,7 @@ export default function Sharing() {
       // which only ever listed moments.
       if (it.kind === 'journal') await shareJournal(id, false);
       else await shareMoment(id, false);
+      track(it.kind === 'journal' ? 'journal_unshared' : 'moment_unshared', { from: 'sharing' });
       setItems((prev) => (prev ? prev.filter((x) => !(x.id === id && x.kind === it.kind)) : prev));
     } catch {
       notify(tr.updateError);

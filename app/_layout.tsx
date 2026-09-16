@@ -11,6 +11,7 @@ import { OnboardingProvider } from '@/src/onboarding/context';
 import { SelectedPractitionerProvider } from '@/src/care/selected-practitioner';
 import { AppPrefsProvider } from '@/src/prefs/app-prefs';
 import { I18nProvider } from '@/src/i18n';
+import { AnalyticsProvider } from '@/src/analytics/provider';
 import { ConfirmProvider } from '@/src/ui/confirm';
 import { ThemeProvider, useTheme } from '@/src/ui/theme-mode';
 import { FONT_ASSETS } from '@/src/ui/fonts';
@@ -86,7 +87,13 @@ export default function RootLayout() {
                     first paint. */}
                 <ThemeProvider>
                   <ConfirmProvider>
-                    <Themed />
+                    {/* Analytics sits INSIDE the theme and the confirm dialog:
+                        it renders a sheet of its own (the consent question) and
+                        reads the router's path for screen names. It is the last
+                        wrapper, so nothing in the app can depend on it. */}
+                    <AnalyticsProvider>
+                      <Themed />
+                    </AnalyticsProvider>
                   </ConfirmProvider>
                 </ThemeProvider>
               </AppPrefsProvider>

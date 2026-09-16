@@ -8,6 +8,7 @@ import { EditorialBg, Scrim, RiseIn, MonoKicker, Pill, LangToggle } from '@/src/
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { fetchInvite, type PatientInvite } from '@/src/api/invite';
 import { useI18n, fmt } from '@/src/i18n';
+import { track } from '@/src/analytics/client';
 
 // Landing for a practitioner's invitation email — the first screen a patient
 // ever sees, so it opens in the same editorial world as the rest of onboarding:
@@ -31,6 +32,8 @@ export default function InviteLanding() {
     let alive = true;
     fetchInvite(String(token ?? '')).then((r) => {
       if (!alive) return;
+      // Whether the invite resolved, never the token: it signs someone in.
+      track('invite_opened', { found: !!r });
       setInvite(r);
       // A French invite opens the app in French from here on, and makes French
       // the saved default (persists through onboarding).

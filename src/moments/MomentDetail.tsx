@@ -14,6 +14,7 @@ import { AudioRow, MediaViewer } from '@/src/ui/MediaViewer';
 import { useI18n, fmt } from '@/src/i18n';
 import { joinFirstNames } from '@/src/care/practitioner-names';
 import { ShareRefused } from '@/src/api/share-refused';
+import { track } from '@/src/analytics/client';
 import { useOnboarding } from '@/src/onboarding/context';
 import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
 import { otherReaders } from '@/src/care/other-readers';
@@ -167,6 +168,7 @@ export function MomentDetail({ moment, origin, onClose, onChanged }: { moment: M
     setShared(next); // optimistic
     try {
       const confirmed = await shareMoment(moment.id, next);
+      track(confirmed.shared ? 'moment_shared' : 'moment_unshared', { from: 'moment' });
       setShared(confirmed.shared);
       setReaders(confirmed.sharedWith);
       setReaderIds(confirmed.sharedWithIds);
@@ -183,6 +185,7 @@ export function MomentDetail({ moment, origin, onClose, onChanged }: { moment: M
     setDeleting(true);
     try {
       await deleteMoment(moment.id);
+      track('moment_deleted');
       onChanged({ id: moment.id, deleted: true });
       dismiss();
     } catch {

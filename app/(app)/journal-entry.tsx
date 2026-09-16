@@ -33,6 +33,7 @@ import { useLeaveGuard } from '@/src/ui/leave-guard';
 import { pickImage, pickVideo, uploadImage, uploadVideo, uploadVoice } from '@/src/journal/media';
 import { useConfirm } from '@/src/ui/confirm';
 import { useI18n } from '@/src/i18n';
+import { track } from '@/src/analytics/client';
 import { useTheme } from '@/src/ui/theme-mode';
 import { OVER_MEDIA, RECORD, veil } from '@/src/ui/tokens';
 import { useStaleOnReturn } from '@/src/ui/use-stale-on-return';
@@ -305,7 +306,9 @@ export default function JournalEntry() {
     } else {
       const created = await createJournal(payload);
       ok = Boolean(created);
-      if (created) { idRef.current = created.id; if (mounted.current) setSavedId(created.id); }
+      // The FIRST save of a page opened blank — a page started from the journal
+      // list is counted there, so this is the other way in and not a duplicate.
+      if (created) { track('journal_page_created', { from: 'editor' }); idRef.current = created.id; if (mounted.current) setSavedId(created.id); }
     }
     if (ok) savedEdits.current = Math.max(savedEdits.current, carried);
     if (!mounted.current) return ok;
@@ -351,6 +354,7 @@ export default function JournalEntry() {
     setSharing(true); setShared(next);
     try {
       const res = await shareJournal(savedId, next);
+      track(res.shared ? 'journal_shared' : 'journal_unshared', { from: 'editor' });
       setShared(res.shared);
       setSharedAt(res.sharedAt);
       // Everyone who can read it now, shared with the selected one or not: after

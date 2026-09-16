@@ -20,6 +20,7 @@ import { useTheme } from '@/src/ui/theme-mode';
 import { OtherPractitionerNote } from '@/src/care/OtherPractitionerNote';
 import { GrowFrame, takeGrowOrigin, useGrowFold } from '@/src/ui/grow';
 import { clearUnsent, readUnsent, saveUnsent } from '@/src/unsent';
+import { track } from '@/src/analytics/client';
 
 const DANGER = '#C0392B';
 
@@ -370,6 +371,7 @@ function ResourceDetailPage() {
     await keepNow();
     const res = await submitAssignment(assignmentId, latest.current, locale);
     if (res.ok) {
+      track('worksheet_submitted', { scored: res.score != null });
       savedEdits.current = edits.current;
       void clearUnsent('worksheet', assignmentId);
       guard.release();

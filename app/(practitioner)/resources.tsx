@@ -11,6 +11,7 @@ import { fetchShareableResources, fetchPatients, shareResource, type ShareableRe
 import { useTheme } from '@/src/ui/theme-mode';
 import { LoadFailed } from '@/src/ui/LoadFailed';
 import { localizeServerMessage } from '@/src/api/server-messages';
+import { track } from '@/src/analytics/client';
 
 // The library, for SHARING. Published resources only — a draft has no frozen
 // version to pin an assignment to, so it cannot be sent.
@@ -106,6 +107,7 @@ export default function Resources() {
     const res = await shareResource(picked.id, patient.id);
     setBusyId(null);
     if (!res.ok) { setError(localizeServerMessage(res.error, locale) ?? ''); return; }
+    track('practitioner_resource_shared');
     setDone(`${tr.shared} · ${patient.name}`);
   };
 
