@@ -10,6 +10,7 @@
 // shared device the second person inherits the first person's answer, which is
 // why the answer is always visible and changeable in Settings.
 import { storageGet, storageSet } from '@/src/storage';
+import { countConsentAnswer } from './tally';
 
 export type ConsentState = 'granted' | 'refused' | 'unset';
 
@@ -41,8 +42,13 @@ export function shouldAskConsent(): boolean {
   return current === 'unset';
 }
 
-export async function setConsent(state: Exclude<ConsentState, 'unset'>): Promise<void> {
+export async function setConsent(state: Exclude<ConsentState, 'unset'>, locale: string): Promise<void> {
+  const first = current === 'unset';
   current = state;
   loaded = true;
   await storageSet(KEY, state);
+  // Counted on our own server, including the noes — see `tally.ts`. Read
+  // `first` BEFORE the write, so someone who declines and later agrees is one
+  // person who said no, and separately one who changed their mind.
+  countConsentAnswer({ kind: first ? 'first' : 'change', granted: state === 'granted', locale });
 }

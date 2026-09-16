@@ -72,7 +72,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
   const answer = useCallback((granted: boolean) => {
     setConsentState(granted ? 'granted' : 'refused');
-    void setConsent(granted ? 'granted' : 'refused');
+    void setConsent(granted ? 'granted' : 'refused', locale);
     applyConsent(granted);
     if (granted) {
       // Recorded on the way in only. A refusal cannot be recorded, because a
@@ -80,7 +80,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       track('analytics_consent_granted');
       flushAnalytics();
     }
-  }, []);
+  }, [locale]);
 
   const value = useMemo<AnalyticsValue>(
     () => ({ consent, setAnalyticsConsent: answer, available: analyticsConfigured() }),
