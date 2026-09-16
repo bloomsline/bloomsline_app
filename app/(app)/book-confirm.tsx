@@ -15,6 +15,7 @@ import { useI18n, type Locale } from '@/src/i18n';
 import { PractitionerAvatar } from '@/src/care/PractitionerAvatar';
 import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
+import { track } from '@/src/analytics/client';
 
 const T = {
   en: {
@@ -123,6 +124,9 @@ export default function BookConfirm() {
       : await createBooking({ slotIso, sessionTypeId: params.sessionTypeId, format, idempotencyKey });
 
     if (res.ok) {
+      // A request awaiting the practitioner is a different outcome from a booked
+      // session, and is counted as one.
+      track('session_booked', { pending: 'pending' in res && !!res.pending, rescheduled: !!rescheduleId, format });
       // Waiting on the practitioner is not booked, and the patient should not
       // leave believing it is.
       if ('pending' in res && res.pending) notify(tr.requestSentTitle, tr.requestSentBody(name));

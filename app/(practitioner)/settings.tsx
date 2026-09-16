@@ -17,7 +17,7 @@
 import { useEffect, useState } from 'react';
 import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { MessageCircle, MessageCircleQuestionMark, LogOut, ChevronRight, Languages, Palette, ShieldCheck, FileText, Database, Lock } from 'lucide-react-native';
+import { MessageCircle, MessageCircleQuestionMark, LogOut, ChevronRight, Languages, Palette, ShieldCheck, FileText, Database, Lock, ChartNoAxesColumn } from 'lucide-react-native';
 import { notify } from '@/src/ui/alert';
 import { EdHeader, EdCard, FadeIn, Kicker } from '@/src/ui/editorial';
 import { OptionSheet } from '@/src/ui/option-sheet';
@@ -29,8 +29,9 @@ import { useConfirm } from '@/src/ui/confirm';
 import { useI18n, type Locale } from '@/src/i18n';
 import { fetchMe } from '@/src/api/me';
 import { useMeFace } from '@/src/profile/me-face';
+import { useAnalytics } from '@/src/analytics/provider';
 
-type Sheet = 'language' | 'appearance' | null;
+type Sheet = 'language' | 'appearance' | 'analytics' | null;
 
 export default function PractitionerSettings() {
   const { t: TT, choice, setChoice } = useTheme();
@@ -41,6 +42,7 @@ export default function PractitionerSettings() {
   const face = useMeFace();
   const [name, setName] = useState('');
   const [sheet, setSheet] = useState<Sheet>(null);
+  const analytics = useAnalytics();
 
   useEffect(() => {
     let alive = true;
@@ -118,7 +120,15 @@ export default function PractitionerSettings() {
             <Row Icon={ShieldCheck} title={t.settings.privacyPolicy} onPress={() => openPublic('privacy', locale)} divider />
             <Row Icon={FileText} title={t.settings.termsOfUse} onPress={() => openPublic('terms', locale)} divider />
             <Row Icon={Database} title={t.settings.dataProtection} value={t.settings.dataProtectionSub} onPress={() => openPublic('data-protection', locale)} divider />
-            <Row Icon={Lock} title={t.settings.security} value={t.settings.securitySub} onPress={() => openPublic('security', locale)} />
+            <Row Icon={Lock} title={t.settings.security} value={t.settings.securitySub} onPress={() => openPublic('security', locale)} divider={analytics.available} />
+            {analytics.available ? (
+              <Row
+                Icon={ChartNoAxesColumn}
+                title={t.settings.statistics}
+                value={analytics.consent === 'granted' ? t.settings.statisticsOn : t.settings.statisticsOff}
+                onPress={() => setSheet('analytics')}
+              />
+            ) : null}
           </EdCard>
 
           <Kicker color={TT.faint} style={{ marginBottom: 10 }}>{t.settings.accountSection}</Kicker>
@@ -152,6 +162,18 @@ export default function PractitionerSettings() {
         ]}
         selected={choice}
         onSelect={(v: ThemeChoice) => { setChoice(v); setSheet(null); }}
+        onClose={() => setSheet(null)}
+      />
+
+      <OptionSheet
+        visible={sheet === 'analytics'}
+        title={t.analytics.sheetTitle}
+        options={[
+          { value: 'granted', label: t.settings.statisticsOn, hint: t.analytics.onHint },
+          { value: 'refused', label: t.settings.statisticsOff, hint: t.analytics.offHint },
+        ]}
+        selected={analytics.consent === 'granted' ? 'granted' : 'refused'}
+        onSelect={(v: 'granted' | 'refused') => analytics.setAnalyticsConsent(v === 'granted')}
         onClose={() => setSheet(null)}
       />
     </View>

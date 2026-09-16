@@ -6,6 +6,7 @@ import { useI18n } from '@/src/i18n';
 import { addPatient } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
 import { localizeServerMessage } from '@/src/api/server-messages';
+import { track } from '@/src/analytics/client';
 
 // Add a patient. Name is required; an email is what makes the app invitation
 // possible — and whether one actually goes out is decided server-side, where the
@@ -47,6 +48,7 @@ export default function AddPatient() {
     const res = await addPatient({ firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim() || undefined });
     setSaving(false);
     if (!res.ok) { setError(localizeServerMessage(res.error, locale) ?? ''); return; }
+    track('practitioner_patient_added', { invited: email.trim().length > 0 });
     back();
   };
 

@@ -7,6 +7,7 @@ import { useI18n } from '@/src/i18n';
 import { bookSession } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
 import { localizeServerMessage } from '@/src/api/server-messages';
+import { track } from '@/src/analytics/client';
 
 // Confirm the booking — the practitioner's counterpart to the patient's
 // book-confirm screen, and deliberately the same shape.
@@ -73,6 +74,7 @@ export default function BookConfirm() {
     // A 409 is the one a practitioner will actually hit, and it means the day
     // moved under them — say exactly that rather than "something went wrong".
     if (!res.ok) { setError(localizeServerMessage(res.error, locale) ?? tr.generic); return; }
+    track('practitioner_session_booked', { format });
     setDone(true);
   };
 

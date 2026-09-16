@@ -9,6 +9,7 @@ import { getRefreshToken, clearTokens, saveTokens } from './token-store';
 import { apiFetch, postJson, setOnSignOut } from './api';
 import { storageGet, storageSet, storageDelete } from '../storage';
 import { forgetAccount } from '@/src/auth/forget-account';
+import { resetAnalytics, track } from '@/src/analytics/client';
 import { saveProfile, fetchMe } from '../api/me';
 import { MOCK_AUTH, MOCK_ROLE } from '../config';
 
@@ -75,6 +76,21 @@ interface AuthValue {
 
 const AuthContext = createContext<AuthValue | null>(null);
 
+/**
+ * Which door a sign-in came through, for analytics only.
+ *
+ * `link` covers more than email: Google on Android and Apple on the web finish
+ * server-side and come back as a magic link, so on the phone they cannot be
+ * told apart from an emailed one. An honest `link` beats a guess.
+ */
+function signInMethod(path: string): string {
+  if (path.includes('/apple')) return 'apple';
+  if (path.includes('/google')) return 'google';
+  if (path.includes('/microsoft')) return 'microsoft';
+  if (path.includes('/review')) return 'review_code';
+  return 'link';
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<Status>('loading');
 
@@ -85,6 +101,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // sign-out has to forget grew past this line and nobody noticed, because
     // none of it is reachable from the sign-in screen. See that file.
     await Promise.all([clearTokens(), storageDelete(ONBOARDED_KEY), storageDelete(SESSION_KEY), forgetAccount()]);
+    // The analytics id is per INSTALL, not per person, so signing out starts a
+    // new one: two people sharing a phone should not read as one line in a
+    // funnel. Consent is ours, not the SDK's, so it survives (analytics/client).
+    resetAnalytics();
     setStatus('anon');
   }, []);
 
@@ -188,6 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const startEmailSignIn = useCallback(async (email: string, locale: 'en' | 'fr' = 'en') => {
     if (MOCK_AUTH) return { devUrl: null, code: false }; // pretend the link was sent
+    track('sign_in_started', { method: 'link' });
     const res = await postJson('/api/mobile/auth/magic-link/start', { email, locale });
     // Throwing on a refusal is what the screen's "could not send" relies on.
     if (!res.ok) throw new Error(`start ${res.status}`);
@@ -201,10 +222,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /** POST a sign-in, keep the pair on success, and hand back the server's reason on refusal. */
   const signInVia = useCallback(async (path: string, body: unknown): Promise<SignInResult> => {
     const res = await postJson(path, body);
+    const method = signInMethod(path);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
+      // The server's short code (`expired`, `waitlisted`, `private_relay`) is a
+      // category, not a person. The message is NOT sent: it is prose.
+      track('sign_in_failed', { method, code: typeof data?.code === 'string' ? data.code : 'unknown' });
       return { ok: false, message: typeof data?.error === 'string' ? data.error : undefined, code: typeof data?.code === 'string' ? data.code : undefined };
     }
+    track('sign_in_completed', { method });
     await keepNewSession(await res.json());
     await afterSignIn();
     return { ok: true };
@@ -232,9 +258,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // saying "expired" would send someone off to request link after link for
       // an account that is not waiting on a link at all.
       const data = await res.json().catch(() => ({}));
+      track('sign_in_failed', { method: 'link', code: typeof data?.code === 'string' ? data.code : 'unknown' });
       return { ok: false, message: typeof data?.error === 'string' ? data.error : undefined, code: typeof data?.code === 'string' ? data.code : undefined };
     }
     await keepNewSession(await res.json());
+    track('sign_in_completed', { method: 'link' });
     await afterSignIn();
     return { ok: true };
   }, [afterSignIn, keepNewSession]);

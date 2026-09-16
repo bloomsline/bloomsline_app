@@ -269,6 +269,22 @@ export const en = {
       body: 'Gentle practices and little things, picked to support you between sessions.',
     },
   },
+  // The statistics question, asked once per device (src/analytics). The wording
+  // follows the website's cookie banner: plain about what is sent, plainer
+  // about what never is, and refusing is exactly as easy as accepting.
+  analytics: {
+    ask: {
+      title: 'Help us improve Bloomsline?',
+      body: 'We can count how the app is used, such as screens opened, a moment written or a session booked, to see what gets in the way.',
+      never: 'Never what you write. No names, no moments, no journal, nothing you type. The counts cannot be traced back to you, and they are never used for advertising.',
+      no: 'No thanks',
+      yes: 'Yes, count me',
+      change: 'You can change this any time in Settings.',
+    },
+    sheetTitle: 'Anonymous statistics',
+    onHint: 'Counts only, never what you write',
+    offHint: 'Nothing is sent',
+  },
   settings: {
     title: 'Settings',
     account: 'Bloomsline account',
@@ -319,6 +335,10 @@ export const en = {
     deleteFailed: 'That did not go through. Try again, or contact us.',
     deletePending: 'Deletion scheduled',
     deletePendingSub: 'Sign in again before {date} to keep your account.',
+    statistics: 'Anonymous statistics',
+    statisticsOn: 'On',
+    statisticsOff: 'Off',
+    statisticsSub: 'Helps us see which parts of the app are hard to use.',
   },
   journal: {
     kicker: 'Private',

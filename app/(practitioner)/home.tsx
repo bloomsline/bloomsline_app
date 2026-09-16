@@ -13,6 +13,7 @@ import { fetchDay, fetchRequests, decideRequest, type PractitionerSession, type 
 import { useTheme } from '@/src/ui/theme-mode';
 import { LoadFailed } from '@/src/ui/LoadFailed';
 import { localizeServerMessage } from '@/src/api/server-messages';
+import { track } from '@/src/analytics/client';
 
 // The practitioner's dashboard, in the same editorial language as the patient
 // app: the image-less EdHeader, EdCards, one accent.
@@ -91,6 +92,7 @@ export default function Dashboard() {
     setBusyId(null);
     // A refused decision means somebody got there first, so the list is stale.
     if (!res.ok) setError(localizeServerMessage(res.error, locale) ?? '');
+    else track('practitioner_request_decided', { action });
     load();
   };
 

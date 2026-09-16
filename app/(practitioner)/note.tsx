@@ -12,6 +12,7 @@ import { useConfirm } from '@/src/ui/confirm';
 import { useTheme } from '@/src/ui/theme-mode';
 import { localizeServerMessage } from '@/src/api/server-messages';
 import { LoadFailed } from '@/src/ui/LoadFailed';
+import { track } from '@/src/analytics/client';
 
 // Take a note. Opens on the sessions still to happen, then the ones of the last
 // week (a note is about a session you are heading into or have just had), with a
@@ -109,6 +110,8 @@ export default function TakeNote() {
     if (!res.ok) { setError(localizeServerMessage(res.error, locale) ?? ''); return; }
     // The note is written and the server dropped the draft with it; settle so a
     // late autosave cannot put it back.
+    // The note is counted; not a word of it is sent.
+    track('practitioner_note_saved', { appended: !!draft.appendTo, marks: draft.ranges?.length ?? 0 });
     settle();
     router.navigate('/(practitioner)/home' as never);
   };

@@ -263,6 +263,19 @@ export const fr: Dict = {
       body: 'Des pratiques douces et de petites choses, choisies pour vous soutenir entre les séances.',
     },
   },
+  analytics: {
+    ask: {
+      title: 'Nous aider à améliorer Bloomsline ?',
+      body: 'Nous pouvons compter l’usage de l’application : écrans ouverts, moment écrit, séance réservée, pour voir ce qui coince.',
+      never: 'Jamais ce que vous écrivez. Ni noms, ni moments, ni journal, rien de ce que vous saisissez. Ces comptages ne peuvent pas remonter jusqu’à vous et ne servent jamais à la publicité.',
+      no: 'Non merci',
+      yes: 'Oui, comptez-moi',
+      change: 'Vous pouvez changer d’avis à tout moment dans les Réglages.',
+    },
+    sheetTitle: 'Statistiques anonymes',
+    onHint: 'Des comptages seulement, jamais ce que vous écrivez',
+    offHint: 'Rien n’est envoyé',
+  },
   settings: {
     title: 'Réglages',
     account: 'Compte Bloomsline',
@@ -307,6 +320,10 @@ export const fr: Dict = {
     deleteFailed: 'Cela n’a pas fonctionné. Réessayez ou contactez-nous.',
     deletePending: 'Suppression programmée',
     deletePendingSub: 'Reconnectez-vous avant le {date} pour conserver votre compte.',
+    statistics: 'Statistiques anonymes',
+    statisticsOn: 'Activées',
+    statisticsOff: 'Désactivées',
+    statisticsSub: 'Nous aide à voir ce qui est difficile à utiliser dans l’application.',
   },
   journal: {
     kicker: 'Privé',

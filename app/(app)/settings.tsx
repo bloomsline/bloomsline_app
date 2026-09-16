@@ -14,7 +14,7 @@
 import { useEffect, useState } from 'react';
 import { Image, Linking, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { MessageCircle, MessageCircleQuestionMark, LogOut, ChevronRight, ChevronDown, Trash2, Languages, Palette, Home, ShieldCheck, FileText, Database, Lock, UserRound } from 'lucide-react-native';
+import { MessageCircle, MessageCircleQuestionMark, LogOut, ChevronRight, ChevronDown, Trash2, Languages, Palette, Home, ShieldCheck, FileText, Database, Lock, UserRound, ChartNoAxesColumn } from 'lucide-react-native';
 import { notify } from '@/src/ui/alert';
 import { EdHeader, EdCard, FadeIn, Kicker } from '@/src/ui/editorial';
 import { OptionSheet } from '@/src/ui/option-sheet';
@@ -29,13 +29,15 @@ import { useMeFace } from '@/src/profile/me-face';
 import { Row } from '@/src/ui/settings-row';
 import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
 import { usePractitionerSwitcher } from '@/src/care/PractitionerSwitcher';
+import { useAnalytics } from '@/src/analytics/provider';
+import { track } from '@/src/analytics/client';
 
 // Was "Bloomsline · v2 (preview)". A version string is a note we left for
 // ourselves at the foot of a patient's own settings screen, and "preview" tells
 // someone trusting the app with how they feel that it is not finished yet.
 
 /** Which setting's options are open, if any. */
-type Sheet = 'language' | 'appearance' | 'landing' | null;
+type Sheet = 'language' | 'appearance' | 'landing' | 'analytics' | null;
 
 export default function Settings() {
   const { choice, setChoice, t: TT } = useTheme();
@@ -53,6 +55,8 @@ export default function Settings() {
   const face = useMeFace();
   const [leavingAt, setLeavingAt] = useState<string | null>(null);
   const [sheet, setSheet] = useState<Sheet>(null);
+  // The statistics answer, so it can be changed here as easily as it was given.
+  const analytics = useAnalytics();
   // Deliberately NOT persisted. Revealing the delete row is a decision about
   // this visit; a patient who opened it once last month and moved on should not
   // find it waiting for their thumb the next time they change their language.
@@ -123,6 +127,7 @@ export default function Settings() {
       await confirm({ title: t.settings.deleteFailed, confirmLabel: t.common.ok, cancelLabel: t.common.cancel });
       return;
     }
+    track('account_deletion_requested');
     signOut(); // every token is already revoked server-side
   };
 
@@ -188,7 +193,18 @@ export default function Settings() {
             <Row Icon={ShieldCheck} title={t.settings.privacyPolicy} onPress={() => openPublic('privacy')} divider />
             <Row Icon={FileText} title={t.settings.termsOfUse} onPress={() => openPublic('terms')} divider />
             <Row Icon={Database} title={t.settings.dataProtection} value={t.settings.dataProtectionSub} onPress={() => openPublic('data-protection')} divider />
-            <Row Icon={Lock} title={t.settings.security} value={t.settings.securitySub} onPress={() => openPublic('security')} />
+            <Row Icon={Lock} title={t.settings.security} value={t.settings.securitySub} onPress={() => openPublic('security')} divider={analytics.available} />
+            {/* Changing your mind has to be as easy as the sheet that asked.
+                Hidden entirely in a build with no analytics key, rather than
+                offering a setting that does nothing. */}
+            {analytics.available ? (
+              <Row
+                Icon={ChartNoAxesColumn}
+                title={t.settings.statistics}
+                value={analytics.consent === 'granted' ? t.settings.statisticsOn : t.settings.statisticsOff}
+                onPress={() => setSheet('analytics')}
+              />
+            ) : null}
           </EdCard>
 
           <Kicker color={TT.faint} style={{ marginBottom: 10 }}>{t.settings.accountSection}</Kicker>
@@ -264,6 +280,18 @@ export default function Settings() {
         ]}
         selected={landing}
         onSelect={(v: LandingTab) => setLanding(v)}
+        onClose={() => setSheet(null)}
+      />
+
+      <OptionSheet
+        visible={sheet === 'analytics'}
+        title={t.analytics.sheetTitle}
+        options={[
+          { value: 'granted', label: t.settings.statisticsOn, hint: t.analytics.onHint },
+          { value: 'refused', label: t.settings.statisticsOff, hint: t.analytics.offHint },
+        ]}
+        selected={analytics.consent === 'granted' ? 'granted' : 'refused'}
+        onSelect={(v: 'granted' | 'refused') => analytics.setAnalyticsConsent(v === 'granted')}
         onClose={() => setSheet(null)}
       />
 

@@ -84,3 +84,11 @@ export const FORCE_CARE_HUB = process.env.EXPO_PUBLIC_FORCE_CARE_HUB === '1';
 // two ways in on one platform is a choice nobody asked to make.
 export const appleWebConfigured =
   Platform.OS !== 'ios' && process.env.EXPO_PUBLIC_APPLE_WEB_SIGNIN === '1';
+
+// PostHog (analytics). Public project key, read at build time like every other
+// EXPO_PUBLIC_ value, and absent by default: a build without it has no
+// analytics at all and never asks the question (see src/analytics/client.ts).
+//
+// Events go to `${API_URL}/ingest`, which the care app forwards to PostHog's EU
+// region, so the phone never opens a connection to a third party.
+export const POSTHOG_KEY = (process.env.EXPO_PUBLIC_POSTHOG_KEY ?? '').trim();

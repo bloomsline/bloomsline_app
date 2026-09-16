@@ -7,6 +7,7 @@ import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useOnboarding } from '@/src/onboarding/context';
 import { useAuth } from '@/src/auth/auth-context';
 import { useI18n, fmt } from '@/src/i18n';
+import { track } from '@/src/analytics/client';
 
 // e5 — You're in. Full-bleed close: the image breathes, the copy rises once, the
 // pill fades in last. Arrival delivered calmly.
@@ -24,6 +25,7 @@ export default function Ready() {
 
   const go = async () => {
     setBusy(true);
+    track('onboarding_completed');
     await completeOnboarding();
   };
 

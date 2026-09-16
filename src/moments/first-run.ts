@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchMe, saveProfile } from '@/src/api/me';
 import { storageDelete, storageGet, storageSet } from '@/src/storage';
+import { track } from '@/src/analytics/client';
 
 const KEY = 'moments.firstRun.v1';
 
@@ -59,7 +60,8 @@ export function useMomentsFirstRun(): FirstRun {
       const server = typeof me.momentsOnboardedAt === 'string';
       if (server) {
         setDone(true);
-        void storageSet(KEY, '1');
+        track('moments_intro_completed');
+    void storageSet(KEY, '1');
       } else if (!finished.current) {
         const cached = (await storageGet(KEY)) === '1';
         if (cached) {

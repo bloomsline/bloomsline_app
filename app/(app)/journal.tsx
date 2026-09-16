@@ -15,6 +15,7 @@ import { ChevronLeft, Lock, Search, PenLine, Plus, ChevronRight, MessageCircle, 
 import { HEADER_TOP, Kicker } from '@/src/ui/editorial';
 import { useOnboarding } from '@/src/onboarding/context';
 import { useI18n } from '@/src/i18n';
+import { track } from '@/src/analytics/client';
 import { listJournal, createJournal, type JournalEntry } from '@/src/api/journal';
 import { useSelectedPractitioner, useSelectionReset } from '@/src/care/selected-practitioner';
 import { otherReaders } from '@/src/care/other-readers';
@@ -77,7 +78,7 @@ export default function Journal() {
     setCreating(true);
     try {
       const made = await createJournal({ title, blocks: [] });
-      if (made) openFresh(made.id);
+      if (made) { track('journal_page_created', { from: 'journal' }); openFresh(made.id); }
     } finally {
       setCreating(false);
     }
