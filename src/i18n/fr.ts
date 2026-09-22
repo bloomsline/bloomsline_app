@@ -265,15 +265,18 @@ export const fr: Dict = {
   },
   analytics: {
     ask: {
-      title: 'Un petit geste qui aide',
-      body: 'Si vous êtes d’accord, nous aimerions voir quelles parties de l’application servent le plus, pour savoir quoi améliorer.',
-      never: 'Seulement des comptages. Jamais vos mots : ni noms, ni moments, ni journal, rien de ce que vous saisissez. Ils ne peuvent pas remonter jusqu’à vous et ne servent jamais à la publicité.',
-      no: 'Pas pour moi',
-      yes: 'Avec plaisir',
-      change: 'Vous pouvez changer d’avis à tout moment dans les Réglages.',
+      // A question over two buttons, which is the plainest shape this can
+      // take. Everything it does not say is in the privacy policy, behind
+      // "En savoir plus".
+      line: 'Partager des statistiques anonymes pour nous aider à améliorer l’application ?',
+      more: 'En savoir plus',
+      // The website's words, so one product does not answer the same question
+      // two different ways.
+      no: 'Non merci',
+      yes: 'Ça me va',
     },
     sheetTitle: 'Statistiques anonymes',
-    onHint: 'Des comptages seulement, jamais ce que vous écrivez',
+    onHint: 'Des statistiques anonymes, jamais de publicité',
     offHint: 'Rien n’est envoyé',
   },
   settings: {

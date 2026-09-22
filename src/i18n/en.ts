@@ -278,15 +278,18 @@ export const en = {
   // same size, same weight, and it comes first.
   analytics: {
     ask: {
-      title: 'A small thing that helps',
-      body: 'If you are happy for it, we would like to see which parts of the app get used, so we know what to improve.',
-      never: 'Only counts. Never your words: no names, no moments, no journal, nothing you type. They cannot be traced back to you, and they are never used for advertising.',
-      no: 'Not for me',
-      yes: 'Happy to help',
-      change: 'You can change this any time in Settings.',
+      // A question over two buttons, which is the plainest shape this can
+      // take. Everything it does not say is in the privacy policy, behind
+      // "Learn more".
+      line: 'Share anonymous stats to help us improve the app?',
+      more: 'Learn more',
+      // The website's words, so one product does not answer the same question
+      // two different ways.
+      no: 'No thanks',
+      yes: "I'm in",
     },
     sheetTitle: 'Anonymous statistics',
-    onHint: 'Counts only, never what you write',
+    onHint: 'Anonymous stats, never ads',
     offHint: 'Nothing is sent',
   },
   settings: {
