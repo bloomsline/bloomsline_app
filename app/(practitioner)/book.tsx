@@ -9,6 +9,7 @@ import { patientLabel } from '@/src/practitioner/pending-label';
 import { fetchPatients, fetchBookingOptions, rescheduleSession, type PatientListItem, type SessionTypeOption, type NextAvailableDay } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
 import { localizeServerMessage } from '@/src/api/server-messages';
+import { LoadFailed } from '@/src/ui/LoadFailed';
 
 // Book a session: who, what kind, which day, which slot.
 //
@@ -62,6 +63,10 @@ export default function Book() {
   const moveId = typeof params.rescheduleId === 'string' && params.rescheduleId ? params.rescheduleId : null;
   const moveDuration = Number(params.duration) || 60;
 
+  const [patientsFailed, setPatientsFailed] = useState(false);
+  // Bumped by Try again; the focus effect below reads it, so a retry re-runs
+  // exactly the same load.
+  const [attempt, setAttempt] = useState(0);
   const [patients, setPatients] = useState<PatientListItem[]>([]);
   const [types, setTypes] = useState<SessionTypeOption[]>([]);
   const [patient, setPatient] = useState<PatientListItem | null>(null);
@@ -80,14 +85,20 @@ export default function Book() {
       let alive = true;
       void Promise.all([fetchPatients(), fetchBookingOptions()]).then(([pats, opts]) => {
         if (!alive) return;
-        setPatients(pats ?? []);
+        // A failed read is not an empty caseload. Without this the booking
+        // screen told a practitioner with 40 patients that she had none.
+        setPatientsFailed(!pats);
+        if (pats) setPatients(pats);
         setTypes(opts?.sessionTypes ?? []);
         setNextFree(opts?.nextAvailable ?? []);
         // Keep a type the practitioner already picked; only default when none.
         if (opts?.sessionTypes?.length) setType((cur) => cur ?? opts.sessionTypes[0]);
       });
       return () => { alive = false; };
-    }, []),
+      // `attempt` is the retry trigger: it is not read inside, changing it is
+      // the whole point.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [attempt]),
   );
 
   // Re-ask for slots whenever the day or the kind changes: duration and format
@@ -227,7 +238,8 @@ export default function Book() {
           <EdSection label={tr.who} />
           {!patient ? (
             <>
-              {patients.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.noPatients}</Text>}
+              {patients.length === 0 && patientsFailed && <LoadFailed compact onRetry={() => { setAttempt((n) => n + 1); }} />}
+              {patients.length === 0 && !patientsFailed && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.noPatients}</Text>}
               {patients.map((p) => (
                 <EdCard key={p.id} onPress={() => setPatient(p)} style={{ marginBottom: 10 }}>
                   <Text style={{ fontSize: 15, fontWeight: '600', color: TT.ink }}>{patientLabel(p, locale)}</Text>

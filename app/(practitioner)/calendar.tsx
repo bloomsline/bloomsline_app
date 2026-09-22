@@ -4,7 +4,6 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { CalendarPlus, ChevronLeft, ChevronRight, MapPin, Phone, Video } from 'lucide-react-native';
 import { EdHeader, FadeIn } from '@/src/ui/editorial';
 import { PractitionerTabBar, PRACTITIONER_TAB_PAD } from '@/src/ui/PractitionerTabBar';
-import { ymd } from '@/src/ui/MonthCalendar';
 import { SessionSheet } from '@/src/practitioner/SessionSheet';
 import { useI18n } from '@/src/i18n';
 import { fetchDay, fetchBookingOptions, type CloseReasonGroup, type PractitionerSession, type SessionTypeOption } from '@/src/api/practitioner';
@@ -62,7 +61,15 @@ export default function DayCalendar() {
   const [types, setTypes] = useState<SessionTypeOption[]>([]);
   const [closeReasons, setCloseReasons] = useState<CloseReasonGroup[]>([]);
 
-  const key = ymd(date);
+  // The day is the PRACTICE's day, not the phone's. Everything drawn on the
+  // grid is already formatted in the practice timezone, but the day being asked
+  // for, "Today", and the now-line were read off the device clock. A
+  // practitioner in Paris opening this from New York at 20:00 got yesterday's
+  // sessions under a heading that said today, a now-line on a day that was not
+  // today, and a tap-to-book that posted the wrong date.
+  const zone = tz ? { timeZone: tz } : {};
+  const dayKey = useCallback((d: Date) => d.toLocaleDateString('en-CA', zone), [tz]); // eslint-disable-line react-hooks/exhaustive-deps -- `zone` is derived from tz
+  const key = dayKey(date);
 
   // Which day `items` belongs to, so a failed refetch of the SAME day keeps it.
   const itemsKey = useRef<string | null>(null);
@@ -97,8 +104,6 @@ export default function DayCalendar() {
       return () => { alive = false; };
     }, []),
   );
-
-  const zone = tz ? { timeZone: tz } : {};
 
   // Wall-clock hour and minute in the practitioner's own timezone.
   const hourMinute = useCallback((iso: string): [number, number] => {
@@ -168,7 +173,7 @@ export default function DayCalendar() {
   const hasPaymentLink = Boolean(open && types.find((t) => t.id === open.sessionType)?.hasPaymentLink);
 
   const heading = date.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long', ...zone });
-  const isToday = key === ymd(new Date());
+  const isToday = key === dayKey(new Date());
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>

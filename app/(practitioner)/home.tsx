@@ -52,6 +52,11 @@ const T = {
 
 const FORMAT_ICON = { video: Video, in_person: MapPin, phone: Phone } as const;
 
+// A session that is no longer going to happen does not belong in "up next".
+// Same set the Calendar uses, which DIMS them rather than hiding them: there
+// the whole day is the subject, here the next hour is.
+const OFF = new Set(['cancelled', 'no_show']);
+
 export default function Dashboard() {
   const { t: TT } = useTheme();
   const router = useRouter();
@@ -123,8 +128,20 @@ export default function Dashboard() {
 
   const zone = tz ? { timeZone: tz } : {};
   const todayKey = new Date().toLocaleDateString('en-CA', zone);
-  const today = sessions.filter((s) => new Date(s.scheduledAt).toLocaleDateString('en-CA', zone) === todayKey);
-  const later = sessions.filter((s) => new Date(s.scheduledAt).toLocaleDateString('en-CA', zone) !== todayKey);
+  // UP NEXT means what it says. A session that was cancelled, or that finished
+  // an hour ago, is not next — and with the list capped at two rows they were
+  // pushing the session she is about to walk into behind "See more". Both are
+  // still on the Calendar, which is the screen for the whole day.
+  const now = Date.now();
+  const live = (s: PractitionerSession) => {
+    if (s.status && OFF.has(s.status)) return false;
+    // Ends, not starts: a session already under way is still the one she is in.
+    return new Date(s.scheduledAt).getTime() + (s.durationMinutes ?? 0) * 60_000 >= now;
+  };
+  const onDay = (s: PractitionerSession, isToday: boolean) =>
+    (new Date(s.scheduledAt).toLocaleDateString('en-CA', zone) === todayKey) === isToday;
+  const today = sessions.filter((s) => onDay(s, true) && live(s));
+  const later = sessions.filter((s) => onDay(s, false) && live(s));
   const time = (iso: string) => new Date(iso).toLocaleTimeString(locale === 'fr' ? 'fr-FR' : 'en-GB', { hour: '2-digit', minute: '2-digit', ...zone });
   const dayLabel = (iso: string) => new Date(iso).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long', ...zone });
   const subtitle = new Date().toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long', ...zone });

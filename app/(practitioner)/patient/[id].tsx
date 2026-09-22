@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Check, ChevronDown, ChevronRight, ChevronUp, FileSignature, Paperclip, Search, SlidersHorizontal } from 'lucide-react-native';
@@ -156,6 +156,10 @@ export default function PatientDetailScreen() {
   const [data, setData] = useState<PatientDetail | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+  // Which patient the data on screen actually belongs to, and the latest data,
+  // both read inside the fetch callback without re-running it.
+  const shownFor = useRef<string | null>(null);
+  const dataRef = useRef<PatientDetail | null>(null);
   const [missing, setMissing] = useState(false);
   const [tab, setTab] = useState<Tab>('overview');
   const [q, setQ] = useState('');
@@ -179,7 +183,18 @@ export default function PatientDetailScreen() {
     void fetchPatient(patientId).then((d) => {
       if (!alive) return;
       if (d === 'not_found') { setData(null); setMissing(true); setFailed(false); }
+      // Keeping the patient on screen is right for a failed REFETCH of the same
+      // person. It is wrong across a change of id: the screen would show one
+      // patient's notes, sessions and documents under another patient's route,
+      // with their name in the header and no failure panel, because the panel
+      // only renders when there is no data. Whose record is on screen is not
+      // something to be approximate about.
+      else if (!d && dataRef.current && shownFor.current !== patientId) {
+        setData(null); setMissing(false); setFailed(true);
+      }
       else { if (d) setData(d); setMissing(false); setFailed(!d); }
+      if (d && d !== 'not_found') { dataRef.current = d; shownFor.current = patientId; }
+      else if (!d) dataRef.current = null;
       setLoaded(true);
     });
     return () => { alive = false; };
