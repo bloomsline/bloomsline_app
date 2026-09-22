@@ -411,7 +411,15 @@ export function SessionSheet({
                         // "re-enter everything and hope you remember".
                         setOutcome(status === 'completed' || isActive ? 'completed' : 'no_show');
                         setPayment(s.paymentStatus ?? 'unpaid');
-                        setReason(s.cancellationReason ?? '');
+                        // `reason` is a SLUG: it is compared against the option
+                        // slugs below and posted as `reason`, where it decides
+                        // no_show vs cancelled. `cancellationReason` is the
+                        // resolved human sentence, so feeding it back in
+                        // selected nothing and posted prose where a slug
+                        // belongs. Prefilled only when the server happens to
+                        // have sent something that IS one of the slugs.
+                        const known = closeReasons.some((g) => g.options.some(([slug]) => slug === s.cancellationReason));
+                        setReason(known ? (s.cancellationReason ?? '') : '');
                         setMode('close');
                       }}
                       style={{ flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 20, backgroundColor: TT.accentTint, paddingHorizontal: 16, paddingVertical: 10 }}

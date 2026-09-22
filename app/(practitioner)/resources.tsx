@@ -181,7 +181,11 @@ export default function Resources() {
               </EdCard>
 
               <EdSection label={tr.pick} />
-              {patients.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.noPatients}</Text>}
+              {/* "No patients yet." is a statement about the practice. Offline
+                  it was a statement about the network, and the practitioner is
+                  one tap from concluding their caseload has vanished. */}
+              {patients.length === 0 && failed && <LoadFailed compact onRetry={() => { reload(); }} />}
+              {patients.length === 0 && !failed && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.noPatients}</Text>}
               {patients.map((p) => (
                 <EdCard key={p.id} onPress={() => send(p)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 }}>
                   <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: TT.ink }}>{patientLabel(p, locale)}</Text>
