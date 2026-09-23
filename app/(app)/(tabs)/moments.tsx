@@ -161,6 +161,20 @@ export default function Moments() {
    * once a screenful rather than sixty times a second.
    */
   const [photoBand, setPhotoBand] = useState(() => Math.round(Dimensions.get('window').height / PHOTO_STEP));
+  /**
+   * The viewport height, as STATE as well as the ref below.
+   *
+   * `photoToFoot` is computed in render from the height, and the ref is 0 until
+   * `onLayout` runs. A ref does not re-render, and `pinToToday`'s `setPhotoBand`
+   * returns `prev` when the quantised band has not changed — which is the normal
+   * case, because the initial band comes from the window height and the pinned
+   * one from this ScrollView's height, and the two usually round alike. So the
+   * line kept a visible-window built from a height of zero, nothing was near it,
+   * and the screen opened EMPTY until a scroll changed the band and forced a
+   * render. Reported 2026-09-22 on the web build, where nothing else re-renders
+   * in time; on native a scroll event fires during layout and hid it.
+   */
+  const [viewportPx, setViewportPx] = useState(0);
   // "Nothing yet" and "we could not reach your line" are different things to be
   // told, and showing the welcoming empty state for a network failure is a lie.
   const [failed, setFailed] = useState(false);
@@ -599,7 +613,14 @@ export default function Moments() {
             // Index 1 is the foot marker: skip the line, which never moves.
             maintainVisibleContentPosition={{ minIndexForVisible: 1 }}
             onContentSizeChange={onContentSize}
-            onLayout={(e) => { viewportH.current = e.nativeEvent.layout.height; pinToToday(); }}
+            onLayout={(e) => {
+              const h = e.nativeEvent.layout.height;
+              viewportH.current = h;
+              // The ref is for the handlers, which need it synchronously; the
+              // state is what guarantees one render once the height is real.
+              setViewportPx((prev) => (prev === h ? prev : h));
+              pinToToday();
+            }}
             onScroll={onScroll}
             // The only signal that the reader, and not this screen, moved the list.
             onScrollBeginDrag={() => { touched.current = true; }}
@@ -669,7 +690,7 @@ export default function Moments() {
                       onOpen={openMoment}
                       onCaptureToday={openCapture}
                       photoFromFoot={photoBand * PHOTO_STEP + PHOTO_MARGIN - FOOT_PAD - FOOT_MARK}
-                      photoToFoot={photoBand * PHOTO_STEP - viewportH.current - PHOTO_MARGIN - FOOT_PAD - FOOT_MARK}
+                      photoToFoot={photoBand * PHOTO_STEP - viewportPx - PHOTO_MARGIN - FOOT_PAD - FOOT_MARK}
                     />
                   </>
                 )}
