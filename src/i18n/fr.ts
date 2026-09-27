@@ -268,7 +268,7 @@ export const fr: Dict = {
       // A question over two buttons, which is the plainest shape this can
       // take. Everything it does not say is in the privacy policy, behind
       // "En savoir plus".
-      line: 'Partager des statistiques anonymes pour nous aider à améliorer l’application ?',
+      line: 'Partager des statistiques anonymes et des enregistrements d’écran ? Ce que vous écrivez reste masqué.',
       more: 'En savoir plus',
       // The website's words, so one product does not answer the same question
       // two different ways.
@@ -276,7 +276,7 @@ export const fr: Dict = {
       yes: 'Ça me va',
     },
     sheetTitle: 'Statistiques anonymes',
-    onHint: 'Des statistiques anonymes, jamais de publicité',
+    onHint: 'Statistiques anonymes et enregistrements masqués, jamais de publicité',
     offHint: 'Rien n’est envoyé',
   },
   settings: {
