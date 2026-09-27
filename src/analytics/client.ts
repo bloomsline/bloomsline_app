@@ -23,10 +23,30 @@
 //      until you agree" has to be true as written. `defaultOptIn: false` stays
 //      as the second lock.
 //
-//   3. NO AUTOCAPTURE, NO REPLAY. There is no PostHogProvider wrapping the app
-//      and `enableSessionReplay` stays off, so no tap, no screenshot and no
-//      text ever reaches the SDK. Screens are sent by hand, by name, from
+//   3. NO AUTOCAPTURE. REPLAY, MASKED DOWN TO THE FRAME. There is still no
+//      PostHogProvider wrapping the app, so nothing is captured from a tap's
+//      surroundings and screens are still sent by hand, by name, from
 //      `provider.tsx`.
+//
+//      Session replay is ON from 2026-09-27, asked for directly, and every
+//      mask the native recorder has is on with it: text, text inputs, images
+//      and (on iOS) sandboxed system views such as the photo picker. What
+//      survives is a wireframe — layout, navigation, timing, where a screen
+//      stalled — and that is the whole point. If a replay of this app ever
+//      shows a readable word a patient wrote, that is an incident, not a
+//      setting to adjust.
+//
+//      `captureTouches` is OFF, which is the one non-obvious line here. Masking
+//      hides WHAT was typed; touch coordinates on a known keypad layout can
+//      give it back, and this app's keyboards carry journal entries and
+//      moments. It is one line to turn on if the loss of tap precision proves
+//      too expensive, and it should be a decision someone makes on purpose.
+//
+//      Two things outside this file have to be true as well: the native module
+//      `@posthog/react-native-plugin` must be in the build (a new native build,
+//      never an OTA update), and "Record user sessions" must be enabled in the
+//      PostHog project settings. Either one missing means no recordings and no
+//      error.
 //
 //   4. NO GEOIP. `disableGeoip: true` — the web app keeps country for its
 //      marketing site; a patient's town is not something this app needs to
@@ -115,7 +135,46 @@ export function startAnalytics(): void {
       // App opened / backgrounded / installed / updated. Generic, useful for
       // reading retention, and none of it describes a person.
       captureAppLifecycleEvents: true,
-      enableSessionReplay: false,
+      // Read once, at construction — which is after consent, because that is
+      // the only moment this client is ever built.
+      enableSessionReplay: true,
+      sessionReplayConfig: {
+        // Every mask the recorder has. All three default to true; they are
+        // written out because a default that changes in a minor release would
+        // change what this app records about a patient without anyone noticing.
+        //
+        // `maskAllTextInputs` is the mobile counterpart of the care app's
+        // `maskTextSelector: '*'`: the SDK defines it as "all text AND text
+        // input fields", not inputs alone, so a label rendering a moment's
+        // caption is masked the same as the box it was typed into. Both apps
+        // therefore record a wireframe with no readable words in it.
+        maskAllTextInputs: true,
+        maskAllImages: true,
+        maskAllSandboxedViews: true,
+        // See the header. Masking hides what was typed; taps on a keypad can
+        // reconstruct it.
+        captureTouches: false,
+        // Console logs are developer text, not a patient's, but this app logs
+        // API failures and a message can carry a fragment of a request. A
+        // recording is not the place to find out.
+        captureLog: false,
+        // Defaults to TRUE, which would put every request this app makes into
+        // the recording. Our paths carry member, moment and journal ids
+        // (`screens.ts` exists to strip exactly those before a screen name is
+        // sent), and a replay is no place to hand them back.
+        captureNetworkTelemetry: false,
+        // Android only, off by default. It re-walks the view hierarchy while a
+        // screenshot is taken to confirm the masks still line up with what is
+        // being drawn. It costs a little performance and it is the one guard
+        // against the failure that actually matters here: a frame captured
+        // mid-scroll where a mask has slipped and a line of somebody's journal
+        // is readable underneath it.
+        verifyScreenshotMaskAlignment: true,
+        // One frame a second. The default, kept deliberately: lower means more
+        // snapshots, a warmer phone and a shorter battery on a device somebody
+        // is using to write in.
+        throttleDelayMs: 1000,
+      },
       disableSurveys: true,
       // No flags and no push registration in this app: fewer requests, and
       // nothing that needs an identified person.

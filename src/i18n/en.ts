@@ -281,7 +281,7 @@ export const en = {
       // A question over two buttons, which is the plainest shape this can
       // take. Everything it does not say is in the privacy policy, behind
       // "Learn more".
-      line: 'Share anonymous stats to help us improve the app?',
+      line: 'Share anonymous stats and screen recordings? Anything you write stays hidden.',
       more: 'Learn more',
       // The website's words, so one product does not answer the same question
       // two different ways.
@@ -289,7 +289,7 @@ export const en = {
       yes: "I'm in",
     },
     sheetTitle: 'Anonymous statistics',
-    onHint: 'Anonymous stats, never ads',
+    onHint: 'Anonymous stats and masked recordings, never ads',
     offHint: 'Nothing is sent',
   },
   settings: {
