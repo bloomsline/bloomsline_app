@@ -38,6 +38,12 @@
         "ascApiKeyPath": "./asc-api-key.p8",
         "ascApiKeyId": "389ZU8NW5N",
         "ascApiKeyIssuerId": "27036a0a-095d-434e-a12c-0836b7a86218"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./play-service-account.json",
+        "track": "internal",
+        "releaseStatus": "draft",
+        "changesNotSentForReview": false
       }
     }
   }
