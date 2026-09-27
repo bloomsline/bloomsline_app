@@ -41,3 +41,6 @@ yarn-error.*
 
 # App Store Connect API key: never commit it
 asc-api-key.p8
+
+# Google Play service account key: never commit it
+play-service-account.json
