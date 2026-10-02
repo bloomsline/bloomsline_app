@@ -15,7 +15,7 @@
 // matching scroll correction, or the line silently walks them backwards through
 // their own week. See `onContentSize`.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Dimensions, Pressable, RefreshControl, ScrollView, Text, TouchableOpacity, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { ActivityIndicator, Animated, Dimensions, Pressable, RefreshControl, ScrollView, Text, TouchableOpacity, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowDown } from 'lucide-react-native';
@@ -36,6 +36,7 @@ import { ProfileButton } from '@/src/profile/ProfileButton';
 import { useTheme } from '@/src/ui/theme-mode';
 import { useStaleOnReturn } from '@/src/ui/use-stale-on-return';
 import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
+import { useFrameWidth } from '@/src/ui/frame';
 
 /** One page of the line. Deliberately larger than any viewport: at ROW=118 a
  *  page is ~4700px tall, so one fetch always overflows the screen and a page can
@@ -116,7 +117,7 @@ function TravelRail({ pos }: { pos: Animated.Value }) {
 export default function Moments() {
   const { t: TT } = useTheme();
   const router = useRouter();
-  const { width } = useWindowDimensions();
+  const width = useFrameWidth();
   const { t, locale } = useI18n();
   const { landing } = useLanding();
   const { firstName } = useOnboarding();

@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, useWindowDimensions, View, type LayoutChangeEven
 import Animated, { Easing, interpolate, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { useReduceMotion } from '@/src/ui/app-tabs';
+import { useFrameWidth } from './frame';
 
 // "The card grows into the page": the card that was tapped becomes the sheet or
 // page it opens, and closing folds it back into the same card.
@@ -69,7 +70,9 @@ type Props = {
 };
 
 export const GrowFrame = forwardRef<GrowHandle, Props>(function GrowFrame({ origin, kind, color, scrim, onScrimPress, children }, ref) {
-  const { width: W, height: H } = useWindowDimensions();
+  // Width from the frame; height from the window, which the frame fills.
+  const W = useFrameWidth();
+  const { height: H } = useWindowDimensions();
   const reduceMotion = useReduceMotion();
   // A page's box is the screen. A sheet's is only known once it has laid out.
   const [sheetH, setSheetH] = useState<number | null>(null);
