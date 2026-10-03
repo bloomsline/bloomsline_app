@@ -224,6 +224,8 @@ export const en = {
     saved: 'Saved',
     saveFailed: 'That did not save. Try again.',
     photoFailed: 'That photo did not upload. Try again.',
+    cameraDenied: 'Bloomsline does not have access to your camera. You can turn it on in Settings.',
+    libraryDenied: 'Bloomsline does not have access to your photos. You can turn it on in Settings.',
     about: 'About',
     location: 'Location',
     sessions: 'Sessions',

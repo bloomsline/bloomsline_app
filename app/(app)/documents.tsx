@@ -1,6 +1,11 @@
 // Documents & forms — the patient's documents with sign status. Wired to GET
-// /api/mobile/care/documents. Read-only list; signing still happens on the web
-// token link for now, so tapping a pending doc explains that.
+// /api/mobile/care/documents. Signing still happens on the web token link, so
+// tapping a PENDING doc explains that; tapping a SIGNED one opens it to read.
+//
+// Reading one back used to be impossible. The row said "Signed 27 September"
+// and did nothing when pressed, so a patient could see that they had consented
+// to something and had no way to find out what. The signed PDF had existed in
+// storage since the day signing shipped.
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -8,7 +13,8 @@ import { FileText, Check } from 'lucide-react-native';
 import { notify } from '@/src/ui/alert';
 import { EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
-import { fetchDocuments, type CareDocument } from '@/src/api/care';
+import { fetchDocuments, fetchDocumentUrl, type CareDocument } from '@/src/api/care';
+import { openPdf } from '@/src/ui/open-pdf';
 import { useSelectionReset } from '@/src/care/selected-practitioner';
 import { useI18n, fmt } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
@@ -20,6 +26,7 @@ const T = {
     emptyTitle: 'No documents yet',
     emptyBody: 'Forms your practitioner sends will appear here.',
     signAlert: 'Open this document from the link your practitioner sent to sign it.',
+    openFailed: 'That document could not be opened. Try again in a moment.',
     signedOn: 'Signed {date}',
     awaiting: 'Awaiting your signature',
     signed: 'Signed',
@@ -30,6 +37,7 @@ const T = {
     emptyTitle: 'Aucun document pour le moment',
     emptyBody: 'Les formulaires envoyés par votre praticien apparaîtront ici.',
     signAlert: 'Ouvrez ce document depuis le lien que votre praticien vous a envoyé pour le signer.',
+    openFailed: 'Ce document n’a pas pu être ouvert. Réessayez dans un instant.',
     signedOn: 'Signé le {date}',
     awaiting: 'En attente de votre signature',
     signed: 'Signé',
@@ -44,6 +52,10 @@ export default function Documents() {
   const tr = T[locale];
   const [items, setItems] = useState<CareDocument[] | null>(null);
   const [failed, setFailed] = useState(false);
+  // Which row is fetching its link. A presigned url is a round trip, and on a
+  // slow connection a tap that does nothing for two seconds reads as a tap that
+  // did not register — which is the bug being fixed, arriving by a new route.
+  const [opening, setOpening] = useState<string | null>(null);
   const selectionKey = useSelectionReset(() => { setItems(null); setFailed(false); });
   // Read on every visit, not once: a document signed on the web
   // while this screen sat in the stack still showed as awaiting a signature.
@@ -80,7 +92,15 @@ export default function Documents() {
                   activeOpacity={0.8}
                   // No "declined" state: nothing on the server can set one, so the
                   // label for it was removed on both sides.
-                  onPress={() => { if (!d.signed) notify(tr.signAlert); }}
+                  disabled={opening !== null}
+                  onPress={() => {
+                    if (!d.signed) { notify(tr.signAlert); return; }
+                    if (opening) return;
+                    setOpening(d.id);
+                    void fetchDocumentUrl(d.id)
+                      .then((url) => { if (url) return openPdf(url); notify(tr.openFailed); })
+                      .finally(() => setOpening(null));
+                  }}
                   style={{ backgroundColor: TT.card, borderWidth: 1, borderColor: TT.line, borderRadius: 18, padding: 15, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}
                 >
                   <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: TT.accentTint, alignItems: 'center', justifyContent: 'center' }}>
@@ -92,7 +112,9 @@ export default function Documents() {
                   </View>
                   {d.signed ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: TT.accentTint, borderRadius: 11, paddingVertical: 4, paddingHorizontal: 9 }}>
-                      <Check size={12} color={TT.accent} strokeWidth={3} />
+                      {opening === d.id
+                        ? <ActivityIndicator size="small" color={TT.accent} />
+                        : <Check size={12} color={TT.accent} strokeWidth={3} />}
                       <Text style={{ fontSize: 11.5, fontWeight: '700', color: TT.accent }}>{tr.signed}</Text>
                     </View>
                   ) : (

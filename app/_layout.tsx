@@ -16,6 +16,7 @@ import { ConfirmProvider } from '@/src/ui/confirm';
 import { ThemeProvider, useTheme } from '@/src/ui/theme-mode';
 import { FONT_ASSETS } from '@/src/ui/fonts';
 import { DARK, LIGHT } from '@/src/ui/tokens';
+import { FRAME_MAX_WIDTH } from '@/src/ui/frame';
 
 // MUST be at the ROOT, not only in the auth modules that start the flow.
 //
@@ -32,12 +33,18 @@ WebBrowser.maybeCompleteAuthSession();
 // On web, constrain the app to a centered phone-width column so the preview
 // reads like a real device instead of stretching across the whole browser.
 // No-op on native.
+//
+// `overflow: 'hidden'` means anything laid out wider than this is CLIPPED
+// with no scrollbar to show for it, so a component that sizes itself from
+// `useWindowDimensions()` on a desktop browser loses its right-hand side
+// silently. Use `useFrameWidth()` for anything inside here; the window is
+// only correct for a Modal, which React Native renders outside this frame.
 function PhoneFrame({ children }: { children: React.ReactNode }) {
   const { t, mode } = useTheme();
   if (Platform.OS !== 'web') return <>{children}</>;
   return (
     <View style={{ flex: 1, backgroundColor: mode === 'dark' ? '#0A0F0D' : '#E7E7E4', alignItems: 'center' }}>
-      <View style={{ flex: 1, width: '100%', maxWidth: 420, backgroundColor: t.bg, overflow: 'hidden' }}>{children}</View>
+      <View style={{ flex: 1, width: '100%', maxWidth: FRAME_MAX_WIDTH, backgroundColor: t.bg, overflow: 'hidden' }}>{children}</View>
     </View>
   );
 }

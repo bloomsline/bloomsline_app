@@ -7,7 +7,7 @@
 // next two appointments were nowhere near each other. They are one horizontal
 // strip now: "Next session", then "Then", then the rest.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Linking, Platform, ScrollView, Text, TouchableOpacity, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { ActivityIndicator, Linking, Platform, ScrollView, Text, TouchableOpacity, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowLeftRight, ChevronRight, Plus, Ellipsis, RotateCcw, FileText, MapPin, Phone, type LucideIcon } from 'lucide-react-native';
@@ -32,6 +32,7 @@ import { Cascade } from '@/src/ui/cascade';
 import { veil } from '@/src/ui/tokens';
 import { LoadFailed } from '@/src/ui/LoadFailed';
 import { useStaleOnReturn } from '@/src/ui/use-stale-on-return';
+import { useFrameWidth } from '@/src/ui/frame';
 
 const PREVIEW_NEXT: CareSession = { id: 'preview', scheduledAt: inDays(5, 9), durationMinutes: 50, sessionFormat: 'video', sessionType: 'session', status: 'scheduled', meetLink: null, paymentStatus: null };
 const PREVIEW_UPCOMING: CareSession[] = [
@@ -355,7 +356,9 @@ function SessionCarousel({
   onMaps: () => void;
 }) {
   const { t: TT, mode } = useTheme();
-  const { width } = useWindowDimensions();
+  // The FRAME, not the browser window: on web these differ and the card would
+  // be sized to the whole desktop and clipped at 420.
+  const width = useFrameWidth();
   const [index, setIndex] = useState(0);
   const scroller = useRef<ScrollView>(null);
   const CARD_W = Math.min(300, width - 88);

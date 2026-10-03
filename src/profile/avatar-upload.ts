@@ -24,9 +24,42 @@ export interface PickedImage {
   height: number;
 }
 
-/** Choose a photo. Null on cancel. Nothing is uploaded yet — the patient still
- *  has to say which part of it is the face. */
+/** Thrown when the OS refused the camera or the photo library. Distinct from a
+ *  null return, which means the patient changed their mind. */
+export class PermissionDenied extends Error {
+  constructor(public readonly which: 'camera' | 'library') {
+    super(`${which}_denied`);
+  }
+}
+
+/**
+ * Choose a photo. Null on cancel. Nothing is uploaded yet — the patient still
+ * has to say which part of it is the face.
+ *
+ * THE PERMISSION IS ASKED FOR FIRST, and this is the whole bug.
+ *
+ * Launching the picker without it meant the OS raised its own permission dialog
+ * on the first tap. The picker resolved canceled/empty underneath that dialog,
+ * so this returned null — and the screen's rule was "null is cancel, say
+ * nothing". First tap on a fresh install did nothing and explained nothing;
+ * the second tap worked, because by then the permission existed. Reported from
+ * TestFlight, Oct 2026: "the first time it doesn't work, the second time it
+ * works".
+ *
+ * Both other pickers in this app — `moments/media-upload` and
+ * `resources/file-upload-field` — already did this. The profile avatar was the
+ * one path that never got a device pass.
+ *
+ * A REFUSAL THROWS rather than returning null, because the OS asks only once:
+ * after a "Don't Allow" every later tap is refused in silence, and the patient
+ * needs to be told that the switch is in Settings and not in this app.
+ */
 export async function pickImage(fromCamera: boolean): Promise<PickedImage | null> {
+  const perm = fromCamera
+    ? await ImagePicker.requestCameraPermissionsAsync()
+    : await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!perm.granted) throw new PermissionDenied(fromCamera ? 'camera' : 'library');
+
   const res = fromCamera
     ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1 })
     : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
