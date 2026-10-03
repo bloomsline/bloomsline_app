@@ -161,6 +161,23 @@ export async function fetchDocuments(): Promise<CareDocument[] | null> {
   }
 }
 
+/**
+ * A short-lived link to a signed document, or null.
+ *
+ * Fetched on the tap rather than listed with the documents: a presigned url
+ * expires, and a list the patient opened this morning would hand out dead links
+ * all afternoon.
+ */
+export async function fetchDocumentUrl(id: string): Promise<string | null> {
+  try {
+    const res = await apiFetch(`/api/mobile/care/documents/${encodeURIComponent(id)}/view`);
+    if (!res.ok) return null;
+    return ((await res.json()) as { url?: string }).url ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export interface SharedItem {
   id: string;
   /** Which endpoint stops sharing it. Older servers list moments only and do

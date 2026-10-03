@@ -26,7 +26,7 @@ import { useAfterDismiss } from '@/src/ui/after-dismiss';
 import { useI18n } from '@/src/i18n';
 import { fetchMe, saveProfile } from '@/src/api/me';
 import { refreshMeFace, setMeFaceLocally } from '@/src/profile/me-face';
-import { pickImage, uploadAvatar, type PickedImage } from '@/src/profile/avatar-upload';
+import { pickImage, uploadAvatar, PermissionDenied, type PickedImage } from '@/src/profile/avatar-upload';
 import { AvatarCropper, type CropRect } from '@/src/profile/AvatarCropper';
 import { cameraAvailable } from '@/src/moments/media-upload';
 import { useOnboarding } from '@/src/onboarding/context';
@@ -100,10 +100,17 @@ export function ProfileScreen({ home }: { home: string }) {
     // anyway is what made a dropped picker read as a stuck upload.
     try {
       const picked = await pickImage(action === 'camera');
-      // Null is "they cancelled" as often as "it failed", and the picker cannot
-      // tell us which — so no message, and nothing changes.
+      // Null is "they cancelled" now that a refusal throws instead. Still no
+      // message for it: backing out of the picker is not a failure.
       if (picked) setCropping(picked);
     } catch (e) {
+      // A refusal is not a malfunction, and it cannot be fixed from in here —
+      // the OS asks once, so this is the only chance to say where the switch
+      // lives. No step name appended: there is nothing to debug.
+      if (e instanceof PermissionDenied) {
+        setError(e.which === 'camera' ? tr.cameraDenied : tr.libraryDenied);
+        return;
+      }
       setError(`${tr.photoFailed} (${String(e).slice(0, 120)})`);
     }
   };

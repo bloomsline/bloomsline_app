@@ -218,6 +218,8 @@ export const fr: Dict = {
     saved: 'Enregistré',
     saveFailed: 'L’enregistrement a échoué. Réessayez.',
     photoFailed: 'La photo n’a pas pu être envoyée. Réessayez.',
+    cameraDenied: 'Bloomsline n’a pas accès à votre appareil photo. Vous pouvez l’autoriser dans Réglages.',
+    libraryDenied: 'Bloomsline n’a pas accès à vos photos. Vous pouvez l’autoriser dans Réglages.',
     about: 'À propos',
     location: 'Lieu',
     sessions: 'Séances',
