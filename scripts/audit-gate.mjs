@@ -53,6 +53,54 @@ const ALLOWLIST = {
   // Two IDs, one library, one argument.
   'GHSA-w3rx-r6r6-pgpr': 'image-size ICNS infinite loop — Metro bundler only, absent from the bundle; every version affected, no upgrade exists',
   'GHSA-5p2g-fcmc-qvqq': 'image-size JXL/HEIF infinite loop — Metro bundler only, absent from the bundle; every version affected, no upgrade exists',
+
+  // braces stack exhaustion on deeply nested patterns.
+  //
+  // Reaches us through BUILD tooling only, by two routes: tailwindcss (a
+  // devDependency, but npm counts it through react-native-css-interop) →
+  // chokidar/micromatch, and micromatch again under metro-file-map,
+  // jest-haste-map and fast-glob. What those glob over is the file list of
+  // THIS repo. Nobody hands the bundler a crafted pattern.
+  //
+  // Confirmed absent from what ships: `micromatch`, `chokidar` and
+  // `brace-expansion` each return zero occurrences in a web bundle exported
+  // from this branch on 3 Oct 2026. The one hit for "braces" is React's own
+  // "Did you forget to wrap your children in braces?" warning string.
+  //
+  // NOT FIXABLE. braces 3.0.3 is the newest published version and the advisory
+  // range is `<=3.0.3`, so there is nothing to upgrade to. npm's suggested fix
+  // is tailwindcss 4.x, a major bump of the styling system to close a
+  // build-time DoS that cannot reach us.
+  //
+  // Revisit: when braces publishes 3.0.4 or later. Then this goes, and an
+  // override pins it.
+  'GHSA-vfj7-8cjw-p6xm': 'braces nested-pattern DoS — build tooling only, absent from the bundle; 3.0.3 is the newest release and is itself affected',
+
+  // node-forge accepts extra nested DigestAlgorithm elements when verifying an
+  // RSA PKCS#1 v1.5 signature.
+  //
+  // Arrives twice: expo-updates → @expo/code-signing-certificates, and
+  // expo → @expo/cli. The second is the developer CLI. The first is the one
+  // worth arguing about, and the argument is that THE PATH IS NOT ENABLED:
+  // `expo.updates` in app.json carries a `url` and no `codeSigningCertificate`,
+  // so no manifest signature is ever verified and forge's PKCS#1 code never
+  // runs. Turning code signing on would make this live — see the revisit note.
+  //
+  // Confirmed absent from what ships: `node-forge`, `forge.pki`, `pkcs1` and
+  // `rsa.verify` each return zero occurrences in a web bundle exported from
+  // this branch on 3 Oct 2026. (`DigestAlgorithm` appears four times and is
+  // expo-crypto's `CryptoDigestAlgorithm` — SHA-256 for the auth PKCE
+  // challenge — which is a different thing with a similar name.)
+  //
+  // NOT FIXABLE. node-forge 1.4.0 is the newest published version and the
+  // advisory range is `<=1.4.0`. npm's suggested fix is expo-updates 0.11.7,
+  // a downgrade of forty-odd minor versions from the 55.x this app runs, which
+  // would take OTA updates with it.
+  //
+  // Revisit: when node-forge ships a patch — or SOONER, the day
+  // `codeSigningCertificate` is added to app.json, because that is the moment
+  // this stops being unreachable.
+  'GHSA-86w9-cpqp-85rv': 'node-forge PKCS#1 v1.5 verification — expo-updates code signing is NOT configured, so the path never runs; absent from the bundle; 1.4.0 is the newest release and is itself affected',
 };
 
 const BLOCKING = new Set(['high', 'critical']);
