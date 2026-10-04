@@ -31,6 +31,20 @@ export interface MeProfile {
   /** Who the server resolved this request to: the `x-bl-practitioner` header
    *  when it named a real link, otherwise the first link. */
   selectedPractitionerId?: string | null;
+  /** Every care profile, with the role it is entered as (guardian plan, phase
+   *  6): the patient's own care, then each child's as their guardian. Absent
+   *  from servers that predate guardians. */
+  links?: {
+    linkId: string;
+    practitionerId: string;
+    practitionerName: string | null;
+    photoUrl: string | null;
+    role: 'patient' | 'guardian';
+    /** The person signed in is the child on this chart. */
+    child: boolean;
+    childFirstName: string | null;
+  }[];
+  selectedLinkId?: string | null;
   onboardedAt: string | null;
   /** When they finished the Moments introduction, or null if they never have.
    *  Server-side rather than a flag on the phone: it has to survive a reinstall,

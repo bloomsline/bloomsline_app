@@ -79,7 +79,7 @@ const T = {
 
 export default function SessionMenu() {
   const { t: TT } = useTheme();
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const confirm = useConfirm();
   const tr = T[locale];
   const router = useRouter();
@@ -140,7 +140,7 @@ export default function SessionMenu() {
   // selected when My Care opened this sheet. A switch while it is open (a
   // return to the app can correct a selection) leaves it describing someone
   // else's session with someone else's rules: close it rather than act on that.
-  const { selectionKey } = useSelectedPractitioner();
+  const { selectionKey, shape } = useSelectedPractitioner();
   const openedFor = useRef(selectionKey);
   const stale = openedFor.current !== selectionKey;
   const closeRef = useRef(close);
@@ -219,7 +219,8 @@ export default function SessionMenu() {
             {/* Neither allowed: say so, so the sheet is not an empty panel. */}
             {!showCancel && !showReschedule && (
               <Text style={{ fontSize: 12.5, color: TT.inkSoft, textAlign: 'center', lineHeight: 18 }}>
-                {tr.contactPractitioner}
+                {/* The child's own app says who changes their sessions. */}
+                {shape === 'child' ? t.family.childBookNote : tr.contactPractitioner}
               </Text>
             )}
           </View>

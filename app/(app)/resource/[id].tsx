@@ -1,6 +1,7 @@
 // Assigned-resource detail + response flow. Opens an assigned resource, renders
 // the frozen version's blocks (shared renderer), collects answers, and submits →
 // server validates + scores → shows the result. Reached from My Care "To do".
+import { useFeatureGuard } from '@/src/care/use-feature-guard';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, BackHandler, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -106,6 +107,7 @@ const T = {
 
 // The to-do card grows into this page, and leaving folds it back (ui/grow).
 export default function ResourceDetail() {
+  useFeatureGuard('fromPractitioner');
   const { t: TT } = useTheme();
   const [origin] = useState(takeGrowOrigin);
   return (

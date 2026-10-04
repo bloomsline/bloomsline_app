@@ -2,6 +2,7 @@
 // pared to what v2 supports today: moods, text/caption, time, image media, plus
 // wired Share-to-practitioner and Delete. Deferred vs v1: the conversation thread
 // (no moment_comments backend yet) and the video/voice player (media storage dark).
+import { can } from '@/src/care/shape';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Modal, ScrollView, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -111,7 +112,7 @@ export function MomentDetail({ moment, origin, onClose, onChanged }: { moment: M
   // reaches the SELECTED practitioner only, and onboarding's names are exactly
   // that one (see onboarding/context).
   const { practitionerName, practitionerNames, hasPractitioner } = useOnboarding();
-  const { canSwitch, selectionKey, selectedId } = useSelectedPractitioner();
+  const { canSwitch, selectionKey, selectedId, shape } = useSelectedPractitioner();
   const pracNames = practitionerNames.length ? practitionerNames : practitionerName ? [practitionerName] : [];
   const [shared, setShared] = useState(moment.sharedWithPractitioner);
   // Who can read it NOW, once shared: the practitioners the share named who are
@@ -242,7 +243,7 @@ export function MomentDetail({ moment, origin, onClose, onChanged }: { moment: M
               {/* Share to practitioner. Not offered with nobody to share with — it
                   used to say "Shared" and reach no one, until a practitioner
                   linked later inherited it. Stopping a share stays possible. */}
-              {(hasPractitioner || shared) && <TouchableOpacity
+              {((hasPractitioner && can(shape, 'share')) || shared) && <TouchableOpacity
                 onPress={confirmToggleShare}
                 disabled={sharing}
                 activeOpacity={0.85}

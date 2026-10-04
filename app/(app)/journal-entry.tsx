@@ -6,6 +6,7 @@
 // The chrome matches the list: a dark bar with no photograph over light paper.
 // Sharing lives in that bar as a chip that names WHO can read the page, rather
 // than as a verb under the writing — see ShareChip for why.
+import { can } from '@/src/care/shape';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Keyboard, KeyboardAvoidingView, Linking, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -184,7 +185,7 @@ export default function JournalEntry() {
   const face = usePractitionerFace();
   const { practitionerName, practitionerNames, hasPractitioner } = useOnboarding();
   const pracNames = practitionerNames.length ? practitionerNames : practitionerName ? [practitionerName] : [];
-  const { canSwitch, selectionKey, selectedId } = useSelectedPractitioner();
+  const { canSwitch, selectionKey, selectedId, shape } = useSelectedPractitioner();
 
   const keep = useKeepInView();
 
@@ -626,7 +627,7 @@ export default function JournalEntry() {
           <View style={{ flex: 1 }} />
           {/* With nobody to share with there is no chip to offer — unless it is
               already shared, which can still be stopped. */}
-          {savedId && !loadFailed && !entryIsEmpty(title, blocks) && (hasPractitioner || shared) && (
+          {savedId && !loadFailed && !entryIsEmpty(title, blocks) && ((hasPractitioner && can(shape, 'share')) || shared) && (
             <ShareChip
               shared={shared} sharedAt={sharedAt} busy={sharing} face={face} names={canSwitch ? pracNames : shared && readers ? readers : pracNames} locale={locale}
               others={canSwitch ? otherReaders(readers, readerIds, selectedId) : []}

@@ -26,6 +26,7 @@
 //
 // RESCHEDULE keeps type and format fixed — the session already has both — so
 // they show as a static line and only the time is editable.
+import { useFeatureGuard } from '@/src/care/use-feature-guard';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -150,12 +151,13 @@ function priceLabel(cents: number | null, currency: string, noChargeLabel: strin
 }
 
 export default function Book() {
+  useFeatureGuard('book');
   const { t: TT } = useTheme();
   // The booking button is pinned to the bottom of the window, so it has to
   // clear Android's navigation bar itself.
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const tr = T[locale];
   const formatLabel = (f: string) => tr.formats[f] ?? f;
   const params = useLocalSearchParams<{ rescheduleId?: string; sessionTypeId?: string; format?: string; demo?: string }>();
@@ -374,10 +376,10 @@ export default function Book() {
         <EdHeader title={title} source={ONBOARDING_IMAGES.card4} onBack={back} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <Text style={{ fontSize: 16, fontWeight: '700', color: TT.ink, textAlign: 'center' }}>
-            {refusal === 'not_allowed' ? tr.notAllowed(name) : refusal === 'no_practitioner' ? tr.noPractitioner : tr.unavailable}
+            {refusal === 'minor' ? tr.unavailable : refusal === 'not_allowed' ? tr.notAllowed(name) : refusal === 'no_practitioner' ? tr.noPractitioner : tr.unavailable}
           </Text>
           <Text style={{ fontSize: 13.5, color: TT.inkSoft, textAlign: 'center', marginTop: 6, lineHeight: 20 }}>
-            {refusal === 'not_allowed' ? tr.notAllowedBody(name) : refusal === 'no_practitioner' ? tr.noPractitionerBody : tr.unavailableBody(name)}
+            {refusal === 'minor' ? t.family.childBookNote : refusal === 'not_allowed' ? tr.notAllowedBody(name) : refusal === 'no_practitioner' ? tr.noPractitionerBody : tr.unavailableBody(name)}
           </Text>
         </View>
       </View>

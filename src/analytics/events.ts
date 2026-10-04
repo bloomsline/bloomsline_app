@@ -33,6 +33,9 @@ export type AnalyticsEvent =
   | 'sign_in_completed'
   | 'sign_in_failed'
   | 'invite_opened'
+  // A guardian's or child's invitation link opened: the kind and whether it
+  // resolved, never the token.
+  | 'family_invite_opened'
   // Onboarding, step by step, because this is where an invited patient is most
   // likely to fall out and we cannot see it any other way.
   | 'onboarding_profile_saved'

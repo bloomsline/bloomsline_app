@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Redirect, Stack, usePathname, useRouter } from 'expo-router';
 import { useAuth } from '@/src/auth/auth-context';
 import { rememberRoute } from '@/src/auth/pending-route';
+import { usePendingInviteRedirect } from '@/src/family/use-pending-invite';
 import { hrefForStatus } from '@/src/auth/route';
 import { useLanding, LANDING_HREF } from '@/src/prefs/app-prefs';
 import { useTheme } from '@/src/ui/theme-mode';
@@ -48,6 +49,9 @@ export default function AppLayout() {
   useEffect(() => {
     if (status === 'anon' || status === 'loading') entryDecided = false;
   }, [status]);
+
+  // A pending guardian's or child's invitation: back to it, for a tap.
+  usePendingInviteRedirect(status === 'authed');
 
   useEffect(() => {
     if (entryDecided || status !== 'authed' || !ready) return;

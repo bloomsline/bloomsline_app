@@ -1,6 +1,7 @@
 // e3 — "My guides" / "Mes repères" (route + API still say library).
 // Self-guided activities from the patient's practitioner(s),
 // always open, never assigned. Wired to GET /api/mobile/library.
+import { useFeatureGuard } from '@/src/care/use-feature-guard';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -49,6 +50,7 @@ const T = {
 } as const;
 
 export default function Library() {
+  useFeatureGuard('fromPractitioner');
   const { t: TT, mode } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();

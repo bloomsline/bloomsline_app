@@ -8,6 +8,7 @@ import { EditorialBg, Scrim, MonoKicker, Pill } from '@/src/onboarding/editorial
 import { AnimatedPromiseIcon, type PromiseIcon } from '@/src/onboarding/editorial/AnimatedIcon';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useOnboarding } from '@/src/onboarding/context';
+import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
 import { useI18n } from '@/src/i18n';
 import { saveProfile } from '@/src/api/me';
 import { notify } from '@/src/ui/alert';
@@ -21,6 +22,7 @@ export default function Privacy() {
   const [agreed, setAgreed] = useState(false);
 
   const T = t.onboarding.privacy;
+  const isChild = useSelectedPractitioner().profiles.some((p) => p.child);
   const rows: { icon: PromiseIcon; title: string; body: string }[] = [
     { icon: 'lock', title: T.p1Title, body: T.p1Body },
     { icon: 'ban', title: T.p2Title, body: T.p2Body },
@@ -60,6 +62,11 @@ export default function Privacy() {
             <MonoKicker size={10} color="rgba(255,255,255,0.55)" style={{ marginTop: 26, marginBottom: 12 }}>{T.badge}</MonoKicker>
             <Text style={{ fontSize: 30, fontWeight: '800', color: '#fff', letterSpacing: -1.1, lineHeight: 32 }}>{T.title}</Text>
             <Text style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.7)', lineHeight: 20, marginTop: 10 }}>{T.intro}</Text>
+            {/* Said to a child in plain words, before they write anything: their
+                parent or guardian does not see it (guardian plan, phase 6). */}
+            {isChild ? (
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff', lineHeight: 20, marginTop: 12 }}>{t.family.childPrivacy}</Text>
+            ) : null}
 
             <View style={{ marginTop: 20 }}>
               {rows.map((r, i) => (

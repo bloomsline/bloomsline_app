@@ -3,7 +3,7 @@
 // requests triggers exactly one refresh) and retries once. If refresh fails the
 // session is cleared and the registered sign-out handler fires.
 import { API_URL } from '../config';
-import { getCurrentPractitionerId } from '../care/current-practitioner';
+import { getCurrentPractitionerId, getCurrentLinkId } from '../care/current-practitioner';
 import { clearTokens, getAccessToken, getRefreshToken, saveTokens } from './token-store';
 
 /**
@@ -108,6 +108,11 @@ export async function apiFetch(path: string, init: RequestInit = {}, allowRetry 
   // back to the first link otherwise, so a stale id can never widen access.
   const practitionerId = getCurrentPractitionerId();
   if (practitionerId && !headers.has('x-bl-practitioner')) headers.set('x-bl-practitioner', practitionerId);
+  // The child's chart, when a guardian is looking at one (guardian plan, phase
+  // 6). The server selects a guardian link ONLY when this names it, so an app
+  // that never sends it is never handed a child's chart.
+  const linkId = getCurrentLinkId();
+  if (linkId && !headers.has('x-bl-link')) headers.set('x-bl-link', linkId);
 
   const res = await fetchOrOffline(`${API_URL}${path}`, { ...init, headers });
 

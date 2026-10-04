@@ -5,6 +5,7 @@
 // an article arrives in the app's own type and colours, dark mode included,
 // instead of as a foreign white rectangle — and no author markup ever reaches
 // the phone.
+import { useFeatureGuard } from '@/src/care/use-feature-guard';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Image, Linking, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -22,6 +23,7 @@ const T = {
 } as const;
 
 export default function ArticleScreen() {
+  useFeatureGuard('fromPractitioner');
   const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();

@@ -19,6 +19,8 @@
 // "Good / Hard / Mixed" is NOT stored. It filters which feelings are offered,
 // and the timeline's valence is derived from the feelings actually picked (see
 // MOOD_SCORES). That is why this needed no migration.
+import { can } from '@/src/care/shape';
+import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
 import { useEffect, useRef, useState } from 'react';
 import { useAudioRecorder, useAudioRecorderState, requestRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio';
 import { ActivityIndicator, Animated, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
@@ -65,6 +67,8 @@ export default function Capture() {
   const { t, locale } = useI18n();
   const tr = t.capture;
   const { practitionerName, practitionerNames, hasPractitioner } = useOnboarding();
+  // A guardian's view of a child offers no sharing (shape.ts, guardian plan phase 6).
+  const { shape } = useSelectedPractitioner();
   // Everyone the moment would reach, not the first of them: on an older server a
   // share goes to every practitioner linked. With the switcher it goes to the
   // selected one, and these names are that one (see onboarding/context).
@@ -335,7 +339,7 @@ export default function Capture() {
             locale={locale}
             tr={tr}
             share={share}
-            canShare={hasPractitioner && !!pracFirst}
+            canShare={hasPractitioner && can(shape, 'share') && !!pracFirst}
             pracFirst={pracFirst}
             pracMany={pracMany}
             busy={busy}

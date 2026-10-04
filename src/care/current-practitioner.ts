@@ -15,6 +15,18 @@ import { storageDelete } from '@/src/storage';
 export const SELECTED_PRACTITIONER_KEY = 'pref.selectedPractitioner';
 
 let currentPractitionerId: string | null = null;
+/** The child's chart a guardian is looking at, sent as `x-bl-link` (guardian
+ *  plan, phase 6). Null for a patient's own care, which sends no link header and
+ *  so reaches the server exactly as builds before guardians did. */
+let currentLinkId: string | null = null;
+
+export function getCurrentLinkId(): string | null {
+  return currentLinkId;
+}
+
+export function setCurrentLinkId(id: string | null): void {
+  currentLinkId = id;
+}
 
 /** The id `apiFetch` sends as `x-bl-practitioner`, or null to send nothing. */
 export function getCurrentPractitionerId(): string | null {
@@ -42,5 +54,6 @@ export function setCurrentPractitionerId(id: string | null): void {
  */
 export async function clearSelectedPractitioner(): Promise<void> {
   currentPractitionerId = null;
+  currentLinkId = null;
   await storageDelete(SELECTED_PRACTITIONER_KEY).catch(() => {});
 }
