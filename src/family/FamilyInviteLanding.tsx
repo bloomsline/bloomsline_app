@@ -10,7 +10,7 @@ import { fetchFamilyInvite, type FamilyInvite } from '@/src/api/invite';
 import { useI18n, fmt } from '@/src/i18n';
 import { useAuth } from '@/src/auth/auth-context';
 import { hrefForStatus } from '@/src/auth/route';
-import { rememberFamilyInvite, acceptPendingFamilyInvite } from '@/src/auth/family-invite';
+import { rememberFamilyInvite, acceptPendingFamilyInvite, clearFamilyInvite } from '@/src/auth/family-invite';
 import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
 import { track } from '@/src/analytics/client';
 import { OVER_MEDIA, onMedia } from '@/src/ui/tokens';
@@ -31,12 +31,15 @@ import { OVER_MEDIA, onMedia } from '@/src/ui/tokens';
 export function FamilyInviteLanding({ kind, token }: { kind: 'guardian' | 'child'; token: string }) {
   const { t, locale, setLocale } = useI18n();
   const { status } = useAuth();
-  const { refresh, select } = useSelectedPractitioner();
+  const { refresh } = useSelectedPractitioner();
   const [invite, setInvite] = useState<FamilyInvite | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const signedIn = status === 'authed' || status === 'onboarding';
+  // A practitioner's session counts as signed in too: the server refuses it
+  // (`not_patient`) and the screen says why, rather than offering a sign-up
+  // the (auth) group would bounce them out of.
+  const signedIn = status === 'authed' || status === 'onboarding' || status === 'practitioner';
 
   useEffect(() => {
     let alive = true;
@@ -70,8 +73,15 @@ export function FamilyInviteLanding({ kind, token }: { kind: 'guardian' | 'child
       setError(t.family.refused[out.code as keyof typeof t.family.refused] ?? t.family.refused.invalid);
       return;
     }
+    // `refresh` opens on the profile just accepted (`takeNextProfile`): the
+    // child's care, for a guardian.
     await refresh();
-    if (out?.ok && out.linkId) select(out.linkId);
+    router.replace(hrefForStatus(status));
+  };
+
+  // Not theirs, or not now: forget it, so it is not offered again on this device.
+  const notNow = async () => {
+    await clearFamilyInvite();
     router.replace(hrefForStatus(status));
   };
 
@@ -115,7 +125,12 @@ export function FamilyInviteLanding({ kind, token }: { kind: 'guardian' | 'child
                 </View>
                 {error && <Text accessibilityRole="alert" style={{ fontSize: 14, color: '#FFD3C9', textAlign: 'center', marginBottom: 12, lineHeight: 20 }}>{error}</Text>}
                 {signedIn ? (
-                  <Pill label={busy ? t.family.accepting : t.family.accept} onPress={() => { if (!busy) void acceptNow(); }} />
+                  <>
+                    <Pill label={busy ? t.family.accepting : t.family.accept} onPress={() => { if (!busy) void acceptNow(); }} />
+                    <Pressable onPress={() => { void notNow(); }} style={{ alignItems: 'center', paddingVertical: 16 }}>
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: onMedia(0.9) }}>{t.family.notNow}</Text>
+                    </Pressable>
+                  </>
                 ) : (
                   <>
                     <Pill label={t.invite.createProfile} onPress={() => start()} />

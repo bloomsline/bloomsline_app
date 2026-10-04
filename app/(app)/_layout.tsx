@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Redirect, Stack, usePathname, useRouter } from 'expo-router';
 import { useAuth } from '@/src/auth/auth-context';
 import { rememberRoute } from '@/src/auth/pending-route';
+import { pendingFamilyInvite } from '@/src/auth/family-invite';
 import { hrefForStatus } from '@/src/auth/route';
 import { useLanding, LANDING_HREF } from '@/src/prefs/app-prefs';
 import { useTheme } from '@/src/ui/theme-mode';
@@ -48,6 +49,18 @@ export default function AppLayout() {
   useEffect(() => {
     if (status === 'anon' || status === 'loading') entryDecided = false;
   }, [status]);
+
+  // Signed in with a guardian's or child's invitation still pending (they
+  // opened the link, then signed in): back to the invitation, where they
+  // accept it by a tap that names the child. Never accepted silently.
+  useEffect(() => {
+    if (status !== 'authed') return;
+    let alive = true;
+    void pendingFamilyInvite().then((p) => {
+      if (alive && p) router.push(`/${p.kind}/${encodeURIComponent(p.token)}` as never);
+    });
+    return () => { alive = false; };
+  }, [status, router]);
 
   useEffect(() => {
     if (entryDecided || status !== 'authed' || !ready) return;

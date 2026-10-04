@@ -93,9 +93,11 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   // "Share with Anna" must all follow the switch, without each screen knowing
   // there is one. The list is only present on servers that support switching;
   // without it these stay exactly what `/me` said.
-  const { practitioners, selected } = useSelectedPractitioner();
+  // Profiles, not practitioners: a guardian of a child, with no care of their
+  // own, has a practitioner to greet and to book with all the same.
+  const { profiles, selected } = useSelectedPractitioner();
   const value = useMemo<OnboardingValue>(() => {
-    const follow = practitioners.length > 0 && selected;
+    const follow = profiles.length > 0 && selected;
     return {
       ...data,
       ...(follow ? { hasPractitioner: true, practitionerName: selected.name, practitionerNames: [selected.name] } : null),
@@ -103,7 +105,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       update,
       reset,
     };
-  }, [data, practitioners.length, selected, resolved, update, reset]);
+  }, [data, profiles.length, selected, resolved, update, reset]);
   return <OnboardingContext.Provider value={value}>{children}</OnboardingContext.Provider>;
 }
 

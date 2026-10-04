@@ -6,18 +6,23 @@
 // Google flows leave the page entirely, so the token is kept in storage, not in
 // memory. It goes with every sign-in request as `familyInvite` (the server
 // admits an address that would otherwise be waitlisted, including an Apple
-// relay address) and, once signed in, is accepted at the one endpoint that
-// binds it. Then it is forgotten.
+// relay address). Once signed in, the person is brought back to the
+// invitation screen and accepts it THERE, by a tap on a screen that names the
+// child: never silently, because the server binds whoever accepts, and a
+// device can be shared. Then it is forgotten.
 //
-// NOT on the forget-account list: a sign-in forgets the previous account, and
-// this is the very thing the sign-in is for. It expires on its own instead.
+// NOT on the forget-account list (a sign-in forgets the previous account, and
+// this is what the sign-in is for); cleared on sign-out, on "Not now", on any
+// answer from the server, and after two hours.
 import { apiFetch } from './api';
 import { storageDelete, storageGet, storageSet } from '../storage';
 
 export type FamilyInviteKind = 'guardian' | 'child';
 const KEY = 'pending.familyInvite';
-/** An invitation link lives seven days on the server; a little longer here is harmless. */
-const MAX_AGE_MS = 8 * 86_400_000;
+/** Long enough to sign in (an emailed sign-in link included), short enough that
+ *  a link opened on a shared device and walked away from does not wait for the
+ *  next person. */
+const MAX_AGE_MS = 2 * 3_600_000;
 
 interface Pending { token: string; kind: FamilyInviteKind; at: number }
 
@@ -44,18 +49,15 @@ export async function familyInviteForSignIn(): Promise<string | undefined> {
   return (await pendingFamilyInvite())?.token;
 }
 
+/** Forget the pending invitation: sign-out, "Not now". */
+export async function clearFamilyInvite(): Promise<void> {
+  await storageDelete(KEY).catch(() => {});
+}
+
 export type AcceptOutcome =
   | { ok: true; linkId: string | null }
   | { ok: false; code: string; message: string | null }
-  | null; // nothing pending
-
-/** What the last acceptance said, for the screen that comes next to show once. */
-let lastOutcome: AcceptOutcome = null;
-export function takeAcceptOutcome(): AcceptOutcome {
-  const o = lastOutcome;
-  lastOutcome = null;
-  return o;
-}
+  | null; // nothing pending, or no answer (offline): try again from the screen
 
 /** The profile to open on after an acceptance (the child's chart, for a guardian). */
 let nextProfile: string | null = null;
@@ -66,9 +68,10 @@ export function takeNextProfile(): string | null {
 }
 
 /**
- * Accept the pending invitation as the signed-in account. Forgets it on any
- * definite answer (accepted, or refused for good); keeps it on a dropped
- * connection, so the next launch tries again.
+ * Accept the pending invitation as the signed-in account. Called ONLY from the
+ * invitation screen, on the person's tap. Forgets it on any definite answer
+ * (accepted, or refused); keeps it on a dropped connection, so the tap can be
+ * tried again.
  */
 export async function acceptPendingFamilyInvite(): Promise<AcceptOutcome> {
   const pending = await pendingFamilyInvite();
@@ -80,9 +83,7 @@ export async function acceptPendingFamilyInvite(): Promise<AcceptOutcome> {
   if (res.ok) {
     // A guardian opens on the child's care; a child on their own (the default).
     nextProfile = pending.kind === 'guardian' && typeof data.linkId === 'string' ? data.linkId : null;
-    lastOutcome = { ok: true, linkId: nextProfile };
-  } else {
-    lastOutcome = { ok: false, code: typeof data.code === 'string' ? data.code : 'invalid', message: typeof data.error === 'string' ? data.error : null };
+    return { ok: true, linkId: nextProfile };
   }
-  return lastOutcome;
+  return { ok: false, code: typeof data.code === 'string' ? data.code : 'invalid', message: typeof data.error === 'string' ? data.error : null };
 }

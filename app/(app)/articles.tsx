@@ -2,6 +2,7 @@
 //
 // Read-only and unrecorded: nothing is logged about opening one. Wired to
 // GET /api/mobile/blog.
+import { useFeatureGuard } from '@/src/care/use-feature-guard';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -40,6 +41,7 @@ const T = {
 const other = (l: string) => (l === 'fr' ? 'en' : 'fr');
 
 export default function Articles() {
+  useFeatureGuard('fromPractitioner');
   const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();

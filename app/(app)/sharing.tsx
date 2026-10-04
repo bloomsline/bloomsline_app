@@ -5,6 +5,7 @@
 // not a moment, and the moment endpoint answered 404 for one). Stopping removes
 // the selected practitioner only. (Global "pause all sharing" needs a
 // user-level flag that doesn't exist yet — deferred.)
+import { useFeatureGuard } from '@/src/care/use-feature-guard';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -53,6 +54,7 @@ const T = {
 } as const;
 
 export default function Sharing() {
+  useFeatureGuard('share');
   const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();

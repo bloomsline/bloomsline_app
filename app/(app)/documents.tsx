@@ -6,6 +6,7 @@
 // and did nothing when pressed, so a patient could see that they had consented
 // to something and had no way to find out what. The signed PDF had existed in
 // storage since the day signing shipped.
+import { useFeatureGuard } from '@/src/care/use-feature-guard';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -46,6 +47,7 @@ const T = {
 } as const;
 
 export default function Documents() {
+  useFeatureGuard('documents');
   const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();

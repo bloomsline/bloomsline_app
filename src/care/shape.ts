@@ -91,3 +91,32 @@ export function headersFor(profiles: CareProfile[], selected: CareProfile | null
     linkId: selected.role === 'guardian' ? selected.key : null,
   };
 }
+
+/**
+ * The key screens reload on. Non-empty whenever the selection changes what the
+ * server is asked: two profiles or more, OR a guardian's view (which sends
+ * `x-bl-link` even when it is the only profile). Keying it off the choice
+ * alone left a guardian of one child on whatever My Care loaded before `/me`
+ * named the child: nothing, and nothing reloaded it.
+ */
+export function selectionKeyFor(profiles: CareProfile[], selected: CareProfile | null): string {
+  if (!selected) return '';
+  return profiles.length > 1 || selected.role === 'guardian' ? selected.key : '';
+}
+
+/**
+ * Which profile to show: one just accepted (an invitation the person confirmed)
+ * first, then the one on screen, then the one remembered, then the first.
+ * `find` resolves a key, or a practitioner id meaning the patient's own care.
+ */
+export function pickProfile(list: CareProfile[], wanted: { next?: string | null; current?: string | null; stored?: string | null }): string | null {
+  const find = (id: string | null | undefined) => (id ? list.find((p) => p.key === id) ?? list.find((p) => p.role === 'patient' && p.practitionerId === id) : undefined);
+  return (find(wanted.next) ?? find(wanted.current) ?? find(wanted.stored) ?? list[0])?.key ?? null;
+}
+
+/** Whether a screen for `feature` should send this profile back to My Care.
+ *  Only a child's or a guardian's view is turned away: a patient, or an
+ *  account with no practitioner at all, sees screens exactly as before. */
+export function turnedAway(shape: AppShape, feature: Feature): boolean {
+  return (shape === 'child' || shape === 'guardian') && !can(shape, feature);
+}

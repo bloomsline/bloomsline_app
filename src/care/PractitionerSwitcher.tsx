@@ -60,10 +60,11 @@ export function PractitionerSwitchSheet({
           </View>
 
           <Text style={{ fontSize: 17, fontWeight: '800', color: TT.ink, letterSpacing: -0.2, paddingHorizontal: 24, paddingTop: 18 }}>
-            {t.care.yourPractitioners}
+            {/* With a child's care among them, the list is people, not practitioners. */}
+            {profiles.some((x) => x.role === 'guardian') ? t.family.switchTitle : t.care.yourPractitioners}
           </Text>
           <Text style={{ fontSize: 13, color: TT.faint, lineHeight: 18, paddingHorizontal: 24, paddingTop: 4, paddingBottom: 8 }}>
-            {t.care.switchHint}
+            {profiles.some((x) => x.role === 'guardian') ? t.family.switchHint : t.care.switchHint}
           </Text>
 
           {profiles.map((p, i) => {

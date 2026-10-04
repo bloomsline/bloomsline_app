@@ -48,3 +48,34 @@ test('the switcher names the child for a guardian\'s profile', () => {
   const [g] = profilesFrom({ links: [link({ role: 'guardian', childFirstName: 'Mila' })] });
   assert.deepEqual(profileLabel(g), { title: 'Mila', subtitle: 'Dr Anna' });
 });
+
+import { selectionKeyFor, pickProfile, turnedAway } from '../src/care/shape.ts';
+
+test('a guardian of one child still gets a reload key, so My Care loads the child once /me names them', () => {
+  const only = profilesFrom({ links: [link({ linkId: 'kid', role: 'guardian', childFirstName: 'Mila' })] });
+  assert.equal(selectionKeyFor(only, only[0]), 'kid');
+  const one = profilesFrom({ links: [link()] });
+  assert.equal(selectionKeyFor(one, one[0]), '');
+  assert.equal(selectionKeyFor([], null), '');
+});
+
+test('a profile just accepted wins over the one on screen, which wins over the remembered one', () => {
+  const list = profilesFrom({ links: [link({ linkId: 'own' }), link({ linkId: 'kid', role: 'guardian', childFirstName: 'Mila' })] });
+  assert.equal(pickProfile(list, { next: 'kid', current: 'own', stored: 'own' }), 'kid');
+  assert.equal(pickProfile(list, { next: 'gone', current: 'own', stored: 'kid' }), 'own');
+  assert.equal(pickProfile(list, { stored: 'kid' }), 'kid');
+  // A practitioner id remembered from before profiles means the patient's own care.
+  assert.equal(pickProfile(list, { stored: 'p1' }), 'own');
+  assert.equal(pickProfile(list, {}), 'own');
+  assert.equal(pickProfile([], {}), null);
+});
+
+test('only a child\'s or a guardian\'s view is turned away from a screen; a patient or an unlinked account never', () => {
+  assert.equal(turnedAway('guardian', 'fromPractitioner'), true);
+  assert.equal(turnedAway('guardian', 'share'), true);
+  assert.equal(turnedAway('child', 'book'), true);
+  assert.equal(turnedAway('child', 'documents'), true);
+  assert.equal(turnedAway('guardian', 'documents'), false);
+  assert.equal(turnedAway('patient', 'book'), false);
+  assert.equal(turnedAway('none', 'fromPractitioner'), false);
+});

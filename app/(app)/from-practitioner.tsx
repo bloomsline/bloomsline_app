@@ -1,5 +1,6 @@
 // c8 — From your practitioner: assigned resources & exercises. Wired to GET
 // /api/mobile/care/todo (real assignments). Demo items under FORCE_CARE_HUB.
+import { useFeatureGuard } from '@/src/care/use-feature-guard';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -42,6 +43,7 @@ const DEMO: TodoItem[] = [
 ];
 
 export default function FromPractitioner() {
+  useFeatureGuard('fromPractitioner');
   const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();

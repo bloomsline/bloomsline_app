@@ -1,6 +1,7 @@
 // c4 — Confirm booking. Wired to POST /api/mobile/care/book (server re-validates
 // the slot + atomic double-booking guard). `demo=1` (FORCE_CARE_HUB preview) just
 // acknowledges without a real write. On success the hub refetches and shows it.
+import { useFeatureGuard } from '@/src/care/use-feature-guard';
 import { useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, Text, View } from 'react-native';
@@ -65,6 +66,7 @@ const T = {
 } as const;
 
 export default function BookConfirm() {
+  useFeatureGuard('book');
   const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();

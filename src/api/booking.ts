@@ -23,7 +23,8 @@ export interface BookingSlots {
 
 /** Why booking is not open to this patient, as the server put it. `other` is a
  *  refusal from a server that did not say (older ones), shown as before. */
-export type SlotsRefusal = 'not_allowed' | 'no_practitioner' | 'other';
+/** `minor`: the child's own account (guardian plan): their parent or guardian books. */
+export type SlotsRefusal = 'not_allowed' | 'no_practitioner' | 'minor' | 'other';
 
 /** Bookable days (each with slot instants) + the resolved type/format.
  *  `{ unavailable }` when the server says booking is not for this patient;
@@ -42,7 +43,7 @@ export async function fetchSlots(params: { sessionTypeId?: string; format?: stri
   const res = await apiFetch(`/api/mobile/care/slots${qs ? `?${qs}` : ''}`);
   if (res.status === 403 || res.status === 409) {
     const body = (await res.json().catch(() => null)) as { reason?: string } | null;
-    const reason = body?.reason === 'not_allowed' || body?.reason === 'no_practitioner' ? body.reason : 'other';
+    const reason = body?.reason === 'not_allowed' || body?.reason === 'no_practitioner' || body?.reason === 'minor' ? body.reason : 'other';
     return { unavailable: reason };
   }
   if (!res.ok) return null;

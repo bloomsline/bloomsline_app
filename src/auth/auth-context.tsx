@@ -4,7 +4,7 @@
 //   practitioner — a practitioner account; show the practitioner app
 //   onboarding   — a patient who hasn't finished the first-run signup flow
 //   authed       — an onboarded patient; show the patient app
-import { acceptPendingFamilyInvite, familyInviteForSignIn } from './family-invite';
+import { clearFamilyInvite, familyInviteForSignIn } from './family-invite';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { getRefreshToken, clearTokens, saveTokens } from './token-store';
 import { apiFetch, postJson, setOnSignOut } from './api';
@@ -101,7 +101,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // `forgetAccount` and not two more storageDelete calls here: what a
     // sign-out has to forget grew past this line and nobody noticed, because
     // none of it is reachable from the sign-in screen. See that file.
-    await Promise.all([clearTokens(), storageDelete(ONBOARDED_KEY), storageDelete(SESSION_KEY), forgetAccount()]);
+    // A pending family invitation goes too: whoever signs in next on this
+    // device must not find someone else's link waiting for a tap.
+    await Promise.all([clearTokens(), storageDelete(ONBOARDED_KEY), storageDelete(SESSION_KEY), forgetAccount(), clearFamilyInvite()]);
     // The analytics id is per INSTALL, not per person, so signing out starts a
     // new one: two people sharing a phone should not read as one line in a
     // funnel. Consent is ours, not the SDK's, so it survives (analytics/client).
@@ -116,7 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // The cached status goes too: left behind, a launch that could not reach
     // `/me` read it back and opened the app for a session that had ended.
     setOnSignOut(() => {
-      void Promise.all([forgetAccount(), storageDelete(ONBOARDED_KEY), storageDelete(SESSION_KEY)]);
+      void Promise.all([forgetAccount(), storageDelete(ONBOARDED_KEY), storageDelete(SESSION_KEY), clearFamilyInvite()]);
       setStatus('anon');
     });
     return () => setOnSignOut(null);
@@ -187,9 +189,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const afterSignIn = useCallback(async () => {
     setStatus('loading');
     await Promise.all([storageDelete(ONBOARDED_KEY), storageDelete(SESSION_KEY), forgetAccount()]);
-    // A guardian's or child's invitation this sign-in was for: accepted now,
-    // signed in, before anything asks `/me` who this account is linked to.
-    await acceptPendingFamilyInvite().catch(() => null);
     await resolveSession();
   }, [resolveSession]);
 

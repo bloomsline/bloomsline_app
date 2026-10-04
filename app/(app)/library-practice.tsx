@@ -1,6 +1,7 @@
 // e4 — Library activity. Render a self-guided practice, do it, and save a PRIVATE
 // run (/api/mobile/library/[id]/run) — kept to the patient, never seen by the
 // practitioner. Repeatable. Wired to GET /api/mobile/library/[id].
+import { useFeatureGuard } from '@/src/care/use-feature-guard';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Pressable, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -62,6 +63,7 @@ const T = {
 } as const;
 
 export default function LibraryPractice() {
+  useFeatureGuard('fromPractitioner');
   const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();

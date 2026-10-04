@@ -17,7 +17,7 @@ import { fetchMe, type LinkedPractitioner } from '@/src/api/me';
 import { storageGet, storageSet } from '@/src/storage';
 import { clearPractitionerFace } from '@/src/care/practitioner-face';
 import { SELECTED_PRACTITIONER_KEY, clearSelectedPractitioner, getCurrentPractitionerId, getCurrentLinkId, setCurrentPractitionerId, setCurrentLinkId } from '@/src/care/current-practitioner';
-import { profilesFrom, headersFor, shapeOf, type AppShape, type CareProfile } from '@/src/care/shape';
+import { profilesFrom, headersFor, shapeOf, pickProfile, selectionKeyFor, type AppShape, type CareProfile } from '@/src/care/shape';
 import { takeNextProfile } from '@/src/auth/family-invite';
 
 export type { LinkedPractitioner };
@@ -120,13 +120,11 @@ export function SelectedPractitionerProvider({ children }: { children: React.Rea
     const list = profilesFrom(me);
     const stored = storedRef.current;
     const storedFits = stored && (!stored.account || !me.email || stored.account === me.email);
-    // A profile can be named by its key, or (remembered before profiles
-    // existed) by a practitioner id meaning the patient's own care with them.
-    const find = (id: string | null) => (id ? list.find((p) => p.key === id) ?? list.find((p) => p.role === 'patient' && p.practitionerId === id) : undefined);
-    // Keep the current choice, else one just accepted (an invitation), else the
-    // remembered one, else the first profile. Not the server's echo first: that
-    // only reflects the headers we sent, and before hydration we sent none.
-    const pick = (find(selectedRef.current) ?? find(takeNextProfile()) ?? (storedFits ? find(stored.id) : undefined) ?? list[0])?.key ?? null;
+    // One just accepted (an invitation the person confirmed) first, then the
+    // current choice, then the remembered one, then the first profile (see
+    // `pickProfile`). Not the server's echo: that only reflects the headers we
+    // sent, and before hydration we sent none.
+    const pick = pickProfile(list, { next: takeNextProfile(), current: selectedRef.current, stored: storedFits ? stored.id : null });
     apply(list, pick);
     setReady(true);
   }, [apply]);
@@ -204,7 +202,7 @@ export function SelectedPractitionerProvider({ children }: { children: React.Rea
       profiles,
       selectedProfile,
       shape: shapeOf(selectedProfile),
-      selectionKey: canSwitch && selectedKey ? selectedKey : '',
+      selectionKey: selectionKeyFor(profiles, selectedProfile),
       canSwitch,
       select,
       ready,
