@@ -4,7 +4,8 @@
 //   practitioner — a practitioner account; show the practitioner app
 //   onboarding   — a patient who hasn't finished the first-run signup flow
 //   authed       — an onboarded patient; show the patient app
-import { clearFamilyInvite, familyInviteForSignIn, touchFamilyInvite } from './family-invite';
+import { Platform } from 'react-native';
+import { clearFamilyInvite, familyInviteForSignIn, pendingFamilyInvite, touchFamilyInvite } from './family-invite';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { getRefreshToken, clearTokens, saveTokens } from './token-store';
 import { apiFetch, postJson, setOnSignOut } from './api';
@@ -212,7 +213,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const startEmailSignIn = useCallback(async (email: string, locale: 'en' | 'fr' = 'en') => {
     if (MOCK_AUTH) return { devUrl: null, code: false }; // pretend the link was sent
     track('sign_in_started', { method: 'link' });
-    const res = await postJson('/api/mobile/auth/magic-link/start', { email, locale });
+    // Someone signing in from a family invitation on the web stays in the
+    // browser: the installed app may be an older build with no guardian or
+    // child screens. The server marks the emailed link so /auth knows, in
+    // whichever browser the email opens it.
+    const stayInBrowser = Platform.OS === 'web' && !!(await pendingFamilyInvite());
+    const res = await postJson('/api/mobile/auth/magic-link/start', { email, locale, ...(stayInBrowser ? { stayInBrowser: true } : {}) });
     // Throwing on a refusal is what the screen's "could not send" relies on.
     if (!res.ok) throw new Error(`start ${res.status}`);
     const data = await res.json().catch(() => ({}));
