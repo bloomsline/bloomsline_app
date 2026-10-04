@@ -1,7 +1,8 @@
 // The "New" card at the top of My Care (guardian plan, Q8). A child is told in
 // the app, not only by email, when their parent books, moves or cancels a
-// session; and the other notices written to their chart show here too. Each
-// one is dismissed with a tap; nothing here is the only record of anything.
+// session; and the other notices written to their chart show here too. The
+// server sends the last 30 days, for the practitioner selected now. Each one is
+// dismissed with a tap; nothing here is the only record of anything.
 import { Text, TouchableOpacity, View } from 'react-native';
 import { X } from 'lucide-react-native';
 import { EdCard, Kicker } from '@/src/ui/editorial';
@@ -9,7 +10,7 @@ import { useTheme } from '@/src/ui/theme-mode';
 import { useI18n } from '@/src/i18n';
 import type { Notice } from '@/src/api/notices';
 
-function ago(iso: string, locale: 'en' | 'fr'): string {
+function shownDate(iso: string, locale: 'en' | 'fr'): string {
   const d = new Date(iso);
   return d.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'long' });
 }
@@ -34,7 +35,7 @@ export function NoticesCard({ notices, onDismiss, onDismissAll }: { notices: Not
             <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={{ fontSize: 14.5, fontWeight: '700', color: TT.ink }}>{n.title}</Text>
               <Text style={{ fontSize: 13.5, lineHeight: 19, color: TT.inkSoft, marginTop: 2 }}>{n.body}</Text>
-              <Text style={{ fontSize: 12, color: TT.faint, marginTop: 4 }}>{ago(n.createdAt, locale)}</Text>
+              <Text style={{ fontSize: 12, color: TT.faint, marginTop: 4 }}>{shownDate(n.createdAt, locale)}</Text>
             </View>
             <TouchableOpacity onPress={() => onDismiss(n.id)} accessibilityRole="button" accessibilityLabel={t.notices.dismissA11y} hitSlop={10}>
               <X size={16} color={TT.faint} />
