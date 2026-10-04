@@ -44,6 +44,11 @@ export const fr: Dict = {
     createProfile: 'Créer mon profil',
     haveAccount: 'J’ai déjà un compte',
   },
+  notices: {
+    title: 'Nouveau',
+    clearAll: 'Tout effacer',
+    dismissA11y: 'Effacer cette notification',
+  },
   family: {
     kicker: 'Invitation',
     guardianTitle: '{prac} vous invite à suivre l’accompagnement de {child}',

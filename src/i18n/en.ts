@@ -40,6 +40,12 @@ export const en = {
     createProfile: 'Create my profile',
     haveAccount: 'I already have an account',
   },
+  // Guardian plan, Q8: what has been written to the patient's own chart.
+  notices: {
+    title: 'New',
+    clearAll: 'Clear all',
+    dismissA11y: 'Dismiss this notice',
+  },
   // Guardian plan, phase 6: a parent's or a child's own invitation, and the
   // three shapes of the app (a patient's own care, a child's, a guardian's).
   family: {

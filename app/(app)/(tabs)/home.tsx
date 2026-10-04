@@ -18,6 +18,8 @@ import { useI18n, fmt, greetingFor } from '@/src/i18n';
 import { useOnboarding } from '@/src/onboarding/context';
 import { FORCE_CARE_HUB } from '@/src/config';
 import { fetchCare, fetchTodo, type CareSession, type PatientCare, type TodoItem } from '@/src/api/care';
+import { fetchNotices, dismissNotices, type Notice } from '@/src/api/notices';
+import { NoticesCard } from '@/src/care/NoticesCard';
 import { resourceTypeMeta, stageLabel, stageLine, todoStage } from '@/src/care/resources';
 import { notify } from '@/src/ui/alert';
 import { Ground } from '@/src/ui/Ground';
@@ -54,6 +56,7 @@ export default function MyCare() {
   const greetHere = landing === 'care';
   const [care, setCare] = useState<PatientCare | null>(null);
   const [todos, setTodos] = useState<TodoItem[] | null>(null);
+  const [notices, setNotices] = useState<Notice[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const { selectionKey, selected, shape, selectedProfile } = useSelectedPractitioner();
@@ -87,11 +90,15 @@ export default function MyCare() {
       setSwitching(false);
     });
     fetchTodo().then((r) => { if (alive && r) setTodos(r); });
+    // The account's own notices; a guardian's view of a child's care shows
+    // none (they are the child's, and the server would give none anyway).
+    if (shape !== 'guardian') fetchNotices().then((r) => { if (alive && r) setNotices(r); });
+    else setNotices([]);
     return () => { alive = false; };
     // `selectionKey` is not read here, and it is the point: a new identity is
     // what makes useFocusEffect fetch again, for the practitioner just chosen.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locale, selectionKey]);
+  }, [locale, selectionKey, shape]);
   useFocusEffect(reload);
   // Back from the background after a few minutes: read the hub again. It only
   // refreshed on navigating to it, so yesterday's session, or one the
@@ -267,6 +274,14 @@ export default function MyCare() {
                 <Text style={{ marginHorizontal: 22, marginTop: 14, fontSize: 13.5, fontWeight: '600', color: TT.inkSoft }}>
                   {fmt(t.family.guardianBanner, { child: selectedProfile.childFirstName })}
                 </Text>
+              ) : null}
+
+              {shape !== 'guardian' ? (
+                <NoticesCard
+                  notices={notices}
+                  onDismiss={(id) => { setNotices((ns) => ns.filter((n) => n.id !== id)); void dismissNotices([id]); }}
+                  onDismissAll={() => { setNotices([]); void dismissNotices('all'); }}
+                />
               ) : null}
 
               <Cascade route="home" index={2}>
