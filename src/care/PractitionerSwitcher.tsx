@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Check } from 'lucide-react-native';
 import { PractitionerAvatar } from '@/src/care/PractitionerAvatar';
 import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
+import { profileLabel } from '@/src/care/shape';
 import { useI18n, fmt } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
 
@@ -37,14 +38,16 @@ export function PractitionerSwitchSheet({
   const { t: TT } = useTheme();
   const { t } = useI18n();
   const insets = useSafeAreaInsets();
-  const { practitioners, selectedId, select } = useSelectedPractitioner();
+  // Profiles, not practitioners: a guardian's view of each child is its own
+  // entry, named for the child (guardian plan, phase 6).
+  const { profiles, selectedProfile, select } = useSelectedPractitioner();
 
-  const choose = (id: string, name: string) => {
+  const choose = (key: string, name: string) => {
     onClose();
     // Choosing the one already selected is a way of closing the sheet, not a
     // switch: no reload, and no "Now showing" for what was already showing.
-    if (id === selectedId) return;
-    select(id);
+    if (key === selectedProfile?.key) return;
+    select(key);
     onSwitched?.(name);
   };
 
@@ -63,15 +66,17 @@ export function PractitionerSwitchSheet({
             {t.care.switchHint}
           </Text>
 
-          {practitioners.map((p, i) => {
-            const on = p.id === selectedId;
+          {profiles.map((p, i) => {
+            const on = p.key === selectedProfile?.key;
+            const { title, subtitle } = profileLabel(p);
+            const sub = p.role === 'guardian' ? [t.family.asGuardian, subtitle].filter(Boolean).join(' · ') : null;
             return (
               <Pressable
-                key={p.id}
-                onPress={() => choose(p.id, p.name)}
+                key={p.key}
+                onPress={() => choose(p.key, title)}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: on }}
-                accessibilityLabel={p.name}
+                accessibilityLabel={sub ? `${title}, ${sub}` : title}
                 style={({ pressed }) => ({
                   flexDirection: 'row', alignItems: 'center', gap: 14,
                   paddingHorizontal: 24, paddingVertical: 12,
@@ -81,8 +86,11 @@ export function PractitionerSwitchSheet({
               >
                 {/* photoUrl passed explicitly (null included), so the avatar
                     draws this row's person and never the cached selected face. */}
-                <PractitionerAvatar size={40} name={p.name} photoUrl={p.photoUrl} />
-                <Text numberOfLines={1} style={{ flex: 1, fontSize: 16, fontWeight: on ? '700' : '500', color: TT.ink }}>{p.name}</Text>
+                <PractitionerAvatar size={40} name={p.role === 'guardian' ? title : (p.practitionerName ?? title)} photoUrl={p.role === 'guardian' ? null : p.photoUrl} />
+                <View style={{ flex: 1 }}>
+                  <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: on ? '700' : '500', color: TT.ink }}>{title}</Text>
+                  {sub ? <Text numberOfLines={1} style={{ fontSize: 12.5, color: TT.faint, marginTop: 1 }}>{sub}</Text> : null}
+                </View>
                 {on ? <Check size={19} color={TT.accent} strokeWidth={2.6} /> : null}
               </Pressable>
             );

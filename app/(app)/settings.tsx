@@ -46,6 +46,7 @@ export default function Settings() {
   const onboarding = useOnboarding();
   const { landing, setLanding } = useLanding();
   const { t, locale, setLocale } = useI18n();
+  const isChild = useSelectedPractitioner().profiles.some((p) => p.child);
   const confirm = useConfirm();
   const [name, setName] = useState(`${onboarding.firstName} ${onboarding.lastName}`.trim());
   const [role, setRole] = useState<string | null>(null);
@@ -167,6 +168,15 @@ export default function Settings() {
               <ChevronRight size={18} color={TT.faint} strokeWidth={2} />
             </TouchableOpacity>
           </EdCard>
+
+          {/* The child's own account says, where they will look for it, that
+              their parent or guardian cannot see what they write (phase 6). */}
+          {isChild ? (
+            <EdCard style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginBottom: 24 }}>
+              <ShieldCheck size={18} color={TT.accent} strokeWidth={2} />
+              <Text style={{ flex: 1, fontSize: 14, color: TT.ink, lineHeight: 20 }}>{t.family.childPrivacy}</Text>
+            </EdCard>
+          ) : null}
 
           <Kicker color={TT.faint} style={{ marginBottom: 10 }}>{t.settings.preferences}</Kicker>
           <EdCard style={{ padding: 0, overflow: 'hidden', marginBottom: 24 }}>

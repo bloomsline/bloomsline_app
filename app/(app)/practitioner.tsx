@@ -50,7 +50,7 @@ export default function Practitioner() {
   const [p, setP] = useState<CarePractitioner | null>(null);
   const [canBook, setCanBook] = useState(true);
   const [loaded, setLoaded] = useState(false);
-  const { selectionKey } = useSelectedPractitioner();
+  const { selectionKey, shape } = useSelectedPractitioner();
   const switcher = usePractitionerSwitcher();
 
   // On focus, and again on a switch: the header's switch button changes whose
@@ -257,7 +257,7 @@ export default function Practitioner() {
             />
           ) : (
             <Text style={{ fontSize: 12.5, color: TT.inkSoft, textAlign: 'center', marginTop: 6, lineHeight: 18 }}>
-              {name ? fmt(tr.arranges, { name }) : tr.arrangesGeneric}
+              {shape === 'child' ? t.family.childBookNote : name ? fmt(tr.arranges, { name }) : tr.arrangesGeneric}
             </Text>
           )}
         </FadeIn>

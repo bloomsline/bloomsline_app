@@ -30,3 +30,28 @@ export async function fetchInvite(token: string): Promise<PatientInvite | null> 
     return null;
   }
 }
+
+/** A guardian's or a child's invitation (guardian plan, phase 6). */
+export interface FamilyInvite {
+  email: string | null;
+  /** The child it is about: for a guardian, whose care; for the child, their own name. */
+  childFirstName: string | null;
+  practitionerName: string | null;
+  locale: 'en' | 'fr';
+}
+
+export async function fetchFamilyInvite(kind: 'guardian' | 'child', token: string): Promise<FamilyInvite | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/mobile/${kind}-invite/${encodeURIComponent(token)}`);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { email?: string | null; childFirstName?: string | null; firstName?: string | null; practitionerName?: string | null; locale?: string };
+    return {
+      email: typeof data.email === 'string' ? data.email : null,
+      childFirstName: (kind === 'guardian' ? data.childFirstName : data.firstName) ?? null,
+      practitionerName: data.practitionerName ?? null,
+      locale: data.locale === 'fr' ? 'fr' : 'en',
+    };
+  } catch {
+    return null;
+  }
+}

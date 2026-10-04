@@ -14,6 +14,7 @@
 // in the system browser, let it run the flow against our web client, and come
 // back through `bloomsline://auth?token=…`. The router finishes from there, the
 // same way it finishes an emailed sign-in link. See `api/mobile/auth/google/web`.
+import { familyInviteForSignIn } from './family-invite';
 import * as WebBrowser from 'expo-web-browser';
 import { API_URL } from '@/src/config';
 
@@ -27,5 +28,7 @@ import { API_URL } from '@/src/config';
  * reason to trust a sign-in page.
  */
 export async function googleWebSignIn(): Promise<void> {
-  await WebBrowser.openAuthSessionAsync(`${API_URL}/api/mobile/auth/google/web?target=native`, 'bloomsline://auth').catch(() => undefined);
+  const invite = await familyInviteForSignIn();
+  const q = invite ? `&familyInvite=${encodeURIComponent(invite)}` : '';
+  await WebBrowser.openAuthSessionAsync(`${API_URL}/api/mobile/auth/google/web?target=native${q}`, 'bloomsline://auth').catch(() => undefined);
 }

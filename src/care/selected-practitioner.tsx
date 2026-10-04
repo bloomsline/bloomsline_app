@@ -16,21 +16,33 @@ import { useAuth } from '@/src/auth/auth-context';
 import { fetchMe, type LinkedPractitioner } from '@/src/api/me';
 import { storageGet, storageSet } from '@/src/storage';
 import { clearPractitionerFace } from '@/src/care/practitioner-face';
-import { SELECTED_PRACTITIONER_KEY, clearSelectedPractitioner, getCurrentPractitionerId, setCurrentPractitionerId } from '@/src/care/current-practitioner';
+import { SELECTED_PRACTITIONER_KEY, clearSelectedPractitioner, getCurrentPractitionerId, getCurrentLinkId, setCurrentPractitionerId, setCurrentLinkId } from '@/src/care/current-practitioner';
+import { profilesFrom, headersFor, shapeOf, type AppShape, type CareProfile } from '@/src/care/shape';
+import { takeNextProfile } from '@/src/auth/family-invite';
 
 export type { LinkedPractitioner };
 
 interface SelectedPractitionerValue {
-  /** Everyone linked, in link order. Empty on an older server, or before `/me`. */
+  /** Everyone linked as this person's OWN practitioner, in link order. Empty on
+   *  an older server, or before `/me`. Never lists a child's practitioner. */
   practitioners: LinkedPractitioner[];
+  /** The practitioner of the profile on screen. */
   selected: LinkedPractitioner | null;
+  /** That practitioner's id (share readers compare against it). */
   selectedId: string | null;
+  /** Every care profile: this person's own care, then each child's as their
+   *  guardian (guardian plan, phase 6). What the switcher lists. */
+  profiles: CareProfile[];
+  selectedProfile: CareProfile | null;
+  /** What the app offers for the profile on screen (see `shape.ts`). */
+  shape: AppShape;
   /** Put it in the deps of anything that loads practitioner-scoped data. '' when
    *  there is nothing to choose between, so a single-link patient never reloads. */
   selectionKey: string;
-  /** True when there is a real choice to offer (two or more links). */
+  /** True when there is a real choice to offer (two or more profiles). */
   canSwitch: boolean;
-  /** Switch now. Every request after this call names the new practitioner. */
+  /** Switch now, by profile key or by practitioner id (the patient's own care
+   *  with them). Every request after this call names the new choice. */
   select: (id: string) => void;
   /** The list has been asked for at least once this session (answered or not). */
   ready: boolean;
@@ -43,25 +55,27 @@ const Ctx = createContext<SelectedPractitionerValue | null>(null);
 /** What is written on the device: the id, and whose choice it was. The account
  *  check is belt and braces: sign-out already clears this key, but a choice
  *  must never be carried from one person's links to another's. */
-interface Stored { id: string; account: string | null }
+interface Stored { id: string; account: string | null; /** A child's chart (guardian view). */ link?: boolean }
 
 function parseStored(raw: string | null): Stored | null {
   if (!raw) return null;
   try {
     const v = JSON.parse(raw) as Partial<Stored>;
-    return typeof v?.id === 'string' ? { id: v.id, account: typeof v.account === 'string' ? v.account : null } : null;
+    return typeof v?.id === 'string' ? { id: v.id, account: typeof v.account === 'string' ? v.account : null, link: v.link === true } : null;
   } catch {
     return null;
   }
 }
 
-/** The header only matters when there is a choice. See the note at the top. */
-const headerFor = (list: LinkedPractitioner[], id: string | null): string | null => (list.length > 1 ? id : null);
+/** The patient's own practitioners, as the share code and older screens know them. */
+const ownPractitioners = (profiles: CareProfile[]): LinkedPractitioner[] =>
+  profiles.filter((p) => p.role === 'patient').map((p) => ({ id: p.practitionerId, name: p.practitionerName ?? '', photoUrl: p.photoUrl }));
 
 export function SelectedPractitionerProvider({ children }: { children: React.ReactNode }) {
   const { status } = useAuth();
   const [practitioners, setPractitioners] = useState<LinkedPractitioner[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [profiles, setProfiles] = useState<CareProfile[]>([]);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   // Mirrors for the async paths below, which must see the latest values rather
   // than whatever the closure was created with.
@@ -70,20 +84,23 @@ export function SelectedPractitionerProvider({ children }: { children: React.Rea
   const storedRef = useRef<Stored | null>(null);
   const patient = status === 'authed' || status === 'onboarding';
 
-  /** Apply a selection everywhere, header first. */
-  const apply = useCallback((list: LinkedPractitioner[], id: string | null) => {
-    const header = headerFor(list, id);
-    // Compared by header, not by id: the first `/me` of a launch confirming the
-    // remembered choice changes nothing the server sees, and must not make
+  /** Apply a selection everywhere, headers first. */
+  const apply = useCallback((list: CareProfile[], key: string | null) => {
+    const chosen = list.find((p) => p.key === key) ?? null;
+    const { practitionerId, linkId } = headersFor(list, chosen);
+    // Compared by headers, not by key: the first `/me` of a launch confirming
+    // the remembered choice changes nothing the server sees, and must not make
     // every avatar on screen fetch again.
-    const changed = getCurrentPractitionerId() !== header;
-    setCurrentPractitionerId(header);
-    selectedRef.current = id;
+    const changed = getCurrentPractitionerId() !== practitionerId || getCurrentLinkId() !== linkId;
+    setCurrentPractitionerId(practitionerId);
+    setCurrentLinkId(linkId);
+    selectedRef.current = chosen?.key ?? null;
     // The cached face belongs to whoever was selected. Cleared before the
     // state change, so no avatar redraws with the old picture under a new name.
     if (changed) clearPractitionerFace(true);
-    setPractitioners(list);
-    setSelectedId(id);
+    setProfiles(list);
+    setPractitioners(ownPractitioners(list));
+    setSelectedKey(chosen?.key ?? null);
   }, []);
 
   const refresh = useCallback(async () => {
@@ -92,7 +109,7 @@ export function SelectedPractitionerProvider({ children }: { children: React.Rea
     // connection on returning to the app must not hide the switcher, or worse,
     // quietly move someone back to their first practitioner.
     if (!me) { setReady(true); return; }
-    if (me.role === 'practitioner' || !me.practitioners) {
+    if (me.role === 'practitioner' || (!me.practitioners && !me.links)) {
       // A practitioner account, or a server from before the switcher: nothing
       // to choose, nothing to send.
       apply([], null);
@@ -100,15 +117,16 @@ export function SelectedPractitionerProvider({ children }: { children: React.Rea
       return;
     }
     accountRef.current = me.email;
-    const list = me.practitioners;
+    const list = profilesFrom(me);
     const stored = storedRef.current;
     const storedFits = stored && (!stored.account || !me.email || stored.account === me.email);
-    // Keep the current choice, else the remembered one, else the first link.
-    // Not the server's `selectedPractitionerId` first: that is only an echo of
-    // the header we sent, and before hydration we may have sent none.
-    const pick = [selectedRef.current, storedFits ? stored.id : null].find((id) => id && list.some((p) => p.id === id))
-      ?? list[0]?.id
-      ?? null;
+    // A profile can be named by its key, or (remembered before profiles
+    // existed) by a practitioner id meaning the patient's own care with them.
+    const find = (id: string | null) => (id ? list.find((p) => p.key === id) ?? list.find((p) => p.role === 'patient' && p.practitionerId === id) : undefined);
+    // Keep the current choice, else one just accepted (an invitation), else the
+    // remembered one, else the first profile. Not the server's echo first: that
+    // only reflects the headers we sent, and before hydration we sent none.
+    const pick = (find(selectedRef.current) ?? find(takeNextProfile()) ?? (storedFits ? find(stored.id) : undefined) ?? list[0])?.key ?? null;
     apply(list, pick);
     setReady(true);
   }, [apply]);
@@ -125,7 +143,9 @@ export function SelectedPractitionerProvider({ children }: { children: React.Rea
       if (!alive) return;
       const stored = parseStored(raw);
       storedRef.current = stored;
-      if (stored && !selectedRef.current) setCurrentPractitionerId(stored.id);
+      // Only a practitioner id can be sent before `/me`: a remembered child's
+      // chart waits for `/me` to confirm it is still theirs.
+      if (stored && !selectedRef.current && !stored.link) setCurrentPractitionerId(stored.id);
     });
     return () => { alive = false; };
   }, []);
@@ -139,7 +159,8 @@ export function SelectedPractitionerProvider({ children }: { children: React.Rea
       storedRef.current = null;
       accountRef.current = null;
       setPractitioners([]);
-      setSelectedId(null);
+      setProfiles([]);
+      setSelectedKey(null);
       setReady(false);
       if (status === 'anon') void clearSelectedPractitioner();
       return;
@@ -162,27 +183,34 @@ export function SelectedPractitionerProvider({ children }: { children: React.Rea
   }, [patient, refresh]);
 
   const select = useCallback((id: string) => {
-    if (!practitioners.some((p) => p.id === id) || id === selectedRef.current) return;
-    apply(practitioners, id);
-    const stored: Stored = { id, account: accountRef.current };
+    const target = profiles.find((p) => p.key === id) ?? profiles.find((p) => p.role === 'patient' && p.practitionerId === id);
+    if (!target || target.key === selectedRef.current) return;
+    apply(profiles, target.key);
+    const stored: Stored = { id: target.key, account: accountRef.current, link: target.role === 'guardian' };
     storedRef.current = stored;
     void storageSet(SELECTED_PRACTITIONER_KEY, JSON.stringify(stored));
-  }, [practitioners, apply]);
+  }, [profiles, apply]);
 
   const value = useMemo<SelectedPractitionerValue>(() => {
-    const selected = practitioners.find((p) => p.id === selectedId) ?? null;
-    const canSwitch = practitioners.length > 1;
+    const selectedProfile = profiles.find((p) => p.key === selectedKey) ?? null;
+    const selected: LinkedPractitioner | null = selectedProfile
+      ? { id: selectedProfile.practitionerId, name: selectedProfile.practitionerName ?? '', photoUrl: selectedProfile.photoUrl }
+      : null;
+    const canSwitch = profiles.length > 1;
     return {
       practitioners,
       selected,
-      selectedId,
-      selectionKey: canSwitch && selectedId ? selectedId : '',
+      selectedId: selected?.id ?? null,
+      profiles,
+      selectedProfile,
+      shape: shapeOf(selectedProfile),
+      selectionKey: canSwitch && selectedKey ? selectedKey : '',
       canSwitch,
       select,
       ready,
       refresh,
     };
-  }, [practitioners, selectedId, select, ready, refresh]);
+  }, [practitioners, profiles, selectedKey, select, ready, refresh]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -191,6 +219,9 @@ const NONE: SelectedPractitionerValue = {
   practitioners: [],
   selected: null,
   selectedId: null,
+  profiles: [],
+  selectedProfile: null,
+  shape: 'none',
   selectionKey: '',
   canSwitch: false,
   select: () => {},

@@ -10,11 +10,13 @@
 // "Hide My Email" has an `@privaterelay.appleid.com` address — so on the web the
 // email-link fallback sends to a mailbox they may never read, and without this
 // they cannot reach their own account at all.
+import { familyInviteForSignIn } from './family-invite';
 import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { API_URL } from '@/src/config';
 
-const startUrl = (target: 'web' | 'native') => `${API_URL}/api/mobile/auth/apple/web?target=${target}`;
+// A pending family invitation rides along, hashed into the signed OAuth state server-side.
+const startUrl = (target: 'web' | 'native', invite?: string) => `${API_URL}/api/mobile/auth/apple/web?target=${target}${invite ? `&familyInvite=${encodeURIComponent(invite)}` : ''}`;
 
 /**
  * Open Apple's sign-in.
@@ -28,13 +30,14 @@ const startUrl = (target: 'web' | 'native') => `${API_URL}/api/mobile/auth/apple
  * link is what carries the token, and the router takes it from there.
  */
 export async function appleWebSignIn(): Promise<void> {
+  const invite = await familyInviteForSignIn();
   if (Platform.OS === 'web') {
-    globalThis.location?.assign(startUrl('web'));
+    globalThis.location?.assign(startUrl('web', invite));
     return;
   }
   // `openAuthSessionAsync` and not `openBrowserAsync`: it is the one that closes
   // itself when the redirect fires, and on Android it keeps the flow in a Custom
   // Tab where the person can see the appleid.apple.com address bar — which is
   // the whole reason to trust a sign-in page.
-  await WebBrowser.openAuthSessionAsync(startUrl('native'), 'bloomsline://auth').catch(() => undefined);
+  await WebBrowser.openAuthSessionAsync(startUrl('native', invite), 'bloomsline://auth').catch(() => undefined);
 }

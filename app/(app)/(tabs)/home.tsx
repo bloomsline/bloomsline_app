@@ -24,6 +24,7 @@ import { Ground } from '@/src/ui/Ground';
 import { PractitionerAvatar } from '@/src/care/PractitionerAvatar';
 import { primePractitionerFace } from '@/src/care/practitioner-face';
 import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
+import { can } from '@/src/care/shape';
 import { usePractitionerSwitcher } from '@/src/care/PractitionerSwitcher';
 import { ProfileButton } from '@/src/profile/ProfileButton';
 import { useTheme } from '@/src/ui/theme-mode';
@@ -55,7 +56,7 @@ export default function MyCare() {
   const [todos, setTodos] = useState<TodoItem[] | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
-  const { selectionKey, selected } = useSelectedPractitioner();
+  const { selectionKey, selected, shape, selectedProfile } = useSelectedPractitioner();
   const switcher = usePractitionerSwitcher();
   // Between choosing another practitioner and their care arriving. What is on
   // screen until then is the PREVIOUS practitioner's sessions and to-dos, and
@@ -261,6 +262,13 @@ export default function MyCare() {
               ) : (
               <>
 
+              {/* Whose care this is, when it is a child's (guardian plan, phase 6). */}
+              {shape === 'guardian' && selectedProfile?.childFirstName ? (
+                <Text style={{ marginHorizontal: 22, marginTop: 14, fontSize: 13.5, fontWeight: '600', color: TT.inkSoft }}>
+                  {fmt(t.family.guardianBanner, { child: selectedProfile.childFirstName })}
+                </Text>
+              ) : null}
+
               <Cascade route="home" index={2}>
                 <SectionRule label={t.care.yourSessions} />
 
@@ -293,12 +301,16 @@ export default function MyCare() {
                     <Text style={{ fontSize: 14.5, fontWeight: '700', color: TT.ink }}>{t.care.bookSession}</Text>
                   </TouchableOpacity>
                 ) : (
-                  <Text style={{ fontSize: 12.5, color: TT.inkSoft, textAlign: 'center', marginTop: 14, paddingHorizontal: 34 }}>{t.care.bookNote}</Text>
+                  // The child's own app says WHO books (their parent or guardian),
+                  // not that the practitioner does.
+                  <Text style={{ fontSize: 12.5, color: TT.inkSoft, textAlign: 'center', marginTop: 14, paddingHorizontal: 34 }}>{shape === 'child' ? t.family.childBookNote : t.care.bookNote}</Text>
                 )}
               </Cascade>
 
               <Cascade route="home" index={4}>
-                {todoItems.length > 0 && (
+                {/* The practitioner's exercises are the patient's own: never shown on
+                    a guardian's view of a child (shape.ts). */}
+                {can(shape, 'fromPractitioner') && todoItems.length > 0 && (
                   <>
                     {/* Attribution kept deliberately: "from {name}" tells a patient WHO
                         asked, which the board's plain "My resources" drops. */}
@@ -322,8 +334,9 @@ export default function MyCare() {
               <Cascade route="home" index={5}>
                 <SectionRule label={t.care.archive} />
                 <View style={{ marginHorizontal: 22, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine, borderRadius: 18, overflow: 'hidden' }}>
-                  <UtilityRow Icon={RotateCcw} label={t.care.pastSessions} onPress={() => router.navigate('/session-history' as never)} divider />
-                  <UtilityRow Icon={FileText} label={t.care.documents} onPress={() => router.navigate('/documents' as never)} />
+                  <UtilityRow Icon={RotateCcw} label={t.care.pastSessions} onPress={() => router.navigate('/session-history' as never)} divider={can(shape, 'documents')} />
+                  {/* A minor's documents are the guardian's; the child has none to see. */}
+                  {can(shape, 'documents') ? <UtilityRow Icon={FileText} label={t.care.documents} onPress={() => router.navigate('/documents' as never)} /> : null}
                 </View>
               </Cascade>
               </>

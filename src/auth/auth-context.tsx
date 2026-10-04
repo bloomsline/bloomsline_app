@@ -4,6 +4,7 @@
 //   practitioner — a practitioner account; show the practitioner app
 //   onboarding   — a patient who hasn't finished the first-run signup flow
 //   authed       — an onboarded patient; show the patient app
+import { acceptPendingFamilyInvite, familyInviteForSignIn } from './family-invite';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { getRefreshToken, clearTokens, saveTokens } from './token-store';
 import { apiFetch, postJson, setOnSignOut } from './api';
@@ -186,6 +187,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const afterSignIn = useCallback(async () => {
     setStatus('loading');
     await Promise.all([storageDelete(ONBOARDED_KEY), storageDelete(SESSION_KEY), forgetAccount()]);
+    // A guardian's or child's invitation this sign-in was for: accepted now,
+    // signed in, before anything asks `/me` who this account is linked to.
+    await acceptPendingFamilyInvite().catch(() => null);
     await resolveSession();
   }, [resolveSession]);
 
@@ -220,8 +224,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /** POST a sign-in, keep the pair on success, and hand back the server's reason on refusal. */
-  const signInVia = useCallback(async (path: string, body: unknown): Promise<SignInResult> => {
-    const res = await postJson(path, body);
+  const signInVia = useCallback(async (path: string, body: Record<string, unknown>): Promise<SignInResult> => {
+    const res = await postJson(path, { ...body, familyInvite: await familyInviteForSignIn() });
     const method = signInMethod(path);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -252,7 +256,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithLink = useCallback(async (token: string): Promise<SignInResult> => {
     if (MOCK_AUTH) { await saveTokens(mockPair()); await afterSignIn(); return { ok: true }; } // any token
-    const res = await postJson('/api/mobile/auth/magic-link/verify', { token });
+    const res = await postJson('/api/mobile/auth/magic-link/verify', { token, familyInvite: await familyInviteForSignIn() });
     if (!res.ok) {
       // 403 carries the waitlist / suspended explanation. Swallowing it and
       // saying "expired" would send someone off to request link after link for
@@ -272,7 +276,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // told only "rejected, try again" — and tried again, indefinitely.
   const exchangeIdToken = useCallback(async (path: string, idToken: string): Promise<SignInResult> => {
     if (MOCK_AUTH) { await saveTokens(mockPair()); await afterSignIn(); return { ok: true }; }
-    const res = await postJson(path, { idToken });
+    const res = await postJson(path, { idToken, familyInvite: await familyInviteForSignIn() });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       return { ok: false, message: typeof data?.error === 'string' ? data.error : undefined, code: typeof data?.code === 'string' ? data.code : undefined };

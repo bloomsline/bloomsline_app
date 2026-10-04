@@ -4,6 +4,7 @@
 //
 // Content is deliberately unchanged: this screen is not on the design board, so
 // restyling it is a faithful move and redesigning it would be an invented one.
+import { can } from '@/src/care/shape';
 import { useCallback, useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,7 +15,7 @@ import { FadeIn, HEADER_TOP } from '@/src/ui/editorial';
 import { Ground } from '@/src/ui/Ground';
 import { useI18n } from '@/src/i18n';
 import { listArticles } from '@/src/api/articles';
-import { useSelectionReset } from '@/src/care/selected-practitioner';
+import { useSelectionReset, useSelectedPractitioner } from '@/src/care/selected-practitioner';
 import { ProfileButton } from '@/src/profile/ProfileButton';
 import { useTheme } from '@/src/ui/theme-mode';
 import { Cascade } from '@/src/ui/cascade';
@@ -65,6 +66,7 @@ export default function ForYou() {
   // Whose articles: the selected practitioner's. A switch hides the card until
   // the new practitioner's answer is in, for the reason above.
   const selectionKey = useSelectionReset(() => setHasArticles(null));
+  const { shape } = useSelectedPractitioner();
 
   useFocusEffect(
     useCallback(() => {
@@ -102,7 +104,9 @@ export default function ForYou() {
                   onPress={() => router.navigate('/journal' as never)}
                 />
               </Cascade>
-              <Cascade route="for-you" index={2}>
+              {/* The practitioner's library and articles are the patient's own
+                  care: not offered on a guardian's view of a child (shape.ts). */}
+              {can(shape, 'fromPractitioner') && <Cascade route="for-you" index={2}>
                 <DoorCard
                   Icon={Sprout}
                   title={tr.activities}
@@ -110,8 +114,8 @@ export default function ForYou() {
                   action={tr.browse}
                   onPress={() => router.navigate('/library' as never)}
                 />
-              </Cascade>
-              {hasArticles && (
+              </Cascade>}
+              {hasArticles && can(shape, 'fromPractitioner') && (
                 <Cascade route="for-you" index={3}>
                   <DoorCard
                     Icon={BookOpen}
