@@ -4,7 +4,7 @@
 //   practitioner — a practitioner account; show the practitioner app
 //   onboarding   — a patient who hasn't finished the first-run signup flow
 //   authed       — an onboarded patient; show the patient app
-import { clearFamilyInvite, familyInviteForSignIn } from './family-invite';
+import { clearFamilyInvite, familyInviteForSignIn, touchFamilyInvite } from './family-invite';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { getRefreshToken, clearTokens, saveTokens } from './token-store';
 import { apiFetch, postJson, setOnSignOut } from './api';
@@ -188,7 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // authed → authed was no change at all.
   const afterSignIn = useCallback(async () => {
     setStatus('loading');
-    await Promise.all([storageDelete(ONBOARDED_KEY), storageDelete(SESSION_KEY), forgetAccount()]);
+    await Promise.all([storageDelete(ONBOARDED_KEY), storageDelete(SESSION_KEY), forgetAccount(), touchFamilyInvite()]);
     await resolveSession();
   }, [resolveSession]);
 

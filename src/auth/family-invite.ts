@@ -49,6 +49,13 @@ export async function familyInviteForSignIn(): Promise<string | undefined> {
   return (await pendingFamilyInvite())?.token;
 }
 
+/** Restart the clock at sign-in: the two hours are for confirming once signed
+ *  in, not a race between opening the link and finishing a sign-in. */
+export async function touchFamilyInvite(): Promise<void> {
+  const p = await pendingFamilyInvite();
+  if (p) await storageSet(KEY, JSON.stringify({ ...p, at: Date.now() } satisfies Pending));
+}
+
 /** Forget the pending invitation: sign-out, "Not now". */
 export async function clearFamilyInvite(): Promise<void> {
   await storageDelete(KEY).catch(() => {});
