@@ -23,6 +23,10 @@ import { pendingFamilyInvite } from '@/src/auth/family-invite';
  * needs, and the patient would watch their phone's browser sign in while the app
  * they actually installed stayed logged out. Continuing in the browser is
  * offered, but only if they ask for it.
+ *
+ * The exception: a sign-in from a family invitation (`stay=1` on the link, or an
+ * invitation pending in this browser) finishes here at once. The installed app
+ * may be an older build with no guardian or child screens.
  */
 export default function AuthLink() {
   // `error` arrives from a sign-in that finished in a browser and landed back
@@ -68,8 +72,14 @@ export default function AuthLink() {
   // Only on a touch device, though. A desktop browser cannot have the app
   // installed, and firing a custom scheme there opens a stray blank tab,
   // which is what it did before this guard.
-  // The token is single-use: an effect re-run must not spend it twice.
+  // The token is single-use: an effect re-run, or a tap racing the automatic
+  // sign-in, must not spend it twice. Every path goes through `exchangeOnce`.
   const started = useRef(false);
+  const exchangeOnce = useCallback(() => {
+    if (started.current) return;
+    started.current = true;
+    void exchange();
+  }, [exchange]);
   const handOff = useCallback(() => {
     const touch = typeof navigator !== 'undefined' && (navigator.maxTouchPoints ?? 0) > 0;
     if (touch) Linking.openURL(`bloomsline://auth?token=${encodeURIComponent(raw)}`).catch(() => {});
@@ -96,18 +106,13 @@ export default function AuthLink() {
       void (async () => {
         const fromInvite = stay === '1' || !!(await pendingFamilyInvite());
         if (cancelled) return;
-        if (fromInvite) {
-          if (started.current) return;
-          started.current = true;
-          void exchange();
-          return;
-        }
+        if (fromInvite) { exchangeOnce(); return; }
         handOff();
       })();
       return () => { cancelled = true; };
     }
-    void exchange();
-  }, [raw, isWeb, exchange, handOff, returned, t, stay]);
+    exchangeOnce();
+  }, [raw, isWeb, exchangeOnce, handOff, returned, t, stay]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -136,7 +141,7 @@ export default function AuthLink() {
                   <ActivityIndicator color="#fff" />
                 </View>
               ) : state === 'handoff' ? (
-                <Pill label={T.continueHere} variant="white" onPress={exchange} />
+                <Pill label={T.continueHere} variant="white" onPress={exchangeOnce} />
               ) : reason ? (
                 // A waitlisted or suspended account does not need another link,
                 // so the way out is the door, not a retry.
