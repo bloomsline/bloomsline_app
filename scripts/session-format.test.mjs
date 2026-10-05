@@ -33,7 +33,9 @@ test('the built-in formats behave as before', () => {
   assert.deepEqual(sessionWayThere({ sessionFormat: 'in_person' }, { mapsUrl: null, address: practice.address }), { kind: 'address', text: practice.address });
   assert.deepEqual(sessionWayThere({ sessionFormat: 'video', meetLink: 'https://meet/x' }, practice), { kind: 'join', url: 'https://meet/x' });
   assert.deepEqual(sessionWayThere({ sessionFormat: 'phone' }, practice), { kind: 'phone' });
-  // A room on a session at the practice keeps the practice's Maps link.
+  // A room on a session at the practice keeps the practice's Maps link, or
+  // its address when there is no link.
+  assert.deepEqual(sessionWayThere({ sessionFormat: 'in_person', location: 'Salle 2' }, { mapsUrl: null, address: practice.address }), { kind: 'address', text: practice.address });
   assert.deepEqual(sessionWayThere({ sessionFormat: 'in_person', formatKind: 'in_person', location: 'Salle 2' }, practice), { kind: 'maps', url: practice.mapsUrl, place: false });
 });
 

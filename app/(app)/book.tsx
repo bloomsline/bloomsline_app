@@ -205,7 +205,7 @@ export default function Book() {
   // First load: fetch the options (and, for reschedule, the initial slots).
   useEffect(() => {
     let alive = true;
-    fetchSlots({ sessionTypeId: params.sessionTypeId, format: params.format }).then((got) => {
+    fetchSlots({ sessionTypeId: params.sessionTypeId, format: params.format, rescheduleId: rescheduleId || undefined }).then((got) => {
       if (!alive) return;
       const refused = got && 'unavailable' in got ? got.unavailable : null;
       const res = refused ? null : (got as BookingSlots | null);
@@ -227,7 +227,7 @@ export default function Book() {
       setLoading(false);
     });
     return () => { alive = false; };
-  }, [params.sessionTypeId, params.format, params.demo, isReschedule, attempt]);
+  }, [params.sessionTypeId, params.format, params.demo, isReschedule, rescheduleId, attempt]);
 
   // Opening booking starts from nothing.
   //
@@ -273,7 +273,7 @@ export default function Book() {
     if (isDemo) { const d = demo(); setDays(d.days); setOpenDay(d.days[0].date); setPick(null); return; }
     setSlotsLoading(true);
     const mine = ++slotsSeq.current;
-    const got = await fetchSlots({ sessionTypeId: t ?? undefined, format: f ?? undefined });
+    const got = await fetchSlots({ sessionTypeId: t ?? undefined, format: f ?? undefined, rescheduleId: rescheduleId || undefined });
     if (mine !== slotsSeq.current) return;
     const res = got && 'unavailable' in got ? null : got;
     setSlotsFailed(got === null);

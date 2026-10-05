@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { CalendarPlus, ChevronLeft, ChevronRight, MapPin, Phone, Video, House, Trees } from 'lucide-react-native';
+import { CalendarPlus, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { EdHeader, FadeIn } from '@/src/ui/editorial';
 import { PractitionerTabBar, PRACTITIONER_TAB_PAD } from '@/src/ui/PractitionerTabBar';
 import { SessionSheet } from '@/src/practitioner/SessionSheet';
@@ -11,6 +11,7 @@ import { useTheme } from '@/src/ui/theme-mode';
 import { LIGHT, DARK, type Mode, type Palette } from '@/src/ui/tokens';
 import { LoadFailed } from '@/src/ui/LoadFailed';
 import { formatWords } from '@/src/care/session-format';
+import { FormatIcon } from '@/src/care/FormatIcon';
 
 // The day, as a timeline rather than a list.
 //
@@ -37,7 +38,6 @@ const T = {
   fr: { kicker: 'AGENDA', today: 'Aujourd’hui', nothing: 'Rien de prévu.', pending: 'Demande' },
 } as const;
 
-const FORMAT_ICON = { video: Video, in_person: MapPin, phone: Phone } as const;
 
 // A session that is no longer going to happen still belongs on the day it was
 // on — but it should not compete with the ones that are.
@@ -300,7 +300,6 @@ function SessionBlock({ session: s, top, timeLabel, pendingLabel, onPress }: {
   const height = Math.max(24, (s.durationMinutes / 60) * HOUR_HEIGHT - 3);
   const pending = s.status === 'pending';
   const off = OFF.has(s.status ?? '');
-  const Icon = FORMAT_ICON[s.sessionFormat as keyof typeof FORMAT_ICON] ?? (s.sessionFormat === 'place:home' ? House : s.sessionFormat === 'place:outdoors' ? Trees : MapPin);
 
   const fill = pending ? FILL[mode].pending : off ? FILL[mode].off : FILL[mode].booked;
   // Ink is picked per FILL, not per state, because contrast is a property of the
@@ -345,7 +344,7 @@ function SessionBlock({ session: s, top, timeLabel, pendingLabel, onPress }: {
       {roomy && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
           <Text style={{ fontSize: 11, color: dim, fontVariant: ['tabular-nums'] }}>{timeLabel}</Text>
-          <Icon size={10} color={dim} />
+          <FormatIcon format={s.sessionFormat} size={10} color={dim} />
           <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 11, color: dim }}>{meta}</Text>
         </View>
       )}

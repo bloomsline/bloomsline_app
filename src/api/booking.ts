@@ -39,8 +39,10 @@ export type SlotsRefusal = 'not_allowed' | 'no_practitioner' | 'minor' | 'other'
  *  The reason is kept because the two refusals ask different things of the
  *  patient: a practitioner who books for them is someone to contact, and
  *  having no practitioner selected is a switch away. */
-export async function fetchSlots(params: { sessionTypeId?: string; format?: string } = {}): Promise<BookingSlots | { unavailable: SlotsRefusal } | null> {
+export async function fetchSlots(params: { sessionTypeId?: string; format?: string; rescheduleId?: string } = {}): Promise<BookingSlots | { unavailable: SlotsRefusal } | null> {
   const q = new URLSearchParams();
+  // Moving a session: the server looks in that session's own format and length.
+  if (params.rescheduleId) q.set('rescheduleId', params.rescheduleId);
   if (params.sessionTypeId) q.set('sessionTypeId', params.sessionTypeId);
   if (params.format) q.set('format', params.format);
   const qs = q.toString();

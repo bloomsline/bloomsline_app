@@ -4,13 +4,12 @@
 import { useFeatureGuard } from '@/src/care/use-feature-guard';
 import { useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Info } from 'lucide-react-native';
-import { Field } from '@/src/ui/Field';
 import { FormatIcon } from '@/src/care/FormatIcon';
 import { formatForAnalytics, formatWords } from '@/src/care/session-format';
-import { draftHomeAddress } from '@/src/care/booking-draft';
+import { draftHomeAddress, setDraftHomeAddress } from '@/src/care/booking-draft';
 import { notify } from '@/src/ui/alert';
 import { EdHeader, EdCard, EdPill, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
@@ -129,7 +128,10 @@ export default function BookConfirm() {
 
   const confirm = async () => {
     if (busy || !start || openedFor.current !== selectionKey) return;
-    if (atHome && address.replace(/\s+/g, ' ').trim().length < 5 && !isDemo) { setError(tr.addressRequired); return; }
+    // Something typed but too short is caught here; an empty field goes to the
+    // server, which uses the chart's address or says one is needed.
+    const typed = address.replace(/\s+/g, ' ').trim();
+    if (atHome && typed.length > 0 && typed.length < 5 && !isDemo) { setError(tr.addressRequired); return; }
     if (isDemo) {
       alert(rescheduleId ? tr.rescheduledDemo : tr.confirmedDemo);
       router.navigate('/home' as never);
@@ -140,9 +142,10 @@ export default function BookConfirm() {
 
     const res = rescheduleId
       ? await rescheduleSession(rescheduleId, slotIso)
-      : await createBooking({ slotIso, sessionTypeId: params.sessionTypeId, format, idempotencyKey, ...(atHome ? { address } : {}) });
+      : await createBooking({ slotIso, sessionTypeId: params.sessionTypeId, format, idempotencyKey, ...(atHome && typed ? { address: typed } : {}) });
 
     if (res.ok) {
+      setDraftHomeAddress(null);
       // A request awaiting the practitioner is a different outcome from a booked
       // session, and is counted as one.
       // The kind ("place"), never a place's own id.
@@ -154,7 +157,7 @@ export default function BookConfirm() {
       return;
     }
     setBusy(false);
-    if (res.reason === 'conflict' || res.reason === 'unavailable' || res.reason === 'format_unavailable') {
+    if (res.reason === 'conflict' || res.reason === 'unavailable' || res.reason === 'format_unavailable' || res.reason === 'type_unavailable') {
       // A refused format is the same thing to the patient: this choice cannot
       // be booked as shown, so go back and pick again.
       setError(tr.noLongerAvailable);
@@ -191,8 +194,12 @@ export default function BookConfirm() {
 
           {atHome && (
             <View style={{ marginTop: 16 }}>
-              <Field label={tr.addressLabel} required value={address} onChangeText={setAddress} maxLength={200}
-                autoComplete="street-address" textContentType="fullStreetAddress" />
+              <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 0.6, textTransform: 'uppercase', color: TT.faint, marginBottom: 8 }}>{tr.addressLabel}</Text>
+              {/* Themed by hand: the shared Field is light-only, and its text was
+                  near-black on the dark background. */}
+              <TextInput value={address} onChangeText={setAddress} maxLength={200} autoComplete="street-address" textContentType="fullStreetAddress"
+                placeholderTextColor={TT.faint} accessibilityLabel={tr.addressLabel}
+                style={{ minHeight: 52, borderRadius: 16, borderWidth: 1, borderColor: TT.cardLine, backgroundColor: TT.card, color: TT.ink, paddingHorizontal: 16, fontSize: 15 }} />
             </View>
           )}
 

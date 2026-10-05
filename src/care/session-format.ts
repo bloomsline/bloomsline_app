@@ -81,8 +81,8 @@ export function sessionWayThere(s: SessionLike, practice: { mapsUrl?: string | n
   if (k === 'in_person') {
     // A room typed on the session does not replace the way to the practice.
     if (practice.mapsUrl) return { kind: 'maps', url: practice.mapsUrl, place: false };
-    if (s.location?.trim()) return { kind: 'address', text: s.location.trim() };
     if (practice.address) return { kind: 'address', text: practice.address };
+    if (s.location?.trim()) return { kind: 'address', text: s.location.trim() };
     return { kind: 'none' };
   }
   if (k === 'place' && s.location?.trim()) return { kind: 'maps', url: mapsSearchUrl(s.location.trim()), place: true };

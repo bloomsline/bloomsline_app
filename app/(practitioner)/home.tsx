@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { CalendarPlus, Check, ChevronDown, ChevronUp, NotebookPen, PenLine, Share2, Sparkles, UserPlus, Video, MapPin, Phone, Settings as SettingsIcon, X, type LucideIcon, House, Trees } from 'lucide-react-native';
+import { CalendarPlus, Check, ChevronDown, ChevronUp, NotebookPen, PenLine, Share2, Sparkles, UserPlus, MapPin, Settings as SettingsIcon, X, type LucideIcon } from 'lucide-react-native';
 import { EdHeader, EdCard, EdSection, FadeIn } from '@/src/ui/editorial';
 import { PractitionerTabBar, PRACTITIONER_TAB_PAD } from '@/src/ui/PractitionerTabBar';
 import { useConfirm } from '@/src/ui/confirm';
@@ -15,6 +15,7 @@ import { LoadFailed } from '@/src/ui/LoadFailed';
 import { localizeServerMessage } from '@/src/api/server-messages';
 import { track } from '@/src/analytics/client';
 import { formatWords } from '@/src/care/session-format';
+import { FormatIcon } from '@/src/care/FormatIcon';
 
 // The practitioner's dashboard, in the same editorial language as the patient
 // app: the image-less EdHeader, EdCards, one accent.
@@ -51,7 +52,6 @@ const T = {
   },
 } as const;
 
-const FORMAT_ICON = { video: Video, in_person: MapPin, phone: Phone } as const;
 
 // A session that is no longer going to happen does not belong in "up next".
 // Same set the Calendar uses, which DIMS them rather than hiding them: there
@@ -251,7 +251,6 @@ function SessionRow({ s, time, join, onPrep, onNote, opening }: {
 }) {
   const { t: TT } = useTheme();
   const { locale } = useI18n();
-  const Icon = FORMAT_ICON[s.sessionFormat as keyof typeof FORMAT_ICON] ?? (s.sessionFormat === 'place:home' ? House : s.sessionFormat === 'place:outdoors' ? Trees : MapPin);
   // Both actions write to, or read from, a MEMBER. A guest booking that was
   // never linked has neither a history to brief from nor a file to write to —
   // the same limit the care app's day list has.
@@ -267,7 +266,7 @@ function SessionRow({ s, time, join, onPrep, onNote, opening }: {
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 15, fontWeight: '700', color: TT.ink }}>{s.who}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-            <Icon size={12} color={TT.faint} />
+            <FormatIcon format={s.sessionFormat} size={12} color={TT.faint} />
             <Text style={{ fontSize: 12.5, color: TT.inkSoft }}>{s.location || formatWords(s.sessionFormat, locale, s.formatLabel)}</Text>
           </View>
         </View>

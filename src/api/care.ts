@@ -137,9 +137,10 @@ export async function fetchTodo(): Promise<TodoItem[] | null> {
 }
 
 /** The patient's past sessions, newest first. */
-export async function fetchHistory(): Promise<CareSession[] | null> {
+export async function fetchHistory(locale?: 'en' | 'fr'): Promise<CareSession[] | null> {
   try {
-    const res = await apiFetch('/api/mobile/care/history');
+    // The app's language, for each session's format label.
+    const res = await apiFetch(`/api/mobile/care/history${locale ? `?locale=${locale}` : ''}`);
     if (!res.ok) return null;
     return (await res.json()).sessions as CareSession[];
   } catch {

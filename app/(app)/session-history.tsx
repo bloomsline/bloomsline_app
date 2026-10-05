@@ -71,9 +71,9 @@ export default function SessionHistory() {
   useEffect(() => {
     let alive = true;
     // A failed read is not an empty one (see LoadFailed).
-    fetchHistory().then((v) => { if (!alive) return; if (v) { setItems(v); setFailed(false); } else setFailed(true); });
+    fetchHistory(locale).then((v) => { if (!alive) return; if (v) { setItems(v); setFailed(false); } else setFailed(true); });
     return () => { alive = false; };
-  }, [attempt, selectionKey]);
+  }, [attempt, selectionKey, locale]);
 
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/home' as never));
 
