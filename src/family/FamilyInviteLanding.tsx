@@ -45,6 +45,9 @@ export function FamilyInviteLanding({ kind, token }: { kind: 'guardian' | 'child
   const [error, setError] = useState<string | null>(null);
   // The signed-in account's address, to say which account would accept.
   const [myEmail, setMyEmail] = useState<string | null>(null);
+  // Whether that lookup has answered. Until it has, no accept is offered: a
+  // one-tap accept for "whatever account is open" is the bug this replaced.
+  const [meLoaded, setMeLoaded] = useState(false);
   const [switching, setSwitching] = useState(false);
   // A practitioner's session counts as signed in too: the server refuses it
   // (`not_patient`) and the screen says why, rather than offering a sign-up
@@ -65,14 +68,18 @@ export function FamilyInviteLanding({ kind, token }: { kind: 'guardian' | 'child
   }, [kind, token, setLocale]);
 
   useEffect(() => {
-    if (!signedIn) { setMyEmail(null); return; }
+    if (!signedIn) { setMyEmail(null); setMeLoaded(false); return; }
     let alive = true;
-    void fetchMe().then((me) => { if (alive) setMyEmail(me?.email ?? null); });
+    void fetchMe().then((me) => { if (!alive) return; setMyEmail(me?.email ?? null); setMeLoaded(true); });
     return () => { alive = false; };
   }, [signedIn]);
   const same = (a?: string | null, b?: string | null) => !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
-  // Signed in at another address than the one invited: say so, offer both.
-  const otherAccount = signedIn && !!myEmail && !!invite?.email && !same(myEmail, invite.email);
+  // Signed in at another address than the one invited (or an address we could
+  // not read): say so and offer both. A practitioner's session keeps the plain
+  // accept, which the server refuses with its own reason.
+  const patientSession = status === 'authed' || status === 'onboarding';
+  const otherAccount = patientSession && meLoaded && !!invite?.email && !same(myEmail, invite.email);
+  const waitingForMe = patientSession && !!invite?.email && !meLoaded;
 
   const child = invite?.childFirstName ?? '';
   const prac = invite?.practitionerName ?? null;
@@ -152,17 +159,19 @@ export function FamilyInviteLanding({ kind, token }: { kind: 'guardian' | 'child
                 {otherAccount && (
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 16 }}>
                     <Lock size={13} color={onMedia(0.7)} strokeWidth={2} />
-                    <Text style={{ fontSize: 12.5, fontWeight: '500', color: onMedia(0.85), textAlign: 'center' }} numberOfLines={2}>{fmt(t.family.signedInAs, { email: myEmail ?? '' })}</Text>
+                    <Text style={{ flexShrink: 1, fontSize: 12.5, fontWeight: '500', color: onMedia(0.85), textAlign: 'center' }}>{myEmail ? fmt(t.family.signedInAs, { email: myEmail }) : t.family.signedInOther}</Text>
                   </View>
                 )}
                 {error && <Text accessibilityRole="alert" style={{ fontSize: 14, color: '#FFD3C9', textAlign: 'center', marginBottom: 12, lineHeight: 20 }}>{error}</Text>}
-                {signedIn && otherAccount ? (
+                {waitingForMe ? (
+                  <View style={{ height: 54, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={OVER_MEDIA.ink} /></View>
+                ) : signedIn && otherAccount ? (
                   <>
                     <Pill label={switching ? t.family.switching : fmt(t.family.useInvited, { email: invite.email ?? '' })} onPress={() => { if (!switching && !busy) void switchToInvited(); }} />
-                    <Pressable onPress={() => { if (!busy && !switching) void acceptNow(); }} style={{ alignItems: 'center', paddingVertical: 14 }}>
-                      <Text style={{ fontSize: 15, fontWeight: '600', color: onMedia(0.9) }} numberOfLines={1}>{busy ? t.family.accepting : fmt(t.family.acceptAs, { email: myEmail ?? '' })}</Text>
+                    <Pressable accessibilityRole="button" onPress={() => { if (!busy && !switching) void acceptNow(); }} style={{ alignItems: 'center', paddingVertical: 14 }}>
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: onMedia(0.9), textAlign: 'center' }}>{busy ? t.family.accepting : myEmail ? fmt(t.family.acceptAs, { email: myEmail }) : t.family.acceptHere}</Text>
                     </Pressable>
-                    <Pressable onPress={() => { void notNow(); }} style={{ alignItems: 'center', paddingVertical: 10 }}>
+                    <Pressable accessibilityRole="button" onPress={() => { void notNow(); }} style={{ alignItems: 'center', paddingVertical: 10 }}>
                       <Text style={{ fontSize: 14, fontWeight: '500', color: onMedia(0.7) }}>{t.family.notNow}</Text>
                     </Pressable>
                   </>

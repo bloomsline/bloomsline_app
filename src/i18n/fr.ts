@@ -60,6 +60,8 @@ export const fr: Dict = {
     sentTo: 'Envoyée à',
     createWith: 'Créez votre compte avec cette adresse',
     signedInAs: 'Compte connecté : {email}',
+    signedInOther: 'Un autre compte est connecté.',
+    acceptHere: 'Accepter avec ce compte',
     acceptAs: 'Accepter avec {email}',
     useInvited: 'Utiliser {email} à la place',
     switching: 'Déconnexion…',
