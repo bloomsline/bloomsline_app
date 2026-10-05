@@ -12,6 +12,12 @@ export interface CareSession {
   formatKind?: string;
   /** Where, for a session held somewhere: the home address, a meeting point. */
   location?: string | null;
+  /** The session's own map link (its office's or meeting point's), from
+   *  servers since saved locations. */
+  mapsUrl?: string | null;
+  /** How to get in: "Getting in: building B, door code: 4721." Already in the
+   *  reader's language. Absent from older servers and for video or phone. */
+  access?: string | null;
   sessionType: string;
   status: string;
   meetLink: string | null;

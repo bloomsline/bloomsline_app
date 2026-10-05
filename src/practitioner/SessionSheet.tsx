@@ -347,6 +347,7 @@ export function SessionSheet({
                 </View>
 
                 {s.location ? <Text style={{ fontSize: 13.5, color: TT.inkSoft, marginTop: 7 }}>{s.location}</Text> : null}
+                {s.access ? <Text style={{ fontSize: 12.5, color: TT.faint, marginTop: 4, lineHeight: 18 }}>{s.access}</Text> : null}
                 {s.email ? (
                   <Pressable onPress={() => { void Linking.openURL(`mailto:${s.email}`); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 9 }}>
                     <Mail size={14} color={TT.faint} />

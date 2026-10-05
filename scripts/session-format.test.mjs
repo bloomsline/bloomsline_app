@@ -45,3 +45,14 @@ test('icons and analytics', () => {
   assert.equal(formatKindOf('place:abc'), 'place');
   assert.equal(formatForAnalytics('place:7f3c2a10'), 'place');
 });
+
+test('saved locations: a session at a second office opens its own map, not the practitioner\'s', () => {
+  assert.deepEqual(
+    sessionWayThere({ sessionFormat: 'in_person', location: '3 Avenue de Paris, 94300 Vincennes', mapsUrl: 'https://maps.app/vin' }, practice),
+    { kind: 'maps', url: 'https://maps.app/vin', place: true },
+  );
+  // A meeting point with its own link uses it rather than a search on the text.
+  assert.deepEqual(sessionWayThere({ sessionFormat: 'place:outdoors', location: 'By the boathouse', mapsUrl: 'https://maps.app/lake' }, practice), { kind: 'maps', url: 'https://maps.app/lake', place: true });
+  // A server with several offices sends no practice link: the session's own address is still offered.
+  assert.deepEqual(sessionWayThere({ sessionFormat: 'in_person', location: '3 Avenue de Paris' }, { mapsUrl: null, address: null }), { kind: 'address', text: '3 Avenue de Paris' });
+});

@@ -524,6 +524,11 @@ function SessionCard({
       ) : (
         <View style={{ height: first ? 16 : 4 }} />
       )}
+      {/* How to get in (building, floor, door code), for the session about to
+          happen: the server words it in the patient's language. */}
+      {first && !pending && session.access ? (
+        <Text style={{ fontSize: 12.5, color: TT.inkSoft, lineHeight: 18, marginTop: 10 }}>{session.access}</Text>
+      ) : null}
       {/* LAST child on purpose. Absolute positioning takes it out of the flow
           but not out of the paint order, so declared first it sat UNDER its own
           siblings: the "Next session" kicker's box runs the full width of the

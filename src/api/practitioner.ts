@@ -21,6 +21,8 @@ export interface PractitionerSession {
   /** Opens the place on a map. The practitioner's own link when they set one,
    *  else a search on the address — resolved server-side. */
   mapsUrl?: string | null;
+  /** Building, floor, door code, in the practitioner's language. */
+  access?: string | null;
   meetLink: string | null;
   status?: string;
   paymentStatus?: string; // paid | unpaid | free

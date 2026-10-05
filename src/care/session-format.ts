@@ -57,6 +57,9 @@ export interface SessionLike {
   formatLabel?: string | null;
   formatKind?: string | null;
   location?: string | null;
+  /** The session's own map link, copied from its office or meeting point when
+   *  booked (servers since saved locations). Wins over the practitioner's. */
+  mapsUrl?: string | null;
   meetLink?: string | null;
 }
 
@@ -64,7 +67,8 @@ export interface SessionLike {
  * What the imminent session offers to get there:
  *   video    → join (its link)
  *   phone    → a "they will call you" line
- *   practice → Maps to the practice, else its address as text
+ *   practice → Maps to the session's own office (saved locations), else to
+ *              the practice, else its address as text
  *   place    → Maps to the session's own location (home address, meeting
  *              point), else nothing to open
  *   unknown  → nothing
@@ -79,12 +83,16 @@ export function sessionWayThere(s: SessionLike, practice: { mapsUrl?: string | n
   if (k === 'video') return s.meetLink ? { kind: 'join', url: s.meetLink } : { kind: 'none' };
   if (k === 'phone') return { kind: 'phone' };
   if (k === 'in_person') {
-    // A room typed on the session does not replace the way to the practice.
+    // The session's own office first: with several offices, the practitioner's
+    // single link would send a Vincennes session to Paris. A room typed on the
+    // session has no link of its own and keeps the way to the practice.
+    if (s.mapsUrl) return { kind: 'maps', url: s.mapsUrl, place: true };
     if (practice.mapsUrl) return { kind: 'maps', url: practice.mapsUrl, place: false };
     if (practice.address) return { kind: 'address', text: practice.address };
     if (s.location?.trim()) return { kind: 'address', text: s.location.trim() };
     return { kind: 'none' };
   }
+  if (k === 'place' && s.mapsUrl) return { kind: 'maps', url: s.mapsUrl, place: true };
   if (k === 'place' && s.location?.trim()) return { kind: 'maps', url: mapsSearchUrl(s.location.trim()), place: true };
   return { kind: 'none' };
 }
