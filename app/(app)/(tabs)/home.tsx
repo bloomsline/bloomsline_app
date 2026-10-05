@@ -524,6 +524,11 @@ function SessionCard({
       ) : (
         <View style={{ height: first ? 16 : 4 }} />
       )}
+      {/* Where the button goes, said in words: a meeting point ("by the main
+          gate") or another office is not something a map pin explains. */}
+      {first && !pending && way.kind === 'maps' && way.place && session.location ? (
+        <Text style={{ fontSize: 12.5, color: TT.inkSoft, lineHeight: 18, marginTop: 10 }}>{session.location}</Text>
+      ) : null}
       {/* How to get in (building, floor, door code), for the session about to
           happen: the server words it in the patient's language. */}
       {first && !pending && session.access ? (
