@@ -97,6 +97,11 @@ async function fetchOrOffline(url: string, init: RequestInit): Promise<Response>
 
 /** fetch() against the backend with auth handling. `path` starts with '/'. Never
  *  rejects: no connection comes back as a 503 that `isOffline` recognises. */
+/** The path with the places capability added (`bl_places=1`). */
+function withPlaces(path: string): string {
+  return `${path}${path.includes('?') ? '&' : '?'}bl_places=1`;
+}
+
 export async function apiFetch(path: string, init: RequestInit = {}, allowRetry = true): Promise<Response> {
   const access = await getAccessToken();
   const headers = new Headers(init.headers);
@@ -116,10 +121,11 @@ export async function apiFetch(path: string, init: RequestInit = {}, allowRetry 
 
   // This build understands session places (src/care/session-format.ts). The
   // server offers places only to an app that says so; an older build never
-  // sends it and keeps seeing the built-in formats alone.
-  if (!headers.has('x-bl-places')) headers.set('x-bl-places', '1');
-
-  const res = await fetchOrOffline(`${API_URL}${path}`, { ...init, headers });
+  // does and keeps seeing the built-in formats alone. Said in the address, not
+  // a header: a new header needs the server's CORS allow list first, and the
+  // web app would fail every request against a server that predates it. An
+  // older server just ignores the parameter.
+  const res = await fetchOrOffline(`${API_URL}${withPlaces(path)}`, { ...init, headers });
 
   if (res.status === 401 && allowRetry && (await getRefreshToken())) {
     const result = await refreshOnce();

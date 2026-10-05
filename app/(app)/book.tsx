@@ -211,7 +211,9 @@ export default function Book() {
       const res = refused ? null : (got as BookingSlots | null);
       setRefusal(refused);
       setFailed(got === null && !(FORCE_CARE_HUB || params.demo === '1'));
-      if (res && res.sessionTypes.length > 0) {
+      // Moving a session needs no type on offer: the server answers for that
+      // session's own type and length even when nothing new is left to book.
+      if (res && (res.sessionTypes.length > 0 || isReschedule)) {
         setData(res);
         if (isReschedule) {
           setTypeId(res.sessionType.id);
@@ -348,7 +350,8 @@ export default function Book() {
 
   const goConfirm = () => {
     if (!pick || !typeId || !format || !data) return;
-    const dur = data.sessionTypes.find((t) => t.id === typeId)?.durationMinutes ?? 50;
+    // Moving: the session's own length, as the server sent it.
+    const dur = (isReschedule ? data.sessionType?.durationMinutes : undefined) ?? data.sessionTypes.find((t) => t.id === typeId)?.durationMinutes ?? 50;
     returningFromConfirm.current = true;
     setDraftHomeAddress(format === 'place:home' ? data.homeAddress : null);
     router.navigate({
@@ -402,7 +405,9 @@ export default function Book() {
     );
   }
 
-  const chosenType = data.sessionTypes.find((t) => t.id === typeId) ?? null;
+  // Moving a session of a type no longer offered here (for new patients only,
+  // say): the server's own description of it.
+  const chosenType = data.sessionTypes.find((t) => t.id === typeId) ?? (isReschedule ? data.sessionType ?? null : null);
   const typeFormats = formatsFor(data, typeId);
   const manyFormats = typeFormats.length > 1;
 
