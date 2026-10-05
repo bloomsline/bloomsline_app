@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -8,6 +8,7 @@ import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useAuth } from '@/src/auth/auth-context';
 import { useI18n } from '@/src/i18n';
 import { signInMessage } from '@/src/auth/sign-in-message';
+import { pendingFamilyInvite } from '@/src/auth/family-invite';
 
 /**
  * The target of the emailed sign-in link. One route, two jobs:
@@ -22,13 +23,17 @@ import { signInMessage } from '@/src/auth/sign-in-message';
  * needs, and the patient would watch their phone's browser sign in while the app
  * they actually installed stayed logged out. Continuing in the browser is
  * offered, but only if they ask for it.
+ *
+ * The exception: a sign-in from a family invitation (`stay=1` on the link, or an
+ * invitation pending in this browser) finishes here at once. The installed app
+ * may be an older build with no guardian or child screens.
  */
 export default function AuthLink() {
   // `error` arrives from a sign-in that finished in a browser and landed back
   // here: Apple's web flow, and Google's on Android. There is no token to
   // exchange when the provider refused, the person cancelled, or the address is
   // not invited.
-  const { token, error } = useLocalSearchParams<{ token?: string; error?: string }>();
+  const { token, error, stay } = useLocalSearchParams<{ token?: string; error?: string; stay?: string }>();
   const { signInWithLink } = useAuth();
   const { t } = useI18n();
   const T = t.authLink;
@@ -60,6 +65,26 @@ export default function AuthLink() {
     setState('failed');
   }, [raw, signInWithLink, t]);
 
+  // Ask the OS for the app. If it is installed this page is left behind; if
+  // not, nothing observable happens and the handoff copy stays put. There is
+  // no reliable way to detect which, so we never guess: we just offer both.
+  //
+  // Only on a touch device, though. A desktop browser cannot have the app
+  // installed, and firing a custom scheme there opens a stray blank tab,
+  // which is what it did before this guard.
+  // The token is single-use: an effect re-run, or a tap racing the automatic
+  // sign-in, must not spend it twice. Every path goes through `exchangeOnce`.
+  const started = useRef(false);
+  const exchangeOnce = useCallback(() => {
+    if (started.current) return;
+    started.current = true;
+    void exchange();
+  }, [exchange]);
+  const handOff = useCallback(() => {
+    const touch = typeof navigator !== 'undefined' && (navigator.maxTouchPoints ?? 0) > 0;
+    if (touch) Linking.openURL(`bloomsline://auth?token=${encodeURIComponent(raw)}`).catch(() => {});
+  }, [raw]);
+
   useEffect(() => {
     // A failed return says WHY. Without this the screen reached for "this
     // sign-in link has expired", which is not what happened and sends someone to
@@ -72,19 +97,22 @@ export default function AuthLink() {
     }
     if (!raw) return setState('failed');
     if (isWeb) {
-      // Ask the OS for the app. If it is installed this page is left behind; if
-      // not, nothing observable happens and the handoff copy stays put. There is
-      // no reliable way to detect which, so we never guess — we just offer both.
-      //
-      // Only on a touch device, though. A desktop browser cannot have the app
-      // installed, and firing a custom scheme there opens a stray blank tab —
-      // which is what it did before this guard.
-      const touch = typeof navigator !== 'undefined' && (navigator.maxTouchPoints ?? 0) > 0;
-      if (touch) Linking.openURL(`bloomsline://auth?token=${encodeURIComponent(raw)}`).catch(() => {});
-      return;
+      // Signing in from a family invitation: stay in the browser and sign in
+      // here. The installed app may be an older build with no guardian or
+      // child screens, so handing off would land them on an empty screen.
+      // Known from the link itself (`stay=1`, set when the link was asked for
+      // with an invitation pending) or from the invitation this browser holds.
+      let cancelled = false;
+      void (async () => {
+        const fromInvite = stay === '1' || !!(await pendingFamilyInvite());
+        if (cancelled) return;
+        if (fromInvite) { exchangeOnce(); return; }
+        handOff();
+      })();
+      return () => { cancelled = true; };
     }
-    void exchange();
-  }, [raw, isWeb, exchange, returned, t]);
+    exchangeOnce();
+  }, [raw, isWeb, exchangeOnce, handOff, returned, t, stay]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -113,7 +141,7 @@ export default function AuthLink() {
                   <ActivityIndicator color="#fff" />
                 </View>
               ) : state === 'handoff' ? (
-                <Pill label={T.continueHere} variant="white" onPress={exchange} />
+                <Pill label={T.continueHere} variant="white" onPress={exchangeOnce} />
               ) : reason ? (
                 // A waitlisted or suspended account does not need another link,
                 // so the way out is the door, not a retry.
