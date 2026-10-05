@@ -53,6 +53,9 @@ test('saved locations: a session at a second office opens its own map, not the p
   );
   // A meeting point with its own link uses it rather than a search on the text.
   assert.deepEqual(sessionWayThere({ sessionFormat: 'place:outdoors', location: 'By the boathouse', mapsUrl: 'https://maps.app/lake' }, practice), { kind: 'maps', url: 'https://maps.app/lake', place: true });
+  // A meeting point with no link is shown as written, never searched: a search
+  // on "By the boathouse" can send the patient somewhere else.
+  assert.deepEqual(sessionWayThere({ sessionFormat: 'place:outdoors', formatKind: 'place', location: 'By the boathouse' }, practice), { kind: 'address', text: 'By the boathouse' });
   // A server with several offices sends no practice link: the session's own address is still offered.
   assert.deepEqual(sessionWayThere({ sessionFormat: 'in_person', location: '3 Avenue de Paris' }, { mapsUrl: null, address: null }), { kind: 'address', text: '3 Avenue de Paris' });
 });

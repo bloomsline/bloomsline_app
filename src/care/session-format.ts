@@ -93,7 +93,11 @@ export function sessionWayThere(s: SessionLike, practice: { mapsUrl?: string | n
     return { kind: 'none' };
   }
   if (k === 'place' && s.mapsUrl) return { kind: 'maps', url: s.mapsUrl, place: true };
-  if (k === 'place' && s.location?.trim()) return { kind: 'maps', url: mapsSearchUrl(s.location.trim()), place: true };
+  // Searched only for a home address (a server from before home links). A
+  // meeting point with no link is shown as written: "by the main gate" is not
+  // an address, and a search on it can send the patient somewhere else.
+  if (s.sessionFormat === 'place:home' && s.location?.trim()) return { kind: 'maps', url: mapsSearchUrl(s.location.trim()), place: true };
+  if (k === 'place' && s.location?.trim()) return { kind: 'address', text: s.location.trim() };
   return { kind: 'none' };
 }
 
