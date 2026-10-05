@@ -9,6 +9,7 @@ import { fetchPatient, type PatientDetail } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
 import { LIGHT, DARK, type Mode } from '@/src/ui/tokens';
 import { LoadFailed } from '@/src/ui/LoadFailed';
+import { formatWords } from '@/src/care/session-format';
 
 // One patient, to READ.
 //
@@ -331,7 +332,7 @@ export default function PatientDetailScreen() {
                       {open ? <ChevronUp size={15} color={TT.faint} /> : <ChevronDown size={15} color={TT.faint} />}
                     </View>
                     <Text style={{ fontSize: 12.5, color: TT.faint, marginTop: 4 }}>
-                      {s.sessionTypeLabel ?? s.sessionType} · {s.sessionFormat.replace('_', ' ')} · {s.durationMinutes}m
+                      {s.sessionTypeLabel ?? s.sessionType} · {formatWords(s.sessionFormat, locale, s.formatLabel)} · {s.durationMinutes}m
                       {s.paymentStatus === 'unpaid' ? ` · ${tr.unpaid}` : ''}
                     </Text>
 

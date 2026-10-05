@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Check, Info, MapPin, Phone, Video } from 'lucide-react-native';
+import { Check, Info } from 'lucide-react-native';
 import { EdHeader, EdCard, EdPill, FadeIn } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
 import { bookSession } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
 import { localizeServerMessage } from '@/src/api/server-messages';
 import { track } from '@/src/analytics/client';
+import { formatForAnalytics, formatWords } from '@/src/care/session-format';
+import { FormatIcon } from '@/src/care/FormatIcon';
 
 // Confirm the booking — the practitioner's counterpart to the patient's
 // book-confirm screen, and deliberately the same shape.
@@ -35,7 +37,6 @@ const T = {
   },
 } as const;
 
-const FORMAT_ICON = { video: Video, in_person: MapPin, phone: Phone } as const;
 
 export default function BookConfirm() {
   const { t: TT } = useTheme();
@@ -43,6 +44,7 @@ export default function BookConfirm() {
   const { locale } = useI18n();
   const tr = T[locale] ?? T.en;
   const p = useLocalSearchParams<{
+    formatLabel?: string;
     memberId?: string; name?: string; sessionTypeId?: string; label?: string;
     scheduledAt?: string; format?: string; duration?: string; tz?: string;
   }>();
@@ -54,7 +56,6 @@ export default function BookConfirm() {
   const iso = typeof p.scheduledAt === 'string' ? p.scheduledAt : '';
   const format = typeof p.format === 'string' ? p.format : 'video';
   const duration = Number(p.duration ?? '60') || 60;
-  const Icon = FORMAT_ICON[format as keyof typeof FORMAT_ICON] ?? MapPin;
 
   // On the practice's clock, like the calendar and the slot list (see book.tsx).
   const zone = typeof p.tz === 'string' && p.tz ? { timeZone: p.tz } : {};
@@ -74,7 +75,8 @@ export default function BookConfirm() {
     // A 409 is the one a practitioner will actually hit, and it means the day
     // moved under them — say exactly that rather than "something went wrong".
     if (!res.ok) { setError(localizeServerMessage(res.error, locale) ?? tr.generic); return; }
-    track('practitioner_session_booked', { format });
+    // The kind ("place"), never a place's own id.
+    track('practitioner_session_booked', { format: formatForAnalytics(format) });
     setDone(true);
   };
 
@@ -91,9 +93,9 @@ export default function BookConfirm() {
             <Text style={{ fontSize: 15, color: TT.ink, marginTop: 8, textTransform: 'capitalize' }}>{when}</Text>
             <Text style={{ fontSize: 15, fontWeight: '700', color: TT.accent, marginTop: 2 }}>{time} · {duration} min</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
-              <Icon size={14} color={TT.faint} />
+              <FormatIcon format={format} size={14} color={TT.faint} />
               <Text style={{ fontSize: 13.5, color: TT.inkSoft }}>
-                {tr[format as 'video' | 'phone' | 'in_person'] ?? format}{p.label ? ` · ${p.label}` : ''}
+                {tr[format as 'video' | 'phone' | 'in_person'] ?? formatWords(format, locale, p.formatLabel)}{p.label ? ` · ${p.label}` : ''}
               </Text>
             </View>
           </EdCard>

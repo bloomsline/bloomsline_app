@@ -5,7 +5,19 @@ export interface CareSession {
   id: string;
   scheduledAt: string; // ISO
   durationMinutes: number;
-  sessionFormat: string; // in_person | video | phone
+  sessionFormat: string; // in_person | video | phone | place:<id>
+  /** The server's words for it ("À domicile"); absent from older servers. */
+  formatLabel?: string;
+  /** in_person | video | phone | place. */
+  formatKind?: string;
+  /** Where, for a session held somewhere: the home address, a meeting point. */
+  location?: string | null;
+  /** The session's own map link (its office's or meeting point's), from
+   *  servers since saved locations. */
+  mapsUrl?: string | null;
+  /** How to get in: "Getting in: building B, door code: 4721." Already in the
+   *  reader's language. Absent from older servers and for video or phone. */
+  access?: string | null;
   sessionType: string;
   status: string;
   meetLink: string | null;
@@ -131,9 +143,10 @@ export async function fetchTodo(): Promise<TodoItem[] | null> {
 }
 
 /** The patient's past sessions, newest first. */
-export async function fetchHistory(): Promise<CareSession[] | null> {
+export async function fetchHistory(locale?: 'en' | 'fr'): Promise<CareSession[] | null> {
   try {
-    const res = await apiFetch('/api/mobile/care/history');
+    // The app's language, for each session's format label.
+    const res = await apiFetch(`/api/mobile/care/history${locale ? `?locale=${locale}` : ''}`);
     if (!res.ok) return null;
     return (await res.json()).sessions as CareSession[];
   } catch {

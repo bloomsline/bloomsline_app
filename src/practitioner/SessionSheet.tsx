@@ -1,10 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Linking, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import {
-  CalendarClock, CheckCircle2, ChevronDown, Mail, MapPin, MoreHorizontal, NotebookPen, Phone,
-  Repeat, Send, Trash2, UserX, Video, X, XCircle,
-} from 'lucide-react-native';
+import { CalendarClock, CheckCircle2, ChevronDown, Mail, MoreHorizontal, NotebookPen, Repeat, Send, Trash2, UserX, Video, X, XCircle } from 'lucide-react-native';
 import { ConfirmLayer, useConfirm } from '@/src/ui/confirm';
 import { notify } from '@/src/ui/alert';
 import { useI18n } from '@/src/i18n';
@@ -17,6 +14,8 @@ import { useTheme } from '@/src/ui/theme-mode';
 import { LIGHT, DARK, type Mode } from '@/src/ui/tokens';
 import { localizeServerMessage } from '@/src/api/server-messages';
 import { track } from '@/src/analytics/client';
+import { formatWords } from '@/src/care/session-format';
+import { FormatIcon } from '@/src/care/FormatIcon';
 
 // Everything you can do to a session, without leaving the day.
 //
@@ -75,7 +74,6 @@ const T = {
   },
 } as const;
 
-const FORMAT_ICON = { video: Video, in_person: MapPin, phone: Phone } as const;
 
 // Pill colours mirror the care app's popover so the two surfaces read as one
 // product — a practitioner moving between laptop and phone should not have to
@@ -299,7 +297,6 @@ export function SessionSheet({
     router.navigate('/(practitioner)/note' as never);
   };
 
-  const Icon = FORMAT_ICON[s.sessionFormat as keyof typeof FORMAT_ICON] ?? MapPin;
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={() => { reset(); onClose(); }} statusBarTranslucent>
@@ -317,7 +314,7 @@ export function SessionSheet({
             {/* header */}
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
               <View style={{ height: 36, width: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: TT.bg }}>
-                <Icon size={17} color={TT.inkSoft} />
+                <FormatIcon format={s.sessionFormat} size={17} color={TT.inkSoft} />
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7 }}>
@@ -337,7 +334,7 @@ export function SessionSheet({
                 {/* facts */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7, marginTop: 16 }}>
                   <Text style={{ fontSize: 13.5, color: TT.inkSoft }}>
-                    {s.sessionType} · {s.sessionFormat.replace('_', ' ')} · {s.durationMinutes}m{price ? ` · ${price}` : ''}
+                    {s.sessionType} · {formatWords(s.sessionFormat, locale, s.formatLabel)} · {s.durationMinutes}m{price ? ` · ${price}` : ''}
                   </Text>
                   {s.paymentStatus && <Pill label={tr.payments[s.paymentStatus as keyof typeof tr.payments] ?? s.paymentStatus} tone={PAYMENT_TONE[s.paymentStatus] ?? 'grey'} />}
                   {s.source && tr.origins[s.source as keyof typeof tr.origins] && <Pill label={tr.origins[s.source as keyof typeof tr.origins]} tone="grey" />}
@@ -350,6 +347,7 @@ export function SessionSheet({
                 </View>
 
                 {s.location ? <Text style={{ fontSize: 13.5, color: TT.inkSoft, marginTop: 7 }}>{s.location}</Text> : null}
+                {s.access ? <Text style={{ fontSize: 12.5, color: TT.faint, marginTop: 4, lineHeight: 18 }}>{s.access}</Text> : null}
                 {s.email ? (
                   <Pressable onPress={() => { void Linking.openURL(`mailto:${s.email}`); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 9 }}>
                     <Mail size={14} color={TT.faint} />

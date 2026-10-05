@@ -69,6 +69,8 @@ export default function Book() {
   const [attempt, setAttempt] = useState(0);
   const [patients, setPatients] = useState<PatientListItem[]>([]);
   const [types, setTypes] = useState<SessionTypeOption[]>([]);
+  // The server's words for each format, places included.
+  const [formatLabels, setFormatLabels] = useState<Record<string, string>>({});
   const [patient, setPatient] = useState<PatientListItem | null>(null);
   const [type, setType] = useState<SessionTypeOption | null>(null);
   const [date, setDate] = useState<string | null>(typeof params.initialDate === 'string' ? params.initialDate : null);
@@ -90,6 +92,7 @@ export default function Book() {
         setPatientsFailed(!pats);
         if (pats) setPatients(pats);
         setTypes(opts?.sessionTypes ?? []);
+        setFormatLabels(opts?.formatLabels ?? {});
         setNextFree(opts?.nextAvailable ?? []);
         // Keep a type the practitioner already picked; only default when none.
         if (opts?.sessionTypes?.length) setType((cur) => cur ?? opts.sessionTypes[0]);
@@ -158,7 +161,7 @@ export default function Book() {
       pathname: '/(practitioner)/book-confirm',
       params: {
         memberId: patient.id, name: patient.name, sessionTypeId: type.id, label: type.label,
-        scheduledAt: slot, format: type.defaultFormat, duration: String(type.durationMinutes), ...(tz ? { tz } : {}),
+        scheduledAt: slot, format: type.defaultFormat, formatLabel: formatLabels[type.defaultFormat] ?? '', duration: String(type.durationMinutes), ...(tz ? { tz } : {}),
       },
     } as never);
   };

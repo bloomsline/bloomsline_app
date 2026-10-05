@@ -16,6 +16,10 @@ export interface BookingSlots {
    *  no charge. `formats` are the ways this type can be booked. */
   sessionTypes: { id: string; name: string; durationMinutes: number; priceCents: number | null; defaultFormat: string; formats?: string[] }[];
   offeredFormats: string[];
+  /** Words for each offered format, places included (newer servers only). */
+  formatLabels?: Record<string, string>;
+  /** The patient's own address, to prefill a home visit with. */
+  homeAddress?: string | null;
   currency: string;
   /** Absent from older servers. */
   policy?: { allowPatientChange: boolean; noticeHours: number; requireApproval: boolean };
@@ -35,8 +39,10 @@ export type SlotsRefusal = 'not_allowed' | 'no_practitioner' | 'minor' | 'other'
  *  The reason is kept because the two refusals ask different things of the
  *  patient: a practitioner who books for them is someone to contact, and
  *  having no practitioner selected is a switch away. */
-export async function fetchSlots(params: { sessionTypeId?: string; format?: string } = {}): Promise<BookingSlots | { unavailable: SlotsRefusal } | null> {
+export async function fetchSlots(params: { sessionTypeId?: string; format?: string; rescheduleId?: string } = {}): Promise<BookingSlots | { unavailable: SlotsRefusal } | null> {
   const q = new URLSearchParams();
+  // Moving a session: the server looks in that session's own format and length.
+  if (params.rescheduleId) q.set('rescheduleId', params.rescheduleId);
   if (params.sessionTypeId) q.set('sessionTypeId', params.sessionTypeId);
   if (params.format) q.set('format', params.format);
   const qs = q.toString();
@@ -58,7 +64,7 @@ export interface BookResult {
   ok: boolean;
   appointmentId?: string;
   pending?: boolean;
-  reason?: string; // 'conflict' | 'unavailable'
+  reason?: string; // 'conflict' | 'unavailable' | 'address_required' | 'address_invalid' | ...
   error?: string;
 }
 
@@ -67,6 +73,8 @@ export async function createBooking(input: {
   sessionTypeId?: string;
   format?: string;
   idempotencyKey: string;
+  /** A home visit's address; the server falls back to the chart's. */
+  address?: string;
 }): Promise<BookResult> {
   const res = await apiFetch('/api/mobile/care/book', { method: 'POST', body: JSON.stringify(input) });
   const data = await res.json().catch(() => ({}));
