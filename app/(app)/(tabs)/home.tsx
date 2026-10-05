@@ -34,6 +34,7 @@ import { rememberGrowOrigin } from '@/src/ui/grow';
 import { Cascade } from '@/src/ui/cascade';
 import { veil } from '@/src/ui/tokens';
 import { LoadFailed } from '@/src/ui/LoadFailed';
+import { formatWords, sessionWayThere } from '@/src/care/session-format';
 import { useStaleOnReturn } from '@/src/ui/use-stale-on-return';
 import { useFrameWidth } from '@/src/ui/frame';
 
@@ -203,7 +204,7 @@ export default function MyCare() {
   const openSession = (s: CareSession) =>
     router.navigate({
       pathname: '/session-menu',
-      params: { id: s.id, scheduledAt: s.scheduledAt, durationMinutes: String(s.durationMinutes), sessionFormat: s.sessionFormat, sessionType: s.sessionType, meetLink: s.meetLink ?? '', demo: real ? '' : '1', canCancel: perms.canCancel ? '1' : '', canReschedule: perms.canReschedule ? '1' : '', noticeHours: String(perms.noticeHours) },
+      params: { id: s.id, scheduledAt: s.scheduledAt, durationMinutes: String(s.durationMinutes), sessionFormat: s.sessionFormat, formatLabel: s.formatLabel ?? '', sessionType: s.sessionType, meetLink: s.meetLink ?? '', demo: real ? '' : '1', canCancel: perms.canCancel ? '1' : '', canReschedule: perms.canReschedule ? '1' : '', noticeHours: String(perms.noticeHours) },
     } as never);
 
   const openUrl = (url: string) => {
@@ -296,7 +297,7 @@ export default function MyCare() {
                     mapsUrl={mapsUrl}
                     onOpen={openSession}
                     onJoin={joinSession}
-                    onMaps={() => mapsUrl && openUrl(mapsUrl)}
+                    onMaps={(url) => { const u = url ?? mapsUrl; if (u) openUrl(u); }}
                   />
                 ) : (
                   <View style={{ marginHorizontal: 22, backgroundColor: TT.card, borderWidth: 1, borderColor: TT.cardLine, borderRadius: 20, padding: 20 }}>
@@ -381,7 +382,8 @@ function SessionCarousel({
   mapsUrl: string | null;
   onOpen: (s: CareSession) => void;
   onJoin: (s: CareSession) => void;
-  onMaps: () => void;
+  /** Opens Maps: the practice's link, or the place's own when one is passed. */
+  onMaps: (url?: string) => void;
 }) {
   const { t: TT, mode } = useTheme();
   // The FRAME, not the browser window: on web these differ and the card would
@@ -452,13 +454,17 @@ function SessionCard({
   mapsUrl: string | null;
   onOpen: () => void;
   onJoin: () => void;
-  onMaps: () => void;
+  /** Opens Maps: the practice's link, or the place's own when one is passed. */
+  onMaps: (url?: string) => void;
 }) {
   const { t: TT, mode } = useTheme();
   // The session sheet grows out of this card (ui/grow).
   const card = useRef<View>(null);
   const open = () => rememberGrowOrigin(card, 20, onOpen);
-  const inPerson = session.sessionFormat === 'in_person';
+  // How to get there, by format: Join, a phone line, Maps to the practice, or
+  // Maps to a place's own location (a home visit's address, a meeting point).
+  // A place never borrows the practice's Maps link (src/care/session-format).
+  const way = sessionWayThere(session, { mapsUrl, address });
   const pay = session.paymentStatus;
   // Asked for, not yet accepted. It looked like any booked session, Join button
   // and all, while the practitioner could still decline it.
@@ -468,7 +474,7 @@ function SessionCard({
       <Kicker color={TT.faint} size={10} style={{ marginBottom: 8 }}>{first ? t.care.nextSession : t.care.then}</Kicker>
       <Text style={{ fontSize: 19, fontWeight: '800', color: TT.ink, letterSpacing: -0.4 }}>{longDate(session.scheduledAt, locale)}</Text>
       <Text style={{ fontSize: 13, color: TT.inkSoft, marginTop: 4 }}>
-        {clock(session.scheduledAt, locale)}  ·  {fmtFormat(session.sessionFormat, locale)}{first ? '' : ` · ${session.durationMinutes} min`}
+        {clock(session.scheduledAt, locale)}  ·  {formatWords(session.sessionFormat, locale, session.formatLabel)}{first ? '' : ` · ${session.durationMinutes} min`}
       </Text>
 
       {pending ? (
@@ -496,24 +502,24 @@ function SessionCard({
       {/* Join only where there is something to join: a video session with its
           link. A phone session has no link — the practitioner calls — and a
           "Join" that answered "Coming soon" was the button it used to show. */}
-      {first && !pending && session.sessionFormat === 'phone' ? (
+      {first && !pending && way.kind === 'phone' ? (
         <View style={{ flexDirection: 'row', gap: 7, marginTop: 14, alignItems: 'center' }}>
           <Phone size={15} color={TT.faint} strokeWidth={2} />
           <Text style={{ flex: 1, fontSize: 13, color: TT.inkSoft }}>{t.care.phoneCall}</Text>
         </View>
-      ) : first && !pending && session.sessionFormat === 'video' && session.meetLink ? (
+      ) : first && !pending && way.kind === 'join' ? (
         <TouchableOpacity onPress={onJoin} activeOpacity={0.85} style={{ height: 44, borderRadius: 22, backgroundColor: TT.ctaBg, alignItems: 'center', justifyContent: 'center', marginTop: 16 }}>
           <Text style={{ fontSize: 14.5, fontWeight: '700', color: TT.ctaFg }}>{t.care.join}</Text>
         </TouchableOpacity>
-      ) : first && !pending && inPerson && mapsUrl ? (
-        <TouchableOpacity onPress={onMaps} activeOpacity={0.85} style={{ height: 44, borderRadius: 22, backgroundColor: TT.ctaBg, alignItems: 'center', justifyContent: 'center', marginTop: 16, flexDirection: 'row', gap: 7 }}>
+      ) : first && !pending && way.kind === 'maps' ? (
+        <TouchableOpacity onPress={() => onMaps(way.place ? way.url : undefined)} activeOpacity={0.85} style={{ height: 44, borderRadius: 22, backgroundColor: TT.ctaBg, alignItems: 'center', justifyContent: 'center', marginTop: 16, flexDirection: 'row', gap: 7 }}>
           <MapPin size={16} color={TT.ctaFg} strokeWidth={2.2} />
           <Text style={{ fontSize: 14.5, fontWeight: '700', color: TT.ctaFg }}>{t.care.openInMaps}</Text>
         </TouchableOpacity>
-      ) : first && !pending && inPerson && address ? (
+      ) : first && !pending && way.kind === 'address' ? (
         <View style={{ flexDirection: 'row', gap: 7, marginTop: 14, alignItems: 'flex-start' }}>
           <MapPin size={15} color={TT.faint} strokeWidth={2} style={{ marginTop: 1 }} />
-          <Text style={{ flex: 1, fontSize: 13, color: TT.inkSoft, lineHeight: 19 }}>{address}</Text>
+          <Text style={{ flex: 1, fontSize: 13, color: TT.inkSoft, lineHeight: 19 }}>{way.text}</Text>
         </View>
       ) : (
         <View style={{ height: first ? 16 : 4 }} />
@@ -569,13 +575,6 @@ function clock(iso: string, locale: string): string {
   // Pass the locale explicitly: without it this inherits the device's, which
   // printed "09:00 AM" on a French screen. French is 24-hour.
   return new Date(iso).toLocaleTimeString(locale === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' });
-}
-function fmtFormat(f: string, locale: string): string {
-  const fr = locale === 'fr';
-  if (f === 'video') return fr ? 'Visio' : 'Video';
-  if (f === 'phone') return fr ? 'Téléphone' : 'Phone';
-  if (f === 'in_person') return fr ? 'En cabinet' : 'In person';
-  return f;
 }
 
 function firstNameOf(name: string): string {

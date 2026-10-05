@@ -3,8 +3,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Linking, Modal, Pressable, Scr
 import { useRouter } from 'expo-router';
 import {
   CalendarClock, CheckCircle2, ChevronDown, Mail, MapPin, MoreHorizontal, NotebookPen, Phone,
-  Repeat, Send, Trash2, UserX, Video, X, XCircle,
-} from 'lucide-react-native';
+  Repeat, Send, Trash2, UserX, Video, X, XCircle, House, Trees } from 'lucide-react-native';
 import { ConfirmLayer, useConfirm } from '@/src/ui/confirm';
 import { notify } from '@/src/ui/alert';
 import { useI18n } from '@/src/i18n';
@@ -17,6 +16,7 @@ import { useTheme } from '@/src/ui/theme-mode';
 import { LIGHT, DARK, type Mode } from '@/src/ui/tokens';
 import { localizeServerMessage } from '@/src/api/server-messages';
 import { track } from '@/src/analytics/client';
+import { formatWords } from '@/src/care/session-format';
 
 // Everything you can do to a session, without leaving the day.
 //
@@ -299,7 +299,7 @@ export function SessionSheet({
     router.navigate('/(practitioner)/note' as never);
   };
 
-  const Icon = FORMAT_ICON[s.sessionFormat as keyof typeof FORMAT_ICON] ?? MapPin;
+  const Icon = FORMAT_ICON[s.sessionFormat as keyof typeof FORMAT_ICON] ?? (s.sessionFormat === 'place:home' ? House : s.sessionFormat === 'place:outdoors' ? Trees : MapPin);
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={() => { reset(); onClose(); }} statusBarTranslucent>
@@ -337,7 +337,7 @@ export function SessionSheet({
                 {/* facts */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7, marginTop: 16 }}>
                   <Text style={{ fontSize: 13.5, color: TT.inkSoft }}>
-                    {s.sessionType} · {s.sessionFormat.replace('_', ' ')} · {s.durationMinutes}m{price ? ` · ${price}` : ''}
+                    {s.sessionType} · {formatWords(s.sessionFormat, locale, s.formatLabel)} · {s.durationMinutes}m{price ? ` · ${price}` : ''}
                   </Text>
                   {s.paymentStatus && <Pill label={tr.payments[s.paymentStatus as keyof typeof tr.payments] ?? s.paymentStatus} tone={PAYMENT_TONE[s.paymentStatus] ?? 'grey'} />}
                   {s.source && tr.origins[s.source as keyof typeof tr.origins] && <Pill label={tr.origins[s.source as keyof typeof tr.origins]} tone="grey" />}

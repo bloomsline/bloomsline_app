@@ -31,7 +31,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronDown, ChevronUp, Check, Video, Phone, MapPin } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, Check, Video, Phone, MapPin, House, Trees } from 'lucide-react-native';
+import { formatWords } from '@/src/care/session-format';
+import { setDraftHomeAddress } from '@/src/care/booking-draft';
 import { EdHeader, EdPill, FadeIn, Kicker } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useOnboarding } from '@/src/onboarding/context';
@@ -80,14 +82,22 @@ function formatsFor(data: BookingSlots, typeId: string | null): string[] {
   const t = data.sessionTypes.find((x) => x.id === typeId);
   if (!t?.formats?.length) return data.offeredFormats;
   const allowed = data.offeredFormats.filter((f) => t.formats!.includes(f));
-  return allowed.length ? allowed : data.offeredFormats;
+  if (allowed.length) return allowed;
+  // As the server: the fallback is for a type narrowed to a built-in format the
+  // practice turned off. A type at a place that is not open here is not
+  // bookable here, never widened to video.
+  return t.formats.some((f) => f.startsWith('place:')) ? [] : data.offeredFormats;
 }
 
 const FORMAT_ICON: Record<string, typeof Video> = {
   video: Video,
   phone: Phone,
   in_person: MapPin,
+  'place:home': House,
+  'place:outdoors': Trees,
 };
+/** A place they named has no icon of its own: a pin. */
+const iconFor = (f: string) => FORMAT_ICON[f] ?? (f.startsWith('place:') ? MapPin : Video);
 
 const T = {
   en: {
@@ -113,7 +123,7 @@ const T = {
     session: 'Session',
     bookAt: (when: string) => `Book ${when}`,
     moveTo: (when: string) => `Move to ${when}`,
-    formats: { video: 'Video call', phone: 'Phone call', in_person: 'In person' } as Record<string, string>,
+    formats: { video: 'Video call', phone: 'Phone call', in_person: 'At the practice' } as Record<string, string>,
   },
   fr: {
     bookTitle: 'Réserver une séance',
@@ -138,7 +148,7 @@ const T = {
     session: 'Séance',
     bookAt: (when: string) => `Réserver ${when}`,
     moveTo: (when: string) => `Déplacer au ${when}`,
-    formats: { video: 'Appel vidéo', phone: 'Appel téléphonique', in_person: 'En personne' } as Record<string, string>,
+    formats: { video: 'Appel vidéo', phone: 'Appel téléphonique', in_person: 'Au cabinet' } as Record<string, string>,
   },
 } as const;
 
@@ -159,7 +169,6 @@ export default function Book() {
   const router = useRouter();
   const { locale, t } = useI18n();
   const tr = T[locale];
-  const formatLabel = (f: string) => tr.formats[f] ?? f;
   const params = useLocalSearchParams<{ rescheduleId?: string; sessionTypeId?: string; format?: string; demo?: string }>();
   const rescheduleId = typeof params.rescheduleId === 'string' ? params.rescheduleId : '';
   const isReschedule = !!rescheduleId;
@@ -170,6 +179,9 @@ export default function Book() {
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<BookingSlots | null>(null);
+  // Our own words for what we know (they follow the app's language, which the
+  // account's may not), the server's for a place the practitioner named.
+  const formatLabel = (f: string) => tr.formats[f] ?? (f === 'place:home' || f === 'place:outdoors' ? formatWords(f, locale) : formatWords(f, locale, data?.formatLabels?.[f]));
   const [isDemo, setIsDemo] = useState(false);
 
   const [typeId, setTypeId] = useState<string | null>(params.sessionTypeId ?? null);
@@ -338,10 +350,14 @@ export default function Book() {
     if (!pick || !typeId || !format || !data) return;
     const dur = data.sessionTypes.find((t) => t.id === typeId)?.durationMinutes ?? 50;
     returningFromConfirm.current = true;
+    setDraftHomeAddress(format === 'place:home' ? data.homeAddress : null);
     router.navigate({
       pathname: '/book-confirm',
       params: {
         slotIso: pick, sessionTypeId: typeId, format, durationMinutes: String(dur), demo: isDemo ? '1' : '', rescheduleId,
+        // How to say the format. A home visit's prefill goes in memory, never
+        // the URL (src/care/booking-draft).
+        formatLabel: formatLabel(format),
         // The practitioner's real rules, for the confirm screen to state.
         ...(data.policy ? { canChange: data.policy.allowPatientChange ? '1' : '0', noticeHours: String(data.policy.noticeHours), approval: data.policy.requireApproval ? '1' : '0' } : {}),
       },
@@ -436,7 +452,7 @@ export default function Book() {
                 typeFormats.map((f) => (
                   <Choice
                     key={f}
-                    Icon={FORMAT_ICON[f] ?? Video}
+                    Icon={iconFor(f)}
                     title={formatLabel(f)}
                     selected={format === f}
                     onPress={() => chooseFormat(f)}

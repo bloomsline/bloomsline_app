@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { CalendarPlus, ChevronLeft, ChevronRight, MapPin, Phone, Video } from 'lucide-react-native';
+import { CalendarPlus, ChevronLeft, ChevronRight, MapPin, Phone, Video, House, Trees } from 'lucide-react-native';
 import { EdHeader, FadeIn } from '@/src/ui/editorial';
 import { PractitionerTabBar, PRACTITIONER_TAB_PAD } from '@/src/ui/PractitionerTabBar';
 import { SessionSheet } from '@/src/practitioner/SessionSheet';
@@ -10,6 +10,7 @@ import { fetchDay, fetchBookingOptions, type CloseReasonGroup, type Practitioner
 import { useTheme } from '@/src/ui/theme-mode';
 import { LIGHT, DARK, type Mode, type Palette } from '@/src/ui/tokens';
 import { LoadFailed } from '@/src/ui/LoadFailed';
+import { formatWords } from '@/src/care/session-format';
 
 // The day, as a timeline rather than a list.
 //
@@ -295,10 +296,11 @@ function SessionBlock({ session: s, top, timeLabel, pendingLabel, onPress }: {
   session: PractitionerSession; top: number; timeLabel: string; pendingLabel: string; onPress: () => void;
 }) {
   const { mode } = useTheme();
+  const { locale } = useI18n();
   const height = Math.max(24, (s.durationMinutes / 60) * HOUR_HEIGHT - 3);
   const pending = s.status === 'pending';
   const off = OFF.has(s.status ?? '');
-  const Icon = FORMAT_ICON[s.sessionFormat as keyof typeof FORMAT_ICON] ?? MapPin;
+  const Icon = FORMAT_ICON[s.sessionFormat as keyof typeof FORMAT_ICON] ?? (s.sessionFormat === 'place:home' ? House : s.sessionFormat === 'place:outdoors' ? Trees : MapPin);
 
   const fill = pending ? FILL[mode].pending : off ? FILL[mode].off : FILL[mode].booked;
   // Ink is picked per FILL, not per state, because contrast is a property of the
@@ -316,7 +318,7 @@ function SessionBlock({ session: s, top, timeLabel, pendingLabel, onPress }: {
   const roomy = height >= 34;
   // A cancelled session says so in words rather than by being a different
   // shape, since the shape is doing enough work already.
-  const meta = pending ? `${pendingLabel} · ${s.sessionFormat.replace('_', ' ')}` : (s.location || s.sessionFormat.replace('_', ' '));
+  const meta = pending ? `${pendingLabel} · ${formatWords(s.sessionFormat, locale, s.formatLabel)}` : (s.location || formatWords(s.sessionFormat, locale, s.formatLabel));
 
   return (
     <Pressable

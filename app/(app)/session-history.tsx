@@ -10,6 +10,7 @@ import { useI18n, type Locale } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
 import { LIGHT, DARK, type Mode } from '@/src/ui/tokens';
 import { LoadFailed } from '@/src/ui/LoadFailed';
+import { formatWords } from '@/src/care/session-format';
 
 const T = {
   en: {
@@ -22,7 +23,7 @@ const T = {
     missed: 'Missed',
     video: 'Video',
     phone: 'Phone',
-    inPerson: 'In person',
+    inPerson: 'At the practice',
   },
   fr: {
     title: 'Historique des séances',
@@ -34,7 +35,7 @@ const T = {
     missed: 'Manquée',
     video: 'Vidéo',
     phone: 'Téléphone',
-    inPerson: 'En personne',
+    inPerson: 'Au cabinet',
   },
 } as const;
 
@@ -101,7 +102,7 @@ export default function SessionHistory() {
                     </View>
                     <View style={{ width: 1, height: 32, backgroundColor: TT.line }} />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: TT.ink }}>{clock(s.scheduledAt)} · {fmtFormat(s.sessionFormat, tr)}</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: TT.ink }}>{clock(s.scheduledAt)} · {fmtFormat(s.sessionFormat, tr, locale, s.formatLabel)}</Text>
                       <Text style={{ fontSize: 12, color: TT.inkSoft, marginTop: 1 }}>{s.durationMinutes} min</Text>
                     </View>
                     <View style={{ backgroundColor: st.bg, borderRadius: 11, paddingVertical: 4, paddingHorizontal: 10 }}>
@@ -121,4 +122,5 @@ export default function SessionHistory() {
 const monthShort = (iso: string, locale: Locale) => new Date(iso).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', { month: 'short' });
 const dayNum = (iso: string) => String(new Date(iso).getDate());
 const clock = (iso: string) => { const d = new Date(iso); return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`; };
-const fmtFormat = (f: string, tr: (typeof T)[Locale]) => (f === 'video' ? tr.video : f === 'phone' ? tr.phone : f === 'in_person' ? tr.inPerson : f);
+// A place ("À domicile") is said by the server; never the raw key.
+const fmtFormat = (f: string, tr: (typeof T)[Locale], locale: string, label?: string) => (f === 'video' ? tr.video : f === 'phone' ? tr.phone : f === 'in_person' ? tr.inPerson : formatWords(f, locale, label));

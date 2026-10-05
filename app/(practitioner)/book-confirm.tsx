@@ -8,6 +8,7 @@ import { bookSession } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
 import { localizeServerMessage } from '@/src/api/server-messages';
 import { track } from '@/src/analytics/client';
+import { formatForAnalytics, formatWords } from '@/src/care/session-format';
 
 // Confirm the booking — the practitioner's counterpart to the patient's
 // book-confirm screen, and deliberately the same shape.
@@ -43,6 +44,7 @@ export default function BookConfirm() {
   const { locale } = useI18n();
   const tr = T[locale] ?? T.en;
   const p = useLocalSearchParams<{
+    formatLabel?: string;
     memberId?: string; name?: string; sessionTypeId?: string; label?: string;
     scheduledAt?: string; format?: string; duration?: string; tz?: string;
   }>();
@@ -74,7 +76,8 @@ export default function BookConfirm() {
     // A 409 is the one a practitioner will actually hit, and it means the day
     // moved under them — say exactly that rather than "something went wrong".
     if (!res.ok) { setError(localizeServerMessage(res.error, locale) ?? tr.generic); return; }
-    track('practitioner_session_booked', { format });
+    // The kind ("place"), never a place's own id.
+    track('practitioner_session_booked', { format: formatForAnalytics(format) });
     setDone(true);
   };
 
@@ -93,7 +96,7 @@ export default function BookConfirm() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 }}>
               <Icon size={14} color={TT.faint} />
               <Text style={{ fontSize: 13.5, color: TT.inkSoft }}>
-                {tr[format as 'video' | 'phone' | 'in_person'] ?? format}{p.label ? ` · ${p.label}` : ''}
+                {tr[format as 'video' | 'phone' | 'in_person'] ?? formatWords(format, locale, p.formatLabel)}{p.label ? ` · ${p.label}` : ''}
               </Text>
             </View>
           </EdCard>

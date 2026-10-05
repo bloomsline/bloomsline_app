@@ -114,6 +114,11 @@ export async function apiFetch(path: string, init: RequestInit = {}, allowRetry 
   const linkId = getCurrentLinkId();
   if (linkId && !headers.has('x-bl-link')) headers.set('x-bl-link', linkId);
 
+  // This build understands session places (src/care/session-format.ts). The
+  // server offers places only to an app that says so; an older build never
+  // sends it and keeps seeing the built-in formats alone.
+  if (!headers.has('x-bl-places')) headers.set('x-bl-places', '1');
+
   const res = await fetchOrOffline(`${API_URL}${path}`, { ...init, headers });
 
   if (res.status === 401 && allowRetry && (await getRefreshToken())) {

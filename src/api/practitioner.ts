@@ -9,7 +9,9 @@ export interface PractitionerSession {
   memberId?: string | null;
   scheduledAt: string; // ISO
   durationMinutes: number;
-  sessionFormat: string; // in_person | video | phone
+  sessionFormat: string; // in_person | video | phone | place:<id>
+  /** The server's words for it ("À domicile"); absent from older servers. */
+  formatLabel?: string;
   sessionType: string;
   who: string;
   /** A guest booking has no member row, so the member-scoped actions can't run. */
@@ -35,6 +37,7 @@ export interface BookingRequest {
   scheduledAt: string; // ISO
   durationMinutes: number;
   sessionFormat: string;
+  formatLabel?: string;
   sessionType: string;
   who: string;
   isGuest: boolean;
@@ -120,6 +123,7 @@ export interface PatientSessionRow {
   /** Resolved server-side. `sessionType` is an id and shows as "follow_up" raw. */
   sessionTypeLabel?: string;
   sessionFormat: string;
+  formatLabel?: string;
   paymentStatus: string;
   priceCents?: number | null;
   location?: string | null;
@@ -211,6 +215,7 @@ export interface PatientSession {
   scheduledAt: string;
   durationMinutes: number;
   sessionFormat: string;
+  formatLabel?: string;
   sessionType: string;
   status: string;
 }
@@ -231,6 +236,7 @@ export interface UpcomingSession {
   scheduledAt: string;
   durationMinutes: number;
   sessionFormat: string;
+  formatLabel?: string;
   sessionType: string;
   status?: string;
   /** Already over: listed under Recent, after the sessions still to come. */
@@ -397,7 +403,7 @@ export interface ShareableResource {
 
 export interface NextAvailableDay { date: string; slots: string[] }
 
-export async function fetchBookingOptions(params?: { date?: string; duration?: number; format?: string }): Promise<{ sessionTypes: SessionTypeOption[]; timezone: string; slots: string[]; nextAvailable: NextAvailableDay[]; closeReasons?: CloseReasonGroup[] } | null> {
+export async function fetchBookingOptions(params?: { date?: string; duration?: number; format?: string }): Promise<{ sessionTypes: SessionTypeOption[]; formatLabels?: Record<string, string>; timezone: string; slots: string[]; nextAvailable: NextAvailableDay[]; closeReasons?: CloseReasonGroup[] } | null> {
   try {
     const qs = new URLSearchParams();
     if (params?.date) qs.set('date', params.date);

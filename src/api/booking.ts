@@ -16,6 +16,10 @@ export interface BookingSlots {
    *  no charge. `formats` are the ways this type can be booked. */
   sessionTypes: { id: string; name: string; durationMinutes: number; priceCents: number | null; defaultFormat: string; formats?: string[] }[];
   offeredFormats: string[];
+  /** Words for each offered format, places included (newer servers only). */
+  formatLabels?: Record<string, string>;
+  /** The patient's own address, to prefill a home visit with. */
+  homeAddress?: string | null;
   currency: string;
   /** Absent from older servers. */
   policy?: { allowPatientChange: boolean; noticeHours: number; requireApproval: boolean };
@@ -58,7 +62,7 @@ export interface BookResult {
   ok: boolean;
   appointmentId?: string;
   pending?: boolean;
-  reason?: string; // 'conflict' | 'unavailable'
+  reason?: string; // 'conflict' | 'unavailable' | 'address_required' | 'address_invalid' | ...
   error?: string;
 }
 
@@ -67,6 +71,8 @@ export async function createBooking(input: {
   sessionTypeId?: string;
   format?: string;
   idempotencyKey: string;
+  /** A home visit's address; the server falls back to the chart's. */
+  address?: string;
 }): Promise<BookResult> {
   const res = await apiFetch('/api/mobile/care/book', { method: 'POST', body: JSON.stringify(input) });
   const data = await res.json().catch(() => ({}));

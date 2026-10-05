@@ -6,7 +6,11 @@ import { useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Info, MapPin, Phone, Video } from 'lucide-react-native';
+import { Info } from 'lucide-react-native';
+import { Field } from '@/src/ui/Field';
+import { FormatIcon } from '@/src/care/FormatIcon';
+import { formatForAnalytics, formatWords } from '@/src/care/session-format';
+import { draftHomeAddress } from '@/src/care/booking-draft';
 import { notify } from '@/src/ui/alert';
 import { EdHeader, EdCard, EdPill, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
@@ -32,7 +36,10 @@ const T = {
     withName: (n: string) => `· with ${n}`,
     videoSession: 'Video session',
     phoneSession: 'Phone session',
-    inPersonSession: 'In-person session',
+    inPersonSession: 'Session at the practice',
+    addressLabel: 'Your address (where the session will take place)',
+    addressRequired: 'Add the address where the session will take place.',
+    addressInvalid: 'Enter a street address only.',
     policyChange: (h: number) => `You can move this session up to ${h} hours before it starts. You can always cancel; inside those ${h} hours it counts as a late cancellation.`,
     policyContact: (n: string) => `To change or cancel this session, contact ${n}.`,
     policyApproval: (n: string) => `${n} confirms each booking. You'll get an email once it's confirmed.`,
@@ -54,7 +61,10 @@ const T = {
     withName: (n: string) => `· avec ${n}`,
     videoSession: 'Séance vidéo',
     phoneSession: 'Séance téléphonique',
-    inPersonSession: 'Séance en personne',
+    inPersonSession: 'Séance au cabinet',
+    addressLabel: 'Votre adresse (où la séance aura lieu)',
+    addressRequired: 'Indiquez l’adresse où la séance aura lieu.',
+    addressInvalid: 'Indiquez seulement une adresse postale.',
     policyChange: (h: number) => `Vous pouvez déplacer cette séance jusqu'à ${h} heures avant son début. Vous pouvez toujours annuler ; dans ces ${h} heures, l'annulation est considérée comme tardive.`,
     policyContact: (n: string) => `Pour modifier ou annuler cette séance, contactez ${n}.`,
     policyApproval: (n: string) => `${n} confirme chaque réservation. Vous recevrez un e-mail une fois la séance confirmée.`,
@@ -71,7 +81,7 @@ export default function BookConfirm() {
   const router = useRouter();
   const { locale } = useI18n();
   const tr = T[locale];
-  const params = useLocalSearchParams<{ slotIso?: string; sessionTypeId?: string; format?: string; durationMinutes?: string; demo?: string; rescheduleId?: string; canChange?: string; noticeHours?: string; approval?: string }>();
+  const params = useLocalSearchParams<{ slotIso?: string; sessionTypeId?: string; format?: string; durationMinutes?: string; demo?: string; rescheduleId?: string; canChange?: string; noticeHours?: string; approval?: string; formatLabel?: string }>();
   const rescheduleId = typeof params.rescheduleId === 'string' ? params.rescheduleId : '';
   const { practitionerName } = useOnboarding();
   const name = practitionerName ?? tr.yourPractitioner;
@@ -105,6 +115,12 @@ export default function BookConfirm() {
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // A home visit happens at the patient's address: started from their chart,
+  // theirs to change. The server falls back to the chart when this is empty.
+  const atHome = format === 'place:home' && !rescheduleId;
+  const [address, setAddress] = useState(() => draftHomeAddress() ?? '');
+  const formatText = format === 'video' ? tr.videoSession : format === 'phone' ? tr.phoneSession : format === 'in_person' ? tr.inPersonSession
+    : formatWords(format, locale, typeof params.formatLabel === 'string' ? params.formatLabel : null);
 
   const start = slotIso ? new Date(slotIso) : null;
   const end = start ? new Date(start.getTime() + durationMinutes * 60000) : null;
@@ -113,6 +129,7 @@ export default function BookConfirm() {
 
   const confirm = async () => {
     if (busy || !start || openedFor.current !== selectionKey) return;
+    if (atHome && address.replace(/\s+/g, ' ').trim().length < 5 && !isDemo) { setError(tr.addressRequired); return; }
     if (isDemo) {
       alert(rescheduleId ? tr.rescheduledDemo : tr.confirmedDemo);
       router.navigate('/home' as never);
@@ -123,12 +140,13 @@ export default function BookConfirm() {
 
     const res = rescheduleId
       ? await rescheduleSession(rescheduleId, slotIso)
-      : await createBooking({ slotIso, sessionTypeId: params.sessionTypeId, format, idempotencyKey });
+      : await createBooking({ slotIso, sessionTypeId: params.sessionTypeId, format, idempotencyKey, ...(atHome ? { address } : {}) });
 
     if (res.ok) {
       // A request awaiting the practitioner is a different outcome from a booked
       // session, and is counted as one.
-      track('session_booked', { pending: 'pending' in res && !!res.pending, rescheduled: !!rescheduleId, format });
+      // The kind ("place"), never a place's own id.
+      track('session_booked', { pending: 'pending' in res && !!res.pending, rescheduled: !!rescheduleId, format: formatForAnalytics(format) });
       // Waiting on the practitioner is not booked, and the patient should not
       // leave believing it is.
       if ('pending' in res && res.pending) notify(tr.requestSentTitle, tr.requestSentBody(name));
@@ -143,7 +161,9 @@ export default function BookConfirm() {
     } else {
       // Translated by reason; the server's own sentence is English.
       setError(
-        res.reason === 'not_allowed' ? tr.notAllowed(name)
+        res.reason === 'address_required' ? tr.addressRequired
+        : res.reason === 'address_invalid' ? tr.addressInvalid
+        : res.reason === 'not_allowed' ? tr.notAllowed(name)
         : res.reason === 'no_practitioner' ? tr.noPractitioner
         : res.reason === 'too_late' ? tr.tooLate
         : tr.genericError,
@@ -164,10 +184,17 @@ export default function BookConfirm() {
             <Text style={{ fontSize: 22, fontWeight: '800', color: TT.ink, letterSpacing: -0.3, textAlign: 'center' }}>{start ? longDate(start, locale) : '—'}</Text>
             <Text style={{ fontSize: 15, color: TT.inkSoft, marginTop: 4, textAlign: 'center' }}>{start && end ? `${clock(start)} – ${clock(end)}` : ''} {tr.withName(name)}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, backgroundColor: TT.accentTint, borderRadius: 14, paddingVertical: 7, paddingHorizontal: 14 }}>
-              {format === 'phone' ? <Phone size={14} color={TT.accent} strokeWidth={2} /> : format === 'in_person' ? <MapPin size={14} color={TT.accent} strokeWidth={2} /> : <Video size={14} color={TT.accent} strokeWidth={2} />}
-              <Text style={{ fontSize: 13, fontWeight: '700', color: TT.accent }}>{format === 'video' ? tr.videoSession : format === 'phone' ? tr.phoneSession : tr.inPersonSession}</Text>
+              <FormatIcon format={format} size={14} color={TT.accent} />
+              <Text style={{ fontSize: 13, fontWeight: '700', color: TT.accent }}>{formatText}</Text>
             </View>
           </EdCard>
+
+          {atHome && (
+            <View style={{ marginTop: 16 }}>
+              <Field label={tr.addressLabel} required value={address} onChangeText={setAddress} maxLength={200}
+                autoComplete="street-address" textContentType="fullStreetAddress" />
+            </View>
+          )}
 
           {/* What happens next, and what the patient can change. From the
               practitioner's own settings: this used to promise "free up to 24

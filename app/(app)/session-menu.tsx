@@ -19,6 +19,7 @@ import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
 import { GrowFrame, takeGrowOrigin, type GrowHandle } from '@/src/ui/grow';
 import { track } from '@/src/analytics/client';
+import { formatWords } from '@/src/care/session-format';
 
 // Destructive tone for the cancel action, in an editorial-warm register.
 const DANGER = '#B04A32';
@@ -48,7 +49,7 @@ const T = {
     days: '{n} days',
     videoCall: 'Video call',
     phone: 'Phone',
-    inPerson: 'In person',
+    inPerson: 'At the practice',
   },
   fr: {
     session: 'Séance',
@@ -73,7 +74,7 @@ const T = {
     days: '{n} jours',
     videoCall: 'Appel vidéo',
     phone: 'Téléphone',
-    inPerson: 'En personne',
+    inPerson: 'Au cabinet',
   },
 } as const;
 
@@ -83,7 +84,7 @@ export default function SessionMenu() {
   const confirm = useConfirm();
   const tr = T[locale];
   const router = useRouter();
-  const p = useLocalSearchParams<{ id?: string; scheduledAt?: string; durationMinutes?: string; sessionFormat?: string; sessionType?: string; meetLink?: string; demo?: string; canCancel?: string; canReschedule?: string; noticeHours?: string }>();
+  const p = useLocalSearchParams<{ id?: string; scheduledAt?: string; durationMinutes?: string; sessionFormat?: string; sessionType?: string; meetLink?: string; demo?: string; canCancel?: string; canReschedule?: string; noticeHours?: string; formatLabel?: string }>();
   const { practitionerName } = useOnboarding();
   // "Dr. Maya" was a preview placeholder, and a real patient whose practitioner's
   // name had not loaded read "with Dr. Maya" about their own session.
@@ -188,13 +189,13 @@ export default function SessionMenu() {
               <PractitionerAvatar size={46} name={name} tone="solid" />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 16, fontWeight: '700', color: TT.ink }}>{start ? `${longDate(start, locale)} · ${clock(start)}` : tr.session}</Text>
-                <Text style={{ fontSize: 12.5, color: TT.inkSoft, marginTop: 1 }}>{tr.with} {name} · {duration} min · {fmtFormat(format, tr)}</Text>
+                <Text style={{ fontSize: 12.5, color: TT.inkSoft, marginTop: 1 }}>{tr.with} {name} · {duration} min · {fmtFormat(format, tr, locale, p.formatLabel)}</Text>
               </View>
             </View>
 
             <View style={{ flexDirection: 'row', gap: 10, paddingVertical: 16 }}>
               <MiniFact label={tr.startsIn} value={start ? startsIn(start, tr) : '—'} />
-              <MiniFact label={tr.format} value={fmtFormat(format, tr)} />
+              <MiniFact label={tr.format} value={fmtFormat(format, tr, locale, p.formatLabel)} />
             </View>
 
             {(showCancel || showReschedule) && (
@@ -259,7 +260,8 @@ const localeTag = (locale: Locale) => (locale === 'fr' ? 'fr-FR' : 'en-US');
 // No comma after the weekday in French. See book.tsx.
 const longDate = (d: Date, locale: Locale) => `${d.toLocaleDateString(localeTag(locale), { weekday: 'long' })}${locale === 'fr' ? ' ' : ', '}${d.getDate()} ${d.toLocaleDateString(localeTag(locale), { month: 'long' })}`;
 const clock = (d: Date) => `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
-const fmtFormat = (f: string, tr: (typeof T)[Locale]) => (f === 'video' ? tr.videoCall : f === 'phone' ? tr.phone : f === 'in_person' ? tr.inPerson : f);
+// A place ("À domicile") is said by the server; never the raw key.
+const fmtFormat = (f: string, tr: (typeof T)[Locale], locale: string, label?: string) => (f === 'video' ? tr.videoCall : f === 'phone' ? tr.phone : f === 'in_person' ? tr.inPerson : formatWords(f, locale, label));
 function startsIn(d: Date, tr: (typeof T)[Locale]): string {
   const days = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() - new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime()) / 86400000);
   if (days <= 0) return tr.today;

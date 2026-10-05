@@ -5,7 +5,13 @@ export interface CareSession {
   id: string;
   scheduledAt: string; // ISO
   durationMinutes: number;
-  sessionFormat: string; // in_person | video | phone
+  sessionFormat: string; // in_person | video | phone | place:<id>
+  /** The server's words for it ("À domicile"); absent from older servers. */
+  formatLabel?: string;
+  /** in_person | video | phone | place. */
+  formatKind?: string;
+  /** Where, for a session held somewhere: the home address, a meeting point. */
+  location?: string | null;
   sessionType: string;
   status: string;
   meetLink: string | null;
