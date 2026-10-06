@@ -21,6 +21,7 @@ import type { GrowRect } from '@/src/ui/grow';
 // because capture needed the same thing and two copies of a theme rule is how
 // one of them ends up wrong.
 import { OVER_MEDIA, veil } from '@/src/ui/tokens';
+import { stemSlices } from './stem-slices';
 
 /** 0..1 across the line: 0 is the heaviest edge, 1 the lightest. */
 export function valenceOf(m: { moods: string[] }): number {
@@ -78,12 +79,6 @@ const NODE = 56;
  */
 const STEM_SLICE = 1200;
 
-/** The top of every slice needed to cover a line this tall. */
-function sliceTops(total: number): number[] {
-  const tops: number[] = [];
-  for (let y = 0; y < total; y += STEM_SLICE) tops.push(y);
-  return tops;
-}
 const ROW = 118; // vertical rhythm between moments
 const TOP_PAD = 18;
 const RAIL = 44;      // the day rail down the left
@@ -370,19 +365,20 @@ export const Line = memo(function Line({
           slices near the reader are drawn at all — the window the pictures
           already use. */}
       {points.length > 1
-        ? sliceTops(total).map((top) =>
+        ? stemSlices(total, STEM_SLICE).map(({ top, height }) =>
             // A wider window than the pictures get: a slice is one stroked
             // path and costs almost nothing, so there is no reason to let the
             // line appear to end just off-screen.
-            top + STEM_SLICE >= photoFrom - STEM_SLICE * 2 && top <= photoTo + STEM_SLICE * 2 ? (
+            top + height >= photoFrom - STEM_SLICE * 2 && top <= photoTo + STEM_SLICE * 2 ? (
+              // Never taller than what is left of the line: see stem-slices.ts.
               <Svg
                 key={top}
                 width={width}
-                height={STEM_SLICE}
-                viewBox={`0 ${top} ${width} ${STEM_SLICE}`}
+                height={height}
+                viewBox={`0 ${top} ${width} ${height}`}
                 style={{ position: 'absolute', top }}
               >
-                <Path d={stemPath(pointsNear(points, top - ROW, top + STEM_SLICE + ROW))} stroke={veil(mode, 0.22)} strokeWidth={1} fill="none" />
+                <Path d={stemPath(pointsNear(points, top - ROW, top + height + ROW))} stroke={veil(mode, 0.22)} strokeWidth={1} fill="none" />
               </Svg>
             ) : null,
           )
