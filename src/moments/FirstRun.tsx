@@ -15,7 +15,9 @@ import { Animated, Easing, PanResponder, Platform, Pressable, Text, useWindowDim
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, ClipPath, Defs, G, Path, Rect } from 'react-native-svg';
 import { ImagePlus, Play, Quote } from 'lucide-react-native';
-import { useI18n } from '@/src/i18n';
+import { useI18n, fmt } from '@/src/i18n';
+import { frElide } from '@/src/i18n/elide';
+import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
 import { OVER_MEDIA, onMedia, veil } from '@/src/ui/tokens';
 
@@ -110,6 +112,10 @@ export function MomentsIntro({ onCapture }: { onCapture: () => void }) {
   const { t: TT } = useTheme();
   const { t } = useI18n();
   const tr = t.firstRun;
+  // The same screen for everyone; a parent's text names their child when known.
+  const { shape, selectedProfile } = useSelectedPractitioner();
+  const childName = selectedProfile?.childFirstName?.trim() || null;
+  const introBody = shape === 'guardian' && childName ? fmt(tr.introBodyGuardian, { child: childName, deChild: frElide('de', childName) }) : tr.introBody;
   // Never above 1: the deck shrinks to fit a narrower phone and is left alone
   // on a wider one, where growing it would only make the cards coarse.
   const fit = Math.min(1, useWindowDimensions().width / DESIGN_W);
@@ -229,9 +235,9 @@ export function MomentsIntro({ onCapture }: { onCapture: () => void }) {
 
       <View style={{ paddingHorizontal: 34, paddingTop: 26, alignItems: 'center' }}>
         <Text style={{ fontSize: 21, fontWeight: '800', letterSpacing: -0.4, lineHeight: 27, color: TT.ink, textAlign: 'center' }}>
-          {t.line.emptyTitle}
+          {tr.introTitle}
         </Text>
-        <Text style={{ marginTop: 9, fontSize: 14, lineHeight: 21, color: TT.inkSoft, textAlign: 'center' }}>{tr.introBody}</Text>
+        <Text style={{ marginTop: 9, fontSize: 14, lineHeight: 21, color: TT.inkSoft, textAlign: 'center' }}>{introBody}</Text>
       </View>
 
       <Pressable

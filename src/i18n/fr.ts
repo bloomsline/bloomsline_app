@@ -422,8 +422,11 @@ export const fr: Dict = {
     failedBody: 'Vérifiez votre connexion et réessayez. Rien de ce que vous avez capturé n’est perdu.',
   },
   firstRun: {
-    introBody: 'Quelques mots sur ce que vous ressentez, maintenant. Ou une photo, une vidéo, votre voix. Vous seul(e) le voyez, sauf si vous choisissez de le montrer à votre praticien.',
-    captureFirst: 'Capturer mon premier moment',
+    introTitle: 'Un espace pour garder ce qui vous semble important.',
+    introBody: 'Une question, une observation, quelque chose qui vous semble important dans votre quotidien ? Gardez-en une trace ici pour y revenir plus tard.',
+    // To a parent or guardian. {deChild}: « d’Adi », « de Mila ».
+    introBodyGuardian: 'Une question, une observation, quelque chose qui vous semble important, autour {deChild} ou dans votre quotidien ? Gardez-en une trace ici pour y revenir plus tard.',
+    captureFirst: 'Créer mon premier moment',
     closingTitle: 'Une semaine, une saison, une année.',
     closingBody: 'Une semaine commence à dessiner une forme. Une saison la montre changer. Une année de moments, c’est votre vie, dans vos mots.',
     exampleYear: 'une année, par exemple',
