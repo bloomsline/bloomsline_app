@@ -9,6 +9,7 @@ import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { fetchFamilyInvite, type FamilyInvite } from '@/src/api/invite';
 import { fetchMe } from '@/src/api/me';
 import { useI18n, fmt } from '@/src/i18n';
+import { frElide } from '@/src/i18n/elide';
 import { useAuth } from '@/src/auth/auth-context';
 import { hrefForStatus } from '@/src/auth/route';
 import { rememberFamilyInvite, acceptPendingFamilyInvite, clearFamilyInvite } from '@/src/auth/family-invite';
@@ -84,7 +85,7 @@ export function FamilyInviteLanding({ kind, token }: { kind: 'guardian' | 'child
   const child = invite?.childFirstName ?? '';
   const prac = invite?.practitionerName ?? null;
   // French: "la thérapie d’Adi", "la thérapie de Mila". Unused in English.
-  const deChild = /^[aeiouyhàâäéèêëîïôöùûüœæ]/i.test(child) ? `d’${child}` : `de ${child}`;
+  const deChild = frElide('de', child);
   const title = kind === 'guardian'
     ? fmt(prac ? t.family.guardianTitle : t.family.guardianTitleNoPrac, { prac: prac ?? '', child, deChild })
     : fmt(prac ? t.family.childTitle : t.family.childTitleNoPrac, { prac: prac ?? '' });

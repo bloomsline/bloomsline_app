@@ -182,6 +182,9 @@ export const en = {
       hi: 'Hi {name},',
       hiNoName: 'Hi there,',
       body: "I'm really glad you're here. I'll send you things between our sessions. Note how you're doing whenever you like.",
+      // To a parent or guardian, about their child's therapy.
+      guardianBody: 'Starting therapy is an important step, both for {child} and for those who support them. Thank you for your trust: your support means a lot in their journey.\n\nHere you can manage their sessions and the documents meant for you. What {child} shares in session stays between us.',
+      yourChild: 'your child',
       cta: 'Start with today',
     },
     // c2–c4 — the three value screens, one per tab the patient is about to meet.

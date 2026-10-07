@@ -175,6 +175,9 @@ export const fr: Dict = {
       hi: 'Bonjour {name},',
       hiNoName: 'Bonjour,',
       body: 'Je suis vraiment contente que vous soyez là. Je vous enverrai des choses entre nos séances. Notez comment vous allez quand vous voulez.',
+      // To a parent or guardian, about their child's therapy. {queChild}: « qu’Adi », « que Mila ».
+      guardianBody: 'Commencer une thérapie est une étape importante, pour {child} comme pour ceux qui l’accompagnent. Merci de votre confiance : votre soutien compte beaucoup dans son parcours.\n\nIci, vous pourrez gérer ses séances et les documents qui vous concernent. Ce {queChild} partage en séance reste entre nous.',
+      yourChild: 'votre enfant',
       cta: 'Commencer',
     },
     stories: {
