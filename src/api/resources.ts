@@ -10,7 +10,11 @@ export interface PatientBlock {
   id: string;
   type: string;
   text?: string;
+  /** embed: the link or video address (https://), sent by servers from 7 Oct 2026. */
+  url?: string;
   mediaKind?: string;
+  /** media: the file's original name (a PDF's title when it has no label). */
+  mediaName?: string;
   label?: string;
   required?: boolean;
   options?: { id: string; label: string }[];
