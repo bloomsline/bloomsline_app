@@ -241,6 +241,15 @@ function ResourceDetailPage() {
     void fetchAssignment(assignmentId).then((fresh) => { if (fresh && mounted.current) setView(fresh); });
   };
 
+  // An image failed to load: its signed link (30 minutes) has most likely
+  // expired on a screen left open. Fetch fresh links, at most every two minutes.
+  const lastMediaRefresh = useRef(0);
+  const refreshMedia = () => {
+    if (Date.now() - lastMediaRefresh.current < 120_000) return;
+    lastMediaRefresh.current = Date.now();
+    void fetchAssignment(assignmentId).then((fresh) => { if (fresh && mounted.current) setView(fresh); });
+  };
+
   const keepNow = (): Promise<boolean> => {
     const next = chain.current.then(keepOnce, keepOnce);
     chain.current = next;
@@ -510,6 +519,7 @@ function ResourceDetailPage() {
                     mediaUrl={view.mediaUrls?.[b.id]}
                     fileUrls={fileUrls}
                     onUploadStatus={b.type === 'file_upload' ? (st) => reportUpload(b.id, st) : undefined}
+                    onMediaError={refreshMedia}
                   />
                 </View>
               ))}

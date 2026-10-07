@@ -68,7 +68,7 @@ function useFieldCopy() {
 
 export type { UploadStatus };
 
-export function Block({ block, value, onChange, missing, readOnly = false, mediaUrl, fileUrls, onUploadStatus }: {
+export function Block({ block, value, onChange, missing, readOnly = false, mediaUrl, fileUrls, onUploadStatus, onMediaError }: {
   block: PatientBlock;
   value: unknown;
   onChange: (v: unknown) => void;
@@ -81,6 +81,9 @@ export function Block({ block, value, onChange, missing, readOnly = false, media
   /** A file question's uploads still running or failed, for the screen to hold
    *  Submit and the way out until they settle. */
   onUploadStatus?: (s: UploadStatus) => void;
+  /** An image failed to load: usually its signed link (30 minutes) expired. The
+   *  screen fetches fresh links. */
+  onMediaError?: () => void;
 }) {
   const C = useCare();
   const f = useFieldCopy();
@@ -113,7 +116,7 @@ export function Block({ block, value, onChange, missing, readOnly = false, media
         </Field>
       );
     case 'media':
-      return <MediaBlock kind={b.mediaKind} url={mediaUrl} name={b.label || b.mediaName} />;
+      return <MediaBlock kind={b.mediaKind} url={mediaUrl} name={b.label || b.mediaName} onError={onMediaError} />;
     case 'embed':
       return <LinkBlock url={b.url} label={b.label} />;
     case 'number':
@@ -320,7 +323,7 @@ function decoration(s: Span): 'underline' | 'line-through' | 'underline line-thr
 // buttons are not a fallback so much as the only thing that works everywhere and
 // is reachable without a gesture — proper pinch on Android needs
 // react-native-gesture-handler, which is a native module and a new build.
-function ZoomableImage({ url, ratio, name }: { url: string; ratio: number; name?: string }) {
+function ZoomableImage({ url, ratio, name, onError }: { url: string; ratio: number; name?: string; onError?: () => void }) {
   const f = useFieldCopy();
   const { t } = useI18n();
   const C = useCare();
@@ -340,7 +343,7 @@ function ZoomableImage({ url, ratio, name }: { url: string; ratio: number; name?
     <>
       <TouchableOpacity activeOpacity={0.9} onPress={() => setOpen(true)} accessibilityLabel={name || f.image} accessibilityHint={f.opensLarger}>
         <View style={{ marginBottom: 16, borderRadius: 14, overflow: 'hidden', backgroundColor: C.card }}>
-          <Image source={{ uri: url }} style={{ width: '100%', aspectRatio: ratio }} resizeMode="cover" />
+          <Image source={{ uri: url }} style={{ width: '100%', aspectRatio: ratio }} resizeMode="cover" onError={onError} />
         </View>
       </TouchableOpacity>
 
@@ -392,7 +395,7 @@ const pill = { width: 40, height: 40, borderRadius: 20, backgroundColor: OVER_ME
 // Images render inline. Video and audio open in the phone's own player: this
 // project ships no video component, and a broken inline player is worse than a
 // button that works.
-function MediaBlock({ kind, url, name }: { kind?: string; url?: string; name?: string }) {
+function MediaBlock({ kind, url, name, onError }: { kind?: string; url?: string; name?: string; onError?: () => void }) {
   const C = useCare();
   const f = useFieldCopy();
   const [ratio, setRatio] = useState(16 / 9);
@@ -419,7 +422,7 @@ function MediaBlock({ kind, url, name }: { kind?: string; url?: string; name?: s
   }
 
   if (!kind || kind === 'image') {
-    return <ZoomableImage url={url} ratio={ratio} name={name} />;
+    return <ZoomableImage url={url} ratio={ratio} name={name} onError={onError} />;
   }
 
   return (
