@@ -51,9 +51,11 @@ export const fr: Dict = {
   },
   family: {
     kicker: 'Invitation',
-    guardianTitle: '{prac} vous invite à suivre l’accompagnement de {child}',
-    guardianTitleNoPrac: 'Vous êtes invité à suivre l’accompagnement de {child}',
-    guardianBody: 'Réservez et gérez les séances de {child} et signez les documents qui vous sont destinés. Ce que {child} écrit dans l’application reste privé.',
+    // {deChild}: « d’Adi », « de Mila » (French elides before a vowel).
+    guardianTitle: '{prac} vous invite à accompagner la thérapie {deChild}',
+    guardianTitleNoPrac: 'Vous êtes invité à accompagner la thérapie {deChild}',
+    guardianBody: 'Réservez et gérez ses séances, et signez les documents qui vous sont destinés. Les échanges entre {child} et {prac} restent confidentiels.',
+    guardianBodyNoPrac: 'Réservez et gérez ses séances, et signez les documents qui vous sont destinés. Les échanges entre {child} et son praticien restent confidentiels.',
     childTitle: '{prac} vous invite sur Bloomsline',
     childTitleNoPrac: 'Vous êtes invité sur Bloomsline',
     childBody: 'Un espace à vous entre les séances. Ce que vous écrivez reste à vous : votre parent ou votre représentant légal ne peut pas le voir.',

@@ -50,9 +50,10 @@ export const en = {
   // three shapes of the app (a patient's own care, a child's, a guardian's).
   family: {
     kicker: 'Invitation',
-    guardianTitle: '{prac} invites you to follow {child}’s care',
-    guardianTitleNoPrac: 'You are invited to follow {child}’s care',
-    guardianBody: 'Book and manage {child}’s sessions and sign the documents meant for you. What {child} writes in the app stays private to them.',
+    guardianTitle: '{prac} invites you to support {child}’s therapy',
+    guardianTitleNoPrac: 'You are invited to support {child}’s therapy',
+    guardianBody: 'Book and manage their sessions, and sign the documents meant for you. Conversations between {child} and {prac} stay confidential.',
+    guardianBodyNoPrac: 'Book and manage their sessions, and sign the documents meant for you. Conversations between {child} and their practitioner stay confidential.',
     childTitle: '{prac} invites you to Bloomsline',
     childTitleNoPrac: 'You are invited to Bloomsline',
     childBody: 'A space of your own between sessions. What you write stays yours: your parent or guardian can’t see it.',

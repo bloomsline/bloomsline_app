@@ -83,10 +83,12 @@ export function FamilyInviteLanding({ kind, token }: { kind: 'guardian' | 'child
 
   const child = invite?.childFirstName ?? '';
   const prac = invite?.practitionerName ?? null;
+  // French: "la thérapie d’Adi", "la thérapie de Mila". Unused in English.
+  const deChild = /^[aeiouyhàâäéèêëîïôöùûüœæ]/i.test(child) ? `d’${child}` : `de ${child}`;
   const title = kind === 'guardian'
-    ? fmt(prac ? t.family.guardianTitle : t.family.guardianTitleNoPrac, { prac: prac ?? '', child })
+    ? fmt(prac ? t.family.guardianTitle : t.family.guardianTitleNoPrac, { prac: prac ?? '', child, deChild })
     : fmt(prac ? t.family.childTitle : t.family.childTitleNoPrac, { prac: prac ?? '' });
-  const body = kind === 'guardian' ? fmt(t.family.guardianBody, { child }) : t.family.childBody;
+  const body = kind === 'guardian' ? fmt(prac ? t.family.guardianBody : t.family.guardianBodyNoPrac, { child, prac: prac ?? '' }) : t.family.childBody;
 
   const start = (mode?: 'signin') =>
     router.push({ pathname: '/(auth)/sign-up', params: { ...(invite?.email ? { email: invite.email } : {}), ...(mode ? { mode } : {}) } });
