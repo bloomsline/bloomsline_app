@@ -124,7 +124,7 @@ export default function Dashboard() {
     setOpeningNote(s.id);
     const res = await openForSession({
       appointmentId: s.id, memberId: s.memberId, who: s.who,
-      when: new Date(s.scheduledAt).toLocaleString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+      when: new Date(s.scheduledAt).toLocaleString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', ...(tz ? { timeZone: tz } : {}) }),
       noteType: 'session',
     }).finally(() => setOpeningNote(null));
     if (!res.ok) { notify(tr.title, res.reason === 'unsaved' ? tr.noteUnsaved : tr.noteOpenFailed); return; }

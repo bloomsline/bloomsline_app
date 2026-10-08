@@ -6,8 +6,9 @@ import { Check, ChevronDown, ChevronRight, ChevronUp, FileSignature, Paperclip, 
 import { EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
 import { RichText } from '@/src/resources/blocks';
 import { useI18n } from '@/src/i18n';
-import { fetchPatient, type PatientDetail } from '@/src/api/practitioner';
+import { fetchDay, fetchPatient, type PatientDetail } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
+import { usePracticeZone } from '@/src/practitioner/practice-zone';
 import { LIGHT, DARK, type Mode } from '@/src/ui/tokens';
 import { LoadFailed } from '@/src/ui/LoadFailed';
 import { formatWords } from '@/src/care/session-format';
@@ -153,6 +154,7 @@ export default function PatientDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const patientId = typeof id === 'string' ? id : '';
   const { locale } = useI18n();
+  const zone = usePracticeZone(fetchDay);
   const tr = T[locale] ?? T.en;
 
   const [data, setData] = useState<PatientDetail | null>(null);
@@ -204,8 +206,8 @@ export default function PatientDetailScreen() {
   useFocusEffect(reload);
 
   const loc = locale === 'fr' ? 'fr-FR' : 'en-GB';
-  const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(loc, { day: 'numeric', month: 'short', year: 'numeric' }) : '');
-  const dayTime = (iso: string) => new Date(iso).toLocaleString(loc, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(loc, { day: 'numeric', month: 'short', year: 'numeric', ...zone }) : '');
+  const dayTime = (iso: string) => new Date(iso).toLocaleString(loc, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', ...zone });
   const price = (cents: number, currency = 'EUR') => {
     try { return new Intl.NumberFormat(loc, { style: 'currency', currency, maximumFractionDigits: 2 }).format(cents / 100); }
     catch { return `${(cents / 100).toFixed(2)} ${currency}`; }

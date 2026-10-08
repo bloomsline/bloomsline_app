@@ -4,8 +4,9 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronRight, FileText, User } from 'lucide-react-native';
 import { EdHeader, EdCard, EdSection, FadeIn } from '@/src/ui/editorial';
 import { useI18n } from '@/src/i18n';
-import { fetchSubmissionGroups, fetchSubmissions, type SubmissionGroups, type SubmissionSummary } from '@/src/api/practitioner';
+import { fetchDay, fetchSubmissionGroups, fetchSubmissions, type SubmissionGroups, type SubmissionSummary } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
+import { usePracticeZone } from '@/src/practitioner/practice-zone';
 import { LoadFailed } from '@/src/ui/LoadFailed';
 
 // What patients have sent back.
@@ -38,6 +39,7 @@ export default function Submissions() {
   const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
+  const zone = usePracticeZone(fetchDay);
   const tr = T[locale] ?? T.en;
   const params = useLocalSearchParams<{ resourceId?: string; memberId?: string; title?: string }>();
 
@@ -82,7 +84,7 @@ export default function Submissions() {
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/(practitioner)/resources' as never));
   const loc = locale === 'fr' ? 'fr-FR' : 'en-GB';
   const when = (iso: string | null) =>
-    iso ? new Date(iso).toLocaleString(loc, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+    iso ? new Date(iso).toLocaleString(loc, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', ...zone }) : '';
 
   const rows = mode === 'resource' ? (groups?.byResource ?? []) : (groups?.byPatient ?? []);
 

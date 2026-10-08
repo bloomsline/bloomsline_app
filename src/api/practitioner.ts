@@ -3,6 +3,7 @@
 // care app — a lost phone should not be a lost record.
 import { apiFetch } from '../auth/api';
 import type { PatientBlock } from './resources';
+import { rememberPracticeZone } from '@/src/practitioner/practice-zone';
 
 export interface PractitionerSession {
   id: string;
@@ -51,11 +52,18 @@ export interface BookingRequest {
 
 /** A day's sessions. With no date: today + tomorrow, for the dashboard. With
  *  one: that single day, which is how the day calendar walks through them. */
+/** Every response that carries the practice timezone shares it with the
+ *  screens that format dates without asking (see practice-zone.ts). */
+function withZone<T>(body: T): T {
+  rememberPracticeZone((body as { timezone?: unknown } | null)?.timezone);
+  return body;
+}
+
 export async function fetchDay(date?: string): Promise<{ items: PractitionerSession[]; timezone: string; currency?: string } | null> {
   try {
     const res = await apiFetch(`/api/mobile/practitioner/day${date ? `?date=${date}` : ''}`);
     if (!res.ok) return null;
-    return await res.json();
+    return withZone(await res.json());
   } catch {
     return null;
   }
@@ -65,7 +73,7 @@ export async function fetchRequests(): Promise<{ items: BookingRequest[]; timezo
   try {
     const res = await apiFetch('/api/mobile/practitioner/requests');
     if (!res.ok) return null;
-    return await res.json();
+    return withZone(await res.json());
   } catch {
     return null;
   }
@@ -263,7 +271,7 @@ export async function fetchNoteWorkspace(): Promise<NoteWorkspace | null> {
   try {
     const res = await apiFetch('/api/mobile/practitioner/sessions');
     if (!res.ok) return null;
-    return await res.json();
+    return withZone(await res.json());
   } catch {
     return null;
   }
@@ -417,7 +425,7 @@ export async function fetchBookingOptions(params?: { date?: string; duration?: n
     if (params?.format) qs.set('format', params.format);
     const res = await apiFetch(`/api/mobile/practitioner/bookings${qs.toString() ? `?${qs}` : ''}`);
     if (!res.ok) return null;
-    return await res.json();
+    return withZone(await res.json());
   } catch {
     return null;
   }
@@ -579,9 +587,12 @@ export interface ResourcePreview {
   mediaUrls?: Record<string, string>;
 }
 
-export async function fetchResourcePreview(id: string): Promise<ResourcePreview | null> {
+/** `'gone'` when it no longer exists or is not yours (404), null when it could
+ *  not be reached: the first is final, the second is worth a Try again. */
+export async function fetchResourcePreview(id: string): Promise<ResourcePreview | 'gone' | null> {
   try {
     const res = await apiFetch(`/api/mobile/practitioner/resources/${id}`);
+    if (res.status === 404) return 'gone';
     if (!res.ok) return null;
     return (await res.json()) as ResourcePreview;
   } catch {
@@ -644,9 +655,12 @@ export interface SubmissionDetail extends SubmissionSummary {
   noteWrittenAt?: string | null;
 }
 
-export async function fetchSubmission(id: string): Promise<SubmissionDetail | null> {
+/** `'gone'` when it no longer exists or is not yours (404), null when it could
+ *  not be reached: the first is final, the second is worth a Try again. */
+export async function fetchSubmission(id: string): Promise<SubmissionDetail | 'gone' | null> {
   try {
     const res = await apiFetch(`/api/mobile/practitioner/submissions/${id}`);
+    if (res.status === 404) return 'gone';
     if (!res.ok) return null;
     return (await res.json()) as SubmissionDetail;
   } catch {

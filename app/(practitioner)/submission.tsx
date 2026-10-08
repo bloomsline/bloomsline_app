@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { History } from 'lucide-react-native';
@@ -6,8 +6,10 @@ import { EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
 import { Block } from '@/src/resources/blocks';
 import { fileUrlIndex } from '@/src/resources/answers';
 import { useI18n } from '@/src/i18n';
-import { fetchSubmission, type SubmissionDetail } from '@/src/api/practitioner';
+import { fetchDay, fetchSubmission, type SubmissionDetail } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
+import { usePracticeZone } from '@/src/practitioner/practice-zone';
+import { LoadFailed } from '@/src/ui/LoadFailed';
 
 // One submission, read-only.
 //
@@ -20,13 +22,13 @@ import { useTheme } from '@/src/ui/theme-mode';
 const T = {
   en: {
     kicker: 'SUBMISSION', pinned: 'Rendered against the version this was answered on.',
-    missing: 'This submission could not be loaded.', note: 'YOUR NOTE BACK',
+    missing: 'This submission is no longer available. It may have been deleted.', note: 'YOUR NOTE BACK',
     onEarlier: (d: string) => `Written on ${d}, about the earlier answers. These were sent since.`,
     sources: { app: 'App', web: 'Web', share: 'Shared link', link: 'Shared link' },
   },
   fr: {
     kicker: 'RÉPONSE', pinned: 'Affiché selon la version utilisée pour répondre.',
-    missing: 'Impossible de charger cette réponse.', note: 'VOTRE RETOUR',
+    missing: 'Cette réponse n’est plus disponible. Elle a peut-être été supprimée.', note: 'VOTRE RETOUR',
     onEarlier: (d: string) => `Écrit le ${d}, sur les réponses précédentes. Celles-ci ont été envoyées depuis.`,
     sources: { app: 'App', web: 'Web', share: 'Lien partagé', link: 'Lien partagé' },
   },
@@ -36,33 +38,43 @@ export default function SubmissionScreen() {
   const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
+  const zone = usePracticeZone(fetchDay);
   const tr = T[locale] ?? T.en;
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const [view, setView] = useState<SubmissionDetail | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [gone, setGone] = useState(false);
+
+  // A different id is a different screen: never show the last one while this loads.
+  useEffect(() => { setView(null); setLoaded(false); setGone(false); }, [id]);
+
+  const load = useCallback(async (alive: () => boolean = () => true) => {
+    const v = await fetchSubmission(String(id));
+    if (!alive()) return;
+    setGone(v === 'gone');
+    // A failed refresh keeps what is already on screen.
+    if (v !== 'gone') setView((prev) => v ?? prev);
+    else setView(null);
+    setLoaded(true);
+  }, [id]);
 
   useFocusEffect(
     useCallback(() => {
       let alive = true;
-      setLoaded(false);
-      void fetchSubmission(String(id)).then((v) => {
-        if (!alive) return;
-        setView(v);
-        setLoaded(true);
-      });
+      void load(() => alive);
       return () => { alive = false; };
-    }, [id]),
+    }, [load]),
   );
 
   // Every file of an answer by its storage key (see `urlsByKey`); an older
   // server's single `mediaUrls` link still reaches the first file.
   const fileUrls = useMemo(() => (view ? fileUrlIndex(view.version.blocks, view.answers, view.fileUrls, view.mediaUrls) : {}), [view]);
 
-  const back = () => (router.canGoBack() ? router.back() : router.navigate('/(practitioner)/submissions' as never));
+  const back = () => (router.canGoBack() ? router.back() : router.replace('/(practitioner)/submissions' as never));
   const loc = locale === 'fr' ? 'fr-FR' : 'en-GB';
   const when = view?.submittedAt
-    ? new Date(view.submittedAt).toLocaleString(loc, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+    ? new Date(view.submittedAt).toLocaleString(loc, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', ...zone })
     : '';
 
   return (
@@ -72,7 +84,8 @@ export default function SubmissionScreen() {
 
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 18 }}>
           {!loaded && <ActivityIndicator />}
-          {loaded && !view && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.missing}</Text>}
+          {loaded && !view && gone && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.missing}</Text>}
+          {loaded && !view && !gone && <LoadFailed onRetry={() => load()} />}
 
           {view && (
             <>
@@ -112,7 +125,7 @@ export default function SubmissionScreen() {
                   <EdCard>
                     {view.noteOnEarlierAnswers && view.noteWrittenAt ? (
                       <Text style={{ fontSize: 12, color: TT.faint, marginBottom: 6 }}>
-                        {tr.onEarlier(new Date(view.noteWrittenAt).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'long' }))}
+                        {tr.onEarlier(new Date(view.noteWrittenAt).toLocaleDateString(loc, { day: 'numeric', month: 'long', ...zone }))}
                       </Text>
                     ) : null}
                     <Text style={{ fontSize: 14.5, lineHeight: 21, color: TT.ink }}>{view.practitionerNote}</Text>

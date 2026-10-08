@@ -6,8 +6,9 @@ import { ChevronRight, Search, UserPlus } from 'lucide-react-native';
 import { EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
 import { PractitionerTabBar, PRACTITIONER_TAB_PAD } from '@/src/ui/PractitionerTabBar';
 import { useI18n } from '@/src/i18n';
-import { fetchPatients, type PatientListItem } from '@/src/api/practitioner';
+import { fetchDay, fetchPatients, type PatientListItem } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
+import { usePracticeZone } from '@/src/practitioner/practice-zone';
 import { LoadFailed } from '@/src/ui/LoadFailed';
 
 // Find someone, open them, write a note. Names, not records — the clinical
@@ -21,6 +22,7 @@ export default function People() {
   const { t: TT } = useTheme();
   const router = useRouter();
   const { locale } = useI18n();
+  const zone = usePracticeZone(fetchDay);
   const tr = T[locale] ?? T.en;
   const [q, setQ] = useState('');
   const [items, setItems] = useState<PatientListItem[]>([]);
@@ -41,7 +43,7 @@ export default function People() {
   const needle = fold(q.trim());
   const shown = needle ? items.filter((p) => fold(p.name).includes(needle)) : items;
   const when = (iso: string | null) =>
-    iso ? new Date(iso).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'short' }) : null;
+    iso ? new Date(iso).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'short', ...zone }) : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
