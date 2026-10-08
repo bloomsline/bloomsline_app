@@ -8,6 +8,7 @@ import { notify } from '@/src/ui/alert';
 import { useI18n } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
 import { onCta } from '@/src/ui/tokens';
+import { localWins } from './restore-rule';
 import { clearUnsent, readUnsent, saveUnsent } from '@/src/unsent';
 
 // A note being written, held above the screen that is writing it.
@@ -87,7 +88,8 @@ const DEBOUNCE_MS = 1500;
 /** A draft that did not land is tried again on its own after this long. */
 const RETRY_MS = 8000;
 
-type Snapshot = { appointmentId: string; text: string; title: string; ranges: NoteRange[]; append?: boolean };
+/** `baseAt`: the server's version this writing sits on top of (see restore-rule). */
+type Snapshot = { appointmentId: string; text: string; title: string; ranges: NoteRange[]; append?: boolean; baseAt?: string | null };
 
 const Ctx = createContext<DraftContext | null>(null);
 
@@ -119,6 +121,11 @@ export function NoteDraftProvider({ children }: { children: ReactNode }) {
   // The retry timer calls the queue through this, so the write does not have to
   // close over a function declared after it.
   const runRef = useRef<() => Promise<boolean>>(() => Promise.resolve(true));
+  // The server's version of the open note (its `updatedAt`), as last read or
+  // written by this phone; undefined when not known. Every copy kept on the
+  // phone carries it, so reopening compares two server versions instead of the
+  // phone's clock with the server's (src/notes/restore-rule).
+  const serverAt = useRef<string | null | undefined>(undefined);
 
   const clearTimers = () => {
     if (timer.current) { clearTimeout(timer.current); timer.current = null; }
@@ -132,7 +139,7 @@ export function NoteDraftProvider({ children }: { children: ReactNode }) {
     setStatus('saving');
     // A copy on the phone first, so a note survives the app being killed before
     // the server has it (see src/unsent). Removed once nothing newer is waiting.
-    await saveUnsent('note', snap.appointmentId, snap);
+    await saveUnsent('note', snap.appointmentId, serverAt.current === undefined ? snap : { ...snap, baseAt: serverAt.current });
     // An addition to a web-formatted note is kept on this phone only. The shared
     // draft holds a WHOLE note, and an addition stored there would open on the web
     // as the entire note, and replace it when saved.
@@ -144,6 +151,9 @@ export function NoteDraftProvider({ children }: { children: ReactNode }) {
     const res = await saveNoteDraft(snap.appointmentId, snap);
     if (settled.current) return res.ok;
     if (res.ok) {
+      // The server's version is now the one just written (none known when a
+      // blank draft was removed instead).
+      serverAt.current = res.savedAt ?? undefined;
       if (pending.current === snap) { pending.current = null; void clearUnsent('note', snap.appointmentId); }
       if (mine === seq.current) {
         setSavedAt(res.savedAt ?? null);
@@ -209,7 +219,10 @@ export function NoteDraftProvider({ children }: { children: ReactNode }) {
     // its age, so a copy stranded for a week replaced the note written on the web
     // since. Offline, with nothing to compare, it is the only writing there is.
     // A web-formatted note opens as an addition, with any addition kept here.
-    if (existing?.simplified && existing.html !== undefined && !(kept?.payload && !kept.payload.append && existing.updatedAt && kept.savedAt > existing.updatedAt)) {
+    const keptWins = !!kept?.payload && !kept.payload.append
+      && localWins({ savedAt: kept.savedAt, baseAt: kept.payload.baseAt }, existing ? (existing.updatedAt ?? null) : undefined);
+    if (existing?.simplified && existing.html !== undefined && !keptWins) {
+      serverAt.current = existing.updatedAt ?? null;
       const addition = kept?.payload?.append ? { text: kept.payload.text ?? '', ranges: kept.payload.ranges ?? [] } : { text: '', ranges: [] };
       if (kept && !kept.payload?.append) void clearUnsent('note', base.appointmentId);
       open({ ...base, title: '', text: addition.text, ranges: addition.ranges, appendTo: { html: existing.html, updatedAt: existing.updatedAt } });
@@ -222,7 +235,10 @@ export function NoteDraftProvider({ children }: { children: ReactNode }) {
       if (!existing) return { ok: false, reason: 'load' };
       void clearUnsent('note', base.appointmentId);
     }
-    if (kept?.payload && !kept.payload.append && (!existing || !existing.updatedAt || kept.savedAt > existing.updatedAt)) {
+    if (kept?.payload && keptWins) {
+      // Written over the server's version as it stands (or, offline, over the
+      // one this copy was written on).
+      serverAt.current = existing ? (existing.updatedAt ?? null) : kept.payload.baseAt;
       const payload = withTitleInText(kept.payload);
       open({ ...base, title: '', text: payload.text, ranges: payload.ranges });
       schedule({ appointmentId: base.appointmentId, text: payload.text, title: '', ranges: payload.ranges });
@@ -232,6 +248,7 @@ export function NoteDraftProvider({ children }: { children: ReactNode }) {
     // Not knowing what the note says is not the same as it being empty. Opening
     // blank here and saving would replace the real note.
     if (!existing) return { ok: false, reason: 'load' };
+    serverAt.current = existing.updatedAt ?? null;
     open({ ...base, title: '', text: existing.content, ranges: existing.ranges, simplified: existing.simplified });
     if (existing.draftAt) { setSavedAt(existing.draftAt); setStatus('saved'); }
     return { ok: true };
@@ -283,6 +300,7 @@ export function NoteDraftProvider({ children }: { children: ReactNode }) {
 
   const settle = useCallback(() => {
     settled.current = true;
+    serverAt.current = undefined;
     const saved = draftRef.current?.appointmentId;
     if (saved) void clearUnsent('note', saved);
     clearTimers();
@@ -296,6 +314,7 @@ export function NoteDraftProvider({ children }: { children: ReactNode }) {
 
   const discard = useCallback(async (): Promise<boolean> => {
     settled.current = true;
+    serverAt.current = undefined;
     clearTimers();
     pending.current = null;
     const id = draftRef.current?.appointmentId;
