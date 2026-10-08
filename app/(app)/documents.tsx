@@ -134,4 +134,5 @@ export default function Documents() {
   );
 }
 
-const shortDate = (iso: string, locale?: string) => new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
+// 'en' alone reads as US English ("Oct 2, 2026"); the app writes British dates.
+const shortDate = (iso: string, locale?: string) => new Date(iso).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' });

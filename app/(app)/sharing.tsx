@@ -165,5 +165,8 @@ function label(it: SharedItem, tr: (typeof T)[Locale], locale: Locale): string {
 }
 function when(iso: string, locale: Locale): string {
   const d = new Date(iso);
-  return `${d.toLocaleDateString(locale, { weekday: 'short' })}, ${d.toLocaleTimeString(locale === 'fr' ? 'fr' : [], { hour: '2-digit', minute: '2-digit' })}`;
+  // British and 24-hour, like every other date in the app (the device's own
+  // locale printed "07:27 PM").
+  const tag = locale === 'fr' ? 'fr-FR' : 'en-GB';
+  return `${d.toLocaleDateString(tag, { weekday: 'short' })} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
 }

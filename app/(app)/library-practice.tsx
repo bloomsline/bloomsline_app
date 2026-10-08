@@ -33,6 +33,7 @@ const T = {
     waitUploads: 'A file is still uploading. Wait for it to finish, then save.',
     uploadingTitle: 'A file is still uploading', uploadingBody: 'If you leave now, it will not be saved with this practice.',
     stay: 'Stay', leaveAnyway: 'Leave anyway',
+    unsavedTitle: 'Leave without saving?', unsavedBody: 'What you wrote here is not kept until you tap Save.',
     failedUploads: 'A file did not upload. Try again or remove it, then save.',
     unavailable: 'Activity unavailable',
     privateToYou: 'Private to you',
@@ -53,6 +54,7 @@ const T = {
     waitUploads: 'Un fichier est encore en cours d’envoi. Attendez la fin, puis enregistrez.',
     uploadingTitle: 'Un fichier est en cours d’envoi', uploadingBody: 'Si vous partez maintenant, il ne sera pas enregistré avec cet exercice.',
     stay: 'Rester', leaveAnyway: 'Partir quand même',
+    unsavedTitle: 'Partir sans enregistrer ?', unsavedBody: 'Ce que vous avez écrit ici n’est conservé qu’en appuyant sur Enregistrer.',
     failedUploads: 'Un fichier n’a pas été envoyé. Réessayez ou retirez-le, puis enregistrez.',
     unavailable: 'Activité indisponible',
     privateToYou: 'Privé',
@@ -80,6 +82,8 @@ export default function LibraryPractice() {
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<{ score: PatientScore | null } | null>(null);
+  // Something was answered and not yet saved.
+  const [touched, setTouched] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -95,6 +99,7 @@ export default function LibraryPractice() {
   const set = (blockId: string, value: unknown) => {
     latestAnswers.current = { ...latestAnswers.current, [blockId]: value };
     setAnswers(latestAnswers.current);
+    setTouched(true);
   };
 
   // Files join the answers only once uploaded, so a Save in the middle of one
@@ -106,8 +111,12 @@ export default function LibraryPractice() {
   const confirm = useConfirm();
   // Leaving mid-upload asks, as the worksheet screen does. Without it the file
   // was simply dropped, with nothing said.
-  useLeaveGuard(!result && uploadingNow, async (leave) => {
-    const go = await confirm({ title: tr.uploadingTitle, message: tr.uploadingBody, confirmLabel: tr.leaveAnyway, cancelLabel: tr.stay, destructive: true });
+  // Typed answers too: a self-guided run is not kept as a draft, so Back threw
+  // them away without a word.
+  useLeaveGuard(!result && !saving && (uploadingNow || touched), async (leave) => {
+    const go = uploadingNow
+      ? await confirm({ title: tr.uploadingTitle, message: tr.uploadingBody, confirmLabel: tr.leaveAnyway, cancelLabel: tr.stay, destructive: true })
+      : await confirm({ title: tr.unsavedTitle, message: tr.unsavedBody, confirmLabel: tr.leaveAnyway, cancelLabel: tr.stay, destructive: true });
     if (go) leave();
   });
   // A ref, not the `saving` state: two taps in one frame both read the state as
