@@ -28,7 +28,7 @@ import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
 import { otherReaders } from '@/src/care/other-readers';
 import { useOnboarding } from '@/src/onboarding/context';
 import { createJournal, deleteJournal, getJournal, shareJournal, updateJournal } from '@/src/api/journal';
-import { newBlock, serializeForSave, entryIsEmpty, isMedia, mediaSource, normalizeLink, posterSource, type BlockType, type JournalBlock } from '@/src/journal/blocks';
+import { newBlock, serializeForSave, entryIsEmpty, isMedia, mediaSource, normalizeLink, posterSource, JOURNAL_LIMITS, type BlockType, type JournalBlock } from '@/src/journal/blocks';
 import { useKeepInView } from '@/src/journal/useKeepInView';
 import { useLeaveGuard } from '@/src/ui/leave-guard';
 import { pickImage, pickVideo, uploadImage, uploadVideo, uploadVoice } from '@/src/journal/media';
@@ -60,7 +60,7 @@ const RETRY_MS = 8000;
 
 const T = {
   en: {
-    saving: 'Saving…', saved: 'Saved {time}', notSaved: 'Not saved', save: 'Save', saveError: 'Could not save. Check your connection and try again.', titlePlaceholder: 'Title', words: 'words',
+    saving: 'Saving…', saved: 'Saved {time}', notSaved: 'Not saved', save: 'Save', saveError: 'Could not save. Check your connection and try again.', titlePlaceholder: 'Title', words: 'words', full: 'This block is full. Add a new one below to keep writing.', titleFull: 'Titles stop at 200 characters.',
     moveUp: 'Move up', moveDown: 'Move down', retry: 'Try again',
     confirmWeb: 'Delete this entry?', deleteTitle: 'Delete entry', deleteMessage: 'This can’t be undone.', cancel: 'Cancel', delete: 'Delete',
     text: 'Text', heading: 'Heading', list: 'List', quote: 'Quote', callout: 'Callout', video: 'Video', link: 'Link', image: 'Image', voice: 'Voice',
@@ -80,7 +80,7 @@ const T = {
     sharedElsewhere: 'Shared with {names}', alsoWith: 'Also shared with {names}.', notYet: '{name} can’t read this.', stopSharingWith: 'Stop sharing with {name}',
   },
   fr: {
-    saving: 'Enregistrement…', saved: 'Enregistré à {time}', notSaved: 'Non enregistré', save: 'Enregistrer', saveError: 'Enregistrement impossible. Vérifiez votre connexion et réessayez.', titlePlaceholder: 'Titre', words: 'mots',
+    saving: 'Enregistrement…', saved: 'Enregistré à {time}', notSaved: 'Non enregistré', save: 'Enregistrer', saveError: 'Enregistrement impossible. Vérifiez votre connexion et réessayez.', titlePlaceholder: 'Titre', words: 'mots', full: 'Ce bloc est plein. Ajoutez-en un autre en dessous pour continuer.', titleFull: 'Un titre s’arrête à 200 caractères.',
     moveUp: 'Monter', moveDown: 'Descendre', retry: 'Réessayer',
     confirmWeb: 'Supprimer cette entrée ?', deleteTitle: 'Supprimer l’entrée', deleteMessage: 'Cette action est irréversible.', cancel: 'Annuler', delete: 'Supprimer',
     text: 'Texte', heading: 'Titre', list: 'Liste', quote: 'Citation', callout: 'Encart', video: 'Vidéo', link: 'Lien', image: 'Image', voice: 'Vocal',
@@ -451,7 +451,10 @@ export default function JournalEntry() {
     });
   };
 
-  const back = () => (router.canGoBack() ? router.back() : router.navigate('/journal' as never));
+  // With nothing behind it (opened from a link, or after a web refresh) the page
+  // is REPLACED by the list, not covered by it: a list pushed on top left this
+  // page alive underneath, out of the leave guard's reach, still saving.
+  const back = () => (router.canGoBack() ? router.back() : router.replace('/journal' as never));
 
   const uploading = blocks.some((b) => b.uploading);
   /**
@@ -683,11 +686,13 @@ export default function JournalEntry() {
               {...keep.field('title', title)}
               value={title}
               onChangeText={onTitle}
+              maxLength={JOURNAL_LIMITS.title}
               placeholder={tr.titlePlaceholder}
               placeholderTextColor={TT.faint}
               multiline
               style={[{ fontSize: 23, fontWeight: '800', color: TT.ink, letterSpacing: -0.4, marginBottom: 14, paddingHorizontal: 4 }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
             />
+            {title.length >= JOURNAL_LIMITS.title ? <Text style={{ fontSize: 12, color: TT.faint, marginTop: -8, marginBottom: 12, paddingHorizontal: 4 }}>{tr.titleFull}</Text> : null}
             {blocks.map((b, i) => (
               <BlockRow key={b.id} block={b} tr={tr} first={i === 0} last={i === blocks.length - 1}
                 onPatch={(p) => patch(b.id, p)} onRemove={() => removeBlock(b.id)} onUp={() => move(b.id, -1)} onDown={() => move(b.id, 1)}
@@ -759,17 +764,23 @@ type Tr = { [K in keyof (typeof T)['en']]: string };
 // web needs this) and always spans the full width — no clipped box / overflow.
 type FieldProps = ReturnType<ReturnType<typeof useKeepInView>['field']>;
 
-function AutoGrowInput({ value, onChange, placeholder, style, field }: { value: string; onChange: (v: string) => void; placeholder: string; style: object; field: FieldProps }) {
+function AutoGrowInput({ value, onChange, placeholder, style, field, maxLength }: { value: string; onChange: (v: string) => void; placeholder: string; style: object; field: FieldProps; maxLength?: number }) {
   const { t: TT } = useTheme();
+  const { locale } = useI18n();
   const [h, setH] = useState(0);
   const minH = (style as { lineHeight?: number }).lineHeight ?? 24;
+  // At the limit the keyboard simply stops; say why, and what to do.
+  const full = maxLength !== undefined && value.length >= maxLength;
   return (
-    <TextInput
-      {...field}
-      value={value} onChangeText={onChange} placeholder={placeholder} placeholderTextColor={TT.faint} multiline
-      onContentSizeChange={(e) => setH(e.nativeEvent.contentSize.height)}
-      style={[{ color: TT.ink, padding: 0, width: '100%', height: Math.max(h, minH) }, style, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
-    />
+    <>
+      <TextInput
+        {...field}
+        value={value} onChangeText={onChange} placeholder={placeholder} placeholderTextColor={TT.faint} multiline maxLength={maxLength}
+        onContentSizeChange={(e) => setH(e.nativeEvent.contentSize.height)}
+        style={[{ color: TT.ink, padding: 0, width: '100%', height: Math.max(h, minH) }, style, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]}
+      />
+      {full ? <Text style={{ fontSize: 12, color: TT.faint, marginTop: 6 }}>{T[locale].full}</Text> : null}
+    </>
   );
 }
 
@@ -850,10 +861,12 @@ function BlockRow({ block: b, tr, first, last, onPatch, onRemove, onUp, onDown, 
     // Leaving a field is both the keep-in-view bookkeeping and, for some fields,
     // a tidy-up; one handler, so neither replaces the other in the spread.
     const withLeave = { ...f, onBlur: () => { f.onBlur(); onLeave?.(); } };
+    // The server's limit for this kind of field (see JOURNAL_LIMITS).
+    const maxLength = key.endsWith(':url') ? JOURNAL_LIMITS.url : key.endsWith(':label') ? JOURNAL_LIMITS.label : key.includes(':') ? JOURNAL_LIMITS.item : JOURNAL_LIMITS.text;
     return multiline ? (
-      <AutoGrowInput field={withLeave} value={value} onChange={onChange} placeholder={placeholder} style={extra} />
+      <AutoGrowInput field={withLeave} value={value} onChange={onChange} placeholder={placeholder} style={extra} maxLength={maxLength} />
     ) : (
-      <TextInput {...withLeave} {...more} value={value} onChangeText={onChange} placeholder={placeholder} placeholderTextColor={TT.faint}
+      <TextInput {...withLeave} {...more} maxLength={maxLength} value={value} onChangeText={onChange} placeholder={placeholder} placeholderTextColor={TT.faint}
         style={[{ color: TT.ink, padding: 0 }, extra, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as never) : null]} />
     );
   };
@@ -884,13 +897,14 @@ function BlockRow({ block: b, tr, first, last, onPatch, onRemove, onUp, onDown, 
           )}
         </View>
       ))}
-      {/* The new item takes the cursor, and the page follows it down. */}
-      <TouchableOpacity
+      {/* The new item takes the cursor, and the page follows it down. None past
+          what the server keeps. */}
+      {(b.items?.length ?? 0) < JOURNAL_LIMITS.items && <TouchableOpacity
         onPress={() => { focusSoon(`${b.id}:${(b.items ?? ['']).length}`); onPatch({ items: [...(b.items ?? []), ''] }); }}
         activeOpacity={0.7} style={{ marginLeft: 16 }}
       >
         <Text style={{ fontSize: 13, fontWeight: '600', color: TT.accent }}>+ {tr.addItem}</Text>
-      </TouchableOpacity>
+      </TouchableOpacity>}
     </View>
   );
   else if (b.type === 'link') content = (

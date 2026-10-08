@@ -7,6 +7,7 @@
 //
 // The paper below is deliberately the lighter world — writing happens on paper,
 // and the contrast is what makes the page feel like a page.
+import { fold } from '@/src/ui/fold';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Platform, RefreshControl, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -86,9 +87,9 @@ export default function Journal() {
 
   // Search is client-side over the flattened preview the API already returns —
   // the same text the list shows, so what you read is what you search.
-  const needle = q.trim().toLowerCase();
+  const needle = fold(q.trim());
   const shown = (entries ?? []).filter(
-    (e) => !needle || (e.title ?? '').toLowerCase().includes(needle) || e.body.toLowerCase().includes(needle),
+    (e) => !needle || fold(e.title ?? '').includes(needle) || fold(e.body).includes(needle),
   );
 
   return (
@@ -279,7 +280,7 @@ function whenLabel(iso: string, locale: 'en' | 'fr', tr: Jr): string {
   const days = Math.round((startOf(new Date()) - startOf(d)) / 86400000);
   if (days <= 0) return tr.today;
   if (days === 1) return tr.yesterday;
-  return d.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short' });
+  return d.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'short' });
 }
 
 type Jr = ReturnType<typeof useI18n>['t']['journal'];

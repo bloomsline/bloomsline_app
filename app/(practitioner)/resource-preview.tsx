@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Eye } from 'lucide-react-native';
@@ -7,6 +7,7 @@ import { Block, ResourceIntro } from '@/src/resources/blocks';
 import { useI18n } from '@/src/i18n';
 import { fetchResourcePreview, type ResourcePreview } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
+import { LoadFailed } from '@/src/ui/LoadFailed';
 
 // See the exercise before you send it.
 //
@@ -22,11 +23,11 @@ import { useTheme } from '@/src/ui/theme-mode';
 const T = {
   en: {
     kicker: 'PREVIEW', chip: 'This is how it looks to your patient. Nothing here is saved.',
-    share: 'Share this resource', missing: 'This resource could not be loaded.',
+    share: 'Share this resource', missing: 'This resource is no longer available. It may have been deleted.',
   },
   fr: {
     kicker: 'APERÇU', chip: 'Voici ce que voit votre patient. Rien n’est enregistré ici.',
-    share: 'Partager cette ressource', missing: 'Impossible de charger cette ressource.',
+    share: 'Partager cette ressource', missing: 'Cette ressource n’est plus disponible. Elle a peut-être été supprimée.',
   },
 } as const;
 
@@ -39,21 +40,30 @@ export default function ResourcePreviewScreen() {
 
   const [view, setView] = useState<ResourcePreview | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [gone, setGone] = useState(false);
+
+  // A different id is a different screen: never show the last one while this loads.
+  useEffect(() => { setView(null); setLoaded(false); setGone(false); }, [id]);
+
+  const load = useCallback(async (alive: () => boolean = () => true) => {
+    const v = await fetchResourcePreview(String(id));
+    if (!alive()) return;
+    setGone(v === 'gone');
+    // A failed refresh keeps what is already on screen.
+    if (v !== 'gone') setView((prev) => v ?? prev);
+    else setView(null);
+    setLoaded(true);
+  }, [id]);
 
   useFocusEffect(
     useCallback(() => {
       let alive = true;
-      setLoaded(false);
-      void fetchResourcePreview(String(id)).then((v) => {
-        if (!alive) return;
-        setView(v);
-        setLoaded(true);
-      });
+      void load(() => alive);
       return () => { alive = false; };
-    }, [id]),
+    }, [load]),
   );
 
-  const back = () => (router.canGoBack() ? router.back() : router.navigate('/(practitioner)/resources' as never));
+  const back = () => (router.canGoBack() ? router.back() : router.replace('/(practitioner)/resources' as never));
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
@@ -69,7 +79,8 @@ export default function ResourcePreviewScreen() {
           </EdCard>
 
           {!loaded && <ActivityIndicator />}
-          {loaded && !view && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.missing}</Text>}
+          {loaded && !view && gone && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.missing}</Text>}
+          {loaded && !view && !gone && <LoadFailed onRetry={() => load()} />}
 
           {view && (
             <>
@@ -89,7 +100,7 @@ export default function ResourcePreviewScreen() {
               <EdPill
                 label={tr.share}
                 variant="green"
-                onPress={() => router.navigate({ pathname: '/(practitioner)/resources', params: { shareId: view.resource.id } } as never)}
+                onPress={() => router.navigate({ pathname: '/(practitioner)/resources', params: { shareId: view.resource.id, at: String(Date.now()) } } as never)}
                 style={{ marginTop: 24 }}
               />
             </>

@@ -47,7 +47,9 @@ export default function ArticleScreen() {
     runs.map((r, i) => (
       <Text
         key={i}
-        onPress={r.href ? () => void Linking.openURL(r.href as string) : undefined}
+        // Only web and email links open: the server keeps only those when a post
+        // is saved, and this is the second check for anything older.
+        onPress={r.href && /^(https?:|mailto:)/i.test(r.href) ? () => void Linking.openURL(r.href as string).catch(() => {}) : undefined}
         style={[
           base,
           r.marks?.includes('bold') && { fontWeight: '800' as const },

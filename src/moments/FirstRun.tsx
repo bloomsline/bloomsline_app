@@ -277,7 +277,7 @@ const STEM =
  *  older day. Real dates rather than invented ones, so the span reads as a year
  *  wherever and whenever the app is opened. */
 function exampleDates(locale: 'en' | 'fr'): string[] {
-  const lc = locale === 'fr' ? 'fr-FR' : 'en-US';
+  const lc = locale === 'fr' ? 'fr-FR' : 'en-GB';
   return [10, 8, 6, 4, 2, 1].map((back) => {
     const d = new Date();
     d.setMonth(d.getMonth() - back);

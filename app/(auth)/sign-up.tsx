@@ -1,3 +1,4 @@
+import { openPublicPage } from '@/src/ui/open-public';
 import { useState, type ReactNode } from 'react';
 import Svg, { Path } from 'react-native-svg';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -246,7 +247,7 @@ export default function SignUp() {
         <SafeAreaView edges={['top']} style={{ flex: 1 }}>
           <View style={{ flex: 1 }}>
             <View style={{ paddingHorizontal: 24, paddingTop: 12 }}>
-              <Pressable onPress={() => router.back()} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
+              <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/welcome' as never))} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
                 <X size={18} color="#fff" strokeWidth={2} />
               </Pressable>
             </View>
@@ -401,7 +402,10 @@ export default function SignUp() {
                   </View>
                 </View>
 
-                <Text style={{ marginTop: 18, textAlign: 'center', fontSize: 12, lineHeight: 18, color: '#AEAEA6' }}>{tr.legal}</Text>
+                <Text style={{ marginTop: 18, textAlign: 'center', fontSize: 12, lineHeight: 18, color: '#AEAEA6' }}>
+                  {/* What is agreed to is one tap away. */}
+                  {tr.legalPre}<Text accessibilityRole="link" onPress={() => openPublicPage('terms', locale)} style={{ textDecorationLine: 'underline' }}>{tr.legalTerms}</Text>{tr.legalPost}
+                </Text>
               </RiseIn>
             </KeyboardAvoidingView>
             )}

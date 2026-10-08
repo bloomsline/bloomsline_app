@@ -10,10 +10,11 @@ import { Check, CircleCheckBig, MessageCircle } from 'lucide-react-native';
 import { EdHeader, EdPill, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { Block, INTERACTIVE, ResourceIntro, type UploadStatus } from '@/src/resources/blocks';
-import { fileUrlIndex, filesOf, isAnswered, missingRequired } from '@/src/resources/answers';
+import { fileUrlIndex, filesOf, isAnswered, missingRequired, unreadableNumbers } from '@/src/resources/answers';
 import { parseTypedNumber } from '@/src/resources/number';
 import { flushCanvasDrafts } from '@/src/resources/zoned-canvas-field';
-import { fetchAssignment, saveAssignmentDraft, submitAssignment, type AssignmentView, type PatientScore } from '@/src/api/resources';
+import { LoadFailed } from '@/src/ui/LoadFailed';
+import { fetchAssignment, loadAssignment, saveAssignmentDraft, submitAssignment, type AssignmentView, type PatientScore } from '@/src/api/resources';
 import { useConfirm } from '@/src/ui/confirm';
 import { useLeaveGuard } from '@/src/ui/leave-guard';
 import { useI18n } from '@/src/i18n';
@@ -52,6 +53,7 @@ const T = {
     couldNotSubmit: 'Could not submit. Check your connection and try again. Your answers are still here.',
     missingRequired: 'Please answer the required questions.',
     missingCount: (n: number) => (n === 1 ? '1 question still needs an answer' : `${n} questions still need an answer`),
+    unreadableNumber: 'A number can’t be read. Use digits, like 12 or 3.5.',
     waitUploads: 'A file is still uploading. Wait for it to finish, then submit.',
     failedUploads: 'A file did not upload. Try again or remove it, then submit.',
     uploadingTitle: 'A file is still uploading', uploadingBody: 'If you leave now, it will not be added to your answers.',
@@ -81,6 +83,7 @@ const T = {
     couldNotSubmit: 'Envoi impossible. Vérifiez votre connexion et réessayez. Vos réponses sont toujours là.',
     missingRequired: 'Merci de répondre aux questions obligatoires.',
     missingCount: (n: number) => (n === 1 ? '1 question attend encore une réponse' : `${n} questions attendent encore une réponse`),
+    unreadableNumber: 'Un nombre n’est pas lisible. Utilisez des chiffres, comme 12 ou 3,5.',
     waitUploads: 'Un fichier est encore en cours d’envoi. Attendez la fin, puis envoyez.',
     failedUploads: 'Un fichier n’a pas été envoyé. Réessayez ou retirez-le, puis envoyez.',
     uploadingTitle: 'Un fichier est en cours d’envoi', uploadingBody: 'Si vous partez maintenant, il ne sera pas ajouté à vos réponses.',
@@ -138,6 +141,12 @@ function ResourceDetailPage() {
   // found then, and read against the answers on every render, so a mark clears
   // the moment its question is answered and the count under it goes down.
   const [missingIds, setMissingIds] = useState<string[]>([]);
+  // Numbers typed that do not read as one: sending would drop them silently.
+  const [oddIds, setOddIds] = useState<string[]>([]);
+  // The first load got no answer (offline, a server error): say so, with Retry,
+  // rather than that the exercise is gone.
+  const [unreachable, setUnreachable] = useState(false);
+  const [loadTry, setLoadTry] = useState(0);
   const [result, setResult] = useState<{ score: PatientScore | null } | null>(null);
   const confirm = useConfirm();
   const insets = useSafeAreaInsets();
@@ -276,12 +285,17 @@ function ResourceDetailPage() {
   useFocusEffect(
     useCallback(() => {
       let alive = true;
-      fetchAssignment(assignmentId).then((v) => {
+      loadAssignment(assignmentId).then((got) => {
         if (!alive) return;
+        const v = 'view' in got ? got.view : null;
         // A refetch on returning to the screen (from the photo picker, from
         // another tab) must not replace what was typed with the server's older
         // copy, and a refetch that fails must not blank a screen that loaded.
-        if (!v) { if (!everLoaded.current) { setView(null); setLoaded(true); } return; }
+        if (!v) {
+          if (!everLoaded.current) { setUnreachable('failed' in got && got.failed === 'unreachable'); setView(null); setLoaded(true); }
+          return;
+        }
+        setUnreachable(false);
         setView(v);
         if (!everLoaded.current) {
           everLoaded.current = true;
@@ -311,7 +325,9 @@ function ResourceDetailPage() {
         setLoaded(true);
       });
       return () => { alive = false; };
-    }, [assignmentId]),
+    // `loadTry` is not read: a new value is what makes Retry load again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [assignmentId, loadTry]),
   );
 
   const blocks = view?.version.blocks ?? [];
@@ -320,6 +336,7 @@ function ResourceDetailPage() {
     const b = blocks.find((x) => x.id === mid);
     return !!b && !isAnswered(b, answers[mid], readNumber);
   });
+  const oddShown = oddIds.length > 0 && unreadableNumbers(blocks, answers, readNumber).length > 0;
   // Links for files already on the server, by storage key, read against the
   // answers the server signed them for (see `urlsByKey`).
   const fileUrls = useMemo(
@@ -375,6 +392,12 @@ function ResourceDetailPage() {
       return;
     }
     setMissingIds([]);
+    const odd = unreadableNumbers(blocks, latest.current, readNumber);
+    setOddIds(odd);
+    if (odd.length) {
+      scrollToBlock(odd[0]);
+      return;
+    }
     setUploadHold(false);
     submittingRef.current = true;
     setSubmitting(true);
@@ -413,7 +436,9 @@ function ResourceDetailPage() {
     );
   };
 
-  const leaveNow = () => (router.canGoBack() ? router.back() : router.navigate('/home' as never));
+  // Replaced, not covered, when nothing is behind it (an emailed link): Home
+  // pushed on top left this screen alive underneath, out of the leave guard's reach.
+  const leaveNow = () => (router.canGoBack() ? router.back() : router.replace('/home' as never));
   // While answers or a file are still being kept, leaving goes straight to the
   // guard below, which may ask to stay: folding the page away first would leave
   // someone who chose to stay looking at a card.
@@ -451,12 +476,21 @@ function ResourceDetailPage() {
       </View>
     );
   }
+  if (!view && unreachable) {
+    return (
+      <View style={{ flex: 1, backgroundColor: TT.bg }}>
+        <EdHeader kicker="" title="" onBack={back} />
+        <View style={{ flex: 1, justifyContent: 'center', padding: 32 }}>
+          <LoadFailed onRetry={() => { setLoaded(false); setLoadTry((n) => n + 1); }} />
+        </View>
+      </View>
+    );
+  }
   if (!view) {
     return (
       <View style={{ flex: 1, backgroundColor: TT.bg }}>
-        <EdHeader kicker={tr.unavailable} title={tr.unavailable} onBack={back} />
+        <EdHeader kicker="" title={tr.unavailable} onBack={back} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: TT.ink }}>{tr.unavailable}</Text>
           <Text style={{ fontSize: 13.5, color: TT.inkSoft, marginTop: 6, textAlign: 'center' }}>{tr.unavailableBody}</Text>
         </View>
       </View>
@@ -553,6 +587,11 @@ function ResourceDetailPage() {
               <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: TT.danger }} />
               <Text style={{ fontSize: 13, fontWeight: '700', color: TT.danger }}>{tr.missingCount(shownMissing.length)}</Text>
             </Pressable>
+          ) : null}
+          {oddShown && shownMissing.length === 0 ? (
+            <Text accessibilityLiveRegion="polite" style={{ fontSize: 13, fontWeight: '600', color: TT.danger, textAlign: 'center', marginBottom: 10 }}>
+              {tr.unreadableNumber}
+            </Text>
           ) : null}
           {uploadHold && (uploads.uploading > 0 || uploads.failed > 0) ? (
             <Text accessibilityLiveRegion="polite" style={{ fontSize: 13, fontWeight: '600', color: TT.danger, textAlign: 'center', marginBottom: 10 }}>

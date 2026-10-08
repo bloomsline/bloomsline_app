@@ -1,3 +1,4 @@
+import { fold } from '@/src/ui/fold';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -5,8 +6,9 @@ import { Check, ChevronDown, ChevronRight, ChevronUp, FileSignature, Paperclip, 
 import { EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
 import { RichText } from '@/src/resources/blocks';
 import { useI18n } from '@/src/i18n';
-import { fetchPatient, type PatientDetail } from '@/src/api/practitioner';
+import { fetchDay, fetchPatient, type PatientDetail } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
+import { usePracticeZone } from '@/src/practitioner/practice-zone';
 import { LIGHT, DARK, type Mode } from '@/src/ui/tokens';
 import { LoadFailed } from '@/src/ui/LoadFailed';
 import { formatWords } from '@/src/care/session-format';
@@ -152,6 +154,7 @@ export default function PatientDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const patientId = typeof id === 'string' ? id : '';
   const { locale } = useI18n();
+  const zone = usePracticeZone(fetchDay);
   const tr = T[locale] ?? T.en;
 
   const [data, setData] = useState<PatientDetail | null>(null);
@@ -203,8 +206,8 @@ export default function PatientDetailScreen() {
   useFocusEffect(reload);
 
   const loc = locale === 'fr' ? 'fr-FR' : 'en-GB';
-  const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(loc, { day: 'numeric', month: 'short', year: 'numeric' }) : '');
-  const dayTime = (iso: string) => new Date(iso).toLocaleString(loc, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(loc, { day: 'numeric', month: 'short', year: 'numeric', ...zone }) : '');
+  const dayTime = (iso: string) => new Date(iso).toLocaleString(loc, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', ...zone });
   const price = (cents: number, currency = 'EUR') => {
     try { return new Intl.NumberFormat(loc, { style: 'currency', currency, maximumFractionDigits: 2 }).format(cents / 100); }
     catch { return `${(cents / 100).toFixed(2)} ${currency}`; }
@@ -215,14 +218,14 @@ export default function PatientDetailScreen() {
   // hand, and a round trip per keystroke would be slower and offline-fragile.
   // Title and body both, because half of what you remember is in the body.
   const notes = useMemo(() => {
-    const needle = q.trim().toLowerCase();
+    const needle = fold(q.trim());
     let all = data?.notes ?? [];
     if (quoteOnly) all = all.filter((n) => n.hasQuote);
     if (pickedTags.length) all = all.filter((n) => n.tags?.some((t) => pickedTags.includes(t)));
     if (!needle) return all;
     // Search the TEXT, not the markup: '<p>' is in every note and matches nothing
     // a practitioner is looking for.
-    return all.filter((n) => `${n.title ?? ''} ${plain(n.content)}`.toLowerCase().includes(needle));
+    return all.filter((n) => fold(`${n.title ?? ''} ${plain(n.content)}`).includes(needle));
   }, [q, quoteOnly, pickedTags, data]);
 
   // Only tags this patient's notes actually carry. Offering the whole vocabulary
@@ -332,7 +335,7 @@ export default function PatientDetailScreen() {
                       {open ? <ChevronUp size={15} color={TT.faint} /> : <ChevronDown size={15} color={TT.faint} />}
                     </View>
                     <Text style={{ fontSize: 12.5, color: TT.faint, marginTop: 4 }}>
-                      {s.sessionTypeLabel ?? s.sessionType} · {formatWords(s.sessionFormat, locale, s.formatLabel)} · {s.durationMinutes}m
+                      {s.sessionTypeLabel ?? s.sessionType} · {formatWords(s.sessionFormat, locale, s.formatLabel)} · {s.durationMinutes} min
                       {s.paymentStatus === 'unpaid' ? ` · ${tr.unpaid}` : ''}
                     </Text>
 

@@ -1,3 +1,4 @@
+import { openPublicPage } from '@/src/ui/open-public';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,7 +19,7 @@ import { track } from '@/src/analytics/client';
 // promises as hairline-divided rows, an explicit consent checkbox above the pill.
 export default function Privacy() {
   const { update } = useOnboarding();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [agreed, setAgreed] = useState(false);
 
   const T = t.onboarding.privacy;
@@ -54,9 +55,12 @@ export default function Privacy() {
             {/* Back only. v2 dropped the 02/02 progress bar along with the rest
                 of the step counter, so nothing here implies a numbered flow. */}
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 8 }}>
+              {/* Only when there is a screen behind it: signed in, nothing is, and the arrow did nothing. */}
+              {router.canGoBack() && (
               <Pressable onPress={() => router.back()} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' }}>
-                <ChevronLeft size={18} color="#fff" strokeWidth={2} />
-              </Pressable>
+                  <ChevronLeft size={18} color="#fff" strokeWidth={2} />
+                </Pressable>
+              )}
             </View>
 
             <MonoKicker size={10} color="rgba(255,255,255,0.55)" style={{ marginTop: 26, marginBottom: 12 }}>{T.badge}</MonoKicker>
@@ -90,7 +94,7 @@ export default function Privacy() {
                   {agreed ? <Text style={{ fontSize: 13, fontWeight: '800', color: '#141414' }}>✓</Text> : null}
                 </View>
                 <Text style={{ flex: 1, fontSize: 12.5, color: 'rgba(255,255,255,0.78)', lineHeight: 18 }}>
-                  {T.consentPre}<Text style={{ color: '#fff', fontWeight: '700' }}>{T.consentA}</Text>{T.consentMid}<Text style={{ color: '#fff', fontWeight: '700' }}>{T.consentB}</Text>.
+                  {T.consentPre}<Text accessibilityRole="link" onPress={() => openPublicPage('privacy', locale)} style={{ color: '#fff', fontWeight: '700', textDecorationLine: 'underline' }}>{T.consentA}</Text>{T.consentMid}<Text accessibilityRole="link" onPress={() => openPublicPage('terms', locale)} style={{ color: '#fff', fontWeight: '700', textDecorationLine: 'underline' }}>{T.consentB}</Text>.
                 </Text>
               </Pressable>
               <Pill label={T.cta} variant="white" disabled={!agreed} onPress={next} />

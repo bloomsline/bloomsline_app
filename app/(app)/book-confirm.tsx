@@ -43,9 +43,12 @@ const T = {
     policyContact: (n: string) => `To change or cancel this session, contact ${n}.`,
     policyApproval: (n: string) => `${n} confirms each booking. You'll get an email once it's confirmed.`,
     requestSentTitle: 'Request sent',
+    bookedTitle: 'Session booked',
+    movedTitle: 'Session moved',
     requestSentBody: (n: string) => `${n} will confirm your session. You'll get an email when they do.`,
     confirmNewTime: 'Confirm new time',
     confirmBooking: 'Confirm booking',
+    sendRequest: 'Send request',
   },
   fr: {
     confirmTitle: 'Confirmer',
@@ -68,9 +71,12 @@ const T = {
     policyContact: (n: string) => `Pour modifier ou annuler cette séance, contactez ${n}.`,
     policyApproval: (n: string) => `${n} confirme chaque réservation. Vous recevrez un e-mail une fois la séance confirmée.`,
     requestSentTitle: 'Demande envoyée',
+    bookedTitle: 'Séance réservée',
+    movedTitle: 'Séance déplacée',
     requestSentBody: (n: string) => `${n} confirmera votre séance. Vous recevrez un e-mail à ce moment-là.`,
     confirmNewTime: 'Confirmer le nouvel horaire',
     confirmBooking: 'Confirmer la réservation',
+    sendRequest: 'Envoyer la demande',
   },
 } as const;
 
@@ -153,6 +159,9 @@ export default function BookConfirm() {
       // Waiting on the practitioner is not booked, and the patient should not
       // leave believing it is.
       if ('pending' in res && res.pending) notify(tr.requestSentTitle, tr.requestSentBody(name));
+      // Said, not only shown: the screen used to go back without a word, and
+      // the only sign it worked was a card further down Home.
+      else if (start) notify(rescheduleId ? tr.movedTitle : tr.bookedTitle, `${longDate(start, locale)} · ${clock(start)}`);
       router.navigate('/home' as never); // hub refetches on focus → change shows
       return;
     }
@@ -179,7 +188,7 @@ export default function BookConfirm() {
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-        <EdHeader kicker={kicker} title={tr.confirmTitle} source={ONBOARDING_IMAGES.final} onBack={() => router.back()} />
+        <EdHeader kicker={kicker} title={tr.confirmTitle} source={ONBOARDING_IMAGES.final} onBack={() => (router.canGoBack() ? router.back() : router.replace('/book' as never))} />
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {/* Summary */}
           <EdCard style={{ padding: 24, alignItems: 'center' }}>
@@ -223,7 +232,7 @@ export default function BookConfirm() {
       {/* Clear of the home indicator and Android's navigation bar (edge-to-edge
           draws under both). A fixed 24 put the button partly beneath them. */}
       <View style={{ position: 'absolute', left: 22, right: 22, bottom: Math.max(24, insets.bottom + 10) }}>
-        <EdPill label={busy ? '…' : rescheduleId ? tr.confirmNewTime : tr.confirmBooking} variant="dark" disabled={busy || !start} onPress={confirm} />
+        <EdPill label={busy ? '…' : rescheduleId ? tr.confirmNewTime : approval ? tr.sendRequest : tr.confirmBooking} variant="dark" disabled={busy || !start} onPress={confirm} />
       </View>
     </View>
   );

@@ -74,6 +74,7 @@ export default function Dashboard() {
   // The day could not be read. "Nothing on today" is a statement about a
   // practitioner's schedule, and it used to be what a failed read said.
   const [failed, setFailed] = useState(false);
+  const [requestsFailed, setRequestsFailed] = useState(false);
 
   const load = useCallback(() => {
       let alive = true;
@@ -82,6 +83,9 @@ export default function Dashboard() {
         if (day) { setSessions(day.items); setTz(day.timezone); }
         if (reqs) setRequests(reqs.items);
         setFailed(!day);
+        // Requests that could not be read are not "none waiting": the section
+        // used to vanish offline, as if nobody had asked.
+        setRequestsFailed(!reqs);
         setLoaded(true);
       });
       return () => { alive = false; };
@@ -120,7 +124,7 @@ export default function Dashboard() {
     setOpeningNote(s.id);
     const res = await openForSession({
       appointmentId: s.id, memberId: s.memberId, who: s.who,
-      when: new Date(s.scheduledAt).toLocaleString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+      when: new Date(s.scheduledAt).toLocaleString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', ...(tz ? { timeZone: tz } : {}) }),
       noteType: 'session',
     }).finally(() => setOpeningNote(null));
     if (!res.ok) { notify(tr.title, res.reason === 'unsaved' ? tr.noteUnsaved : tr.noteOpenFailed); return; }
@@ -170,9 +174,13 @@ export default function Dashboard() {
             </View>
           )}
 
-          {requests.length > 0 && (
+          {/* Shown when there are requests, when they could not be read, or when
+              the last decision failed: an error on the last request used to go
+              with the list that held it. */}
+          {(requests.length > 0 || requestsFailed || !!error) && (
             <View style={{ marginTop: 26 }}>
               <EdSection label={tr.requests} />
+              {requestsFailed && requests.length === 0 && <LoadFailed compact onRetry={() => { load(); }} />}
               {requests.map((r) => (
                 <EdCard key={r.id} style={{ marginBottom: 10 }}>
                   <Text style={{ fontSize: 15.5, fontWeight: '700', color: TT.ink }}>{r.who}</Text>

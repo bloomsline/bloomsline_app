@@ -1,6 +1,7 @@
 // e3 — "My guides" / "Mes repères" (route + API still say library).
 // Self-guided activities from the patient's practitioner(s),
 // always open, never assigned. Wired to GET /api/mobile/library.
+import { fold } from '@/src/ui/fold';
 import { useFeatureGuard } from '@/src/care/use-feature-guard';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -76,7 +77,6 @@ export default function Library() {
   // types "méditation" with the accent when they are looking for it, and a
   // search that returns nothing for a word plainly on the screen reads as
   // broken rather than as strict.
-  const fold = (v: string) => v.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
   const needle = fold(q.trim());
   const matches = (it: LibraryItem) =>
     fold(it.title).includes(needle) ||

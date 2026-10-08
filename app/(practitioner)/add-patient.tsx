@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { EdHeader, EdCard, EdPill, EdSection, FadeIn } from '@/src/ui/editorial';
@@ -7,6 +7,7 @@ import { addPatient } from '@/src/api/practitioner';
 import { useTheme } from '@/src/ui/theme-mode';
 import { localizeServerMessage } from '@/src/api/server-messages';
 import { track } from '@/src/analytics/client';
+import { notify } from '@/src/ui/alert';
 
 // Add a patient. Name is required; an email is what makes the app invitation
 // possible — and whether one actually goes out is decided server-side, where the
@@ -17,12 +18,16 @@ const T = {
     first: 'First name', last: 'Last name', email: 'Email (optional)',
     save: 'Add patient',
     inviteNote: 'If you add an email, they will be invited to the patient app.',
+    added: (n: string) => `${n} added`,
+    invited: (e: string) => `An invitation was sent to ${e}.`,
   },
   fr: {
     kicker: 'NOUVEAU', title: 'Ajouter un patient', details: 'INFORMATIONS',
     first: 'Prénom', last: 'Nom', email: 'E-mail (facultatif)',
     save: 'Ajouter',
     inviteNote: 'Si vous ajoutez un e-mail, la personne sera invitée sur l’application.',
+    added: (n: string) => `${n} figure maintenant dans votre liste`,
+    invited: (e: string) => `Une invitation a été envoyée à ${e}.`,
   },
 } as const;
 
@@ -40,16 +45,26 @@ export default function AddPatient() {
 
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/(practitioner)/people' as never));
 
+  // A ref, not the `saving` state: two taps in one frame both read the state as
+  // false, and the patient was added twice.
+  const savingRef = useRef(false);
   const save = async () => {
     // Both names, as the server requires; asking for one let the form submit and
     // then refused it.
-    if (!firstName.trim() || !lastName.trim()) return;
+    if (!firstName.trim() || !lastName.trim() || savingRef.current) return;
+    savingRef.current = true;
     setError(''); setSaving(true);
     const res = await addPatient({ firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim() || undefined });
     setSaving(false);
+    savingRef.current = false;
     if (!res.ok) { setError(localizeServerMessage(res.error, locale) ?? ''); return; }
     track('practitioner_patient_added', { invited: email.trim().length > 0 });
-    back();
+    // Say it worked, and open the new patient: the screen used to go back
+    // without a word, and the patient then had to be found in the list.
+    const name = `${firstName.trim()} ${lastName.trim()}`;
+    notify(tr.added(name), email.trim() ? tr.invited(email.trim()) : undefined);
+    if (res.id) router.replace(`/(practitioner)/patient/${res.id}` as never);
+    else back();
   };
 
   const field = (value: string, onChangeText: (v: string) => void, placeholder: string, extra?: object) => (

@@ -123,7 +123,7 @@ export default function Practitioner() {
           kicker={tr.yourPractitioner}
           title={name ?? tr.yourPractitioner}
           subtitle={headline ?? undefined}
-          onBack={() => router.back()}
+          onBack={() => (router.canGoBack() ? router.back() : router.replace('/home' as never))}
           source={p?.photoUrl ? { uri: p.photoUrl } : ONBOARDING_IMAGES.card3}
           rightIcon={switcher.canSwitch ? ArrowLeftRight : undefined}
           onRight={switcher.canSwitch ? switcher.open : undefined}

@@ -41,17 +41,28 @@ export interface FamilyInvite {
 }
 
 export async function fetchFamilyInvite(kind: 'guardian' | 'child', token: string): Promise<FamilyInvite | null> {
+  const got = await lookupFamilyInvite(kind, token);
+  return 'invite' in got ? got.invite : null;
+}
+
+/**
+ * As fetchFamilyInvite, saying why there is none: 'gone' when the server
+ * answered that the invitation is not there (used, expired, never existed),
+ * 'unreachable' for no answer or a server error. The landing treated the two
+ * alike, so an offline phone was told its invitation had expired.
+ */
+export async function lookupFamilyInvite(kind: 'guardian' | 'child', token: string): Promise<{ invite: FamilyInvite } | { failed: 'gone' | 'unreachable' }> {
   try {
     const res = await fetch(`${API_URL}/api/mobile/${kind}-invite/${encodeURIComponent(token)}`);
-    if (!res.ok) return null;
+    if (!res.ok) return { failed: res.status >= 400 && res.status < 500 ? 'gone' : 'unreachable' };
     const data = (await res.json()) as { email?: string | null; childFirstName?: string | null; firstName?: string | null; practitionerName?: string | null; locale?: string };
-    return {
+    return { invite: {
       email: typeof data.email === 'string' ? data.email : null,
       childFirstName: (kind === 'guardian' ? data.childFirstName : data.firstName) ?? null,
       practitionerName: data.practitionerName ?? null,
       locale: data.locale === 'fr' ? 'fr' : 'en',
-    };
+    } };
   } catch {
-    return null;
+    return { failed: 'unreachable' };
   }
 }

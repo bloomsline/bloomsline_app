@@ -1,9 +1,10 @@
 // c8 — From your practitioner: assigned resources & exercises. Wired to GET
 // /api/mobile/care/todo (real assignments). Demo items under FORCE_CARE_HUB.
+import { frElide } from '@/src/i18n/elide';
 import { useFeatureGuard } from '@/src/care/use-feature-guard';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Check, ChevronRight, MessageCircle, type LucideIcon } from 'lucide-react-native';
 import { notify } from '@/src/ui/alert';
 import { EdHeader, EdCard, FadeIn } from '@/src/ui/editorial';
@@ -11,6 +12,7 @@ import { useOnboarding } from '@/src/onboarding/context';
 import { FORCE_CARE_HUB } from '@/src/config';
 import { fetchTodo, type TodoItem } from '@/src/api/care';
 import { useSelectionReset } from '@/src/care/selected-practitioner';
+import { orderTodo } from '@/src/care/todo-order';
 import { dueLabel, resourceTypeMeta, stageLabel, stageLine, todoStage } from '@/src/care/resources';
 import { useI18n, fmt } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
@@ -21,15 +23,15 @@ const T = {
   en: {
     defaultPractitioner: 'your practitioner',
     titleFrom: 'From {name}',
-    subtitle: 'Do these whenever suits you, no due dates.',
+    subtitle: 'Do these whenever suits you.',
     emptyTitle: 'Nothing shared yet',
     emptyBody: 'Anything {name} shares with you will appear here.',
     reply: 'New message',
   },
   fr: {
     defaultPractitioner: 'votre praticien',
-    titleFrom: 'De la part de {name}',
-    subtitle: 'Faites-les quand cela vous convient, sans date limite.',
+    titleFrom: 'De la part {deName}',
+    subtitle: 'Faites-les quand cela vous convient.',
     emptyTitle: 'Rien de partagé pour le moment',
     emptyBody: 'Tout ce que {name} partage avec vous apparaîtra ici.',
     reply: 'Nouveau message',
@@ -55,22 +57,28 @@ export default function FromPractitioner() {
   const [attempt, setAttempt] = useState(0);
   const selectionKey = useSelectionReset(() => { setItems(null); setFailed(false); });
 
-  useEffect(() => {
+  // Read again whenever the screen comes back into view: coming back from an
+  // exercise left it saying "Not started" after answers were kept, or "To do"
+  // after it was sent. The rows on screen stay while it reads.
+  useFocusEffect(useCallback(() => {
     let alive = true;
     fetchTodo().then((t) => {
       if (!alive) return;
       // A failed read is not an empty one (see LoadFailed).
       if (t === null && !FORCE_CARE_HUB) { setFailed(true); return; }
       setFailed(false);
-      setItems(t && t.length > 0 ? t : FORCE_CARE_HUB ? DEMO : []);
+      setItems(t && t.length > 0 ? orderTodo(t) : FORCE_CARE_HUB ? DEMO : []);
     });
     return () => { alive = false; };
-  }, [attempt, selectionKey]);
+    // Neither is read here, and that is the point: Retry and a new practitioner
+    // are what make it read again (as on Home).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attempt, selectionKey]));
 
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-        <EdHeader kicker={first} title={fmt(tr.titleFrom, { name: first })} subtitle={tr.subtitle} onBack={() => router.back()} />
+        <EdHeader kicker={first} title={fmt(tr.titleFrom, { name: first, deName: frElide('de', first) })} subtitle={tr.subtitle} onBack={() => (router.canGoBack() ? router.back() : router.navigate('/home' as never))} />
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {items === null ? (
             failed ? <LoadFailed onRetry={() => { setFailed(false); setAttempt((a) => a + 1); }} /> : (

@@ -23,8 +23,8 @@ const T = {
     none: 'No brief yet for this patient.', generate: 'Generate a brief',
     regenerate: 'Refresh', generating: 'Reading their history…',
     consentOff: 'Bloom Pulse is off. Turn it on in the care app to use briefs — it sends patient material to an AI model, so it is opt-in.',
-    stale: '{n} new since this was written.', signals: 'RIGHT NOW', next: 'FOR NEXT TIME', themes: 'THEMES',
-    from: 'From {notes} notes and {sessions} sessions.',
+    stale: (n: number) => `${n} new since this was written.`, signals: 'RIGHT NOW', next: 'FOR NEXT TIME', themes: 'THEMES',
+    from: (notes: number, sessions: number) => `From ${notes} ${notes === 1 ? 'note' : 'notes'} and ${sessions} ${sessions === 1 ? 'session' : 'sessions'}.`,
     failed: 'Could not build a brief just now.',
   },
   fr: {
@@ -32,13 +32,12 @@ const T = {
     none: 'Aucun brief pour ce patient.', generate: 'Générer un brief',
     regenerate: 'Actualiser', generating: 'Lecture de son historique…',
     consentOff: 'Bloom Pulse est désactivé. Activez-le dans l’app pour utiliser les briefs : il transmet des données patient à un modèle IA, donc c’est sur option.',
-    stale: '{n} nouveautés depuis sa rédaction.', signals: 'EN CE MOMENT', next: 'POUR LA PROCHAINE FOIS', themes: 'THÈMES',
-    from: 'À partir de {notes} notes et {sessions} séances.',
+    stale: (n: number) => (n === 1 ? '1 nouveauté depuis sa rédaction.' : `${n} nouveautés depuis sa rédaction.`), signals: 'EN CE MOMENT', next: 'POUR LA PROCHAINE FOIS', themes: 'THÈMES',
+    from: (notes: number, sessions: number) => `À partir de ${notes} ${notes > 1 ? 'notes' : 'note'} et ${sessions} ${sessions > 1 ? 'séances' : 'séance'}.`,
     failed: 'Impossible de générer un brief pour le moment.',
   },
 } as const;
 
-const fill = (s: string, v: Record<string, string>) => s.replace(/\{(\w+)\}/g, (_, k) => v[k] ?? '');
 
 // Signal tone. An amber signal is something to hold in mind walking in, not an
 // alarm — the wording does that work, the colour just groups them.
@@ -168,7 +167,7 @@ export function PulseSheet({ memberId, who, onClose }: { memberId: string | null
                 <Text style={{ fontSize: 15.5, lineHeight: 23, color: TT.ink, marginTop: 18 }}>{pulse.content.pulseLine}</Text>
 
                 {staleCount > 0 && (
-                  <Text style={{ fontSize: 12.5, color: KIND[mode].concern.fg, marginTop: 10 }}>{fill(tr.stale, { n: String(staleCount) })}</Text>
+                  <Text style={{ fontSize: 12.5, color: KIND[mode].concern.fg, marginTop: 10 }}>{tr.stale(staleCount)}</Text>
                 )}
 
                 {pulse.content.signals?.length > 0 && (
@@ -213,7 +212,7 @@ export function PulseSheet({ memberId, who, onClose }: { memberId: string | null
                 {/* Provenance. A brief that will not say what it read is asking
                     to be trusted on nothing. */}
                 <Text style={{ fontSize: 12, color: TT.faint, marginTop: 20, lineHeight: 18 }}>
-                  {fill(tr.from, { notes: String(pulse.noteCount), sessions: String(pulse.sessionCount) })}
+                  {tr.from(pulse.noteCount, pulse.sessionCount)}
                 </Text>
 
                 <Pressable onPress={build} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16, borderRadius: 22, borderWidth: 1, borderColor: TT.line, paddingVertical: 12 }}>

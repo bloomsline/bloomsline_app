@@ -7,6 +7,9 @@ import { hrefForStatus } from '@/src/auth/route';
 import { useLanding, LANDING_HREF } from '@/src/prefs/app-prefs';
 import { useTheme } from '@/src/ui/theme-mode';
 import { useReduceMotion } from '@/src/ui/app-tabs';
+import { useI18n } from '@/src/i18n';
+import { notify } from '@/src/ui/alert';
+import { takeRestored } from '@/src/auth/restored-notice';
 
 /** The three tab routes. Only these are subject to the landing preference — a
  *  resource link, a journal entry or a session sheet is somewhere the patient
@@ -25,6 +28,7 @@ let entryDecided = false;
 
 export default function AppLayout() {
   const { t: TT } = useTheme();
+  const { t } = useI18n();
   const reduceMotion = useReduceMotion();
   const { status } = useAuth();
   const pathname = usePathname();
@@ -52,6 +56,12 @@ export default function AppLayout() {
 
   // A pending guardian's or child's invitation: back to it, for a tap.
   usePendingInviteRedirect(status === 'authed');
+
+  // This sign-in cancelled a pending deletion (src/auth/restored-notice): say so,
+  // once, on the first screen.
+  useEffect(() => {
+    if (status === 'authed' && takeRestored()) notify(t.settings.restoredTitle, t.settings.restoredBody);
+  }, [status, t]);
 
   useEffect(() => {
     if (entryDecided || status !== 'authed' || !ready) return;

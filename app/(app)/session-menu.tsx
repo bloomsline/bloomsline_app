@@ -38,6 +38,7 @@ const T = {
     contactPractitioner: 'To change or cancel this session, contact your practitioner.',
     yourPractitioner: 'your practitioner',
     cancelledDemo: 'Session cancelled (demo)',
+    cancelled: 'Session cancelled',
     cancelConfirm: 'Cancel this session?',
     cancelTitle: 'Cancel session',
     cancelBody: 'This will free the slot.',
@@ -63,6 +64,7 @@ const T = {
     contactPractitioner: 'Pour modifier ou annuler cette séance, contactez votre praticien.',
     yourPractitioner: 'votre praticien',
     cancelledDemo: 'Séance annulée (démo)',
+    cancelled: 'Séance annulée',
     cancelConfirm: 'Annuler cette séance ?',
     cancelTitle: 'Annuler la séance',
     cancelBody: 'Cela libérera le créneau.',
@@ -99,7 +101,10 @@ export default function SessionMenu() {
   // through from the practitioner's policy.
   const canCancel = isDemo || p.canCancel === '1';
   const canReschedule = isDemo || p.canReschedule === '1';
-  const noticeHours = Number(p.noticeHours) || 24;
+  // 0 is a real setting (changes allowed up to the start), and `|| 24` read it
+  // as missing, hiding Reschedule for the whole day before every session.
+  const noticeRaw = typeof p.noticeHours === 'string' && p.noticeHours.trim() !== '' ? Number(p.noticeHours) : NaN;
+  const noticeHours = Number.isFinite(noticeRaw) && noticeRaw >= 0 ? noticeRaw : 24;
   // TWO BUTTONS, and one of them stops being offered near the session.
   //
   // The practitioner's permission is a single setting now, but the two actions
@@ -158,7 +163,7 @@ export default function SessionMenu() {
     setBusy(true);
     const res = await cancelSession(id);
     setBusy(false);
-    if (res.ok) { track('session_cancelled'); close(); return; }
+    if (res.ok) { track('session_cancelled'); notify(tr.cancelled, start ? `${longDate(start, locale)} · ${clock(start)}` : undefined); close(); return; }
     // In the patient's language, by reason. The server's sentences are English,
     // and one was always present, so the translated message was never shown.
     notify(
@@ -256,7 +261,7 @@ function MiniFact({ label, value }: { label: string; value: string }) {
   );
 }
 
-const localeTag = (locale: Locale) => (locale === 'fr' ? 'fr-FR' : 'en-US');
+const localeTag = (locale: Locale) => (locale === 'fr' ? 'fr-FR' : 'en-GB');
 // No comma after the weekday in French. See book.tsx.
 const longDate = (d: Date, locale: Locale) => `${d.toLocaleDateString(localeTag(locale), { weekday: 'long' })}${locale === 'fr' ? ' ' : ', '}${d.getDate()} ${d.toLocaleDateString(localeTag(locale), { month: 'long' })}`;
 const clock = (d: Date) => `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;

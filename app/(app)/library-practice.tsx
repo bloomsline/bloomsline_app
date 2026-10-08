@@ -1,6 +1,8 @@
 // e4 — Library activity. Render a self-guided practice, do it, and save a PRIVATE
 // run (/api/mobile/library/[id]/run) — kept to the patient, never seen by the
 // practitioner. Repeatable. Wired to GET /api/mobile/library/[id].
+import { unreadableNumbers } from '@/src/resources/answers';
+import { parseTypedNumber } from '@/src/resources/number';
 import { useFeatureGuard } from '@/src/care/use-feature-guard';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Pressable, ScrollView, Text, View } from 'react-native';
@@ -24,12 +26,14 @@ import { track } from '@/src/analytics/client';
 const T = {
   en: {
     couldNotSave: 'Could not save.',
+    unreadableNumber: 'A number can’t be read. Use digits, like 12 or 3.5.',
     saveGone: 'This activity is no longer available, so your answers could not be saved.',
     saveBusy: 'Too many tries in a row. Wait a moment and save again.',
     saveOffline: 'Could not reach Bloomsline. Check your connection and save again.',
     waitUploads: 'A file is still uploading. Wait for it to finish, then save.',
     uploadingTitle: 'A file is still uploading', uploadingBody: 'If you leave now, it will not be saved with this practice.',
     stay: 'Stay', leaveAnyway: 'Leave anyway',
+    unsavedTitle: 'Leave without saving?', unsavedBody: 'What you wrote here is not kept until you tap Save.',
     failedUploads: 'A file did not upload. Try again or remove it, then save.',
     unavailable: 'Activity unavailable',
     privateToYou: 'Private to you',
@@ -43,12 +47,14 @@ const T = {
   },
   fr: {
     couldNotSave: 'Enregistrement impossible.',
+    unreadableNumber: 'Un nombre n’est pas lisible. Utilisez des chiffres, comme 12 ou 3,5.',
     saveGone: 'Cette activité n’est plus disponible, vos réponses n’ont donc pas pu être enregistrées.',
     saveBusy: 'Trop d’essais d’affilée. Patientez un instant et enregistrez à nouveau.',
     saveOffline: 'Impossible de joindre Bloomsline. Vérifiez votre connexion et enregistrez à nouveau.',
     waitUploads: 'Un fichier est encore en cours d’envoi. Attendez la fin, puis enregistrez.',
     uploadingTitle: 'Un fichier est en cours d’envoi', uploadingBody: 'Si vous partez maintenant, il ne sera pas enregistré avec cet exercice.',
     stay: 'Rester', leaveAnyway: 'Partir quand même',
+    unsavedTitle: 'Partir sans enregistrer ?', unsavedBody: 'Ce que vous avez écrit ici n’est conservé qu’en appuyant sur Enregistrer.',
     failedUploads: 'Un fichier n’a pas été envoyé. Réessayez ou retirez-le, puis enregistrez.',
     unavailable: 'Activité indisponible',
     privateToYou: 'Privé',
@@ -76,6 +82,8 @@ export default function LibraryPractice() {
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<{ score: PatientScore | null } | null>(null);
+  // Something was answered and not yet saved.
+  const [touched, setTouched] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -91,6 +99,7 @@ export default function LibraryPractice() {
   const set = (blockId: string, value: unknown) => {
     latestAnswers.current = { ...latestAnswers.current, [blockId]: value };
     setAnswers(latestAnswers.current);
+    setTouched(true);
   };
 
   // Files join the answers only once uploaded, so a Save in the middle of one
@@ -102,8 +111,12 @@ export default function LibraryPractice() {
   const confirm = useConfirm();
   // Leaving mid-upload asks, as the worksheet screen does. Without it the file
   // was simply dropped, with nothing said.
-  useLeaveGuard(!result && uploadingNow, async (leave) => {
-    const go = await confirm({ title: tr.uploadingTitle, message: tr.uploadingBody, confirmLabel: tr.leaveAnyway, cancelLabel: tr.stay, destructive: true });
+  // Typed answers too: a self-guided run is not kept as a draft, so Back threw
+  // them away without a word.
+  useLeaveGuard(!result && !saving && (uploadingNow || touched), async (leave) => {
+    const go = uploadingNow
+      ? await confirm({ title: tr.uploadingTitle, message: tr.uploadingBody, confirmLabel: tr.leaveAnyway, cancelLabel: tr.stay, destructive: true })
+      : await confirm({ title: tr.unsavedTitle, message: tr.unsavedBody, confirmLabel: tr.leaveAnyway, cancelLabel: tr.stay, destructive: true });
     if (go) leave();
   });
   // A ref, not the `saving` state: two taps in one frame both read the state as
@@ -116,6 +129,9 @@ export default function LibraryPractice() {
     const up = Object.values(uploads.current);
     if (up.some((u) => u.uploading > 0)) { notify(tr.waitUploads); return; }
     if (up.some((u) => u.failed > 0)) { notify(tr.failedUploads); return; }
+    // A number that does not read as one would be dropped without a word.
+    const readNumber = (v: unknown) => (typeof v === 'number' ? v : typeof v === 'string' ? parseTypedNumber(v, locale) : undefined);
+    if (unreadableNumbers(blocks, latestAnswers.current, readNumber).length) { notify(tr.unreadableNumber); return; }
     savingRef.current = true;
     setSaving(true);
     const res = await runLibraryActivity(resourceId, latestAnswers.current, view?.version.id, locale);
@@ -125,7 +141,8 @@ export default function LibraryPractice() {
     notify(res.reason === 'gone' ? tr.saveGone : res.reason === 'busy' ? tr.saveBusy : res.reason === 'offline' ? tr.saveOffline : tr.couldNotSave);
   };
 
-  const back = () => (router.canGoBack() ? router.back() : router.navigate('/library' as never));
+  // Replaced, not covered, when nothing is behind it (see journal-entry).
+  const back = () => (router.canGoBack() ? router.back() : router.replace('/library' as never));
 
   if (!loaded) {
     return (

@@ -39,6 +39,8 @@ import { joinFirstNames } from '@/src/care/practitioner-names';
 import { track } from '@/src/analytics/client';
 import { notify } from '@/src/ui/alert';
 import { useAndroidBack } from '@/src/ui/android-back';
+import { useLeaveGuard } from '@/src/ui/leave-guard';
+import { useConfirm } from '@/src/ui/confirm';
 import { HEADER_TOP } from '@/src/ui/editorial';
 import { useTheme } from '@/src/ui/theme-mode';
 import { KNOB, OVER_MEDIA, veil } from '@/src/ui/tokens';
@@ -136,9 +138,16 @@ export default function Capture() {
   const uploadedFor = useRef(new Map<string, MomentMediaInput>());
 
   const capturedAt = useRef(new Date()).current;
-  const when = `${capturedAt.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'long' })}, ${capturedAt.toLocaleTimeString(locale === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}`;
+  const when = `${capturedAt.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { weekday: 'long' })}, ${capturedAt.toLocaleTimeString(locale === 'fr' ? 'fr-FR' : 'en-GB', { hour: '2-digit', minute: '2-digit' })}`;
 
   const hasSomething = (note.trim().length > 0 || media.length > 0) && !recording;
+  // Leaving with something written, added or being recorded asks first: the ✕,
+  // Android's back and the swipe down all threw it away without a word, and
+  // nothing of an unsaved moment is kept anywhere.
+  const confirm = useConfirm();
+  const guard = useLeaveGuard(!busy && (note.trim().length > 0 || media.length > 0 || recording), async (leave) => {
+    if (await confirm({ title: tr.discardTitle, message: tr.discardBody, confirmLabel: tr.discard, cancelLabel: tr.keepWriting, destructive: true })) leave();
+  });
   const atCap = media.length >= MAX_MEDIA;
   // The ground is the FIRST item, whatever kind it is. A voice note has no
   // picture to show, so it gets its own treatment rather than a blank screen.
@@ -285,6 +294,7 @@ export default function Capture() {
       // every moment saved added another full timeline to the stack, and Back
       // led to Moments again instead of out. Moments reloads when it regains
       // focus, so the new moment is there either way.
+      guard.release();
       if (router.canGoBack()) router.back();
       else router.replace('/moments' as never);
     } catch {
@@ -326,7 +336,7 @@ export default function Capture() {
         <Header
           step={step}
           tr={tr}
-          onClose={() => { if (!busy) router.back(); }}
+          onClose={() => { if (busy) return; if (router.canGoBack()) router.back(); else router.replace('/moments' as never); }}
           onBack={() => { if (busy) return; if (step === 'preview') setStep('feel'); else toWrite(); }}
         />
 
@@ -622,21 +632,24 @@ function Preview({
         ) : null}
       </ScrollView>
 
-      {/* Who sees this. Named, not labelled "private": the question a person has
-          here is who, and the reassurance about undoing it appears only once it
-          is something they have actually done. */}
+      {/* Who sees this. The switch is "Share with Anna", always: it used to read
+          "Keep this page private" while off, so a private moment showed a
+          "private" switch turned OFF, which reads as not private. The line under
+          it says where things stand. */}
       {canShare ? (
         <Pressable
           onPress={onToggleShare}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: share }}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: TT.card, borderWidth: 1, borderColor: share ? TT.accent : TT.cardLine, borderRadius: 18, padding: 14, marginBottom: 14 }}
         >
           {share ? <Eye size={17} color={TT.accent} strokeWidth={2} /> : <Lock size={17} color={TT.faint} strokeWidth={2} />}
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 14, fontWeight: '700', color: share ? TT.accent : TT.ink }}>
-              {share ? fmt(tr.showPrac, { prac: pracFirst }) : tr.keepPrivate}
+              {fmt(tr.showPrac, { prac: pracFirst })}
             </Text>
             <Text style={{ fontSize: 11.5, color: TT.faint, marginTop: 2 }}>
-              {share ? tr.canChangeLater : fmt(pracMany ? tr.pracCannotSeeMany : tr.pracCannotSee, { prac: pracFirst })}
+              {share ? tr.canChangeLater : tr.onlyYou}
             </Text>
           </View>
           <View style={{ width: 42, height: 25, borderRadius: 13, padding: 3, backgroundColor: share ? TT.accent : veil(mode, 0.16), alignItems: share ? 'flex-end' : 'flex-start' }}>

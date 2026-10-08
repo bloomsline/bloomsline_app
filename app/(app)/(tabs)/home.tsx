@@ -6,6 +6,7 @@
 // "next session" block and, much further down, a separate "Upcoming" list — so the
 // next two appointments were nowhere near each other. They are one horizontal
 // strip now: "Next session", then "Then", then the rest.
+import { frElide } from '@/src/i18n/elide';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, ScrollView, Text, TouchableOpacity, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,6 +21,7 @@ import { FORCE_CARE_HUB } from '@/src/config';
 import { fetchCare, fetchTodo, type CareSession, type PatientCare, type TodoItem } from '@/src/api/care';
 import { fetchNotices, dismissNotices, type Notice } from '@/src/api/notices';
 import { NoticesCard } from '@/src/care/NoticesCard';
+import { orderTodo } from '@/src/care/todo-order';
 import { dueLabel, resourceTypeMeta, stageLabel, stageLine, todoStage } from '@/src/care/resources';
 import { notify } from '@/src/ui/alert';
 import { Ground } from '@/src/ui/Ground';
@@ -90,7 +92,7 @@ export default function MyCare() {
       setLoaded(true);
       setSwitching(false);
     });
-    fetchTodo().then((r) => { if (alive && r) setTodos(r); });
+    fetchTodo().then((r) => { if (alive && r) setTodos(orderTodo(r)); });
     // The account's own notices; a guardian's view of a child's care shows
     // none (they are the child's, and the server would give none anyway).
     if (shape !== 'guardian') fetchNotices().then((r) => { if (alive && r) setNotices(r); });
@@ -273,7 +275,7 @@ export default function MyCare() {
               {/* Whose care this is, when it is a child's (guardian plan, phase 6). */}
               {shape === 'guardian' && selectedProfile?.childFirstName ? (
                 <Text style={{ marginHorizontal: 22, marginTop: 14, fontSize: 13.5, fontWeight: '600', color: TT.inkSoft }}>
-                  {fmt(t.family.guardianBanner, { child: selectedProfile.childFirstName })}
+                  {fmt(t.family.guardianBanner, { child: selectedProfile.childFirstName, deChild: frElide('de', selectedProfile.childFirstName ?? '') })}
                 </Text>
               ) : null}
 
@@ -331,7 +333,7 @@ export default function MyCare() {
                     {/* Attribution kept deliberately: "from {name}" tells a patient WHO
                         asked, which the board's plain "My resources" drops. */}
                     <SectionRule
-                      label={fmt(t.care.todoFrom, { name: firstNameOf(pracName) })}
+                      label={fmt(t.care.todoFrom, { name: firstNameOf(pracName), deName: frElide('de', firstNameOf(pracName)) })}
                       action={`${t.common.seeAll} (${todoItems.length})`}
                       onAction={() => router.navigate('/from-practitioner' as never)}
                     />
@@ -474,7 +476,7 @@ function SessionCard({
       <Kicker color={TT.faint} size={10} style={{ marginBottom: 8 }}>{first ? t.care.nextSession : t.care.then}</Kicker>
       <Text style={{ fontSize: 19, fontWeight: '800', color: TT.ink, letterSpacing: -0.4 }}>{longDate(session.scheduledAt, locale)}</Text>
       <Text style={{ fontSize: 13, color: TT.inkSoft, marginTop: 4 }}>
-        {clock(session.scheduledAt, locale)}  ·  {formatWords(session.sessionFormat, locale, session.formatLabel)}{first ? '' : ` · ${session.durationMinutes} min`}
+        {clock(session.scheduledAt)}  ·  {formatWords(session.sessionFormat, locale, session.formatLabel)}{first ? '' : ` · ${session.durationMinutes} min`}
       </Text>
 
       {pending ? (
@@ -579,12 +581,17 @@ function inDays(days: number, hour: number): string {
 }
 function longDate(iso: string, locale: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long' });
+  // Built by hand like book.tsx: English has a comma after the weekday, French
+  // does not ("Monday, 12 October" / "lundi 12 octobre"), and en-US said
+  // "Monday, October 12" here while booking said "Monday, 12 October".
+  const tag = locale === 'fr' ? 'fr-FR' : 'en-GB';
+  return `${d.toLocaleDateString(tag, { weekday: 'long' })}${locale === 'fr' ? ' ' : ', '}${d.getDate()} ${d.toLocaleDateString(tag, { month: 'long' })}`;
 }
-function clock(iso: string, locale: string): string {
-  // Pass the locale explicitly: without it this inherits the device's, which
-  // printed "09:00 AM" on a French screen. French is 24-hour.
-  return new Date(iso).toLocaleTimeString(locale === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+function clock(iso: string): string {
+  // 24-hour in both languages, as booking writes it ("8:30"). en-US printed
+  // "08:30 AM" on the card for a slot booked as 8:30.
+  const d = new Date(iso);
+  return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 function firstNameOf(name: string): string {

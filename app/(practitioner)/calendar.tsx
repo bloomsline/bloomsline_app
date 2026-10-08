@@ -7,6 +7,7 @@ import { PractitionerTabBar, PRACTITIONER_TAB_PAD } from '@/src/ui/PractitionerT
 import { SessionSheet } from '@/src/practitioner/SessionSheet';
 import { useI18n } from '@/src/i18n';
 import { fetchDay, fetchBookingOptions, type CloseReasonGroup, type PractitionerSession, type SessionTypeOption } from '@/src/api/practitioner';
+import { overlapColumns, type Placement } from '@/src/practitioner/overlap';
 import { useTheme } from '@/src/ui/theme-mode';
 import { LIGHT, DARK, type Mode, type Palette } from '@/src/ui/tokens';
 import { LoadFailed } from '@/src/ui/LoadFailed';
@@ -20,6 +21,7 @@ import { FormatIcon } from '@/src/care/FormatIcon';
 // afternoon is gone. That is the thing the web's week grid gives at a glance and
 // a phone list cannot, so the phone gets the same grid one day wide.
 const HOUR_HEIGHT = 58;
+const BLOCK_MIN_HEIGHT = 24;
 // The window the grid shows by default. It is a starting point, not a limit: a
 // session outside it stretches the grid rather than being clipped. Fixed bounds
 // meant an 06:30 session was positioned at a negative offset and a 22:30 one past
@@ -143,6 +145,13 @@ export default function DayCalendar() {
     const [h, m] = hourMinute(iso);
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
   }, [hourMinute]);
+  // Overlapping sessions share the width instead of hiding each other. The
+  // span is the drawn height, which has a floor, so blocks that touch on
+  // screen are laid out as touching.
+  const columns = useMemo(() => overlapColumns(items.map((s) => {
+    const start = minutesInto(s.scheduledAt);
+    return { id: s.id, start, end: start + Math.max(s.durationMinutes, (BLOCK_MIN_HEIGHT + 3) * 60 / HOUR_HEIGHT) };
+  })), [items, minutesInto]);
   const endOf = (s: PractitionerSession) =>
     new Date(new Date(s.scheduledAt).getTime() + s.durationMinutes * 60_000).toISOString();
 
@@ -239,6 +248,7 @@ export default function DayCalendar() {
                 <SessionBlock
                   key={s.id}
                   session={s}
+                  place={columns[s.id]}
                   top={(minutesInto(s.scheduledAt) / 60) * HOUR_HEIGHT}
                   timeLabel={`${hhmm(s.scheduledAt)}–${hhmm(endOf(s))}`}
                   pendingLabel={tr.pending}
@@ -292,12 +302,17 @@ const FILL: Record<Mode, { booked: string; pending: string; off: string }> = {
  * What it shows degrades with its height, which is the session's real duration.
  * A 30-minute block cannot hold two lines, so it holds the one that matters.
  */
-function SessionBlock({ session: s, top, timeLabel, pendingLabel, onPress }: {
-  session: PractitionerSession; top: number; timeLabel: string; pendingLabel: string; onPress: () => void;
+function SessionBlock({ session: s, place, top, timeLabel, pendingLabel, onPress }: {
+  session: PractitionerSession; place?: Placement; top: number; timeLabel: string; pendingLabel: string; onPress: () => void;
 }) {
   const { mode } = useTheme();
   const { locale } = useI18n();
-  const height = Math.max(24, (s.durationMinutes / 60) * HOUR_HEIGHT - 3);
+  const height = Math.max(BLOCK_MIN_HEIGHT, (s.durationMinutes / 60) * HOUR_HEIGHT - 3);
+  const cols = place?.cols ?? 1;
+  const col = place?.col ?? 0;
+  // Narrow columns drop the second line: a name is what a third of the width can hold.
+  const tight = cols > 2;
+
   const pending = s.status === 'pending';
   const off = OFF.has(s.status ?? '');
 
@@ -314,16 +329,21 @@ function SessionBlock({ session: s, top, timeLabel, pendingLabel, onPress }: {
   const dim = off ? '#8C8A82' : pending ? 'rgba(74,50,8,0.72)' : mode === 'dark' ? 'rgba(14,21,18,0.78)' : 'rgba(255,255,255,0.82)';
   // 34px is where a second line stops being cramped: a 45-minute session lands
   // just above it, a 30-minute one just below.
-  const roomy = height >= 34;
+  const roomy = height >= 34 && !tight;
   // A cancelled session says so in words rather than by being a different
   // shape, since the shape is doing enough work already.
   const meta = pending ? `${pendingLabel} · ${formatWords(s.sessionFormat, locale, s.formatLabel)}` : (s.location || formatWords(s.sessionFormat, locale, s.formatLabel));
 
   return (
+    <View
+      style={{ position: 'absolute', top, height, left: `${(col / cols) * 100}%`, width: `${100 / cols}%`, paddingLeft: 4 }}
+    >
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${s.who}, ${timeLabel}`}
       style={{
-        position: 'absolute', left: 4, right: 0, top, height,
+        flex: 1,
         borderRadius: 7, overflow: 'hidden', backgroundColor: fill,
         paddingHorizontal: 9, paddingVertical: roomy ? 5 : 0,
         justifyContent: roomy ? 'flex-start' : 'center',
@@ -349,6 +369,7 @@ function SessionBlock({ session: s, top, timeLabel, pendingLabel, onPress }: {
         </View>
       )}
     </Pressable>
+    </View>
   );
 }
 
