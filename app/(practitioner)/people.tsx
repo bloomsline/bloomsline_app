@@ -1,3 +1,4 @@
+import { fold } from '@/src/ui/fold';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TextInput, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -37,8 +38,8 @@ export default function People() {
 
   // Filtering on device: a caseload is not a directory, and it is smaller than
   // the latency of a round trip per keystroke.
-  const needle = q.trim().toLowerCase();
-  const shown = needle ? items.filter((p) => p.name.toLowerCase().includes(needle)) : items;
+  const needle = fold(q.trim());
+  const shown = needle ? items.filter((p) => fold(p.name).includes(needle)) : items;
   const when = (iso: string | null) =>
     iso ? new Date(iso).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'short' }) : null;
 

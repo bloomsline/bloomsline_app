@@ -1,3 +1,4 @@
+import { fold } from '@/src/ui/fold';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -88,8 +89,8 @@ export default function Resources() {
     if (match) { setPicked(match); usedShareId.current = request; }
   }, [shareId, at, items]);
 
-  const needle = q.trim().toLowerCase();
-  const shown = needle ? items.filter((r) => r.title.toLowerCase().includes(needle)) : items;
+  const needle = fold(q.trim());
+  const shown = needle ? items.filter((r) => fold(r.title).includes(needle)) : items;
 
   // Sending is the one action here that reaches into a patient's app and inbox,
   // and it used to happen on the first tap of a name — with the patient list

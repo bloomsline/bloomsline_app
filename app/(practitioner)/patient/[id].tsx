@@ -1,3 +1,4 @@
+import { fold } from '@/src/ui/fold';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -215,14 +216,14 @@ export default function PatientDetailScreen() {
   // hand, and a round trip per keystroke would be slower and offline-fragile.
   // Title and body both, because half of what you remember is in the body.
   const notes = useMemo(() => {
-    const needle = q.trim().toLowerCase();
+    const needle = fold(q.trim());
     let all = data?.notes ?? [];
     if (quoteOnly) all = all.filter((n) => n.hasQuote);
     if (pickedTags.length) all = all.filter((n) => n.tags?.some((t) => pickedTags.includes(t)));
     if (!needle) return all;
     // Search the TEXT, not the markup: '<p>' is in every note and matches nothing
     // a practitioner is looking for.
-    return all.filter((n) => `${n.title ?? ''} ${plain(n.content)}`.toLowerCase().includes(needle));
+    return all.filter((n) => fold(`${n.title ?? ''} ${plain(n.content)}`).includes(needle));
   }, [q, quoteOnly, pickedTags, data]);
 
   // Only tags this patient's notes actually carry. Offering the whole vocabulary
