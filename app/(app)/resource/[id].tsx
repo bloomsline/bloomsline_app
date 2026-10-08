@@ -13,7 +13,8 @@ import { Block, INTERACTIVE, ResourceIntro, type UploadStatus } from '@/src/reso
 import { fileUrlIndex, filesOf, isAnswered, missingRequired, unreadableNumbers } from '@/src/resources/answers';
 import { parseTypedNumber } from '@/src/resources/number';
 import { flushCanvasDrafts } from '@/src/resources/zoned-canvas-field';
-import { fetchAssignment, saveAssignmentDraft, submitAssignment, type AssignmentView, type PatientScore } from '@/src/api/resources';
+import { LoadFailed } from '@/src/ui/LoadFailed';
+import { fetchAssignment, loadAssignment, saveAssignmentDraft, submitAssignment, type AssignmentView, type PatientScore } from '@/src/api/resources';
 import { useConfirm } from '@/src/ui/confirm';
 import { useLeaveGuard } from '@/src/ui/leave-guard';
 import { useI18n } from '@/src/i18n';
@@ -142,6 +143,10 @@ function ResourceDetailPage() {
   const [missingIds, setMissingIds] = useState<string[]>([]);
   // Numbers typed that do not read as one: sending would drop them silently.
   const [oddIds, setOddIds] = useState<string[]>([]);
+  // The first load got no answer (offline, a server error): say so, with Retry,
+  // rather than that the exercise is gone.
+  const [unreachable, setUnreachable] = useState(false);
+  const [loadTry, setLoadTry] = useState(0);
   const [result, setResult] = useState<{ score: PatientScore | null } | null>(null);
   const confirm = useConfirm();
   const insets = useSafeAreaInsets();
@@ -280,12 +285,17 @@ function ResourceDetailPage() {
   useFocusEffect(
     useCallback(() => {
       let alive = true;
-      fetchAssignment(assignmentId).then((v) => {
+      loadAssignment(assignmentId).then((got) => {
         if (!alive) return;
+        const v = 'view' in got ? got.view : null;
         // A refetch on returning to the screen (from the photo picker, from
         // another tab) must not replace what was typed with the server's older
         // copy, and a refetch that fails must not blank a screen that loaded.
-        if (!v) { if (!everLoaded.current) { setView(null); setLoaded(true); } return; }
+        if (!v) {
+          if (!everLoaded.current) { setUnreachable('failed' in got && got.failed === 'unreachable'); setView(null); setLoaded(true); }
+          return;
+        }
+        setUnreachable(false);
         setView(v);
         if (!everLoaded.current) {
           everLoaded.current = true;
@@ -315,7 +325,9 @@ function ResourceDetailPage() {
         setLoaded(true);
       });
       return () => { alive = false; };
-    }, [assignmentId]),
+    // `loadTry` is not read: a new value is what makes Retry load again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [assignmentId, loadTry]),
   );
 
   const blocks = view?.version.blocks ?? [];
@@ -462,12 +474,21 @@ function ResourceDetailPage() {
       </View>
     );
   }
+  if (!view && unreachable) {
+    return (
+      <View style={{ flex: 1, backgroundColor: TT.bg }}>
+        <EdHeader kicker="" title="" onBack={back} />
+        <View style={{ flex: 1, justifyContent: 'center', padding: 32 }}>
+          <LoadFailed onRetry={() => { setLoaded(false); setLoadTry((n) => n + 1); }} />
+        </View>
+      </View>
+    );
+  }
   if (!view) {
     return (
       <View style={{ flex: 1, backgroundColor: TT.bg }}>
-        <EdHeader kicker={tr.unavailable} title={tr.unavailable} onBack={back} />
+        <EdHeader kicker="" title={tr.unavailable} onBack={back} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: TT.ink }}>{tr.unavailable}</Text>
           <Text style={{ fontSize: 13.5, color: TT.inkSoft, marginTop: 6, textAlign: 'center' }}>{tr.unavailableBody}</Text>
         </View>
       </View>

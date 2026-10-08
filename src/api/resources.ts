@@ -81,6 +81,23 @@ export async function fetchAssignment(id: string): Promise<AssignmentView | null
   }
 }
 
+/**
+ * As fetchAssignment, saying why there is nothing. 'gone' when the server said
+ * it is not there (taken back, deleted, not this patient's); 'unreachable' for
+ * no answer or a server error, which trying again can fix. The screen used to
+ * tell an offline patient the exercise was "no longer available", with no way
+ * to try again.
+ */
+export async function loadAssignment(id: string): Promise<{ view: AssignmentView } | { failed: 'gone' | 'unreachable' }> {
+  try {
+    const res = await apiFetch(`/api/mobile/care/todo/${id}`);
+    if (res.ok) return { view: (await res.json()) as AssignmentView };
+    return { failed: res.status === 404 || res.status === 403 || res.status === 410 ? 'gone' : 'unreachable' };
+  } catch {
+    return { failed: 'unreachable' };
+  }
+}
+
 export interface SubmitResult {
   ok: boolean;
   score?: PatientScore | null;
