@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Check, Info } from 'lucide-react-native';
@@ -64,14 +64,19 @@ export default function BookConfirm() {
     : '';
   const time = iso ? new Date(iso).toLocaleTimeString(locale === 'fr' ? 'fr-FR' : 'en-GB', { hour: '2-digit', minute: '2-digit', ...zone }) : '';
 
+  // A ref, not `saving`: two taps in one frame both read the state as false and
+  // sent two bookings; only the server's slot check stood in the way.
+  const sending = useRef(false);
   const confirm = async () => {
-    if (!p.memberId || !iso) return;
+    if (!p.memberId || !iso || sending.current) return;
+    sending.current = true;
     setError(''); setSaving(true);
     const res = await bookSession({
       memberId: p.memberId, sessionTypeId: typeof p.sessionTypeId === 'string' ? p.sessionTypeId : '',
       scheduledAt: iso, sessionFormat: format, durationMinutes: duration,
     });
     setSaving(false);
+    sending.current = false;
     // A 409 is the one a practitioner will actually hit, and it means the day
     // moved under them — say exactly that rather than "something went wrong".
     if (!res.ok) { setError(localizeServerMessage(res.error, locale) ?? tr.generic); return; }
@@ -85,7 +90,7 @@ export default function BookConfirm() {
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-        <EdHeader kicker={tr.kicker} title={done ? tr.done : tr.title} onBack={done ? undefined : () => router.back()} />
+        <EdHeader kicker={tr.kicker} title={done ? tr.done : tr.title} onBack={done ? undefined : () => (router.canGoBack() ? router.back() : router.replace('/(practitioner)/book' as never))} />
 
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           <EdCard style={{ marginBottom: 18 }}>

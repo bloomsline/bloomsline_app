@@ -89,7 +89,7 @@ export default function ResourcePreviewScreen() {
               <EdPill
                 label={tr.share}
                 variant="green"
-                onPress={() => router.navigate({ pathname: '/(practitioner)/resources', params: { shareId: view.resource.id } } as never)}
+                onPress={() => router.navigate({ pathname: '/(practitioner)/resources', params: { shareId: view.resource.id, at: String(Date.now()) } } as never)}
                 style={{ marginTop: 24 }}
               />
             </>

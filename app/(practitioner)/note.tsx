@@ -13,6 +13,7 @@ import { useTheme } from '@/src/ui/theme-mode';
 import { localizeServerMessage } from '@/src/api/server-messages';
 import { LoadFailed } from '@/src/ui/LoadFailed';
 import { track } from '@/src/analytics/client';
+import { useLeaveGuard } from '@/src/ui/leave-guard';
 
 // Take a note. Opens on the sessions still to happen, then the ones of the last
 // week (a note is about a session you are heading into or have just had), with a
@@ -122,11 +123,20 @@ export default function TakeNote() {
    * fails we stay put and say so, because that is the one case where leaving
    * would actually cost the note.
    */
-  const leaveKeeping = async () => {
+  // Back with nothing behind it (a link, a web refresh) did nothing at all.
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(practitioner)/home' as never));
+
+  // EVERY way out of an open note keeps it, the swipe and Android's back
+  // included: those skipped the save that Cancel does first, and a failure was
+  // then only visible inside the editor just left. Discard and Minimise are
+  // deliberate exits of their own and are let through (`guard.release`).
+  const guard = useLeaveGuard(!!draft, async (leave) => {
     const ok = await flush();
     if (!ok) { setError(tr.notKept); return; }
-    router.back();
-  };
+    leave();
+  });
+
+  const leaveKeeping = () => goBack();
 
   /** The only destructive path, and so the only one that asks. */
   const throwAway = async () => {
@@ -136,7 +146,8 @@ export default function TakeNote() {
     });
     if (!yes) return;
     if (!(await discard())) notify(tr.sessionNote, tr.discardFailed);
-    router.back();
+    guard.release();
+    goBack();
   };
 
   // Grouped by patient for the other half of the toggle — same data, so
@@ -178,8 +189,8 @@ export default function TakeNote() {
                 : undefined
               }
               onSave={save}
-              onMinimize={() => { minimize(); router.back(); }}
-              onCancel={leaveKeeping}
+              onMinimize={() => { minimize(); guard.release(); goBack(); }}
+              onCancel={() => { leaveKeeping(); }}
               onDiscard={savedAt || draft.text.trim() ? throwAway : undefined}
             />
           </ScrollView>
@@ -191,7 +202,7 @@ export default function TakeNote() {
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-        <EdHeader kicker={tr.kicker} title={tr.title} onBack={() => router.back()} />
+        <EdHeader kicker={tr.kicker} title={tr.title} onBack={goBack} />
 
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>

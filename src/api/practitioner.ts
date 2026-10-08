@@ -13,6 +13,8 @@ export interface PractitionerSession {
   /** The server's words for it ("À domicile"); absent from older servers. */
   formatLabel?: string;
   sessionType: string;
+  /** The type's name ("Follow-up session"); `sessionType` is its id. Absent from older servers. */
+  sessionTypeLabel?: string;
   who: string;
   /** A guest booking has no member row, so the member-scoped actions can't run. */
   isGuest?: boolean;
@@ -41,6 +43,8 @@ export interface BookingRequest {
   sessionFormat: string;
   formatLabel?: string;
   sessionType: string;
+  /** The type's name ("Follow-up session"); `sessionType` is its id. Absent from older servers. */
+  sessionTypeLabel?: string;
   who: string;
   isGuest: boolean;
 }

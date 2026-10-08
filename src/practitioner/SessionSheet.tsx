@@ -48,6 +48,8 @@ const T = {
     cancelTitle: 'CANCEL THIS SESSION', reasonPlaceholder: 'Reason (optional)',
     thisOne: 'This session', following: 'This & later', whole: 'Whole series',
     deleteTitle: 'Delete this session?', deleteBody: 'This removes it entirely. It can’t be undone.',
+    cancelManyTitle: { following: 'Cancel this session and every later one?', all: 'Cancel the whole series?' }, cancelManyBody: 'Each one is cancelled and the patient is emailed.', cancelMany: 'Cancel them',
+    discardTitle: 'Discard what you wrote?', discardBody: 'The comment or reason you typed here is not saved.', discard: 'Discard',
     keep: 'Keep', declineTitle: 'Decline this request?', declineBody: 'The patient is told the time is not available.',
     statuses: { pending: 'Pending', scheduled: 'Scheduled', completed: 'Completed', cancelled: 'Cancelled', no_show: 'No-show', waiting: 'Waiting outcome' },
     payments: { paid: 'Paid', unpaid: 'Awaiting payment', free: 'Free' },
@@ -67,6 +69,8 @@ const T = {
     cancelTitle: 'ANNULER CETTE SÉANCE', reasonPlaceholder: 'Motif (facultatif)',
     thisOne: 'Cette séance', following: 'Celle-ci et les suivantes', whole: 'Toute la série',
     deleteTitle: 'Supprimer cette séance ?', deleteBody: 'Elle sera entièrement retirée. Action irréversible.',
+    cancelManyTitle: { following: 'Annuler cette séance et toutes les suivantes ?', all: 'Annuler toute la série ?' }, cancelManyBody: 'Chaque séance est annulée et le patient reçoit un e-mail.', cancelMany: 'Les annuler',
+    discardTitle: 'Abandonner ce que vous avez écrit ?', discardBody: 'Le commentaire ou le motif saisi ici n’est pas enregistré.', discard: 'Abandonner',
     keep: 'Conserver', declineTitle: 'Refuser cette demande ?', declineBody: 'Le patient est informé que le créneau n’est pas disponible.',
     statuses: { pending: 'En attente', scheduled: 'Planifiée', completed: 'Terminée', cancelled: 'Annulée', no_show: 'Absence', waiting: 'À clôturer' },
     payments: { paid: 'Payé', unpaid: 'En attente de paiement', free: 'Gratuit' },
@@ -222,6 +226,13 @@ export function SessionSheet({
 
   const reset = () => { setMode('view'); setShowMenu(false); setReason(''); setSummary(''); setCancelReason(''); setOutcome('completed'); setPayment('unpaid'); };
   const done = () => { reset(); onChanged(); onClose(); };
+  // Closing by a tap outside or Android back, with a comment or a reason typed:
+  // ask first. Both wiped it without a word, between two sessions.
+  const dismiss = async () => {
+    if ((summary.trim() || cancelReason.trim()) && !(await confirm({ title: tr.discardTitle, message: tr.discardBody, confirmLabel: tr.discard, cancelLabel: tr.keep, destructive: true }))) return;
+    reset();
+    onClose();
+  };
 
   /** Run an action, surface its error, refresh on success. */
   const run = async (fn: () => Promise<{ ok: boolean; error?: string }>, opts?: { keepOpen?: boolean; flash?: string }) => {
@@ -258,8 +269,13 @@ export function SessionSheet({
     });
   };
 
-  const doCancel = (scope: 'this' | 'following' | 'all') =>
+  // One session is one tap on a screen already chosen for cancelling. Several
+  // at once (and an email for each) is asked first, as Delete and Decline are:
+  // a mis-tap on "Whole series" cancelled every session in it.
+  const doCancel = async (scope: 'this' | 'following' | 'all') => {
+    if (scope !== 'this' && !(await confirm({ title: tr.cancelManyTitle[scope], message: tr.cancelManyBody, confirmLabel: tr.cancelMany, cancelLabel: tr.keep, destructive: true }))) return;
     void run(() => cancelSession(s.id, { scope, reason: cancelReason.trim() || undefined }));
+  };
 
   const doDelete = async () => {
     if (!(await confirm({ title: tr.deleteTitle, message: tr.deleteBody, confirmLabel: tr.del, cancelLabel: tr.keep, destructive: true }))) return;
@@ -299,12 +315,12 @@ export function SessionSheet({
 
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={() => { reset(); onClose(); }} statusBarTranslucent>
+    <Modal visible transparent animationType="slide" onRequestClose={() => { void dismiss(); }} statusBarTranslucent>
       {/* The sheet rises with the keyboard. Its note and cancel-reason fields
           sat under it, with Save, on both platforms: a bottom-anchored sheet in
           a Modal had nothing moving it out of the way. */}
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-      <Pressable style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(20,20,18,0.45)' }} onPress={() => { reset(); onClose(); }}>
+      <Pressable style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(20,20,18,0.45)' }} onPress={() => { void dismiss(); }}>
         <Pressable onPress={() => {}} style={{ maxHeight: '88%', borderTopLeftRadius: 26, borderTopRightRadius: 26, backgroundColor: TT.sheet }}>
           <View style={{ alignItems: 'center', paddingTop: 10 }}>
             <View style={{ height: 4, width: 40, borderRadius: 2, backgroundColor: TT.line }} />
@@ -334,7 +350,7 @@ export function SessionSheet({
                 {/* facts */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7, marginTop: 16 }}>
                   <Text style={{ fontSize: 13.5, color: TT.inkSoft }}>
-                    {s.sessionType} · {formatWords(s.sessionFormat, locale, s.formatLabel)} · {s.durationMinutes}m{price ? ` · ${price}` : ''}
+                    {s.sessionTypeLabel ?? s.sessionType} · {formatWords(s.sessionFormat, locale, s.formatLabel)} · {s.durationMinutes} min{price ? ` · ${price}` : ''}
                   </Text>
                   {s.paymentStatus && <Pill label={tr.payments[s.paymentStatus as keyof typeof tr.payments] ?? s.paymentStatus} tone={PAYMENT_TONE[s.paymentStatus] ?? 'grey'} />}
                   {s.source && tr.origins[s.source as keyof typeof tr.origins] && <Pill label={tr.origins[s.source as keyof typeof tr.origins]} tone="grey" />}
@@ -523,15 +539,15 @@ export function SessionSheet({
                 {/* A recurring session has three genuinely different answers, so
                     all three are offered rather than one being guessed at. */}
                 <View style={{ gap: 9, marginTop: 18 }}>
-                  <Pressable onPress={() => doCancel('this')} disabled={busy} style={{ alignItems: 'center', borderRadius: 22, backgroundColor: TT.danger, paddingVertical: 13, opacity: busy ? 0.6 : 1 }}>
+                  <Pressable onPress={() => { void doCancel('this'); }} disabled={busy} style={{ alignItems: 'center', borderRadius: 22, backgroundColor: TT.danger, paddingVertical: 13, opacity: busy ? 0.6 : 1 }}>
                     <Text style={{ fontSize: 14.5, fontWeight: '800', color: TT.onDanger }}>{tr.thisOne}</Text>
                   </Pressable>
                   {s.seriesId ? (
                     <>
-                      <Pressable onPress={() => doCancel('following')} disabled={busy} style={{ alignItems: 'center', borderRadius: 22, borderWidth: 1.5, borderColor: TT.danger, paddingVertical: 12, opacity: busy ? 0.6 : 1 }}>
+                      <Pressable onPress={() => { void doCancel('following'); }} disabled={busy} style={{ alignItems: 'center', borderRadius: 22, borderWidth: 1.5, borderColor: TT.danger, paddingVertical: 12, opacity: busy ? 0.6 : 1 }}>
                         <Text style={{ fontSize: 14.5, fontWeight: '800', color: TT.danger }}>{tr.following}</Text>
                       </Pressable>
-                      <Pressable onPress={() => doCancel('all')} disabled={busy} style={{ alignItems: 'center', borderRadius: 22, borderWidth: 1.5, borderColor: TT.danger, paddingVertical: 12, opacity: busy ? 0.6 : 1 }}>
+                      <Pressable onPress={() => { void doCancel('all'); }} disabled={busy} style={{ alignItems: 'center', borderRadius: 22, borderWidth: 1.5, borderColor: TT.danger, paddingVertical: 12, opacity: busy ? 0.6 : 1 }}>
                         <Text style={{ fontSize: 14.5, fontWeight: '800', color: TT.danger }}>{tr.whole}</Text>
                       </Pressable>
                     </>

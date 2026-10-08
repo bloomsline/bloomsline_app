@@ -332,7 +332,7 @@ export default function PatientDetailScreen() {
                       {open ? <ChevronUp size={15} color={TT.faint} /> : <ChevronDown size={15} color={TT.faint} />}
                     </View>
                     <Text style={{ fontSize: 12.5, color: TT.faint, marginTop: 4 }}>
-                      {s.sessionTypeLabel ?? s.sessionType} · {formatWords(s.sessionFormat, locale, s.formatLabel)} · {s.durationMinutes}m
+                      {s.sessionTypeLabel ?? s.sessionType} · {formatWords(s.sessionFormat, locale, s.formatLabel)} · {s.durationMinutes} min
                       {s.paymentStatus === 'unpaid' ? ` · ${tr.unpaid}` : ''}
                     </Text>
 

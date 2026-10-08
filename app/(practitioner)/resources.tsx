@@ -48,7 +48,9 @@ export default function Resources() {
   const tr = T[locale] ?? T.en;
   const confirm = useConfirm();
   // Coming back from a preview with "share this one" already decided.
-  const { shareId } = useLocalSearchParams<{ shareId?: string }>();
+  // `at` makes each "Share this resource" from a preview its own request: the
+  // same resource shared a second time carried the same id and was ignored.
+  const { shareId, at } = useLocalSearchParams<{ shareId?: string; at?: string }>();
   const [items, setItems] = useState<ShareableResource[]>([]);
   const [patients, setPatients] = useState<PatientListItem[]>([]);
   const [failed, setFailed] = useState(false);
@@ -80,10 +82,11 @@ export default function Resources() {
   // quietly snapped back to the first one — one tap from sending the wrong thing.
   const usedShareId = useRef<string | null>(null);
   useEffect(() => {
-    if (!shareId || items.length === 0 || usedShareId.current === shareId) return;
+    const request = shareId ? `${shareId}:${at ?? ''}` : null;
+    if (!request || items.length === 0 || usedShareId.current === request) return;
     const match = items.find((r) => r.id === shareId);
-    if (match) { setPicked(match); usedShareId.current = shareId; }
-  }, [shareId, items]);
+    if (match) { setPicked(match); usedShareId.current = request; }
+  }, [shareId, at, items]);
 
   const needle = q.trim().toLowerCase();
   const shown = needle ? items.filter((r) => r.title.toLowerCase().includes(needle)) : items;
@@ -187,7 +190,7 @@ export default function Resources() {
               {patients.length === 0 && failed && <LoadFailed compact onRetry={() => { reload(); }} />}
               {patients.length === 0 && !failed && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.noPatients}</Text>}
               {patients.map((p) => (
-                <EdCard key={p.id} onPress={() => send(p)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                <EdCard key={p.id} onPress={busyId ? undefined : () => send(p)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 }}>
                   <Text style={{ flex: 1, fontSize: 15, fontWeight: '600', color: TT.ink }}>{patientLabel(p, locale)}</Text>
                   {busyId === p.id ? <ActivityIndicator size="small" /> : <Check size={16} color={TT.faint} />}
                 </EdCard>

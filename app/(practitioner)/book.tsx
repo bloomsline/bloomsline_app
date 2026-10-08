@@ -76,6 +76,9 @@ export default function Book() {
   const [date, setDate] = useState<string | null>(typeof params.initialDate === 'string' ? params.initialDate : null);
   const [slots, setSlots] = useState<string[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  // The slot read failed: not the same as a full day, which it used to say.
+  const [slotsFailed, setSlotsFailed] = useState(false);
+  const [slotsTry, setSlotsTry] = useState(0);
   const [nextFree, setNextFree] = useState<NextAvailableDay[]>([]);
   const [moving, setMoving] = useState(false);
   // Only set once the practitioner picks a different time from the one they
@@ -93,7 +96,9 @@ export default function Book() {
         if (pats) setPatients(pats);
         setTypes(opts?.sessionTypes ?? []);
         setFormatLabels(opts?.formatLabels ?? {});
-        setNextFree(opts?.nextAvailable ?? []);
+        // "Next free" is NOT set here: this read asks with the default length and
+        // format, and on coming back with another type picked it overwrote that
+        // type's days with the default's. The effect on `type` owns it.
         // Keep a type the practitioner already picked; only default when none.
         if (opts?.sessionTypes?.length) setType((cur) => cur ?? opts.sessionTypes[0]);
       });
@@ -121,11 +126,13 @@ export default function Book() {
     void fetchBookingOptions({ date, duration, format }).then((res) => {
       if (!alive) return;
       if (res?.timezone) setTz(res.timezone);
+      setSlotsFailed(res === null);
       setSlots(res?.slots ?? []);
       setSlotsLoading(false);
     });
     return () => { alive = false; };
-  }, [date, type, moveId, moveDuration, params.format]);
+    // `slotsTry` is Try again: a new value is what asks again.
+  }, [date, type, moveId, moveDuration, params.format, slotsTry]);
 
   // Without a date the server answers with the days that actually have room, so
   // "next available" is a real answer rather than a guess the user has to hunt
@@ -320,7 +327,8 @@ export default function Book() {
             <>
               <EdSection label={tr.slot} />
               {(slotsLoading || moving) && <ActivityIndicator />}
-              {!slotsLoading && slots.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.noSlots}</Text>}
+              {!slotsLoading && slotsFailed && <LoadFailed compact onRetry={() => { setSlotsTry((n) => n + 1); }} />}
+              {!slotsLoading && !slotsFailed && slots.length === 0 && <Text style={{ fontSize: 14, color: TT.inkSoft }}>{tr.noSlots}</Text>}
               {/* Say so when the tapped time was not itself free, rather than
                   quietly substituting the nearest one. */}
               {fromTap && chosen && !exact && !slotsLoading && (
