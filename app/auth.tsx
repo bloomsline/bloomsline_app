@@ -1,3 +1,4 @@
+import { markRestored } from '@/src/auth/restored-notice';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -33,7 +34,7 @@ export default function AuthLink() {
   // here: Apple's web flow, and Google's on Android. There is no token to
   // exchange when the provider refused, the person cancelled, or the address is
   // not invited.
-  const { token, error, stay } = useLocalSearchParams<{ token?: string; error?: string; stay?: string }>();
+  const { token, error, stay, restored } = useLocalSearchParams<{ token?: string; error?: string; stay?: string; restored?: string }>();
   const { signInWithLink } = useAuth();
   const { t } = useI18n();
   const T = t.authLink;
@@ -50,6 +51,10 @@ export default function AuthLink() {
     if (!raw) return setState('failed');
     const r = await signInWithLink(raw);
     if (r.ok) {
+      // A browser sign-in (Google or Apple on Android and the web) that cancelled
+      // a pending deletion says so in the return address: the token it hands
+      // over is exchanged after the fact and no longer can.
+      if (restored === '1') markRestored();
       // Go to the index gate, which routes by session status (practitioner home,
       // onboarding, or the patient's chosen tab).
       //
@@ -70,7 +75,7 @@ export default function AuthLink() {
     // link, and saying so sent people for a new link that would fail the same way.
     setReason(r.ok ? null : r.code ? signInMessage(r, t, t.signUp.appleFailed) : r.status === 400 || r.status === 401 ? null : t.authLink.serverError);
     setState('failed');
-  }, [raw, signInWithLink, t]);
+  }, [raw, signInWithLink, t, restored]);
 
   // Ask the OS for the app. If it is installed this page is left behind; if
   // not, nothing observable happens and the handoff copy stays put. There is

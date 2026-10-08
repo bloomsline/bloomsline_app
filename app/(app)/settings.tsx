@@ -15,7 +15,7 @@ import { openPublicPage } from '@/src/ui/open-public';
 import { useEffect, useState } from 'react';
 import { Image, Linking, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { MessageCircle, MessageCircleQuestionMark, LogOut, ChevronRight, ChevronDown, Trash2, Languages, Palette, Home, ShieldCheck, FileText, Database, Lock, UserRound, ChartNoAxesColumn } from 'lucide-react-native';
+import { MessageCircle, MessageCircleQuestionMark, LogOut, ChevronRight, Trash2, Languages, Palette, Home, ShieldCheck, FileText, Database, Lock, UserRound, ChartNoAxesColumn } from 'lucide-react-native';
 import { notify } from '@/src/ui/alert';
 import { EdHeader, EdCard, FadeIn, Kicker } from '@/src/ui/editorial';
 import { OptionSheet } from '@/src/ui/option-sheet';
@@ -62,7 +62,6 @@ export default function Settings() {
   // Deliberately NOT persisted. Revealing the delete row is a decision about
   // this visit; a patient who opened it once last month and moved on should not
   // find it waiting for their thumb the next time they change their language.
-  const [showMore, setShowMore] = useState(false);
   // Which practitioner the app is showing, for a patient linked to several.
   // Here as well as on My Care because Settings is where people look for "who
   // am I looking at" once they have forgotten where the switch was.
@@ -229,21 +228,19 @@ export default function Settings() {
 
           <Kicker color={TT.faint} style={{ marginBottom: 10 }}>{t.settings.accountSection}</Kicker>
           <EdCard style={{ padding: 0, overflow: 'hidden' }}>
-            <Row Icon={LogOut} title={t.settings.signOut} onPress={doSignOut} divider={showMore || !!leavingAt} chevron={false} />
+            <Row Icon={LogOut} title={t.settings.signOut} onPress={doSignOut} chevron={false} />
+          </EdCard>
 
-            {/* Deleting an account sat one row under signing out of it, the same
-                size and a thumb's width away, and it was tapped by accident.
-                The confirm caught it — but a destructive action should not be
-                relying on its confirm to be the first line of defence. It is
-                behind a disclosure now: a deliberate press to reveal it, then
-                the confirm, then the seven days it already waits before
-                anything is purged.
+          {/* Delete account is in plain sight, as App Review expects, in a card
+              of its own. It sat one row under Sign out, a thumb's width away,
+              and was tapped by accident; then it went behind a "More options"
+              disclosure, which hid it from the people looking for it. Apart
+              from Sign out, behind its confirm, is both findable and hard to
+              hit by mistake.
 
-                A pending deletion is NOT hidden. That question has been asked
-                and answered, and the useful thing then is the way back. */}
-            {!leavingAt && !showMore ? (
-              <Row Icon={ChevronDown} title={t.settings.moreOptions} onPress={() => setShowMore(true)} chevron={false} />
-            ) : null}
+              A pending deletion replaces the row: the question has been
+              answered, and the useful thing then is the way back. */}
+          <EdCard style={{ padding: 0, overflow: 'hidden', marginTop: 14 }}>
             {/* A pending deletion replaces the row rather than sitting beside
                 it: the question has been answered, and the useful thing to show
                 is the way back. */}
@@ -257,9 +254,9 @@ export default function Settings() {
                   </Text>
                 </View>
               </View>
-            ) : showMore ? (
+            ) : (
               <Row Icon={Trash2} title={t.settings.deleteAccount} onPress={doDelete} tone="danger" chevron={false} />
-            ) : null}
+            )}
           </EdCard>
 
           <Text style={{ textAlign: 'center', fontSize: 13, color: TT.faint, marginTop: 28 }}>{t.settings.madeBy}</Text>

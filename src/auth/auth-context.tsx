@@ -4,6 +4,7 @@
 //   practitioner — a practitioner account; show the practitioner app
 //   onboarding   — a patient who hasn't finished the first-run signup flow
 //   authed       — an onboarded patient; show the patient app
+import { markRestored } from './restored-notice';
 import { Platform } from 'react-native';
 import { clearFamilyInvite, familyInviteForSignIn, pendingFamilyInvite, touchFamilyInvite } from './family-invite';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
@@ -240,7 +241,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { ok: false, message: typeof data?.error === 'string' ? data.error : undefined, code: typeof data?.code === 'string' ? data.code : undefined, status: res.status };
     }
     track('sign_in_completed', { method });
-    await keepNewSession(await res.json());
+    const session = await res.json();
+    // This sign-in cancelled a pending deletion: the first screen says so.
+    if (session?.restored === true) markRestored();
+    await keepNewSession(session);
     await afterSignIn();
     return { ok: true };
   }, [afterSignIn, keepNewSession]);
@@ -270,7 +274,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       track('sign_in_failed', { method: 'link', code: typeof data?.code === 'string' ? data.code : 'unknown' });
       return { ok: false, message: typeof data?.error === 'string' ? data.error : undefined, code: typeof data?.code === 'string' ? data.code : undefined, status: res.status };
     }
-    await keepNewSession(await res.json());
+    const session = await res.json();
+    // This sign-in cancelled a pending deletion: the first screen says so.
+    if (session?.restored === true) markRestored();
+    await keepNewSession(session);
     track('sign_in_completed', { method: 'link' });
     await afterSignIn();
     return { ok: true };
@@ -286,7 +293,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json().catch(() => ({}));
       return { ok: false, message: typeof data?.error === 'string' ? data.error : undefined, code: typeof data?.code === 'string' ? data.code : undefined };
     }
-    await keepNewSession(await res.json());
+    const session = await res.json();
+    // This sign-in cancelled a pending deletion: the first screen says so.
+    if (session?.restored === true) markRestored();
+    await keepNewSession(session);
     await afterSignIn();
     return { ok: true };
   }, [afterSignIn, keepNewSession]);

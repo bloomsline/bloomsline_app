@@ -390,7 +390,6 @@ export const en = {
     deleteAccount: 'Delete account',
     // The disclosure that keeps the delete row off the screen until it is asked
     // for. It was tapped by accident while reaching for Sign out.
-    moreOptions: 'More options',
     // Replaces the version string that used to sit here. "v2 (preview)" is a
     // note to ourselves, on a patient's own screen.
     madeBy: 'Made with care by the Bloomsline team',
@@ -399,6 +398,8 @@ export const en = {
     deleteCta: 'Delete',
     deleteFailed: 'That did not go through. Try again, or contact us.',
     deletedTitle: 'Your account will be deleted',
+    restoredTitle: 'Your account is staying',
+    restoredBody: 'Signing in cancelled the deletion. Everything is as you left it.',
     deletedBody: 'On {date}, everything you have written will be erased. Sign in before then if you change your mind.',
     deletePending: 'Deletion scheduled',
     deletePendingSub: 'Sign in again before {date} to keep your account.',
