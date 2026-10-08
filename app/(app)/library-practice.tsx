@@ -132,7 +132,8 @@ export default function LibraryPractice() {
     notify(res.reason === 'gone' ? tr.saveGone : res.reason === 'busy' ? tr.saveBusy : res.reason === 'offline' ? tr.saveOffline : tr.couldNotSave);
   };
 
-  const back = () => (router.canGoBack() ? router.back() : router.navigate('/library' as never));
+  // Replaced, not covered, when nothing is behind it (see journal-entry).
+  const back = () => (router.canGoBack() ? router.back() : router.replace('/library' as never));
 
   if (!loaded) {
     return (

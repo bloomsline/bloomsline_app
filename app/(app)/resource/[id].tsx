@@ -436,7 +436,9 @@ function ResourceDetailPage() {
     );
   };
 
-  const leaveNow = () => (router.canGoBack() ? router.back() : router.navigate('/home' as never));
+  // Replaced, not covered, when nothing is behind it (an emailed link): Home
+  // pushed on top left this screen alive underneath, out of the leave guard's reach.
+  const leaveNow = () => (router.canGoBack() ? router.back() : router.replace('/home' as never));
   // While answers or a file are still being kept, leaving goes straight to the
   // guard below, which may ask to stay: folding the page away first would leave
   // someone who chose to stay looking at a card.

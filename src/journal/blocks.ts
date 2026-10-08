@@ -6,6 +6,11 @@ export type BlockType = 'text' | 'heading' | 'quote' | 'callout' | 'list' | 'lin
 export const MEDIA_TYPES: BlockType[] = ['image', 'video', 'voice'];
 export const isMedia = (t: BlockType): boolean => MEDIA_TYPES.includes(t);
 
+/** What the server keeps (apps/care/src/lib/journal/blocks.ts and the entry
+ *  route). It cuts anything longer without a word, so a long paste came back
+ *  shorter after the page said "Saved": the fields stop here instead. */
+export const JOURNAL_LIMITS = { title: 200, text: 20_000, item: 2_000, url: 2_000, label: 300, blocks: 500, items: 300 } as const;
+
 export interface JournalBlock {
   id: string;
   type: BlockType;
