@@ -401,6 +401,11 @@ export const en = {
     restoredTitle: 'Your account is staying',
     restoredBody: 'Signing in cancelled the deletion. Everything is as you left it.',
     deletedBody: 'On {date}, everything you have written will be erased. Sign in before then if you change your mind.',
+    // A practitioner's account carries patients' records, so it is a request the team completes.
+    practitionerDeleteMessage: 'Your account holds your patients\u2019 records, so we close it with you rather than erase it in one step. We will contact you within a few days to agree what happens to those records (export, transfer, or keeping them for the legal period), then close the account by {date}. Signing in again before then cancels the request.',
+    practitionerDeleteCta: 'Request deletion',
+    practitionerDeletedTitle: 'Deletion requested',
+    practitionerDeletedBody: 'We have your request and will contact you. Your account will be closed by {date}. Sign in before then if you change your mind.',
     deletePending: 'Deletion scheduled',
     deletePendingSub: 'Sign in again before {date} to keep your account.',
     statistics: 'Anonymous statistics',

@@ -11,13 +11,14 @@
 // is the same rows in the same order, drawn by the same `Row`, so the two stay
 // the same as either is edited.
 //
-// Deliberately NOT here: delete account. A patient's account is theirs to end;
-// a practitioner's carries other people's records, and ending it is a
-// conversation, not a button.
+// Delete account is here, as a REQUEST. A patient's account is theirs to end
+// at once; a practitioner's carries other people's records, so the button asks
+// and the team closes it with them (care: api/mobile/me/delete). The App Store
+// requires deletion to start in the app for every account that can sign in.
 import { useEffect, useState } from 'react';
 import { Image, Linking, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { MessageCircle, MessageCircleQuestionMark, LogOut, ChevronRight, Languages, Palette, ShieldCheck, FileText, Database, Lock, ChartNoAxesColumn } from 'lucide-react-native';
+import { MessageCircle, MessageCircleQuestionMark, LogOut, Trash2, ChevronRight, Languages, Palette, ShieldCheck, FileText, Database, Lock, ChartNoAxesColumn } from 'lucide-react-native';
 import { notify } from '@/src/ui/alert';
 import { EdHeader, EdCard, FadeIn, Kicker } from '@/src/ui/editorial';
 import { OptionSheet } from '@/src/ui/option-sheet';
@@ -26,8 +27,8 @@ import { openContact, openPublic } from '@/src/settings/links';
 import { useTheme, type ThemeChoice } from '@/src/ui/theme-mode';
 import { useAuth } from '@/src/auth/auth-context';
 import { useConfirm } from '@/src/ui/confirm';
-import { useI18n, type Locale } from '@/src/i18n';
-import { fetchMe } from '@/src/api/me';
+import { useI18n, fmt, type Locale } from '@/src/i18n';
+import { fetchMe, requestAccountDeletion } from '@/src/api/me';
 import { useMeFace } from '@/src/profile/me-face';
 import { useAnalytics } from '@/src/analytics/provider';
 
@@ -60,6 +61,27 @@ export default function PractitionerSettings() {
 
   const doSignOut = async () => {
     if (await confirm({ title: t.settings.signOutConfirm, confirmLabel: t.settings.signOut, cancelLabel: t.common.cancel, destructive: true })) signOut();
+  };
+
+  const longDate = (d: Date) => d.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  const doDelete = async () => {
+    const ok = await confirm({
+      title: t.settings.deleteConfirm,
+      message: fmt(t.settings.practitionerDeleteMessage, { date: longDate(new Date(Date.now() + 30 * 86_400_000)) }),
+      confirmLabel: t.settings.practitionerDeleteCta,
+      cancelLabel: t.common.cancel,
+      destructive: true,
+    });
+    if (!ok) return;
+    const res = await requestAccountDeletion();
+    if (!res) {
+      await confirm({ title: t.settings.deleteFailed, confirmLabel: t.common.ok, cancelLabel: t.common.cancel });
+      return;
+    }
+    const when = new Date(res.purgeAfter);
+    notify(t.settings.practitionerDeletedTitle, fmt(t.settings.practitionerDeletedBody, { date: Number.isNaN(when.getTime()) ? '' : longDate(when) }));
+    signOut(); // every app token is already revoked server-side
   };
 
   const displayName = face?.name || name || t.settings.practitioner;
@@ -138,7 +160,8 @@ export default function PractitionerSettings() {
 
           <Kicker color={TT.faint} style={{ marginBottom: 10 }}>{t.settings.accountSection}</Kicker>
           <EdCard style={{ padding: 0, overflow: 'hidden' }}>
-            <Row Icon={LogOut} title={t.settings.signOut} onPress={doSignOut} chevron={false} />
+            <Row Icon={LogOut} title={t.settings.signOut} onPress={doSignOut} chevron={false} divider />
+            <Row Icon={Trash2} title={t.settings.deleteAccount} onPress={doDelete} tone="danger" chevron={false} />
           </EdCard>
 
           <Text style={{ textAlign: 'center', fontSize: 13, color: TT.faint, marginTop: 28 }}>{t.settings.madeBy}</Text>
