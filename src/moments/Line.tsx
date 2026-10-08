@@ -105,7 +105,7 @@ export function dayLabelFor(d: Date, now: Date, locale: 'en' | 'fr', l: { today:
   y.setDate(y.getDate() - 1);
   if (tag(d) === tag(now)) return l.today;
   if (tag(d) === tag(y)) return l.yesterday;
-  const lc = locale === 'fr' ? 'fr-FR' : 'en-US';
+  const lc = locale === 'fr' ? 'fr-FR' : 'en-GB';
   // Calendar days apart, not hours — 25 hours ago can still be "this week".
   const midnight = (x: Date) => +new Date(x.getFullYear(), x.getMonth(), x.getDate());
   const days = Math.round((midnight(now) - midnight(d)) / 86_400_000);

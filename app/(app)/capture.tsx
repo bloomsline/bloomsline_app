@@ -136,7 +136,7 @@ export default function Capture() {
   const uploadedFor = useRef(new Map<string, MomentMediaInput>());
 
   const capturedAt = useRef(new Date()).current;
-  const when = `${capturedAt.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'long' })}, ${capturedAt.toLocaleTimeString(locale === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}`;
+  const when = `${capturedAt.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { weekday: 'long' })}, ${capturedAt.toLocaleTimeString(locale === 'fr' ? 'fr-FR' : 'en-GB', { hour: '2-digit', minute: '2-digit' })}`;
 
   const hasSomething = (note.trim().length > 0 || media.length > 0) && !recording;
   const atCap = media.length >= MAX_MEDIA;

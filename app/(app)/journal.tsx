@@ -279,7 +279,7 @@ function whenLabel(iso: string, locale: 'en' | 'fr', tr: Jr): string {
   const days = Math.round((startOf(new Date()) - startOf(d)) / 86400000);
   if (days <= 0) return tr.today;
   if (days === 1) return tr.yesterday;
-  return d.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short' });
+  return d.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'short' });
 }
 
 type Jr = ReturnType<typeof useI18n>['t']['journal'];

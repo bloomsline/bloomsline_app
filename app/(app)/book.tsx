@@ -27,7 +27,7 @@
 // RESCHEDULE keeps type and format fixed — the session already has both — so
 // they show as a static line and only the time is editable.
 import { useFeatureGuard } from '@/src/care/use-feature-guard';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -38,6 +38,7 @@ import { EdHeader, EdPill, FadeIn, Kicker } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useOnboarding } from '@/src/onboarding/context';
 import { FORCE_CARE_HUB } from '@/src/config';
+import { zoneDifference } from '@/src/care/zone';
 import { fetchSlots, type SlotDay, type BookingSlots, type SlotsRefusal } from '@/src/api/booking';
 import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
 import { useI18n, type Locale } from '@/src/i18n';
@@ -116,6 +117,7 @@ const T = {
     sectionType: 'Session',
     sectionFormat: 'How you will meet',
     sectionTime: 'When',
+    zoneNote: (mine: string, theirs: string, n: string) => `Times are in your time zone (${mine}). ${n} works on ${theirs} time.`,
     change: 'Change',
     noTimes: 'No times available',
     noTimesBody: 'Your practitioner has no open slots for this session right now. Try another format, or check back later.',
@@ -141,6 +143,7 @@ const T = {
     sectionType: 'Séance',
     sectionFormat: 'Comment vous échangerez',
     sectionTime: 'Quand',
+    zoneNote: (mine: string, theirs: string, n: string) => `Horaires dans votre fuseau (${mine}). ${n} travaille à l’heure de ${theirs}.`,
     change: 'Modifier',
     noTimes: 'Aucun créneau disponible',
     noTimesBody: "Votre praticien n'a aucun créneau libre pour cette séance pour le moment. Essayez un autre format, ou revenez plus tard.",
@@ -175,10 +178,13 @@ export default function Book() {
   // Follows the practitioner selected in the app (see onboarding/context).
   const { practitionerName } = useOnboarding();
   const name = practitionerName ?? tr.yourPractitioner;
+  const phoneTz = useMemo(() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return undefined; } }, []);
   const { selectionKey } = useSelectedPractitioner();
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<BookingSlots | null>(null);
+  // Named only when the phone's clock and the practitioner's disagree.
+  const zone = zoneDifference(phoneTz, data?.timezone);
   // Our own words for what we know (they follow the app's language, which the
   // account's may not), the server's for a place the practitioner named.
   const formatLabel = (f: string) => tr.formats[f] ?? (f === 'place:home' || f === 'place:outdoors' ? formatWords(f, locale) : formatWords(f, locale, data?.formatLabels?.[f]));
@@ -479,6 +485,9 @@ export default function Book() {
           {/* ── When ─────────────────────────────────────────────────────── */}
           {showTime && (
             <Section label={tr.sectionTime}>
+              {zone && (
+                <Text style={{ fontSize: 13, lineHeight: 18, color: TT.inkSoft, marginBottom: 10 }}>{tr.zoneNote(zone.phone, zone.practitioner, name)}</Text>
+              )}
               {slotsLoading ? (
                 <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 44 }}><ActivityIndicator color={TT.accent} /></View>
               ) : slotsFailed ? (

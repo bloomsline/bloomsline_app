@@ -80,7 +80,7 @@ export default function SessionHistory() {
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-        <EdHeader source={ONBOARDING_IMAGES.final} kicker={tr.title} title={tr.title} onBack={back} />
+        <EdHeader source={ONBOARDING_IMAGES.final} kicker="" title={tr.title} onBack={back} />
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {items === null ? (
             failed ? <LoadFailed onRetry={() => { setFailed(false); setAttempt((a) => a + 1); }} />
@@ -119,7 +119,7 @@ export default function SessionHistory() {
   );
 }
 
-const monthShort = (iso: string, locale: Locale) => new Date(iso).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', { month: 'short' });
+const monthShort = (iso: string, locale: Locale) => new Date(iso).toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { month: 'short' });
 const dayNum = (iso: string) => String(new Date(iso).getDate());
 const clock = (iso: string) => { const d = new Date(iso); return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`; };
 // A place ("À domicile") is said by the server; never the raw key.
