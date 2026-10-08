@@ -51,9 +51,11 @@ export const fr: Dict = {
   },
   family: {
     kicker: 'Invitation',
-    guardianTitle: '{prac} vous invite à suivre l’accompagnement de {child}',
-    guardianTitleNoPrac: 'Vous êtes invité à suivre l’accompagnement de {child}',
-    guardianBody: 'Réservez et gérez les séances de {child} et signez les documents qui vous sont destinés. Ce que {child} écrit dans l’application reste privé.',
+    // {deChild}: « d’Adi », « de Mila » (French elides before a vowel).
+    guardianTitle: '{prac} vous invite à accompagner la thérapie {deChild}',
+    guardianTitleNoPrac: 'Vous êtes invité à accompagner la thérapie {deChild}',
+    guardianBody: 'Réservez et gérez ses séances, et signez les documents qui vous sont destinés. Les échanges entre {child} et {prac} restent confidentiels.',
+    guardianBodyNoPrac: 'Réservez et gérez ses séances, et signez les documents qui vous sont destinés. Les échanges entre {child} et son praticien restent confidentiels.',
     childTitle: '{prac} vous invite sur Bloomsline',
     childTitleNoPrac: 'Vous êtes invité sur Bloomsline',
     childBody: 'Un espace à vous entre les séances. Ce que vous écrivez reste à vous : votre parent ou votre représentant légal ne peut pas le voir.',
@@ -173,6 +175,9 @@ export const fr: Dict = {
       hi: 'Bonjour {name},',
       hiNoName: 'Bonjour,',
       body: 'Je suis vraiment contente que vous soyez là. Je vous enverrai des choses entre nos séances. Notez comment vous allez quand vous voulez.',
+      // To a parent or guardian, about their child's therapy. {queChild}: « qu’Adi », « que Mila ».
+      guardianBody: 'Commencer une thérapie est une étape importante, pour {child} comme pour ceux qui l’accompagnent. Merci de votre confiance : votre soutien compte beaucoup dans son parcours.\n\nIci, vous pourrez gérer ses séances et les documents qui vous concernent. Ce {queChild} partage en séance reste entre nous.',
+      yourChild: 'votre enfant',
       cta: 'Commencer',
     },
     stories: {
@@ -417,8 +422,11 @@ export const fr: Dict = {
     failedBody: 'Vérifiez votre connexion et réessayez. Rien de ce que vous avez capturé n’est perdu.',
   },
   firstRun: {
-    introBody: 'Quelques mots sur ce que vous ressentez, maintenant. Ou une photo, une vidéo, votre voix. Vous seul(e) le voyez, sauf si vous choisissez de le montrer à votre praticien.',
-    captureFirst: 'Capturer mon premier moment',
+    introTitle: 'Un espace pour garder ce qui vous semble important.',
+    introBody: 'Une question, une observation, quelque chose qui vous semble important dans votre quotidien ? Gardez-en une trace ici pour y revenir plus tard.',
+    // To a parent or guardian. {deChild}: « d’Adi », « de Mila ».
+    introBodyGuardian: 'Une question, une observation, quelque chose qui vous semble important, autour {deChild} ou dans votre quotidien ? Gardez-en une trace ici pour y revenir plus tard.',
+    captureFirst: 'Créer mon premier moment',
     closingTitle: 'Une semaine, une saison, une année.',
     closingBody: 'Une semaine commence à dessiner une forme. Une saison la montre changer. Une année de moments, c’est votre vie, dans vos mots.',
     exampleYear: 'une année, par exemple',

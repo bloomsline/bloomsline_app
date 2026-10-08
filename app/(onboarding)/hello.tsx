@@ -6,6 +6,8 @@ import { EditorialBg, Scrim, RiseIn, Pill, ED } from '@/src/onboarding/editorial
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { useOnboarding } from '@/src/onboarding/context';
 import { useI18n, fmt } from '@/src/i18n';
+import { frElide } from '@/src/i18n/elide';
+import { useSelectedPractitioner } from '@/src/care/selected-practitioner';
 
 /** "Dr. Marie Lambert" → "Marie". The message is signed the way a person signs. */
 const firstNameOf = (name: string | null) =>
@@ -21,6 +23,11 @@ export default function Hello() {
   const { firstName, practitionerName } = useOnboarding();
   const { t } = useI18n();
   const T = t.onboarding.hello;
+  // A parent or guardian hears about their child's therapy, not the patient's
+  // "note how you're doing". The child is named when the link says who.
+  const { shape, selectedProfile } = useSelectedPractitioner();
+  const child = selectedProfile?.childFirstName?.trim() || T.yourChild;
+  const body = shape === 'guardian' ? fmt(T.guardianBody, { child, queChild: frElide('que', child) }) : T.body;
 
   const prac = firstNameOf(practitionerName);
   const name = (firstName ?? '').trim();
@@ -61,7 +68,7 @@ export default function Hello() {
               <Text style={{ fontSize: 24, fontWeight: '800', color: '#fff', letterSpacing: -0.8, lineHeight: 28 }}>
                 {pretty ? fmt(T.hi, { name: pretty }) : T.hiNoName}
               </Text>
-              <Text style={{ marginTop: 12, fontSize: 15, color: 'rgba(255,255,255,0.84)', lineHeight: 23 }}>{T.body}</Text>
+              <Text style={{ marginTop: 12, fontSize: 15, color: 'rgba(255,255,255,0.84)', lineHeight: 23 }}>{body}</Text>
               {prac ? (
                 <Text style={{ marginTop: 16, fontSize: 14.5, fontWeight: '700', color: '#fff' }}>{prac}</Text>
               ) : null}

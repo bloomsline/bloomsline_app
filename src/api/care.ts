@@ -128,6 +128,8 @@ export interface TodoItem {
   /** The practitioner handed a sent response back to be changed. Optional,
    *  like `hasDraft`. */
   reopened?: boolean;
+  /** The practitioner's word from the Send dialog. Optional, like `hasDraft`. */
+  note?: string | null;
 }
 
 /** Resources the practitioner assigned to the patient. null on failure; [] when

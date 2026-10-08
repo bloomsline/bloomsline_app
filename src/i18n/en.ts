@@ -50,9 +50,10 @@ export const en = {
   // three shapes of the app (a patient's own care, a child's, a guardian's).
   family: {
     kicker: 'Invitation',
-    guardianTitle: '{prac} invites you to follow {child}’s care',
-    guardianTitleNoPrac: 'You are invited to follow {child}’s care',
-    guardianBody: 'Book and manage {child}’s sessions and sign the documents meant for you. What {child} writes in the app stays private to them.',
+    guardianTitle: '{prac} invites you to support {child}’s therapy',
+    guardianTitleNoPrac: 'You are invited to support {child}’s therapy',
+    guardianBody: 'Book and manage their sessions, and sign the documents meant for you. Conversations between {child} and {prac} stay confidential.',
+    guardianBodyNoPrac: 'Book and manage their sessions, and sign the documents meant for you. Conversations between {child} and their practitioner stay confidential.',
     childTitle: '{prac} invites you to Bloomsline',
     childTitleNoPrac: 'You are invited to Bloomsline',
     childBody: 'A space of your own between sessions. What you write stays yours: your parent or guardian can’t see it.',
@@ -181,6 +182,9 @@ export const en = {
       hi: 'Hi {name},',
       hiNoName: 'Hi there,',
       body: "I'm really glad you're here. I'll send you things between our sessions. Note how you're doing whenever you like.",
+      // To a parent or guardian, about their child's therapy.
+      guardianBody: 'Starting therapy is an important step, both for {child} and for those who support them. Thank you for your trust: your support means a lot in their journey.\n\nHere you can manage their sessions and the documents meant for you. What {child} shares in session stays between us.',
+      yourChild: 'your child',
       cta: 'Start with today',
     },
     // c2–c4 — the three value screens, one per tab the patient is about to meet.
@@ -437,11 +441,13 @@ export const en = {
   // The Moments introduction. Two screens: the one an empty line shows, and the
   // one shown once after the first moment is saved.
   firstRun: {
-    // Under `line.emptyTitle` ("Your line starts here."). Says what a moment can
-    // be, and who can see it — the second half matters most to a patient with no
-    // practitioner, who is told nothing about sharing anywhere else in the app.
-    introBody: 'A few words about how you feel right now. Or a photo, a video, your own voice. Only you see it, unless you choose to show your practitioner.',
-    captureFirst: 'Capture your first moment',
+    // The intro's title and text, chosen by the practice on 7 Oct 2026: what a
+    // moment is for, in plain words. A parent's version names their child.
+    introTitle: 'A space to keep what feels important to you.',
+    introBody: 'A question, an observation, something that feels important in your daily life? Keep a note of it here to come back to later.',
+    // To a parent or guardian.
+    introBodyGuardian: 'A question, an observation, something that feels important, about {child} or in your daily life? Keep a note of it here to come back to later.',
+    captureFirst: 'Create my first moment',
     closingTitle: 'A week, a season, a year.',
     closingBody: 'A week starts to show a shape. A season shows it changing. A year of them is your own life, in your own words.',
     // On the example line. Without it, a year of somebody else's moments reads

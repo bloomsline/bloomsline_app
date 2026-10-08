@@ -51,6 +51,24 @@ export function stageLabel(stage: TodoStage, locale: Locale = 'en'): string {
 }
 
 /**
+ * "By Thursday 9 Oct" / "Pour le jeudi 9 oct.", from the day the practitioner
+ * picked when sending. The day is stored at 12:00 UTC and read in UTC, so it is
+ * the same day wherever the patient is. null when there is none, it cannot be
+ * read, or the item is done (a deadline on finished work is noise).
+ */
+export function dueLabel(dueAt: string | null | undefined, stage: TodoStage, locale: Locale = 'en'): string | null {
+  if (!dueAt || stage === 'done') return null;
+  const d = new Date(dueAt);
+  if (Number.isNaN(d.getTime())) return null;
+  try {
+    const day = d.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' });
+    return locale === 'fr' ? `Pour le ${day}` : `By ${day}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * The card's thin border for a stage. Colour is a second signal beside the
  * written status, never the only one, so it stays muted: a coral that reads as
  * "not yet" rather than as an error, amber for anything under way (a handed

@@ -20,7 +20,7 @@ import { FORCE_CARE_HUB } from '@/src/config';
 import { fetchCare, fetchTodo, type CareSession, type PatientCare, type TodoItem } from '@/src/api/care';
 import { fetchNotices, dismissNotices, type Notice } from '@/src/api/notices';
 import { NoticesCard } from '@/src/care/NoticesCard';
-import { resourceTypeMeta, stageLabel, stageLine, todoStage } from '@/src/care/resources';
+import { dueLabel, resourceTypeMeta, stageLabel, stageLine, todoStage } from '@/src/care/resources';
 import { notify } from '@/src/ui/alert';
 import { Ground } from '@/src/ui/Ground';
 import { PractitionerAvatar } from '@/src/care/PractitionerAvatar';
@@ -340,7 +340,7 @@ export default function MyCare() {
                         const meta = resourceTypeMeta(it.type, locale);
                         const open = it.resourceId ? () => router.navigate(`/resource/${it.id}` as never) : () => router.navigate('/from-practitioner' as never);
                         const stage = todoStage(it);
-                        return <ResourceRow key={it.id} Icon={meta.Icon} title={it.title} sub={`${meta.label} · ${stageLabel(stage, locale)}`} line={stageLine(stage, TT)} onPress={open} />;
+                        return <ResourceRow key={it.id} Icon={meta.Icon} title={it.title} sub={[meta.label, stageLabel(stage, locale), dueLabel(it.dueAt, stage, locale)].filter(Boolean).join(' · ')} line={stageLine(stage, TT)} onPress={open} />;
                       })}
                     </View>
                   </>

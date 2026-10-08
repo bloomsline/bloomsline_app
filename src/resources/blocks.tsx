@@ -5,7 +5,7 @@
 import { createElement, useEffect, useMemo, useState } from 'react';
 import { Image, Linking, Modal, Platform, Pressable, ScrollView, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
-import { Check, ExternalLink, FileText, Minus, Play, Plus, X } from 'lucide-react-native';
+import { Check, ExternalLink, FileText, Link2, Minus, Play, Plus, X } from 'lucide-react-native';
 import { useI18n } from '@/src/i18n';
 import { formatReadNumber, parseTypedNumber } from '@/src/resources/number';
 import { htmlToPlainText, parseRichText, type Span } from '@/src/resources/html';
@@ -49,12 +49,14 @@ const FIELD_COPY = {
     answer: 'Your answer', write: 'Write here…', yes: 'Yes', no: 'No',
     required: 'This one is required.', mediaMissing: 'This media could not be loaded.', image: 'Image', opensLarger: 'Opens larger',
     audio: 'Audio', video: 'Video', playAudio: 'Play audio', playVideo: 'Play video', openPdf: 'Open PDF',
+    link: 'Link', openLink: 'Open {host}', watchVideo: 'Watch the video',
     readAs: 'Read as {n}', notANumber: 'Not read as a number. Use digits, like 12 or 3.5.',
   },
   fr: {
     answer: 'Votre réponse', write: 'Écrivez ici…', yes: 'Oui', no: 'Non',
     required: 'Cette réponse est obligatoire.', mediaMissing: 'Ce média n’a pas pu être chargé.', image: 'Image', opensLarger: 'Ouvre en grand',
     audio: 'Audio', video: 'Vidéo', playAudio: 'Écouter', playVideo: 'Lire la vidéo', openPdf: 'Ouvrir le PDF',
+    link: 'Lien', openLink: 'Ouvrir {host}', watchVideo: 'Regarder la vidéo',
     readAs: 'Lu comme {n}', notANumber: 'Pas lu comme un nombre. Utilisez des chiffres, comme 12 ou 3,5.',
   },
 } as const;
@@ -66,7 +68,7 @@ function useFieldCopy() {
 
 export type { UploadStatus };
 
-export function Block({ block, value, onChange, missing, readOnly = false, mediaUrl, fileUrls, onUploadStatus }: {
+export function Block({ block, value, onChange, missing, readOnly = false, mediaUrl, fileUrls, onUploadStatus, onMediaError }: {
   block: PatientBlock;
   value: unknown;
   onChange: (v: unknown) => void;
@@ -79,6 +81,9 @@ export function Block({ block, value, onChange, missing, readOnly = false, media
   /** A file question's uploads still running or failed, for the screen to hold
    *  Submit and the way out until they settle. */
   onUploadStatus?: (s: UploadStatus) => void;
+  /** An image failed to load: usually its signed link (30 minutes) expired. The
+   *  screen fetches fresh links. */
+  onMediaError?: () => void;
 }) {
   const C = useCare();
   const f = useFieldCopy();
@@ -111,7 +116,9 @@ export function Block({ block, value, onChange, missing, readOnly = false, media
         </Field>
       );
     case 'media':
-      return <MediaBlock kind={b.mediaKind} url={mediaUrl} name={b.label} />;
+      return <MediaBlock kind={b.mediaKind} url={mediaUrl} name={b.label || b.mediaName} onError={onMediaError} />;
+    case 'embed':
+      return <LinkBlock url={b.url} label={b.label} />;
     case 'number':
       return (
         <Field label={b.label} required={b.required} missing={missing}>
@@ -180,7 +187,7 @@ export function Block({ block, value, onChange, missing, readOnly = false, media
     }
     case 'scale': {
       const min = b.scale?.min ?? 0;
-      const max = b.scale?.max ?? 10;
+      const max = b.scale?.max ?? 5; // the same fallback as the web and the server (0 to 5)
       const step = b.scale?.step && b.scale.step > 0 ? b.scale.step : 1;
       // Counted in steps, not accumulated: adding 0.1 ten times is not 1 in
       // floating point, so a 0–1 scale showed 0.30000000000000004 and had no 1.
@@ -316,7 +323,7 @@ function decoration(s: Span): 'underline' | 'line-through' | 'underline line-thr
 // buttons are not a fallback so much as the only thing that works everywhere and
 // is reachable without a gesture — proper pinch on Android needs
 // react-native-gesture-handler, which is a native module and a new build.
-function ZoomableImage({ url, ratio, name }: { url: string; ratio: number; name?: string }) {
+function ZoomableImage({ url, ratio, name, onError }: { url: string; ratio: number; name?: string; onError?: () => void }) {
   const f = useFieldCopy();
   const { t } = useI18n();
   const C = useCare();
@@ -336,7 +343,7 @@ function ZoomableImage({ url, ratio, name }: { url: string; ratio: number; name?
     <>
       <TouchableOpacity activeOpacity={0.9} onPress={() => setOpen(true)} accessibilityLabel={name || f.image} accessibilityHint={f.opensLarger}>
         <View style={{ marginBottom: 16, borderRadius: 14, overflow: 'hidden', backgroundColor: C.card }}>
-          <Image source={{ uri: url }} style={{ width: '100%', aspectRatio: ratio }} resizeMode="cover" />
+          <Image source={{ uri: url }} style={{ width: '100%', aspectRatio: ratio }} resizeMode="cover" onError={onError} />
         </View>
       </TouchableOpacity>
 
@@ -388,7 +395,7 @@ const pill = { width: 40, height: 40, borderRadius: 20, backgroundColor: OVER_ME
 // Images render inline. Video and audio open in the phone's own player: this
 // project ships no video component, and a broken inline player is worse than a
 // button that works.
-function MediaBlock({ kind, url, name }: { kind?: string; url?: string; name?: string }) {
+function MediaBlock({ kind, url, name, onError }: { kind?: string; url?: string; name?: string; onError?: () => void }) {
   const C = useCare();
   const f = useFieldCopy();
   const [ratio, setRatio] = useState(16 / 9);
@@ -415,7 +422,7 @@ function MediaBlock({ kind, url, name }: { kind?: string; url?: string; name?: s
   }
 
   if (!kind || kind === 'image') {
-    return <ZoomableImage url={url} ratio={ratio} name={name} />;
+    return <ZoomableImage url={url} ratio={ratio} name={name} onError={onError} />;
   }
 
   return (
@@ -498,10 +505,30 @@ function PdfBlock({ url, name }: { url: string; name?: string }) {
 // nothing, so the card says "Open PDF" instead.
 const looksLikeStorageKey = (name: string): boolean => /^[0-9a-f]{8,}|\d{6,}/i.test(name);
 
+// A link or video link from the practitioner. It used to render nothing at all
+// (no case here, and the server did not send the address). A YouTube or Vimeo
+// link reads "Watch the video"; any other page, "Open <site>". Opens in the
+// in-app browser, like media.
+function LinkBlock({ url, label }: { url?: string; label?: string }) {
+  const f = useFieldCopy();
+  if (!url || !/^https?:\/\//i.test(url)) return null;
+  let host = '';
+  try { host = new URL(url).hostname.replace(/^www\./, ''); } catch { return null; }
+  const video = /(^|\.)(youtube\.com|youtu\.be|vimeo\.com)$/i.test(host);
+  return (
+    <MediaCard
+      icon={video ? 'play' : 'link'}
+      name={label || (video ? f.video : host)}
+      action={video ? f.watchVideo : f.openLink.replace('{host}', host)}
+      onPress={() => { void WebBrowser.openBrowserAsync(url); }}
+    />
+  );
+}
+
 // One row for anything that opens rather than renders inline. The file's own
 // name is the title only when the practitioner gave it one — a storage filename
 // like "69dd9f6420bec4.884_Guide_….pdf" is not a thing to show a patient.
-function MediaCard({ icon, name, action, onPress }: { icon: 'pdf' | 'play'; name: string; action: string; onPress: () => void }) {
+function MediaCard({ icon, name, action, onPress }: { icon: 'pdf' | 'play' | 'link'; name: string; action: string; onPress: () => void }) {
   const C = useCare();
   const looksLikeStorageName = looksLikeStorageKey(name);
   return (
@@ -511,7 +538,7 @@ function MediaCard({ icon, name, action, onPress }: { icon: 'pdf' | 'play'; name
       style={{ flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: C.border, borderRadius: 14, backgroundColor: C.card, padding: 14, marginBottom: 16 }}
     >
       <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: icon === 'pdf' ? '#FDECEC' : C.mint, alignItems: 'center', justifyContent: 'center' }}>
-        {icon === 'pdf' ? <FileText size={16} color="#C0392B" /> : <Play size={16} color={C.teal} />}
+        {icon === 'pdf' ? <FileText size={16} color="#C0392B" /> : icon === 'link' ? <Link2 size={16} color={C.teal} /> : <Play size={16} color={C.teal} />}
       </View>
       <View style={{ flex: 1 }}>
         {!looksLikeStorageName && <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '600', color: C.ink }}>{name}</Text>}
