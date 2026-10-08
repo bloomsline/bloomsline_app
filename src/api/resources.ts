@@ -36,7 +36,8 @@ export interface AssignmentView {
   // completedAt / submittedAt are OPTIONAL on purpose: the app ships ahead of
   // the server that added them, so a build talking to an older API must still
   // render the finished state, just without a date.
-  assignment: { id: string; status: string; completedAt?: string | null };
+  // dueAt and note come from the Send dialog; optional for older servers.
+  assignment: { id: string; status: string; completedAt?: string | null; dueAt?: string | null; note?: string | null };
   resource: { title: string; type: string; description: string | null };
   version: { id: string; blocks: PatientBlock[] };
   scored: boolean;

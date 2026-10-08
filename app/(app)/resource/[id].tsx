@@ -19,6 +19,7 @@ import { useLeaveGuard } from '@/src/ui/leave-guard';
 import { useI18n } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
 import { OtherPractitionerNote } from '@/src/care/OtherPractitionerNote';
+import { dueLabel } from '@/src/care/resources';
 import { GrowFrame, takeGrowOrigin, useGrowFold } from '@/src/ui/grow';
 import { clearUnsent, readUnsent, saveUnsent } from '@/src/unsent';
 import { track } from '@/src/analytics/client';
@@ -68,6 +69,7 @@ const T = {
     alreadySubmitted: 'Already submitted',
     alreadyDone: 'Already marked as done',
     fromPractitioner: 'Message from your practitioner',
+    wordFrom: 'A word from your practitioner',
     onEarlier: (d: string) => `On your earlier answers · ${d}`,
     lockedNote: 'Your practitioner can reopen this if you need to change it.',
     resultTitle: 'All done',
@@ -96,6 +98,7 @@ const T = {
     alreadySubmitted: 'Déjà envoyé',
     alreadyDone: 'Déjà marqué comme terminé',
     fromPractitioner: 'Message de votre praticien',
+    wordFrom: 'Un mot de votre praticien',
     onEarlier: (d: string) => `Sur vos réponses précédentes · ${d}`,
     lockedNote: 'Votre praticien peut le rouvrir si vous devez le modifier.',
     resultTitle: 'Terminé',
@@ -499,6 +502,18 @@ function ResourceDetailPage() {
                 </View>
               </View>
             ) : null}
+            {/* The word and the day from the Send dialog: what it is for, and when.
+                Quieter than a reply (no spine): it travels with the exercise. */}
+            {view.assignment.note ? (
+              <View style={{ backgroundColor: TT.card, borderRadius: 16, borderWidth: 1, borderColor: TT.line, paddingVertical: 13, paddingHorizontal: 15, marginBottom: 14 }}>
+                <Text style={{ fontSize: 12, fontWeight: '800', color: TT.accentDeep, letterSpacing: 0.2, marginBottom: 5 }}>{tr.wordFrom}</Text>
+                <Text style={{ fontSize: 15, color: TT.ink, lineHeight: 23 }}>{view.assignment.note}</Text>
+              </View>
+            ) : null}
+            {(() => {
+              const due = dueLabel(view.assignment.dueAt, finished ? 'done' : 'todo', locale);
+              return due ? <Text style={{ fontSize: 13, fontWeight: '700', color: TT.inkSoft, marginBottom: 14 }}>{due}</Text> : null;
+            })()}
             <ResourceIntro text={view.resource.description} />
             {finished && (
               <View style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: TT.accentTint, borderRadius: 12, paddingVertical: 5, paddingHorizontal: 10, marginBottom: 16 }}>

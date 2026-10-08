@@ -11,7 +11,7 @@ import { useOnboarding } from '@/src/onboarding/context';
 import { FORCE_CARE_HUB } from '@/src/config';
 import { fetchTodo, type TodoItem } from '@/src/api/care';
 import { useSelectionReset } from '@/src/care/selected-practitioner';
-import { resourceTypeMeta, stageLabel, stageLine, todoStage } from '@/src/care/resources';
+import { dueLabel, resourceTypeMeta, stageLabel, stageLine, todoStage } from '@/src/care/resources';
 import { useI18n, fmt } from '@/src/i18n';
 import { useTheme } from '@/src/ui/theme-mode';
 import { rememberGrowOrigin } from '@/src/ui/grow';
@@ -92,7 +92,7 @@ export default function FromPractitioner() {
                 const stage = todoStage(it);
                 const done = stage === 'done';
                 const open = it.resourceId ? () => router.navigate(`/resource/${it.id}` as never) : undefined;
-                return <ResItem key={it.id} Icon={meta.Icon} title={it.title} tag={meta.label} status={stageLabel(stage, locale)} statusGreen={stage === 'progress' || stage === 'reopened'} done={done} muted={done && !it.hasReply} reply={it.hasReply ? tr.reply : undefined} line={stageLine(stage, TT)} onPress={open} />;
+                return <ResItem key={it.id} Icon={meta.Icon} title={it.title} tag={meta.label} status={[stageLabel(stage, locale), dueLabel(it.dueAt, stage, locale)].filter(Boolean).join(' · ')} statusGreen={stage === 'progress' || stage === 'reopened'} done={done} muted={done && !it.hasReply} reply={it.hasReply ? tr.reply : undefined} line={stageLine(stage, TT)} onPress={open} />;
               })}
             </View>
           )}
