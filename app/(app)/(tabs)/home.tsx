@@ -19,8 +19,8 @@ import { useI18n, fmt, greetingFor } from '@/src/i18n';
 import { useOnboarding } from '@/src/onboarding/context';
 import { FORCE_CARE_HUB } from '@/src/config';
 import { fetchCare, fetchTodo, type CareSession, type PatientCare, type TodoItem } from '@/src/api/care';
-import { fetchNotices, dismissNotices, type Notice } from '@/src/api/notices';
-import { NoticesCard } from '@/src/care/NoticesCard';
+import { fetchBell } from '@/src/api/notices';
+import { NotificationBell } from '@/src/care/NotificationBell';
 import { orderTodo } from '@/src/care/todo-order';
 import { dueLabel, resourceTypeMeta, stageLabel, stageLine, todoStage } from '@/src/care/resources';
 import { notify } from '@/src/ui/alert';
@@ -59,7 +59,7 @@ export default function MyCare() {
   const greetHere = landing === 'care';
   const [care, setCare] = useState<PatientCare | null>(null);
   const [todos, setTodos] = useState<TodoItem[] | null>(null);
-  const [notices, setNotices] = useState<Notice[]>([]);
+  const [unread, setUnread] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const { selectionKey, selected, shape, selectedProfile } = useSelectedPractitioner();
@@ -95,8 +95,8 @@ export default function MyCare() {
     fetchTodo().then((r) => { if (alive && r) setTodos(orderTodo(r)); });
     // The account's own notices; a guardian's view of a child's care shows
     // none (they are the child's, and the server would give none anyway).
-    if (shape !== 'guardian') fetchNotices().then((r) => { if (alive && r) setNotices(r); });
-    else setNotices([]);
+    if (shape !== 'guardian') fetchBell(locale).then((r) => { if (alive && r) setUnread(r.unread); });
+    else setUnread(0);
     return () => { alive = false; };
     // `selectionKey` is not read here, and it is the point: a new identity is
     // what makes useFocusEffect fetch again, for the practitioner just chosen.
@@ -126,7 +126,14 @@ export default function MyCare() {
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 27, fontWeight: '800', color: TT.ink, letterSpacing: -0.9, lineHeight: 31 }}>{headerTitle}</Text>
         </View>
-        <ProfileButton />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          {/* The account's own notices. A guardian's view of a child's care has
+              none (they are the child's, and the server gives none anyway). */}
+          {shape !== 'guardian' && hasPractitioner ? (
+            <NotificationBell unread={unread} onPress={() => router.navigate('/notifications' as never)} />
+          ) : null}
+          <ProfileButton />
+        </View>
       </View>
     </View>
   );
@@ -279,13 +286,6 @@ export default function MyCare() {
                 </Text>
               ) : null}
 
-              {shape !== 'guardian' ? (
-                <NoticesCard
-                  notices={notices}
-                  onDismiss={(id) => { setNotices((ns) => ns.filter((n) => n.id !== id)); void dismissNotices([id]); }}
-                  onDismissAll={() => { setNotices([]); void dismissNotices('all'); }}
-                />
-              ) : null}
 
               <Cascade route="home" index={2}>
                 <SectionRule label={t.care.yourSessions} />

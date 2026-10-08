@@ -42,9 +42,14 @@ export const en = {
   },
   // Guardian plan, Q8: what has been written to the patient's own chart.
   notices: {
-    title: 'New',
-    clearAll: 'Clear all',
-    dismissA11y: 'Dismiss this notice',
+    title: 'Notifications',
+    new: 'New',
+    earlier: 'Earlier',
+    markAll: 'Mark all as read',
+    empty: 'You are all caught up',
+    emptyBody: 'What your practitioner sends you will show here.',
+    bellA11y: 'Notifications',
+    bellA11yCount: 'Notifications, {n} new',
   },
   // Guardian plan, phase 6: a parent's or a child's own invitation, and the
   // three shapes of the app (a patient's own care, a child's, a guardian's).
