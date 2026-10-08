@@ -540,10 +540,13 @@ export async function generatePulse(memberId: string): Promise<{ ok: boolean; pu
   }
 }
 
-export async function addPatient(input: { firstName: string; lastName: string; email?: string }): Promise<{ ok: boolean; error?: string }> {
+export async function addPatient(input: { firstName: string; lastName: string; email?: string }): Promise<{ ok: boolean; id?: string; error?: string }> {
   try {
     const res = await apiFetch('/api/mobile/practitioner/patients', { method: 'POST', body: JSON.stringify(input) });
-    if (res.ok) return { ok: true };
+    if (res.ok) {
+      const body = await res.json().catch(() => null);
+      return { ok: true, id: typeof body?.id === 'string' ? body.id : undefined };
+    }
     const body = await res.json().catch(() => null);
     return { ok: false, error: body?.error ?? 'Could not add the patient.' };
   } catch {
