@@ -70,6 +70,7 @@ export const fr: Dict = {
     accept: 'Accepter l’invitation',
     accepting: 'Connexion…',
     invalid: 'Cette invitation a déjà été utilisée ou a expiré. Si vous en avez encore besoin, demandez au praticien d’en envoyer une nouvelle.',
+    unreachable: 'Impossible d’ouvrir cette invitation. Vérifiez votre connexion et réessayez.',
     acceptedGuardian: 'Vous êtes maintenant relié à l’accompagnement de {child}.',
     acceptedChild: 'Votre espace est prêt.',
     refused: {

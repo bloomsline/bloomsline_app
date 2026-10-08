@@ -68,6 +68,7 @@ export const en = {
     accept: 'Accept the invitation',
     accepting: 'Connecting…',
     invalid: 'This invitation has already been used or has expired. If you still need it, ask the practitioner to send a new one.',
+    unreachable: 'Could not open this invitation. Check your connection and try again.',
     acceptedGuardian: 'You are now connected to {child}’s care.',
     acceptedChild: 'Your space is ready.',
     refused: {

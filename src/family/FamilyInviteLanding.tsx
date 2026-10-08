@@ -6,7 +6,7 @@ import { Lock } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { EditorialBg, Scrim, RiseIn, MonoKicker, Pill, LangToggle } from '@/src/onboarding/editorial/kit';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
-import { fetchFamilyInvite, type FamilyInvite } from '@/src/api/invite';
+import { lookupFamilyInvite, type FamilyInvite } from '@/src/api/invite';
 import { fetchMe } from '@/src/api/me';
 import { useI18n, fmt } from '@/src/i18n';
 import { frElide } from '@/src/i18n/elide';
@@ -41,6 +41,11 @@ export function FamilyInviteLanding({ kind, token }: { kind: 'guardian' | 'child
   const { status, signOut } = useAuth();
   const { refresh } = useSelectedPractitioner();
   const [invite, setInvite] = useState<FamilyInvite | null>(null);
+  // Why there is no invitation to show. 'gone' is forgotten at once: it used to
+  // stay pending, and the app sent the person back here, to a screen with no
+  // buttons, for two hours. 'unreachable' is kept, with Try again.
+  const [failed, setFailed] = useState<'gone' | 'unreachable' | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,15 +63,18 @@ export function FamilyInviteLanding({ kind, token }: { kind: 'guardian' | 'child
   useEffect(() => {
     let alive = true;
     void rememberFamilyInvite(token, kind);
-    fetchFamilyInvite(kind, token).then((r) => {
+    lookupFamilyInvite(kind, token).then((got) => {
       if (!alive) return;
+      const r = 'invite' in got ? got.invite : null;
       track('family_invite_opened', { kind, found: !!r });
       setInvite(r);
+      setFailed('failed' in got ? got.failed : null);
+      if ('failed' in got && got.failed === 'gone') void clearFamilyInvite();
       if (r) setLocale(r.locale);
       setLoading(false);
     });
     return () => { alive = false; };
-  }, [kind, token, setLocale]);
+  }, [kind, token, setLocale, attempt]);
 
   useEffect(() => {
     if (!signedIn) { setMyEmail(null); setMeLoaded(false); return; }
@@ -145,11 +153,27 @@ export function FamilyInviteLanding({ kind, token }: { kind: 'guardian' | 'child
                   <Text style={{ marginTop: 14, fontSize: 15, color: onMedia(0.84), lineHeight: 23, maxWidth: 320 }}>{body}</Text>
                 </>
               ) : (
-                <Text style={{ marginTop: 14, fontSize: 16, color: onMedia(0.9), lineHeight: 24, maxWidth: 320 }}>{t.family.invalid}</Text>
+                <Text style={{ marginTop: 14, fontSize: 16, color: onMedia(0.9), lineHeight: 24, maxWidth: 320 }}>{failed === 'unreachable' ? t.family.unreachable : t.family.invalid}</Text>
               )}
             </RiseIn>
 
             <View style={{ flex: 1 }} />
+
+            {/* No invitation to show is never a dead end. */}
+            {!loading && !invite && (
+              <RiseIn delay={200} style={{ paddingBottom: 12 }}>
+                {failed === 'unreachable' ? (
+                  <>
+                    <Pill label={t.common.retry} onPress={() => { setLoading(true); setAttempt((n) => n + 1); }} />
+                    <Pressable accessibilityRole="button" onPress={() => { void notNow(); }} style={{ alignItems: 'center', paddingVertical: 16 }}>
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: onMedia(0.9) }}>{t.family.notNow}</Text>
+                    </Pressable>
+                  </>
+                ) : (
+                  <Pill label={t.common.continue} onPress={() => { void notNow(); }} />
+                )}
+              </RiseIn>
+            )}
 
             {invite && (
               <RiseIn delay={350} style={{ paddingBottom: 12 }}>
