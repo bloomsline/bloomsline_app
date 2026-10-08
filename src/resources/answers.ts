@@ -208,3 +208,23 @@ export function missingRequired(blocks: AnswerBlock[], answers: Record<string, u
     .filter((b) => b.required === true && interactive.has(b.type) && !isAnswered(b, answers[b.id], readNumber))
     .map((b) => b.id);
 }
+
+/**
+ * Number answers the patient typed but that do not read as a number ("7h",
+ * "about 7"), in the order they are asked; a table counts when any of its number
+ * cells is like that. The server drops such an answer as if it were never
+ * written, so sending one would lose what the patient typed without a word: the
+ * screen stops at it instead. The field already says "Not read as a number".
+ */
+export function unreadableNumbers(blocks: AnswerBlock[], answers: Record<string, unknown>, readNumber: ReadNumber): string[] {
+  const bad = (v: unknown) => nonBlank(v) && readNumber(v) === undefined;
+  return blocks
+    .filter((b) => {
+      const v = answers[b.id];
+      if (b.type === 'number') return bad(v);
+      if (b.type !== 'table' || !Array.isArray(v)) return false;
+      const numCols = (b.columns ?? []).filter((c) => c.type === 'number');
+      return v.some((row) => !!row && typeof row === 'object' && numCols.some((c) => bad((row as Record<string, unknown>)[c.id])));
+    })
+    .map((b) => b.id);
+}

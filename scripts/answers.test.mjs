@@ -80,3 +80,18 @@ test('missingRequired lists every gap in order, and only required ones', () => {
   assert.deepEqual(missingRequired(blocks, { d: 'yes' }, readNumber, interactive), ['a', 'c']);
   assert.deepEqual(missingRequired(blocks, { a: 'hi', c: '2026-01-01', d: 'no' }, readNumber, interactive), []);
 });
+
+test('unreadableNumbers names typed numbers the server would drop, and nothing else', async () => {
+  const { unreadableNumbers } = await import('../src/resources/answers.ts');
+  const blocks = [
+    { id: 'n', type: 'number' },
+    { id: 'ok', type: 'number' },
+    { id: 'empty', type: 'number' },
+    { id: 't', type: 'table', columns: [{ id: 'm', label: 'Moment', type: 'text' }, { id: 'i', label: 'Intensité', type: 'number' }] },
+    { id: 'tok', type: 'table', columns: [{ id: 'i', label: 'I', type: 'number' }] },
+    { id: 's', type: 'short_text' },
+  ];
+  const answers = { n: '7h', ok: '7,5', empty: '   ', t: [{ m: 'Matin', i: '8' }, { m: 'Soir', i: 'beaucoup' }], tok: [{ i: 3 }], s: 'abc' };
+  assert.deepEqual(unreadableNumbers(blocks, answers, readNumber), ['n', 't']);
+  assert.deepEqual(unreadableNumbers(blocks, {}, readNumber), []);
+});

@@ -1,6 +1,8 @@
 // e4 — Library activity. Render a self-guided practice, do it, and save a PRIVATE
 // run (/api/mobile/library/[id]/run) — kept to the patient, never seen by the
 // practitioner. Repeatable. Wired to GET /api/mobile/library/[id].
+import { unreadableNumbers } from '@/src/resources/answers';
+import { parseTypedNumber } from '@/src/resources/number';
 import { useFeatureGuard } from '@/src/care/use-feature-guard';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Pressable, ScrollView, Text, View } from 'react-native';
@@ -24,6 +26,7 @@ import { track } from '@/src/analytics/client';
 const T = {
   en: {
     couldNotSave: 'Could not save.',
+    unreadableNumber: 'A number can’t be read. Use digits, like 12 or 3.5.',
     saveGone: 'This activity is no longer available, so your answers could not be saved.',
     saveBusy: 'Too many tries in a row. Wait a moment and save again.',
     saveOffline: 'Could not reach Bloomsline. Check your connection and save again.',
@@ -43,6 +46,7 @@ const T = {
   },
   fr: {
     couldNotSave: 'Enregistrement impossible.',
+    unreadableNumber: 'Un nombre n’est pas lisible. Utilisez des chiffres, comme 12 ou 3,5.',
     saveGone: 'Cette activité n’est plus disponible, vos réponses n’ont donc pas pu être enregistrées.',
     saveBusy: 'Trop d’essais d’affilée. Patientez un instant et enregistrez à nouveau.',
     saveOffline: 'Impossible de joindre Bloomsline. Vérifiez votre connexion et enregistrez à nouveau.',
@@ -116,6 +120,9 @@ export default function LibraryPractice() {
     const up = Object.values(uploads.current);
     if (up.some((u) => u.uploading > 0)) { notify(tr.waitUploads); return; }
     if (up.some((u) => u.failed > 0)) { notify(tr.failedUploads); return; }
+    // A number that does not read as one would be dropped without a word.
+    const readNumber = (v: unknown) => (typeof v === 'number' ? v : typeof v === 'string' ? parseTypedNumber(v, locale) : undefined);
+    if (unreadableNumbers(blocks, latestAnswers.current, readNumber).length) { notify(tr.unreadableNumber); return; }
     savingRef.current = true;
     setSaving(true);
     const res = await runLibraryActivity(resourceId, latestAnswers.current, view?.version.id, locale);

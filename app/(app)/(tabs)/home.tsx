@@ -20,6 +20,7 @@ import { FORCE_CARE_HUB } from '@/src/config';
 import { fetchCare, fetchTodo, type CareSession, type PatientCare, type TodoItem } from '@/src/api/care';
 import { fetchNotices, dismissNotices, type Notice } from '@/src/api/notices';
 import { NoticesCard } from '@/src/care/NoticesCard';
+import { orderTodo } from '@/src/care/todo-order';
 import { dueLabel, resourceTypeMeta, stageLabel, stageLine, todoStage } from '@/src/care/resources';
 import { notify } from '@/src/ui/alert';
 import { Ground } from '@/src/ui/Ground';
@@ -90,7 +91,7 @@ export default function MyCare() {
       setLoaded(true);
       setSwitching(false);
     });
-    fetchTodo().then((r) => { if (alive && r) setTodos(r); });
+    fetchTodo().then((r) => { if (alive && r) setTodos(orderTodo(r)); });
     // The account's own notices; a guardian's view of a child's care shows
     // none (they are the child's, and the server would give none anyway).
     if (shape !== 'guardian') fetchNotices().then((r) => { if (alive && r) setNotices(r); });

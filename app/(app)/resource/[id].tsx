@@ -10,7 +10,7 @@ import { Check, CircleCheckBig, MessageCircle } from 'lucide-react-native';
 import { EdHeader, EdPill, FadeIn } from '@/src/ui/editorial';
 import { ONBOARDING_IMAGES } from '@/src/onboarding/editorial/images';
 import { Block, INTERACTIVE, ResourceIntro, type UploadStatus } from '@/src/resources/blocks';
-import { fileUrlIndex, filesOf, isAnswered, missingRequired } from '@/src/resources/answers';
+import { fileUrlIndex, filesOf, isAnswered, missingRequired, unreadableNumbers } from '@/src/resources/answers';
 import { parseTypedNumber } from '@/src/resources/number';
 import { flushCanvasDrafts } from '@/src/resources/zoned-canvas-field';
 import { fetchAssignment, saveAssignmentDraft, submitAssignment, type AssignmentView, type PatientScore } from '@/src/api/resources';
@@ -52,6 +52,7 @@ const T = {
     couldNotSubmit: 'Could not submit. Check your connection and try again. Your answers are still here.',
     missingRequired: 'Please answer the required questions.',
     missingCount: (n: number) => (n === 1 ? '1 question still needs an answer' : `${n} questions still need an answer`),
+    unreadableNumber: 'A number can’t be read. Use digits, like 12 or 3.5.',
     waitUploads: 'A file is still uploading. Wait for it to finish, then submit.',
     failedUploads: 'A file did not upload. Try again or remove it, then submit.',
     uploadingTitle: 'A file is still uploading', uploadingBody: 'If you leave now, it will not be added to your answers.',
@@ -81,6 +82,7 @@ const T = {
     couldNotSubmit: 'Envoi impossible. Vérifiez votre connexion et réessayez. Vos réponses sont toujours là.',
     missingRequired: 'Merci de répondre aux questions obligatoires.',
     missingCount: (n: number) => (n === 1 ? '1 question attend encore une réponse' : `${n} questions attendent encore une réponse`),
+    unreadableNumber: 'Un nombre n’est pas lisible. Utilisez des chiffres, comme 12 ou 3,5.',
     waitUploads: 'Un fichier est encore en cours d’envoi. Attendez la fin, puis envoyez.',
     failedUploads: 'Un fichier n’a pas été envoyé. Réessayez ou retirez-le, puis envoyez.',
     uploadingTitle: 'Un fichier est en cours d’envoi', uploadingBody: 'Si vous partez maintenant, il ne sera pas ajouté à vos réponses.',
@@ -138,6 +140,8 @@ function ResourceDetailPage() {
   // found then, and read against the answers on every render, so a mark clears
   // the moment its question is answered and the count under it goes down.
   const [missingIds, setMissingIds] = useState<string[]>([]);
+  // Numbers typed that do not read as one: sending would drop them silently.
+  const [oddIds, setOddIds] = useState<string[]>([]);
   const [result, setResult] = useState<{ score: PatientScore | null } | null>(null);
   const confirm = useConfirm();
   const insets = useSafeAreaInsets();
@@ -320,6 +324,7 @@ function ResourceDetailPage() {
     const b = blocks.find((x) => x.id === mid);
     return !!b && !isAnswered(b, answers[mid], readNumber);
   });
+  const oddShown = oddIds.length > 0 && unreadableNumbers(blocks, answers, readNumber).length > 0;
   // Links for files already on the server, by storage key, read against the
   // answers the server signed them for (see `urlsByKey`).
   const fileUrls = useMemo(
@@ -375,6 +380,12 @@ function ResourceDetailPage() {
       return;
     }
     setMissingIds([]);
+    const odd = unreadableNumbers(blocks, latest.current, readNumber);
+    setOddIds(odd);
+    if (odd.length) {
+      scrollToBlock(odd[0]);
+      return;
+    }
     setUploadHold(false);
     submittingRef.current = true;
     setSubmitting(true);
@@ -553,6 +564,11 @@ function ResourceDetailPage() {
               <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: TT.danger }} />
               <Text style={{ fontSize: 13, fontWeight: '700', color: TT.danger }}>{tr.missingCount(shownMissing.length)}</Text>
             </Pressable>
+          ) : null}
+          {oddShown && shownMissing.length === 0 ? (
+            <Text accessibilityLiveRegion="polite" style={{ fontSize: 13, fontWeight: '600', color: TT.danger, textAlign: 'center', marginBottom: 10 }}>
+              {tr.unreadableNumber}
+            </Text>
           ) : null}
           {uploadHold && (uploads.uploading > 0 || uploads.failed > 0) ? (
             <Text accessibilityLiveRegion="polite" style={{ fontSize: 13, fontWeight: '600', color: TT.danger, textAlign: 'center', marginBottom: 10 }}>
