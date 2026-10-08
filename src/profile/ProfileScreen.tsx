@@ -111,7 +111,10 @@ export function ProfileScreen({ home }: { home: string }) {
         setError(e.which === 'camera' ? tr.cameraDenied : tr.libraryDenied);
         return;
       }
-      setError(`${tr.photoFailed} (${String(e).slice(0, 120)})`);
+      // The step that failed goes to the console, not to the patient: "storage
+      // 403" means nothing to them and reads as broken.
+      console.warn('avatar', String(e).slice(0, 200));
+      setError(tr.photoFailed);
     }
   };
 
@@ -136,7 +139,10 @@ export function ProfileScreen({ home }: { home: string }) {
       setPhotoDone(true);
     } catch (e) {
       // The step that failed travels with the message — see `avatar-upload`.
-      setError(`${tr.photoFailed} (${String(e).replace('Error: ', '').slice(0, 160)})`);
+      // The step that failed goes to the console, not to the patient: "storage
+      // 403" means nothing to them and reads as broken.
+      console.warn('avatar', String(e).slice(0, 200));
+      setError(tr.photoFailed);
     } finally {
       setBusy(false);
     }
@@ -144,6 +150,9 @@ export function ProfileScreen({ home }: { home: string }) {
 
   const save = async () => {
     if (busy) return;
+    // A first name is what the app greets you by and what your practitioner
+    // sees. Saving a blank one went through without a word.
+    if (!first.trim()) { setError(tr.firstNameNeeded); return; }
     setBusy(true);
     setError(null);
     const ok = await saveProfile({
@@ -212,7 +221,7 @@ export function ProfileScreen({ home }: { home: string }) {
 
               {/* No section label: it would repeat the page title, and the two
                   fields already say what they are. */}
-              <NameField label={tr.firstName} value={first} onChange={setFirst} />
+              <NameField label={tr.firstName} value={first} onChange={(v) => { setFirst(v); if (v.trim()) setError((e) => (e === tr.firstNameNeeded ? null : e)); }} />
               <View style={{ height: 12 }} />
               <NameField label={tr.lastName} value={last} onChange={setLast} />
 

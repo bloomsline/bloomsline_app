@@ -23,7 +23,7 @@ import { useTheme, type ThemeChoice } from '@/src/ui/theme-mode';
 import { useAuth } from '@/src/auth/auth-context';
 import { useOnboarding } from '@/src/onboarding/context';
 import { useLanding, type LandingTab } from '@/src/prefs/app-prefs';
-import { useI18n, type Locale } from '@/src/i18n';
+import { useI18n, fmt, type Locale } from '@/src/i18n';
 import { useConfirm } from '@/src/ui/confirm';
 import { fetchMe, requestAccountDeletion } from '@/src/api/me';
 import { useMeFace } from '@/src/profile/me-face';
@@ -134,6 +134,11 @@ export default function Settings() {
       return;
     }
     track('account_deletion_requested');
+    // Say it happened, and until when it can be undone, before the screen goes:
+    // signing out on its own looked like nothing more than signing out.
+    const when = new Date(res.purgeAfter);
+    const date = Number.isNaN(when.getTime()) ? '' : when.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    notify(t.settings.deletedTitle, fmt(t.settings.deletedBody, { date }));
     signOut(); // every token is already revoked server-side
   };
 
