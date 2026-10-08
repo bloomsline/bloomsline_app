@@ -73,7 +73,7 @@ export default function Documents() {
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-        <EdHeader kicker="Documents" title={tr.title} onBack={() => router.back()} />
+        <EdHeader kicker="Documents" title={tr.title} onBack={() => (router.canGoBack() ? router.back() : router.replace('/home' as never))} />
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {items === null ? (
             failed ? <LoadFailed onRetry={() => { setFailed(false); reload(); }} />

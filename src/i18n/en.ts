@@ -95,6 +95,7 @@ export const en = {
     continueHere: 'Continue in this browser',
     failedTitle: 'This link has\nexpired.',
     failedBody: 'Sign-in links last 15 minutes and work once. Ask for a fresh one and it will be with you in a moment.',
+    serverError: 'We could not sign you in just now. Please try again in a moment.',
     startOver: 'Send me a new link',
     // Shared by every sign-in that finishes in a browser and lands back here:
     // Apple wherever it has no native sheet, and Google on Android.
@@ -129,7 +130,9 @@ export const en = {
     continueOutlook: 'Continue with Outlook',
     orUseEmail: 'or use your email',
     emailPlaceholder: 'you@email.com',
-    legal: 'By continuing you agree to our terms. We’ll never share your email.',
+    legalPre: 'By continuing you agree to our ',
+    legalTerms: 'terms',
+    legalPost: '. We’ll never share your email.',
     couldNotSend: 'Could not send the link. Check your connection and try again.',
     googleNotConfigured: 'Google sign-in isn’t configured yet.',
     outlookNotConfigured: 'Outlook sign-in isn’t configured yet.',
@@ -358,6 +361,8 @@ export const en = {
     support: 'Support',
     contactUs: 'Contact us',
     contactSub: 'Quick response via WhatsApp',
+    helpSub: 'Email hello@bloomsline.com',
+    helpSubject: 'Help with the Bloomsline app',
     help: 'Help & Support',
     language: 'Language',
     languageSub: 'For the app and messages from your practitioner.',

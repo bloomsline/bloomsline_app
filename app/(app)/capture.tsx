@@ -336,7 +336,7 @@ export default function Capture() {
         <Header
           step={step}
           tr={tr}
-          onClose={() => { if (!busy) router.back(); }}
+          onClose={() => { if (busy) return; if (router.canGoBack()) router.back(); else router.replace('/moments' as never); }}
           onBack={() => { if (busy) return; if (step === 'preview') setStep('feel'); else toWrite(); }}
         />
 

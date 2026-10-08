@@ -76,7 +76,7 @@ export default function InviteLanding() {
                   <Text style={{ marginTop: 12, fontSize: 34, fontWeight: '800', color: '#fff', letterSpacing: -1.1, lineHeight: 40 }}>
                     {invite.practitionerName ? fmt(t.invite.invitedBy, { prac: invite.practitionerName }) : t.invite.invited}
                     {'\n'}
-                    <Text style={{ color: '#7FD9C0' }}>{t.invite.bloomsline}.</Text>
+                    <Text style={{ color: '#7FD9C0' }}>{t.invite.bloomsline}</Text>
                   </Text>
                   <Text style={{ marginTop: 14, fontSize: 15, color: 'rgba(255,255,255,0.82)', lineHeight: 23, maxWidth: 300 }}>{t.invite.tagline}</Text>
                 </>

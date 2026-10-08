@@ -37,7 +37,7 @@ const isCachedStatus = (v: string | null): v is CachedStatus =>
 
 /** A sign-in that can be refused for a reason the person should read
  *  (waitlisted, suspended), which only the server knows. */
-export type SignInResult = { ok: true } | { ok: false; message?: string; code?: string };
+export type SignInResult = { ok: true } | { ok: false; message?: string; code?: string; status?: number };
 
 export interface AppleSignInPayload {
   identityToken: string;
@@ -237,7 +237,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // The server's short code (`expired`, `waitlisted`, `private_relay`) is a
       // category, not a person. The message is NOT sent: it is prose.
       track('sign_in_failed', { method, code: typeof data?.code === 'string' ? data.code : 'unknown' });
-      return { ok: false, message: typeof data?.error === 'string' ? data.error : undefined, code: typeof data?.code === 'string' ? data.code : undefined };
+      return { ok: false, message: typeof data?.error === 'string' ? data.error : undefined, code: typeof data?.code === 'string' ? data.code : undefined, status: res.status };
     }
     track('sign_in_completed', { method });
     await keepNewSession(await res.json());
@@ -268,7 +268,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // an account that is not waiting on a link at all.
       const data = await res.json().catch(() => ({}));
       track('sign_in_failed', { method: 'link', code: typeof data?.code === 'string' ? data.code : 'unknown' });
-      return { ok: false, message: typeof data?.error === 'string' ? data.error : undefined, code: typeof data?.code === 'string' ? data.code : undefined };
+      return { ok: false, message: typeof data?.error === 'string' ? data.error : undefined, code: typeof data?.code === 'string' ? data.code : undefined, status: res.status };
     }
     await keepNewSession(await res.json());
     track('sign_in_completed', { method: 'link' });

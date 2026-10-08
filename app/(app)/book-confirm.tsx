@@ -188,7 +188,7 @@ export default function BookConfirm() {
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-        <EdHeader kicker={kicker} title={tr.confirmTitle} source={ONBOARDING_IMAGES.final} onBack={() => router.back()} />
+        <EdHeader kicker={kicker} title={tr.confirmTitle} source={ONBOARDING_IMAGES.final} onBack={() => (router.canGoBack() ? router.back() : router.replace('/book' as never))} />
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {/* Summary */}
           <EdCard style={{ padding: 24, alignItems: 'center' }}>

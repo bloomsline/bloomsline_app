@@ -82,9 +82,12 @@ export default function AboutYou() {
         <SafeAreaView edges={['top']} style={{ flex: 1 }}>
           <View style={{ flex: 1 }}>
             <View style={{ paddingHorizontal: 24, paddingTop: 12 }}>
+              {/* Only when there is a screen behind it: signed in, nothing is, and the arrow did nothing. */}
+              {router.canGoBack() && (
               <Pressable onPress={() => router.back()} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
-                <ChevronLeft size={18} color="#fff" strokeWidth={2} />
-              </Pressable>
+                  <ChevronLeft size={18} color="#fff" strokeWidth={2} />
+                </Pressable>
+              )}
             </View>
 
             <View style={{ flex: 1 }} />

@@ -15,7 +15,7 @@
 // a practitioner's carries other people's records, and ending it is a
 // conversation, not a button.
 import { useEffect, useState } from 'react';
-import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Linking, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MessageCircle, MessageCircleQuestionMark, LogOut, ChevronRight, Languages, Palette, ShieldCheck, FileText, Database, Lock, ChartNoAxesColumn } from 'lucide-react-native';
 import { notify } from '@/src/ui/alert';
@@ -109,7 +109,12 @@ export default function PractitionerSettings() {
           <Kicker color={TT.faint} style={{ marginBottom: 10 }}>{t.settings.support}</Kicker>
           <EdCard style={{ padding: 0, overflow: 'hidden', marginBottom: 24 }}>
             <Row Icon={MessageCircle} title={t.settings.contactUs} value={t.settings.contactSub} onPress={openContact} divider />
-            <Row Icon={MessageCircleQuestionMark} title={t.settings.help} onPress={() => notify(t.common.comingSoon)} />
+            <Row Icon={MessageCircleQuestionMark} title={t.settings.help} value={t.settings.helpSub} onPress={() => {
+              // As the patient app: email, never "Coming soon".
+              const url = `mailto:hello@bloomsline.com?subject=${encodeURIComponent(t.settings.helpSubject)}`;
+              if (Platform.OS === 'web') globalThis.open?.(url, '_blank');
+              else Linking.openURL(url).catch(() => notify('hello@bloomsline.com'));
+            }} />
           </EdCard>
 
           {/* The same promises the patient can read. A practitioner is the one

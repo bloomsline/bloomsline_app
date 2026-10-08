@@ -61,7 +61,14 @@ export default function AuthLink() {
       router.replace('/');
       return;
     }
-    setReason(r.ok ? null : signInMessage(r, t, t.signUp.appleFailed));
+    // A refusal with a reason (waitlisted, suspended…) is translated from its
+    // code. Without one, a link refused is an expired or used link, and this
+    // screen says so in the reader's language: the server's English sentence
+    // used to sit under a French title.
+    // An expired or used link is a 400/401 with no code: the title and body
+    // already say that. A server error or a rate limit is not an expired
+    // link, and saying so sent people for a new link that would fail the same way.
+    setReason(r.ok ? null : r.code ? signInMessage(r, t, t.signUp.appleFailed) : r.status === 400 || r.status === 401 ? null : t.authLink.serverError);
     setState('failed');
   }, [raw, signInWithLink, t]);
 
@@ -122,7 +129,8 @@ export default function AuthLink() {
         <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
           <View style={{ flex: 1, justifyContent: 'flex-end', paddingHorizontal: 28, paddingBottom: 30 }}>
             <RiseIn>
-              <MonoKicker color="rgba(255,255,255,0.6)" style={{ marginBottom: 14 }}>{T.kicker}</MonoKicker>
+              {/* "Signing you in" is not true of a link that failed. */}
+              {state !== 'failed' && <MonoKicker color="rgba(255,255,255,0.6)" style={{ marginBottom: 14 }}>{T.kicker}</MonoKicker>}
               <Text style={{ fontSize: 30, fontWeight: '800', color: '#fff', letterSpacing: -1.1, lineHeight: 34 }}>
                 {state === 'failed' ? (reason ? T.blockedTitle : T.failedTitle) : T.title}
               </Text>

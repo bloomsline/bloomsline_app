@@ -1,5 +1,6 @@
 // c8 — From your practitioner: assigned resources & exercises. Wired to GET
 // /api/mobile/care/todo (real assignments). Demo items under FORCE_CARE_HUB.
+import { frElide } from '@/src/i18n/elide';
 import { useFeatureGuard } from '@/src/care/use-feature-guard';
 import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from 'react-native';
@@ -29,7 +30,7 @@ const T = {
   },
   fr: {
     defaultPractitioner: 'votre praticien',
-    titleFrom: 'De la part de {name}',
+    titleFrom: 'De la part {deName}',
     subtitle: 'Faites-les quand cela vous convient.',
     emptyTitle: 'Rien de partagé pour le moment',
     emptyBody: 'Tout ce que {name} partage avec vous apparaîtra ici.',
@@ -77,7 +78,7 @@ export default function FromPractitioner() {
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-        <EdHeader kicker={first} title={fmt(tr.titleFrom, { name: first })} subtitle={tr.subtitle} onBack={() => (router.canGoBack() ? router.back() : router.navigate('/home' as never))} />
+        <EdHeader kicker={first} title={fmt(tr.titleFrom, { name: first, deName: frElide('de', first) })} subtitle={tr.subtitle} onBack={() => (router.canGoBack() ? router.back() : router.navigate('/home' as never))} />
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {items === null ? (
             failed ? <LoadFailed onRetry={() => { setFailed(false); setAttempt((a) => a + 1); }} /> : (

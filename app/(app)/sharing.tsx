@@ -106,7 +106,7 @@ export default function Sharing() {
   return (
     <View style={{ flex: 1, backgroundColor: TT.bg }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-        <EdHeader kicker={tr.kicker} title={first ? fmt(pracNames.length > 1 ? tr.titleCanSeeMany : tr.titleCanSee, { name: first }) : tr.titleGeneric} onBack={() => router.back()} />
+        <EdHeader kicker={tr.kicker} title={first ? fmt(pracNames.length > 1 ? tr.titleCanSeeMany : tr.titleCanSee, { name: first }) : tr.titleGeneric} onBack={() => (router.canGoBack() ? router.back() : router.replace('/settings' as never))} />
         <FadeIn style={{ paddingHorizontal: 22, paddingTop: 20 }}>
           {items === null ? (
             failed ? <LoadFailed onRetry={() => { setFailed(false); setAttempt((a) => a + 1); }} />

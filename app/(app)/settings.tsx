@@ -11,6 +11,7 @@
 // Order is deliberate: language first (the setting most likely to be wrong for
 // someone who has just installed the app, and the one that changes every other
 // word on the page), then appearance, then the rest.
+import { openPublicPage } from '@/src/ui/open-public';
 import { useEffect, useState } from 'react';
 import { Image, Linking, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -96,16 +97,20 @@ export default function Settings() {
    * thing worse than a policy nobody reads is two versions of it that disagree
    * — so the app links to the source rather than restating it.
    */
-  const openPublic = (slug: string) => {
-    const url = `https://www.bloomsline.com${locale === 'fr' ? '/fr' : ''}/${slug}`;
-    if (Platform.OS === 'web') globalThis.open?.(url, '_blank');
-    else Linking.openURL(url).catch(() => {});
-  };
+  const openPublic = (slug: Parameters<typeof openPublicPage>[0]) => openPublicPage(slug, locale);
 
   const contact = () => {
     const url = 'https://wa.me/33671482004?text=' + encodeURIComponent('Hi Bloomsline 👋');
     if (Platform.OS === 'web') globalThis.open?.(url, '_blank');
     else Linking.openURL(url).catch(() => {});
+  };
+
+  // Help by email, to the address the public site gives. It answered "Coming
+  // soon", which App Review reads as an unfinished app.
+  const help = () => {
+    const url = `mailto:hello@bloomsline.com?subject=${encodeURIComponent(t.settings.helpSubject)}`;
+    if (Platform.OS === 'web') globalThis.open?.(url, '_blank');
+    else Linking.openURL(url).catch(() => notify('hello@bloomsline.com'));
   };
 
   const doSignOut = async () => {
@@ -191,7 +196,7 @@ export default function Settings() {
           <Kicker color={TT.faint} style={{ marginBottom: 10 }}>{t.settings.support}</Kicker>
           <EdCard style={{ padding: 0, overflow: 'hidden', marginBottom: 24 }}>
             <Row Icon={MessageCircle} title={t.settings.contactUs} value={t.settings.contactSub} onPress={contact} divider />
-            <Row Icon={MessageCircleQuestionMark} title={t.settings.help} onPress={() => notify(t.common.comingSoon)} />
+            <Row Icon={MessageCircleQuestionMark} title={t.settings.help} value={t.settings.helpSub} onPress={help} />
           </EdCard>
 
           {/* Where the promises live. A patient consented to these during

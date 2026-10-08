@@ -6,6 +6,7 @@
 // "next session" block and, much further down, a separate "Upcoming" list — so the
 // next two appointments were nowhere near each other. They are one horizontal
 // strip now: "Next session", then "Then", then the rest.
+import { frElide } from '@/src/i18n/elide';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, ScrollView, Text, TouchableOpacity, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -274,7 +275,7 @@ export default function MyCare() {
               {/* Whose care this is, when it is a child's (guardian plan, phase 6). */}
               {shape === 'guardian' && selectedProfile?.childFirstName ? (
                 <Text style={{ marginHorizontal: 22, marginTop: 14, fontSize: 13.5, fontWeight: '600', color: TT.inkSoft }}>
-                  {fmt(t.family.guardianBanner, { child: selectedProfile.childFirstName })}
+                  {fmt(t.family.guardianBanner, { child: selectedProfile.childFirstName, deChild: frElide('de', selectedProfile.childFirstName ?? '') })}
                 </Text>
               ) : null}
 
@@ -332,7 +333,7 @@ export default function MyCare() {
                     {/* Attribution kept deliberately: "from {name}" tells a patient WHO
                         asked, which the board's plain "My resources" drops. */}
                     <SectionRule
-                      label={fmt(t.care.todoFrom, { name: firstNameOf(pracName) })}
+                      label={fmt(t.care.todoFrom, { name: firstNameOf(pracName), deName: frElide('de', firstNameOf(pracName)) })}
                       action={`${t.common.seeAll} (${todoItems.length})`}
                       onAction={() => router.navigate('/from-practitioner' as never)}
                     />

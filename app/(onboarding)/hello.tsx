@@ -61,7 +61,7 @@ export default function Hello() {
                   <Text style={{ fontSize: 12, fontWeight: '800', color: '#fff' }}>{prac.charAt(0).toUpperCase() || 'M'}</Text>
                 </View>
                 <Text style={{ fontSize: 13, fontWeight: '700', color: '#fff' }} numberOfLines={1}>
-                  {fmt(T.chip, { prac })}
+                  {fmt(T.chip, { prac, dePrac: frElide('de', prac ?? '') })}
                 </Text>
               </View>
 
