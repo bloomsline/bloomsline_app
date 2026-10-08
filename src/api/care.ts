@@ -193,6 +193,59 @@ export async function fetchDocumentUrl(id: string): Promise<string | null> {
   }
 }
 
+export interface DocumentBlock { id?: string; type: 'heading' | 'paragraph' | 'list' | 'divider'; text?: string; items?: string[] }
+
+/** One document to read and sign in the app (GET /api/mobile/care/documents/[id]). */
+export interface DocumentToSign {
+  id: string;
+  title: string;
+  signed: boolean;
+  signedAt: string | null;
+  /** Past its signing window: it can be read, not signed. */
+  expired: boolean;
+  /** The practitioner's text, or null for an uploaded PDF (then `pdfUrl`). */
+  blocks: DocumentBlock[] | null;
+  pdfUrl: string | null;
+  allowGuardian: boolean;
+  /** A minor's document: the guardian signs it, as guardian. */
+  guardianSigns: boolean;
+  defaultName: string;
+  practitionerName: string | null;
+  practitionerSignatureUrl: string | null;
+}
+
+/** `'gone'` on 404 (not theirs, or removed), null when it could not be reached. */
+export async function fetchDocument(id: string): Promise<DocumentToSign | 'gone' | null> {
+  try {
+    const res = await apiFetch(`/api/mobile/care/documents/${encodeURIComponent(id)}`);
+    if (res.status === 404) return 'gone';
+    if (!res.ok) return null;
+    return (await res.json()) as DocumentToSign;
+  } catch {
+    return null;
+  }
+}
+
+export interface SignatureStrokes { width: number; height: number; strokes: [number, number][][] }
+
+/** Sign in the app. The server draws the strokes into the signature image, so
+ *  no native drawing module is needed. `error` is already in the patient's language. */
+export async function signDocument(id: string, body: { signerName: string; capacity: 'self' | 'guardian'; signature: SignatureStrokes }): Promise<
+  { ok: true } | { ok: false; reason: 'signed' | 'expired' | 'name' | 'signature' | 'gone' | 'offline' | 'failed'; error?: string }
+> {
+  try {
+    const res = await apiFetch(`/api/mobile/care/documents/${encodeURIComponent(id)}/sign`, { method: 'POST', body: JSON.stringify(body) });
+    if (res.ok) return { ok: true };
+    const data = (await res.json().catch(() => null)) as { error?: string; reason?: string } | null;
+    const reason = res.status === 404 ? 'gone'
+      : data?.reason === 'signed' || data?.reason === 'expired' || data?.reason === 'name' || data?.reason === 'signature' ? data.reason
+      : 'failed';
+    return { ok: false, reason, error: data?.error };
+  } catch {
+    return { ok: false, reason: 'offline' };
+  }
+}
+
 export interface SharedItem {
   id: string;
   /** Which endpoint stops sharing it. Older servers list moments only and do

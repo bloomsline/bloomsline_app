@@ -1,6 +1,6 @@
-// Documents & forms — the patient's documents with sign status. Wired to GET
-// /api/mobile/care/documents. Signing still happens on the web token link, so
-// tapping a PENDING doc explains that; tapping a SIGNED one opens it to read.
+// Documents & forms: the patient's documents with sign status. Wired to GET
+// /api/mobile/care/documents. A PENDING document opens in the app to read and
+// sign (document.tsx); a SIGNED one opens the signed copy to read.
 //
 // Reading one back used to be impossible. The row said "Signed 27 September"
 // and did nothing when pressed, so a patient could see that they had consented
@@ -26,7 +26,6 @@ const T = {
     title: 'Documents & forms',
     emptyTitle: 'No documents yet',
     emptyBody: 'Forms your practitioner sends will appear here.',
-    signAlert: 'Open this document from the link your practitioner sent to sign it.',
     openFailed: 'That document could not be opened. Try again in a moment.',
     signedOn: 'Signed {date}',
     awaiting: 'Awaiting your signature',
@@ -37,7 +36,6 @@ const T = {
     title: 'Documents et formulaires',
     emptyTitle: 'Aucun document pour le moment',
     emptyBody: 'Les formulaires envoyés par votre praticien apparaîtront ici.',
-    signAlert: 'Ouvrez ce document depuis le lien que votre praticien vous a envoyé pour le signer.',
     openFailed: 'Ce document n’a pas pu être ouvert. Réessayez dans un instant.',
     signedOn: 'Signé le {date}',
     awaiting: 'En attente de votre signature',
@@ -96,7 +94,7 @@ export default function Documents() {
                   // label for it was removed on both sides.
                   disabled={opening !== null}
                   onPress={() => {
-                    if (!d.signed) { notify(tr.signAlert); return; }
+                    if (!d.signed) { router.push({ pathname: '/document', params: { id: d.id } } as never); return; }
                     if (opening) return;
                     setOpening(d.id);
                     void fetchDocumentUrl(d.id)

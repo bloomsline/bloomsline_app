@@ -287,6 +287,11 @@ export const onMedia = (alpha: number): string => `rgba(255,255,255,${alpha})`;
  *  against the page — a themed knob vanishes into one track or the other. */
 export const KNOB = '#FFFFFF';
 
+/** Signing surfaces: paper-white with dark ink in BOTH themes, because what is
+ *  drawn there lands on a PDF (the signature pad, a counter-signature shown
+ *  back). Following the theme would show white ink on a dark pad that prints dark on white. */
+export const PAPER = { ground: '#FFFFFF', ink: '#1A1A1A', edge: '#D8D6CE', rule: '#E6E4DC', hint: '#9A988F', muted: '#8C8A82' } as const;
+
 export const RECORD = {
   dot: '#DC2626',
   ink: '#FFFFFF',
