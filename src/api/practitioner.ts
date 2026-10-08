@@ -650,6 +650,8 @@ export interface SubmissionDetail extends SubmissionSummary {
    *  send only the first, in `mediaUrls`. */
   fileUrls?: Record<string, string[]>;
   practitionerNote: string | null;
+  /** submitted · reviewed · draft (handed back, the patient is redoing it). Older servers omit it. */
+  status?: string;
   /** The note was written before the answers shown (a redo or a resend). */
   noteOnEarlierAnswers?: boolean;
   noteWrittenAt?: string | null;
@@ -665,6 +667,21 @@ export async function fetchSubmission(id: string): Promise<SubmissionDetail | 'g
     return (await res.json()) as SubmissionDetail;
   } catch {
     return null;
+  }
+}
+
+/** Reply and mark reviewed, or hand it back to redo. The web's own actions on
+ *  the server, so the patient's notice and the audit are the same. */
+export async function actOnSubmission(id: string, action: 'review' | 'redo', note: string): Promise<{ ok: true } | { ok: false; reason: 'gone' | 'handed_back' | 'offline' | 'failed'; error?: string }> {
+  try {
+    const res = await apiFetch(`/api/mobile/practitioner/submissions/${id}`, { method: 'POST', body: JSON.stringify({ action, note }) });
+    if (res.ok) return { ok: true };
+    if (res.status === 404) return { ok: false, reason: 'gone' };
+    if (res.status === 409) return { ok: false, reason: 'handed_back' };
+    const body = await res.json().catch(() => null);
+    return { ok: false, reason: 'failed', error: typeof body?.error === 'string' ? body.error : undefined };
+  } catch {
+    return { ok: false, reason: 'offline' };
   }
 }
 
