@@ -45,9 +45,14 @@ export const fr: Dict = {
     haveAccount: 'J’ai déjà un compte',
   },
   notices: {
-    title: 'Nouveau',
-    clearAll: 'Tout effacer',
-    dismissA11y: 'Effacer cette notification',
+    title: 'Notifications',
+    new: 'Nouveau',
+    earlier: 'Plus tôt',
+    markAll: 'Tout marquer comme lu',
+    empty: 'Rien de nouveau',
+    emptyBody: 'Ce que votre praticien vous envoie apparaîtra ici.',
+    bellA11y: 'Notifications',
+    bellA11yCount: 'Notifications, {n} nouvelles',
   },
   family: {
     kicker: 'Invitation',
